@@ -10,7 +10,11 @@ PRD version 2.0 supersedes the earlier single-app assumption. The target V1 arch
 
 ## Current implementation state
 
-M0 established repository-wide tooling and a temporary root-level verification shell so the baseline could be validated quickly. That root scaffold is not the intended long-term production layout and should be treated as transitional.
+M1 established the actual workspace boundaries:
+
+- `apps/web` and `apps/api` now exist as minimal package-resolution stubs
+- `packages/*` now hold the first shared ownership boundaries
+- the old root `src/` shell still exists only as transitional verification code
 
 ## Target project boundaries
 
@@ -24,6 +28,16 @@ M0 established repository-wide tooling and a temporary root-level verification s
 - `packages/eslint-config`: shared lint rules
 - `packages/tsconfig`: shared TypeScript base configs
 
+## Current shared-package intent
+
+- `packages/types`: shared response and contract primitives used by the root shell and both app stubs
+- `packages/validation`: shared Zod-based env validation used across the workspace
+- `packages/domain`: framework-agnostic domain placeholder boundary for later financial logic
+- `packages/database`: shared database ownership boundary for future schema and access code
+- `packages/ui`: frontend-oriented shared package boundary for reusable UI primitives
+- `packages/eslint-config`: reusable lint config variants for root, packages, and stubs
+- `packages/tsconfig`: reusable TypeScript base configs for root, packages, web, and api
+
 ## Architectural rules
 
 - `specs.md` is authoritative when code and older docs disagree
@@ -35,4 +49,4 @@ M0 established repository-wide tooling and a temporary root-level verification s
 
 ## Transition note
 
-The next architectural step is M1: establish the actual monorepo shape and shared packages. M2 and M3 should then migrate the temporary root verification scaffold into `apps/web` and create the NestJS backend in `apps/api`.
+The next architectural step is M2: replace the `apps/web` stub with the real Next.js frontend scaffold. M3 should then replace the `apps/api` stub with the real NestJS backend scaffold. The root shell remains temporary until those milestones absorb or supersede it.

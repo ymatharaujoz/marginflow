@@ -1,0 +1,23 @@
+{
+  "name": "@marginflow/validation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts"
+  },
+  "dependencies": {
+    "zod": "^4.1.12"
+  },
+  "scripts": {
+    "build": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node -e \"console.log('No tests in @marginflow/validation yet.')\""
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0",
+    "typescript": "^5.9.3"
+  }
+}

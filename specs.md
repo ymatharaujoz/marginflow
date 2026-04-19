@@ -856,7 +856,7 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 
 ### 25.2 Overall Progress Snapshot
 - [x] M0. Repository Foundation
-- [ ] M1. Monorepo and Shared Packages
+- [x] M1. Monorepo and Shared Packages
 - [ ] M2. Frontend Web App Scaffold
 - [ ] M3. Backend API Scaffold on Render
 - [ ] M4. Database and Schema
@@ -900,7 +900,7 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 
 ### 26.1 Milestone Sequence
 - [x] **M0** Repository Foundation
-- [ ] **M1** Monorepo and Shared Packages
+- [x] **M1** Monorepo and Shared Packages
 - [ ] **M2** Frontend Web App Scaffold
 - [ ] **M3** Backend API Scaffold on Render
 - [ ] **M4** Database and Schema
@@ -990,13 +990,13 @@ Establish a strict TypeScript, ESLint, CI, and repository baseline.
 
 ---
 
-## [ ] M1. Monorepo and Shared Packages
+## [x] M1. Monorepo and Shared Packages
 
 ### Status
 - [ ] Not started
 - [ ] In progress
 - [ ] Blocked
-- [ ] Completed
+- [x] Completed
 
 ### Objective
 Create the monorepo shape and shared packages used by both frontend and backend.
@@ -1007,33 +1007,33 @@ Create the monorepo shape and shared packages used by both frontend and backend.
 ### Task Groups
 
 #### 1.1 Workspace Setup
-- [ ] Configure pnpm workspaces
-- [ ] Configure Turborepo
-- [ ] Add root-level task pipeline
-- [ ] Document package boundaries
+- [x] Configure pnpm workspaces
+- [x] Configure Turborepo
+- [x] Add root-level task pipeline
+- [x] Document package boundaries
 
 #### 1.2 Shared Packages
-- [ ] Create `packages/types`
-- [ ] Create `packages/database`
-- [ ] Create `packages/domain`
-- [ ] Create `packages/validation`
-- [ ] Create `packages/ui`
-- [ ] Create `packages/eslint-config`
-- [ ] Create `packages/tsconfig`
+- [x] Create `packages/types`
+- [x] Create `packages/database`
+- [x] Create `packages/domain`
+- [x] Create `packages/validation`
+- [x] Create `packages/ui`
+- [x] Create `packages/eslint-config`
+- [x] Create `packages/tsconfig`
 
 #### 1.3 Shared Package Validation
-- [ ] Verify package imports from both apps
-- [ ] Verify build and type resolution across apps
-- [ ] Document package ownership rules
+- [x] Verify package imports from both apps
+- [x] Verify build and type resolution across apps
+- [x] Document package ownership rules
 
 ### Exit Criteria
-- [ ] Monorepo workspace resolves correctly
-- [ ] Shared packages build or typecheck successfully
-- [ ] Both apps can consume shared packages
-- [ ] Repository structure is documented
+- [x] Monorepo workspace resolves correctly
+- [x] Shared packages build or typecheck successfully
+- [x] Both apps can consume shared packages
+- [x] Repository structure is documented
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
+- [x] No blockers currently logged
 
 ---
 

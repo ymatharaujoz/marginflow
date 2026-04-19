@@ -1,6 +1,6 @@
 # MarginFlow
 
-MarginFlow is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M0 foundation baseline**: strict TypeScript, ESLint, Prettier, Vitest, environment validation, CI, and project documentation aligned to the latest PRD.
+MarginFlow is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M1 monorepo baseline**: pnpm workspaces, Turborepo orchestration, shared packages, minimal app stubs, and a still-temporary root verification shell carried forward from M0.
 
 ## Target architecture
 
@@ -10,11 +10,13 @@ The current PRD defines a **separate frontend and backend** architecture inside 
 - `apps/api`: NestJS backend deployed on Render
 - `packages/*`: shared TypeScript packages used by both apps
 
-This repository is still in the pre-monorepo foundation phase. The root-level Next.js scaffold that exists today is a temporary M0 verification shell and will be reorganized during M1 and M2.
+This repository now contains the monorepo boundaries required by the PRD. The root-level Next.js scaffold still exists as transitional verification code and will be migrated or replaced during M2 and M3.
 
-## Foundation stack
+## Repository stack
 
-- Next.js App Router for the temporary M0 verification shell
+- pnpm workspaces
+- Turborepo
+- Next.js App Router for the temporary root verification shell
 - React
 - TypeScript with `strict` mode
 - Tailwind CSS v4
@@ -28,12 +30,7 @@ This repository is still in the pre-monorepo foundation phase. The root-level Ne
 
 The repository currently contains:
 
-- root scripts and CI for install, lint, typecheck, test, and build
-- baseline docs under `docs/`
-- a temporary `src/` verification scaffold used to prove the TypeScript and Next.js foundation works
-
-The long-term repository shape from the PRD is:
-
+- root workspace orchestration scripts and CI
 - `apps/web`
 - `apps/api`
 - `packages/types`
@@ -43,30 +40,35 @@ The long-term repository shape from the PRD is:
 - `packages/ui`
 - `packages/eslint-config`
 - `packages/tsconfig`
+- baseline docs under `docs/`
+- a temporary root `src/` verification scaffold retained as migration source material
 
 ## Getting started
 
 1. Enable Corepack if needed: `corepack enable`
 2. Install dependencies: `corepack pnpm install`
 3. Copy `.env.example` to `.env.local` and fill in the values you need
-4. Start the temporary root verification app: `corepack pnpm dev`
+4. Run the workspace pipeline as needed:
+   - `corepack pnpm dev` for workspace stub development commands
+   - `corepack pnpm dev:root-shell` to run the temporary root Next.js verification app
 
-The local app runs at `http://localhost:3000`.
+The temporary root app runs at `http://localhost:3000` when using `dev:root-shell`.
 
 ## Commands
 
-- `corepack pnpm dev` starts the local development server
-- `corepack pnpm build` creates a production build
+- `corepack pnpm dev` runs workspace-level dev commands
+- `corepack pnpm dev:root-shell` starts the temporary root verification app
+- `corepack pnpm build` runs the workspace build pipeline and the root shell build
 - `corepack pnpm start` starts the production server
-- `corepack pnpm lint` runs ESLint
-- `corepack pnpm typecheck` runs TypeScript without emitting files
-- `corepack pnpm test` runs the Vitest suite
+- `corepack pnpm lint` runs workspace lint plus root lint
+- `corepack pnpm typecheck` runs workspace typechecks plus root typecheck
+- `corepack pnpm test` runs workspace test hooks plus the root Vitest suite
 - `corepack pnpm format` formats the repository with Prettier
 - `corepack pnpm format:check` checks formatting without writing
 
 ## Environment strategy
 
-Runtime environment parsing lives in `src/lib/validation/env.ts`.
+Runtime environment parsing is now owned by `packages/validation`, with the root shell re-exporting the shared validator through `src/lib/validation/env.ts`.
 
 - `NEXT_PUBLIC_*` variables are treated as client-visible
 - secrets stay server-only
@@ -77,8 +79,8 @@ Runtime environment parsing lives in `src/lib/validation/env.ts`.
 - Treat the latest `specs.md` as the source of truth over earlier implementation assumptions
 - Keep framework entrypoints thin
 - Avoid placing durable backend business logic inside Next.js route handlers
-- Preserve reusable TypeScript modules so they can move into `packages/*` during M1
-- Treat the root `src/` directory as transitional until the monorepo split is implemented
+- Keep reusable TypeScript modules in `packages/*` where they can be consumed by both apps
+- Treat the root `src/` directory as transitional until the real frontend and backend scaffolds replace it
 
 ## Branching and PR conventions
 
@@ -89,4 +91,4 @@ Runtime environment parsing lives in `src/lib/validation/env.ts`.
 
 ## CI
 
-GitHub Actions runs install, lint, typecheck, test, and build for every push and pull request through `.github/workflows/ci.yml`. During M1, the root pipeline should evolve into workspace-aware commands rather than single-app commands.
+GitHub Actions runs install, lint, typecheck, test, and build for every push and pull request through `.github/workflows/ci.yml`, using the workspace-aware root scripts introduced in M1.

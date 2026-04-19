@@ -1,0 +1,17 @@
+{
+  "name": "@marginflow/eslint-config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": "./base.mjs",
+    "./next": "./next.mjs"
+  },
+  "scripts": {
+    "build": "node -e \"console.log('No build step required for @marginflow/eslint-config.')\"",
+    "lint": "node -e \"console.log('No lint step required for @marginflow/eslint-config.')\"",
+    "typecheck": "node -e \"console.log('No typecheck step required for @marginflow/eslint-config.')\"",
+    "test": "node -e \"console.log('No tests in @marginflow/eslint-config yet.')\""
+  },
+  "devDependencies": {}
+}

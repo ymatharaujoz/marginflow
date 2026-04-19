@@ -1,3 +1,1 @@
-export const domainModule = {
-  name: "domain",
-};
+export { domainModule } from "@marginflow/domain";

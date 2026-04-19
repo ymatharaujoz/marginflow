@@ -1,0 +1,22 @@
+{
+  "name": "@marginflow/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('apps/web is a minimal M1 stub. The real Next.js scaffold arrives in M2.')\"",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node -e \"console.log('No tests in apps/web stub yet.')\""
+  },
+  "dependencies": {
+    "@marginflow/types": "workspace:*",
+    "@marginflow/ui": "workspace:*",
+    "@marginflow/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0",
+    "typescript": "^5.9.3"
+  }
+}

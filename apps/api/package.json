@@ -1,0 +1,23 @@
+{
+  "name": "@marginflow/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('apps/api is a minimal M1 stub. The real NestJS scaffold arrives in M3.')\"",
+    "build": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node -e \"console.log('No tests in apps/api stub yet.')\""
+  },
+  "dependencies": {
+    "@marginflow/database": "workspace:*",
+    "@marginflow/domain": "workspace:*",
+    "@marginflow/types": "workspace:*",
+    "@marginflow/validation": "workspace:*"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.0",
+    "typescript": "^5.9.3"
+  }
+}
