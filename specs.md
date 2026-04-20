@@ -858,7 +858,7 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] M0. Repository Foundation
 - [x] M1. Monorepo and Shared Packages
 - [x] M2. Frontend Web App Scaffold
-- [ ] M3. Backend API Scaffold on Render
+- [x] M3. Backend API Scaffold on Render
 - [ ] M4. Database and Schema
 - [ ] M5. Authentication and Access Control
 - [ ] M6. Billing and Entitlements
@@ -901,8 +901,8 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 ### 26.1 Milestone Sequence
 - [x] **M0** Repository Foundation
 - [x] **M1** Monorepo and Shared Packages
-- [ ] **M2** Frontend Web App Scaffold
-- [ ] **M3** Backend API Scaffold on Render
+- [x] **M2** Frontend Web App Scaffold
+- [x] **M3** Backend API Scaffold on Render
 - [ ] **M4** Database and Schema
 - [ ] **M5** Authentication and Access Control
 - [ ] **M6** Billing and Entitlements
@@ -1037,7 +1037,7 @@ Create the monorepo shape and shared packages used by both frontend and backend.
 
 ---
 
-## [ ] M2. Frontend Web App Scaffold
+## [x] M2. Frontend Web App Scaffold
 
 ### Status
 - [ ] Not started
@@ -1078,17 +1078,16 @@ Create the Next.js frontend with public and private route boundaries.
 
 ### Blockers / Notes
 - [x] No blockers currently logged
-- Implementation work and verification are complete; awaiting user confirmation before marking milestone complete.
 
 ---
 
-## [ ] M3. Backend API Scaffold on Render
+## [x] M3. Backend API Scaffold on Render
 
 ### Status
 - [ ] Not started
 - [ ] In progress
 - [ ] Blocked
-- [ ] Completed
+- [x] Completed
 
 ### Objective
 Create the NestJS backend and prepare it for deployment on Render.
@@ -1099,31 +1098,31 @@ Create the NestJS backend and prepare it for deployment on Render.
 ### Task Groups
 
 #### 3.1 API Bootstrap
-- [ ] Initialize NestJS app in `apps/api`
-- [ ] Choose and configure HTTP adapter
-- [ ] Add health endpoint
-- [ ] Add module skeleton
+- [x] Initialize NestJS app in `apps/api`
+- [x] Choose and configure HTTP adapter
+- [x] Add health endpoint
+- [x] Add module skeleton
 
 #### 3.2 API Architecture
-- [ ] Create `common`, `modules`, `infra`, and `integrations` structure
-- [ ] Add global validation strategy
-- [ ] Add error handling and exception filters
-- [ ] Add CORS and cookie/session strategy for web-to-api communication
+- [x] Create `common`, `modules`, `infra`, and `integrations` structure
+- [x] Add global validation strategy
+- [x] Add error handling and exception filters
+- [x] Add CORS and cookie/session strategy for web-to-api communication
 
 #### 3.3 Render Readiness
-- [ ] Add Render build and start commands
-- [ ] Add environment variable documentation for Render
-- [ ] Add health check path
-- [ ] Verify production boot flow locally
+- [x] Add Render build and start commands
+- [x] Add environment variable documentation for Render
+- [x] Add health check path
+- [x] Verify production boot flow locally
 
 ### Exit Criteria
-- [ ] Backend runs locally
-- [ ] Health endpoint works
-- [ ] Base modules compile
-- [ ] Render deploy instructions are documented
+- [x] Backend runs locally
+- [x] Health endpoint works
+- [x] Base modules compile
+- [x] Render deploy instructions are documented
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
+- [x] No blockers currently logged
 
 ---
 

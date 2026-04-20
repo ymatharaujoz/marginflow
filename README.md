@@ -1,6 +1,6 @@
 # MarginFlow
 
-MarginFlow is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M2 frontend scaffold**: pnpm workspaces, Turborepo orchestration, a real Next.js web app in `apps/web`, shared packages, and a still-minimal backend stub in `apps/api`.
+MarginFlow is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M3 app scaffold baseline**: pnpm workspaces, Turborepo orchestration, a real Next.js web app in `apps/web`, and a real NestJS Fastify API scaffold in `apps/api`.
 
 ## Target architecture
 
@@ -32,7 +32,7 @@ The repository currently contains:
 
 - root workspace orchestration scripts and CI
 - `apps/web` as the active frontend app
-- `apps/api` as the M1 stub for the upcoming NestJS scaffold
+- `apps/api` as the active NestJS backend scaffold
 - `packages/types`
 - `packages/database`
 - `packages/domain`
@@ -50,6 +50,7 @@ The repository currently contains:
 3. Copy `.env.example` to `.env.local` and fill in the values you need
 4. Run the workspace pipeline as needed:
    - `corepack pnpm dev` for workspace development commands
+   - `corepack pnpm dev:api` to run the NestJS API scaffold
    - `corepack pnpm dev:web` to run the Next.js frontend from `apps/web`
 
 The frontend usually runs at `http://localhost:3000`, but Next.js will move to another free port such as `3001` when needed.
@@ -57,8 +58,10 @@ The frontend usually runs at `http://localhost:3000`, but Next.js will move to a
 ## Commands
 
 - `corepack pnpm dev` runs workspace-level dev commands
+- `corepack pnpm dev:api` starts the API app
 - `corepack pnpm dev:web` starts the web frontend
 - `corepack pnpm build` runs the workspace build pipeline
+- `corepack pnpm start:api` starts the API app with the Render-style start command
 - `corepack pnpm start` starts the production web server
 - `corepack pnpm lint` runs workspace lint plus root validation lint
 - `corepack pnpm typecheck` runs workspace typechecks plus root validation typecheck
@@ -72,6 +75,7 @@ Runtime environment parsing is owned by `packages/validation`, with `apps/web` c
 
 - `NEXT_PUBLIC_*` variables are treated as client-visible
 - `NEXT_PUBLIC_API_BASE_URL` configures the frontend API base for NestJS communication
+- `WEB_APP_ORIGIN`, `API_HOST`, and `API_PORT` configure the backend bootstrap and browser CORS baseline
 - secrets stay server-only
 - the repo ships `.env.example` as the canonical variable list for local setup
 
@@ -82,6 +86,7 @@ Runtime environment parsing is owned by `packages/validation`, with `apps/web` c
 - Avoid placing durable backend business logic inside Next.js route handlers
 - Keep reusable TypeScript modules in `packages/*` where they can be consumed by both apps
 - Treat `apps/web` as the only active frontend runtime entrypoint
+- Treat `apps/api` as the only active backend HTTP entrypoint
 
 ## Branching and PR conventions
 
@@ -92,4 +97,4 @@ Runtime environment parsing is owned by `packages/validation`, with `apps/web` c
 
 ## CI
 
-GitHub Actions runs install, lint, typecheck, test, and build for every push and pull request through `.github/workflows/ci.yml`, using the workspace-aware root scripts updated through M2.
+GitHub Actions runs install, lint, typecheck, test, and build for every push and pull request through `.github/workflows/ci.yml`, using the workspace-aware root scripts updated through M3.

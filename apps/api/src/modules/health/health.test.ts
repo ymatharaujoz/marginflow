@@ -1,0 +1,51 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { NestFastifyApplication } from "@nestjs/platform-fastify";
+import { buildApp } from "@/app";
+
+describe("health endpoint", () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await buildApp({
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("returns api health payload", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/health",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        corsOrigin: "http://localhost:3000",
+        service: "marginflow-api",
+        status: "ok",
+      }),
+      error: null,
+    });
+  });
+
+  it("allows configured web origin via cors", async () => {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/health",
+      headers: {
+        origin: "http://localhost:3000",
+        "access-control-request-method": "GET",
+      },
+    });
+
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:3000");
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+  });
+});

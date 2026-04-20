@@ -2,11 +2,11 @@
 
 ## Current Focus
 
-- Active milestone: M2
-- Active task: Await user confirmation for M2 completion
-- Next task: Start M3 API bootstrap after confirmation
+- Active milestone: M3
+- Active task: Await user confirmation for M3 completion
+- Next task: Start M4 database foundation after confirmation
 - Blockers: None
-- Last completed checkpoint: M1
+- Last completed checkpoint: M3
 
 ## Checkpoint M0
 
@@ -40,3 +40,14 @@
 - Known issues: protected app layout is intentionally a placeholder until M5; local dev may shift to port 3001 if port 3000 is already in use
 - Next recommended milestone: M3
 - Next recommended task: initialize the NestJS API scaffold in `apps/api` with module skeleton, health endpoint, and Render-ready boot flow
+
+## Checkpoint M3
+
+- Date: 2026-04-20
+- Milestone: M3. Backend API Scaffold on Render
+- Summary of what shipped: replaced the API stub with a real NestJS Fastify scaffold, health module, app bootstrap/config seams, global exception and Zod validation strategy, explicit CORS baseline, local/runtime env parsing, and Render-ready API docs and commands
+- Key files/modules added: `apps/api/src/main.ts`, `apps/api/src/app.ts`, `apps/api/src/app.module.ts`, `apps/api/src/modules/health`, `apps/api/src/common`, `apps/api/README.md`
+- Tests added or updated: `apps/api/src/modules/health/health.test.ts`; verified with `lint`, `typecheck`, `test`, `build`, and `pnpm --filter @marginflow/api start`
+- Known issues: local API start currently fails with `EADDRINUSE` if port `4000` is already occupied; auth, billing, and database wiring are intentionally deferred to later milestones
+- Next recommended milestone: M4
+- Next recommended task: configure shared database package, Drizzle workflow, and first organization-scoped schema baseline

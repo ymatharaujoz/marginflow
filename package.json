@@ -8,8 +8,10 @@
   },
   "scripts": {
     "dev": "corepack pnpm exec turbo run dev --parallel",
+    "dev:api": "corepack pnpm --filter @marginflow/api dev",
     "dev:web": "corepack pnpm --filter @marginflow/web dev",
     "build": "corepack pnpm exec turbo run build",
+    "start:api": "corepack pnpm --filter @marginflow/api start",
     "start": "corepack pnpm --filter @marginflow/web start",
     "lint": "corepack pnpm exec turbo run lint && eslint src vitest.config.ts",
     "typecheck": "corepack pnpm exec turbo run typecheck && tsc --noEmit",

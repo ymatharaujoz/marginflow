@@ -10,11 +10,12 @@ PRD version 2.0 supersedes the earlier single-app assumption. The target V1 arch
 
 ## Current implementation state
 
-M1 established the actual workspace boundaries:
+M3 established both real app shells:
 
-- `apps/web` and `apps/api` now exist as minimal package-resolution stubs
-- `packages/*` now hold the first shared ownership boundaries
-- the old root `src/` shell still exists only as transitional verification code
+- `apps/web` is the active Next.js frontend runtime
+- `apps/api` is the active NestJS Fastify backend runtime
+- `packages/*` hold the first shared ownership boundaries
+- the root `src/` area now exists only for repository-level validation helpers
 
 ## Target project boundaries
 
@@ -49,4 +50,4 @@ M1 established the actual workspace boundaries:
 
 ## Transition note
 
-The next architectural step is M2: replace the `apps/web` stub with the real Next.js frontend scaffold. M3 should then replace the `apps/api` stub with the real NestJS backend scaffold. The root shell remains temporary until those milestones absorb or supersede it.
+The next architectural step is M4: add shared database and schema foundations that both app scaffolds can consume. Authentication, billing, and integrations should build on the existing `apps/api` seam rather than creating new HTTP entrypoints elsewhere.
