@@ -1,3 +1,5 @@
-import { createBaseConfig } from "../../packages/eslint-config/base.mjs";
+import { createRootConfig } from "../../packages/eslint-config/next.mjs";
 
-export default createBaseConfig();
+export default createRootConfig({
+  tsconfigRootDir: import.meta.dirname,
+});

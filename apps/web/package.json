@@ -4,19 +4,32 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node -e \"console.log('apps/web is a minimal M1 stub. The real Next.js scaffold arrives in M2.')\"",
-    "build": "tsc --noEmit -p tsconfig.json",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node -e \"console.log('No tests in apps/web stub yet.')\""
+    "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@marginflow/types": "workspace:*",
     "@marginflow/ui": "workspace:*",
-    "@marginflow/validation": "workspace:*"
+    "@marginflow/validation": "workspace:*",
+    "@tanstack/react-query": "^5.90.5",
+    "next": "16.2.4",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@marginflow/eslint-config": "workspace:*",
+    "@marginflow/tsconfig": "workspace:*",
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^20.19.39",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.0",
-    "typescript": "^5.9.3"
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.7"
   }
 }

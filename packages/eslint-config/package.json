@@ -13,5 +13,7 @@
     "typecheck": "node -e \"console.log('No typecheck step required for @marginflow/eslint-config.')\"",
     "test": "node -e \"console.log('No tests in @marginflow/eslint-config yet.')\""
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "eslint-config-next": "16.2.4"
+  }
 }

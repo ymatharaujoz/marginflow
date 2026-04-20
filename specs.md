@@ -857,7 +857,7 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 ### 25.2 Overall Progress Snapshot
 - [x] M0. Repository Foundation
 - [x] M1. Monorepo and Shared Packages
-- [ ] M2. Frontend Web App Scaffold
+- [x] M2. Frontend Web App Scaffold
 - [ ] M3. Backend API Scaffold on Render
 - [ ] M4. Database and Schema
 - [ ] M5. Authentication and Access Control
@@ -1043,7 +1043,7 @@ Create the monorepo shape and shared packages used by both frontend and backend.
 - [ ] Not started
 - [ ] In progress
 - [ ] Blocked
-- [ ] Completed
+- [x] Completed
 
 ### Objective
 Create the Next.js frontend with public and private route boundaries.
@@ -1054,30 +1054,31 @@ Create the Next.js frontend with public and private route boundaries.
 ### Task Groups
 
 #### 2.1 Web Bootstrap
-- [ ] Initialize Next.js App Router app in `apps/web`
-- [ ] Add Tailwind CSS
-- [ ] Add base UI primitives and design tokens
+- [x] Initialize Next.js App Router app in `apps/web`
+- [x] Add Tailwind CSS
+- [x] Add base UI primitives and design tokens
 
 #### 2.2 Route Structure
-- [ ] Create `(marketing)` route group
-- [ ] Create `(app)` route group
-- [ ] Create base layouts
-- [ ] Create protected app layout placeholder
+- [x] Create `(marketing)` route group
+- [x] Create `(app)` route group
+- [x] Create base layouts
+- [x] Create protected app layout placeholder
 
 #### 2.3 Frontend Conventions
-- [ ] Add API client layer for NestJS communication
-- [ ] Add frontend env configuration
-- [ ] Add error/loading UI conventions
-- [ ] Add TanStack Query baseline where appropriate
+- [x] Add API client layer for NestJS communication
+- [x] Add frontend env configuration
+- [x] Add error/loading UI conventions
+- [x] Add TanStack Query baseline where appropriate
 
 ### Exit Criteria
-- [ ] Frontend runs locally
-- [ ] Marketing and app route groups exist
-- [ ] Shared UI foundation exists
-- [ ] API client layer is established
+- [x] Frontend runs locally
+- [x] Marketing and app route groups exist
+- [x] Shared UI foundation exists
+- [x] API client layer is established
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
+- [x] No blockers currently logged
+- Implementation work and verification are complete; awaiting user confirmation before marking milestone complete.
 
 ---
 

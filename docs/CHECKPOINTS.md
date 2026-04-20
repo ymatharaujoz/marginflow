@@ -3,8 +3,8 @@
 ## Current Focus
 
 - Active milestone: M2
-- Active task: Initialize Next.js App Router app in `apps/web`
-- Next task: Add `(marketing)` and `(app)` route groups
+- Active task: Await user confirmation for M2 completion
+- Next task: Start M3 API bootstrap after confirmation
 - Blockers: None
 - Last completed checkpoint: M1
 
@@ -29,3 +29,14 @@
 - Known issues: the root `src/` verification shell is still transitional and should be migrated or superseded during M2 and M3
 - Next recommended milestone: M2
 - Next recommended task: initialize the real Next.js frontend scaffold inside `apps/web`
+
+## Checkpoint M2
+
+- Date: 2026-04-19
+- Milestone: M2. Frontend Web App Scaffold
+- Summary of what shipped: replaced the temporary root-owned Next.js shell with a real `apps/web` App Router frontend, route-grouped marketing and app placeholders, shared UI primitives, frontend env helpers, a typed API client seam, and TanStack Query provider wiring
+- Key files/modules added: `apps/web/src/app`, `apps/web/src/components/app-providers.tsx`, `apps/web/src/lib/api/client.ts`, `apps/web/src/lib/env.ts`, `packages/ui/src/button.tsx`, `packages/ui/src/card.tsx`, `packages/ui/src/container.tsx`
+- Tests added or updated: `apps/web/src/lib/env.test.ts`, `apps/web/src/lib/api/client.test.ts`, root env validation test updated for `NEXT_PUBLIC_API_BASE_URL`; verified with `lint`, `typecheck`, `test`, `build`, and `pnpm --filter @marginflow/web dev`
+- Known issues: protected app layout is intentionally a placeholder until M5; local dev may shift to port 3001 if port 3000 is already in use
+- Next recommended milestone: M3
+- Next recommended task: initialize the NestJS API scaffold in `apps/api` with module skeleton, health endpoint, and Render-ready boot flow

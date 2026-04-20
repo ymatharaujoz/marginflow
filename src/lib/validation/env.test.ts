@@ -19,6 +19,11 @@ describe("environment validation", () => {
   });
 
   it("rejects missing client variables", () => {
-    expect(() => validateClientEnv({ NEXT_PUBLIC_APP_URL: undefined })).toThrow();
+    expect(() =>
+      validateClientEnv({
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+        NEXT_PUBLIC_API_BASE_URL: undefined,
+      }),
+    ).toThrow();
   });
 });

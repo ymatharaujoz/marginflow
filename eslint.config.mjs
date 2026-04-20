@@ -1,6 +1,5 @@
-import { createRootConfig } from "@marginflow/eslint-config/next";
+import { createBaseConfig } from "@marginflow/eslint-config/base";
 
-export default createRootConfig({
+export default createBaseConfig({
   additionalIgnores: ["apps/**", "packages/**", ".turbo/**"],
-  tsconfigRootDir: import.meta.dirname,
 });

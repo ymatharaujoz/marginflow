@@ -6,6 +6,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "peerDependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
@@ -13,6 +17,8 @@
     "test": "node -e \"console.log('No tests in @marginflow/ui yet.')\""
   },
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "eslint": "^9.39.0",
     "typescript": "^5.9.3"
   }

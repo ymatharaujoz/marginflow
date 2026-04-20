@@ -14,6 +14,7 @@ export const serverEnvSchema = z.object({
 
 export const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
+  NEXT_PUBLIC_API_BASE_URL: z.string().url(),
 });
 
 export function validateServerEnv(input: Record<string, string | undefined>) {
