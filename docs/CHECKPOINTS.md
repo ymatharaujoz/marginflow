@@ -2,11 +2,11 @@
 
 ## Current Focus
 
-- Active milestone: M3
-- Active task: Await user confirmation for M3 completion
-- Next task: Start M4 database foundation after confirmation
+- Active milestone: M5
+- Active task: Install Better Auth and wire database-backed auth foundation in `apps/api`
+- Next task: Define organization membership-aware session model and protected route seam
 - Blockers: None
-- Last completed checkpoint: M3
+- Last completed checkpoint: M4
 
 ## Checkpoint M0
 
@@ -51,3 +51,14 @@
 - Known issues: local API start currently fails with `EADDRINUSE` if port `4000` is already occupied; auth, billing, and database wiring are intentionally deferred to later milestones
 - Next recommended milestone: M4
 - Next recommended task: configure shared database package, Drizzle workflow, and first organization-scoped schema baseline
+
+## Checkpoint M4
+
+- Date: 2026-04-21
+- Milestone: M4. Database and Schema
+- Summary of what shipped: converted `packages/database` into the shared Drizzle/Postgres source of truth with full organization-scoped schema coverage, generated initial SQL migration assets, local seed workflow, and a Nest database provider seam in the API
+- Key files/modules added: `packages/database/src/schema.ts`, `packages/database/drizzle.config.ts`, `packages/database/drizzle/0000_small_dazzler.sql`, `packages/database/src/seed.ts`, `apps/api/src/infra/database/database.module.ts`, `apps/api/src/common/config/api-env.test.ts`
+- Tests added or updated: `packages/database/src/schema.test.ts`, `packages/database/src/drizzle-config.test.ts`, `apps/api/src/common/config/api-env.test.ts`, `apps/api/src/modules/health/health.test.ts`; verified with `lint`, `typecheck`, `test`, `build`, and migration generation
+- Known issues: local `db:migrate` and `db:seed` depend on valid Postgres credentials in `DATABASE_URL`; milestone completion accepted by user despite local auth mismatch during agent verification
+- Next recommended milestone: M5
+- Next recommended task: install Better Auth in `apps/api`, connect it to the new Drizzle schema baseline, and start protected access control wiring

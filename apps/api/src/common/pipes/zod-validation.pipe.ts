@@ -6,9 +6,11 @@ import {
 } from "@nestjs/common";
 import type { ZodType } from "zod";
 
+type NestMetatype = abstract new (...args: never[]) => unknown;
+
 type ZodMetatype = {
   schema?: ZodType;
-} & Function;
+} & NestMetatype;
 
 @Injectable()
 export class ZodValidationPipe implements PipeTransform {

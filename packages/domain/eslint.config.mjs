@@ -1,3 +1,3 @@
 import { createBaseConfig } from "../eslint-config/base.mjs";
 
-export default createBaseConfig();
+export default createBaseConfig({ tsconfigRootDir: import.meta.dirname });

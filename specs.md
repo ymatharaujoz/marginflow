@@ -903,7 +903,7 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] **M1** Monorepo and Shared Packages
 - [x] **M2** Frontend Web App Scaffold
 - [x] **M3** Backend API Scaffold on Render
-- [ ] **M4** Database and Schema
+- [x] **M4** Database and Schema
 - [ ] **M5** Authentication and Access Control
 - [ ] **M6** Billing and Entitlements
 - [ ] **M7** Marketing Site and SEO
@@ -1126,13 +1126,13 @@ Create the NestJS backend and prepare it for deployment on Render.
 
 ---
 
-## [ ] M4. Database and Schema
+## [x] M4. Database and Schema
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [ ] Completed
+  - [ ] Not started
+  - [ ] In progress
+  - [ ] Blocked
+  - [x] Completed
 
 ### Objective
 Set up Supabase Postgres, Drizzle schema, migrations, and shared database access.
@@ -1143,32 +1143,33 @@ Set up Supabase Postgres, Drizzle schema, migrations, and shared database access
 ### Task Groups
 
 #### 4.1 Database Foundation
-- [ ] Configure database package
-- [ ] Configure Drizzle
-- [ ] Add migration workflow
-- [ ] Add environment validation for DB access
+  - [x] Configure database package
+  - [x] Configure Drizzle
+  - [x] Add migration workflow
+  - [x] Add environment validation for DB access
 
 #### 4.2 Initial Schema
-- [ ] Model users and organizations
-- [ ] Model billing tables
-- [ ] Model marketplace connection tables
-- [ ] Model products, costs, and expenses
-- [ ] Model sync history
-- [ ] Model metrics tables
+  - [x] Model users and organizations
+  - [x] Model billing tables
+  - [x] Model marketplace connection tables
+  - [x] Model products, costs, and expenses
+  - [x] Model sync history
+  - [x] Model metrics tables
 
 #### 4.3 Database Quality
-- [ ] Add indexes for organization-scoped access
-- [ ] Add seed or fixture strategy for local development
-- [ ] Document migration and rollback flow
+  - [x] Add indexes for organization-scoped access
+  - [x] Add seed or fixture strategy for local development
+  - [x] Document migration and rollback flow
 
 ### Exit Criteria
-- [ ] Database connection works from backend
-- [ ] Migrations run successfully
-- [ ] Initial schema exists
-- [ ] Local development data strategy exists
+  - [x] Database connection works from backend
+  - [x] Migrations run successfully
+  - [x] Initial schema exists
+  - [x] Local development data strategy exists
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
+  - [x] No blockers currently logged
+  - [x] User accepted milestone completion after implementation landed and migration generation plus repo verification passed
 
 ---
 

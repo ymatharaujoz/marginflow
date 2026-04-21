@@ -9,6 +9,7 @@ describe("health endpoint", () => {
     app = await buildApp({
       API_HOST: "127.0.0.1",
       API_PORT: 4000,
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
     });

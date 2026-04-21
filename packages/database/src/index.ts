@@ -1,4 +1,34 @@
-export const databasePackage = {
-  name: "database",
-  owner: "backend",
-} as const;
+import * as schema from "./schema";
+
+export { createDatabaseClient, type DatabaseClient } from "./client";
+export { createPostgresConnection } from "./connection";
+export * from "./schema";
+
+export const dbSchema = schema;
+
+export type User = typeof schema.users.$inferSelect;
+export type NewUser = typeof schema.users.$inferInsert;
+export type Organization = typeof schema.organizations.$inferSelect;
+export type NewOrganization = typeof schema.organizations.$inferInsert;
+export type OrganizationMember = typeof schema.organizationMembers.$inferSelect;
+export type NewOrganizationMember = typeof schema.organizationMembers.$inferInsert;
+export type BillingCustomer = typeof schema.billingCustomers.$inferSelect;
+export type NewBillingCustomer = typeof schema.billingCustomers.$inferInsert;
+export type Subscription = typeof schema.subscriptions.$inferSelect;
+export type NewSubscription = typeof schema.subscriptions.$inferInsert;
+export type MarketplaceConnection = typeof schema.marketplaceConnections.$inferSelect;
+export type NewMarketplaceConnection = typeof schema.marketplaceConnections.$inferInsert;
+export type SyncRun = typeof schema.syncRuns.$inferSelect;
+export type NewSyncRun = typeof schema.syncRuns.$inferInsert;
+export type Product = typeof schema.products.$inferSelect;
+export type NewProduct = typeof schema.products.$inferInsert;
+export type ProductCost = typeof schema.productCosts.$inferSelect;
+export type NewProductCost = typeof schema.productCosts.$inferInsert;
+export type AdCost = typeof schema.adCosts.$inferSelect;
+export type NewAdCost = typeof schema.adCosts.$inferInsert;
+export type ManualExpense = typeof schema.manualExpenses.$inferSelect;
+export type NewManualExpense = typeof schema.manualExpenses.$inferInsert;
+export type DailyMetric = typeof schema.dailyMetrics.$inferSelect;
+export type NewDailyMetric = typeof schema.dailyMetrics.$inferInsert;
+export type ProductMetric = typeof schema.productMetrics.$inferSelect;
+export type NewProductMetric = typeof schema.productMetrics.$inferInsert;
