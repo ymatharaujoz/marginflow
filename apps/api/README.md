@@ -4,10 +4,12 @@ NestJS backend scaffold for MarginFlow. M5 now includes:
 
 - Fastify adapter
 - `GET /health` health endpoint
-- explicit CORS strategy for web-to-api requests
+- explicit credentialed CORS strategy for web-to-api requests
 - Better Auth mounted under `/auth/*`
 - session-aware `GET /auth-state/me` and protected guard seam
 - default-organization bootstrap for first authenticated access
+- shared trusted-origin parsing for Fastify CORS and Better Auth
+- lifecycle-managed Postgres runtime that keeps the `DATABASE_CLIENT` token stable for modules
 - shared exception handling and future Zod validation seam
 - Render-ready start/build commands
 - shared database provider seam for app modules
@@ -29,6 +31,7 @@ NestJS backend scaffold for MarginFlow. M5 now includes:
 
 - `API_HOST`: listen host, default `0.0.0.0`
 - `API_PORT`: listen port, default `4000`
+- `API_DB_POOL_MAX`: Postgres pool size cap for API runtime, default `10`
 - `DATABASE_URL`: Postgres connection string used by Drizzle for local development and Supabase production
 - `BETTER_AUTH_SECRET`: Better Auth signing secret
 - `BETTER_AUTH_URL`: absolute API base URL used by Better Auth callbacks and cookies

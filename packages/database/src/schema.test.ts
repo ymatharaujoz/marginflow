@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createDatabaseClient } from "./client";
@@ -31,5 +33,19 @@ describe("@marginflow/database schema", () => {
 
     expect(organizationInsert.slug).toBe("demo-org");
     expect(productInsert.name).toBe("Produto");
+  });
+
+  it("keeps auth table names aligned with baseline migration assets", () => {
+    const baselineMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0000_small_dazzler.sql"),
+      "utf8",
+    );
+
+    expect(baselineMigration).toContain('CREATE TABLE "user"');
+    expect(baselineMigration).toContain('CREATE TABLE "session"');
+    expect(baselineMigration).toContain('CREATE TABLE "account"');
+    expect(baselineMigration).not.toContain('CREATE TABLE "users"');
+    expect(baselineMigration).not.toContain('CREATE TABLE "sessions"');
+    expect(baselineMigration).not.toContain('CREATE TABLE "auth_accounts"');
   });
 });

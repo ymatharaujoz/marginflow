@@ -859,7 +859,7 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] M1. Monorepo and Shared Packages
 - [x] M2. Frontend Web App Scaffold
 - [x] M3. Backend API Scaffold on Render
-- [ ] M4. Database and Schema
+- [x] M4. Database and Schema
 - [ ] M5. Authentication and Access Control
 - [ ] M6. Billing and Entitlements
 - [ ] M7. Marketing Site and SEO
@@ -883,9 +883,9 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 ```md
 ## Current Focus
 - Active milestone: M5
-- Active task: Resolve Drizzle migration artifacts for auth-table rename and manually verify Google OAuth callback flow
-- Next task: Generate the final Drizzle migration with interactive rename confirmation, then append Checkpoint M5
-- Blockers: `drizzle-kit generate` requires an interactive TTY to confirm auth-table renames
+- Active task: finish interactive Drizzle migration regeneration in a TTY shell and manually verify Google OAuth callback flow
+- Next task: run `drizzle-kit generate` in a real TTY, confirm any remaining rename prompts, then execute end-to-end Google OAuth verification before appending Checkpoint M5
+- Blockers: `drizzle-kit generate` still requires an interactive TTY shell, and Google OAuth callback has not yet been manually verified
 - Last completed checkpoint: M4
 
 ## Completed Checkpoints
@@ -1178,7 +1178,7 @@ Set up Supabase Postgres, Drizzle schema, migrations, and shared database access
 ### Status
 - [ ] Not started
 - [x] In progress
-- [ ] Blocked
+- [x] Blocked
 - [ ] Completed
 
 ### Objective
@@ -1216,6 +1216,7 @@ Implement authentication, sessions, organization scoping, and route protection.
 - [ ] No blockers currently logged
 - [x] Drizzle migration asset regeneration is still pending because `drizzle-kit generate` requires interactive table-rename confirmation in a TTY shell
 - [x] Google OAuth callback path is implemented but has not yet been manually exercised against real provider credentials
+- [x] M5 hardening code shipped: shared trusted-origin parsing, lifecycle-managed DB runtime, split auth provisioning seam, and safer frontend auth redirects/error states
 
 ---
 
@@ -1321,7 +1322,8 @@ Build the public website and SEO baseline in Next.js.
 Allow users to create, edit, and manage products and related cost inputs.
 
 ### Dependencies
-- M4 and M5 complete
+- M4 complete
+- M5 complete
 
 ### Task Groups
 
@@ -1409,7 +1411,8 @@ Implement deterministic financial formulas and metric-generation logic.
 Implement marketplace account connection flows and provider boundaries.
 
 ### Dependencies
-- M4 and M5 complete
+- M4 complete
+- M5 complete
 
 ### Task Groups
 

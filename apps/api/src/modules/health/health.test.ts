@@ -7,6 +7,7 @@ describe("health endpoint", () => {
 
   beforeAll(async () => {
     app = await buildApp({
+      API_DB_POOL_MAX: 5,
       API_HOST: "127.0.0.1",
       API_PORT: 4000,
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
@@ -51,6 +52,35 @@ describe("health endpoint", () => {
     });
 
     expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:3000");
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+  });
+
+  it("allows extra trusted origins via cors", async () => {
+    await app.close();
+    app = await buildApp({
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      GOOGLE_CLIENT_ID: "google-client-id",
+      GOOGLE_CLIENT_SECRET: "google-client-secret",
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "http://localhost:3000",
+      AUTH_TRUSTED_ORIGINS: "https://admin.marginflow.app",
+    });
+
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/health",
+      headers: {
+        origin: "https://admin.marginflow.app",
+        "access-control-request-method": "GET",
+      },
+    });
+
+    expect(response.headers["access-control-allow-origin"]).toBe("https://admin.marginflow.app");
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
   });
 });

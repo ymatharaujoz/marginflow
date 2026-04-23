@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { getTableName } from "drizzle-orm";
 
 describe("database drizzle config", () => {
   const originalUrl = process.env.DATABASE_URL;
@@ -29,5 +30,16 @@ describe("database drizzle config", () => {
 
     expect(module.default.schema).toBe("./src/schema.ts");
     expect(module.default.out).toBe("./drizzle");
+  });
+
+  it("uses singular Better Auth table names in schema", async () => {
+    process.env.DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/marginflow";
+    vi.resetModules();
+
+    const schema = await import("./schema");
+
+    expect(getTableName(schema.users)).toBe("user");
+    expect(getTableName(schema.sessions)).toBe("session");
+    expect(getTableName(schema.accounts)).toBe("account");
   });
 });

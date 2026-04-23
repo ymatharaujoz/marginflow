@@ -3,9 +3,9 @@
 ## Current Focus
 
 - Active milestone: M5
-- Active task: Resolve Drizzle migration artifacts for auth-table rename and manually verify Google OAuth callback flow
-- Next task: Generate the final Drizzle migration with interactive rename confirmation, then append Checkpoint M5
-- Blockers: `drizzle-kit generate` requires an interactive TTY to confirm auth-table renames
+- Active task: finish interactive Drizzle migration regeneration in a TTY shell and manually verify Google OAuth callback flow
+- Next task: run `drizzle-kit generate` in a real TTY, confirm any remaining rename prompts, then verify Google OAuth end to end before appending Checkpoint M5
+- Blockers: `drizzle-kit generate` still requires an interactive TTY shell, and Google OAuth callback is not yet manually verified
 - Last completed checkpoint: M4
 
 ## Checkpoint M0

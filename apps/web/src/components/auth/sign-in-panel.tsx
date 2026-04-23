@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card } from "@marginflow/ui";
 import { authClient } from "@/lib/auth-client";
@@ -14,6 +14,15 @@ export function SignInPanel() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const sessionState = authClient.useSession();
+
+  useEffect(() => {
+    if (!sessionState.data) {
+      return;
+    }
+
+    router.replace("/app");
+    router.refresh();
+  }, [router, sessionState.data]);
 
   const isBusy = isSubmitting || sessionState.isPending;
   const errorMessage = useMemo(() => {
@@ -39,12 +48,10 @@ export function SignInPanel() {
       return;
     }
 
-    router.refresh();
+    setMessage("Redirecting to Google...");
   }
 
   if (sessionState.data) {
-    router.replace("/app");
-
     return (
       <Card>
         <p className="text-sm font-medium text-foreground-soft">Session found. Redirecting to app.</p>

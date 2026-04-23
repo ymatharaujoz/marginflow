@@ -10,6 +10,7 @@ describe("auth guard", () => {
 
   beforeAll(async () => {
     app = await buildApp({
+      API_DB_POOL_MAX: 5,
       API_HOST: "127.0.0.1",
       API_PORT: 4000,
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000",

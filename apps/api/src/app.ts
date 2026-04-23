@@ -3,7 +3,11 @@ import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fa
 import cors from "@fastify/cors";
 import { toNodeHandler } from "better-auth/node";
 import { AppModule } from "./app.module";
-import { readApiEnv, type ApiRuntimeEnv } from "@/common/config/api-env";
+import {
+  readApiEnv,
+  readTrustedOriginList,
+  type ApiRuntimeEnv,
+} from "@/common/config/api-env";
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
 import { ZodValidationPipe } from "@/common/pipes/zod-validation.pipe";
 import { AUTH_INSTANCE } from "@/common/tokens";
@@ -21,7 +25,7 @@ export async function buildApp(
 
   await app.register(cors, {
     credentials: true,
-    origin: env.WEB_APP_ORIGIN,
+    origin: readTrustedOriginList(env),
   });
 
   app.useGlobalFilters(new HttpExceptionFilter());

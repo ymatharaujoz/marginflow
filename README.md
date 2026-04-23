@@ -1,6 +1,6 @@
 # MarginFlow
 
-MarginFlow is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M5 auth baseline**: pnpm workspaces, Turborepo orchestration, a real Next.js web app in `apps/web`, a real NestJS Fastify API in `apps/api`, and Better Auth-backed route protection.
+MarginFlow is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M5 auth hardening baseline**: pnpm workspaces, Turborepo orchestration, a real Next.js web app in `apps/web`, a real NestJS Fastify API in `apps/api`, Better Auth-backed route protection, unified origin trust, and a lifecycle-managed database runtime.
 
 ## Target architecture
 
@@ -75,7 +75,7 @@ Runtime environment parsing is owned by `packages/validation`, with `apps/web` c
 
 - `NEXT_PUBLIC_*` variables are treated as client-visible
 - `NEXT_PUBLIC_API_BASE_URL` configures the frontend API base for NestJS communication
-- `WEB_APP_ORIGIN`, `API_HOST`, `API_PORT`, `BETTER_AUTH_URL`, and `AUTH_TRUSTED_ORIGINS` configure the backend bootstrap and auth/browser origin trust
+- `WEB_APP_ORIGIN`, `API_HOST`, `API_PORT`, `API_DB_POOL_MAX`, `BETTER_AUTH_URL`, and `AUTH_TRUSTED_ORIGINS` configure the backend bootstrap and auth/browser origin trust
 - `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` are required for auth boot
 - secrets stay server-only
 - the repo ships `.env.example` as the canonical variable list for local setup

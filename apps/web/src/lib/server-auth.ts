@@ -39,7 +39,11 @@ export async function readServerAuthState(): Promise<ServerAuthState | null> {
   }
 
   if (!response.ok) {
-    throw new Error(`Auth state request failed with status ${response.status}.`);
+    const errorBody = await response.text();
+
+    throw new Error(
+      `Auth state request failed with status ${response.status}.${errorBody ? ` ${errorBody}` : ""}`,
+    );
   }
 
   const payload = (await response.json()) as {

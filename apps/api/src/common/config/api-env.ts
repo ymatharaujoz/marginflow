@@ -3,6 +3,7 @@ import { z } from "zod";
 const apiEnvSchema = z.object({
   API_HOST: z.string().min(1).default("0.0.0.0"),
   API_PORT: z.coerce.number().int().positive().default(4000),
+  API_DB_POOL_MAX: z.coerce.number().int().positive().max(50).default(10),
   DATABASE_URL: z.string().url(),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_URL: z.string().url(),
@@ -21,6 +22,7 @@ export function readApiEnv(
   return apiEnvSchema.parse({
     API_HOST: source.API_HOST,
     API_PORT: source.API_PORT,
+    API_DB_POOL_MAX: source.API_DB_POOL_MAX,
     DATABASE_URL: source.DATABASE_URL,
     BETTER_AUTH_SECRET: source.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: source.BETTER_AUTH_URL ?? source.NEXT_PUBLIC_API_BASE_URL,
@@ -30,4 +32,12 @@ export function readApiEnv(
     AUTH_TRUSTED_ORIGINS: source.AUTH_TRUSTED_ORIGINS,
     NODE_ENV: source.NODE_ENV,
   });
+}
+
+export function readTrustedOriginList(env: ApiRuntimeEnv) {
+  const configuredOrigins = env.AUTH_TRUSTED_ORIGINS?.split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return Array.from(new Set([env.WEB_APP_ORIGIN, ...(configuredOrigins ?? [])]));
 }
