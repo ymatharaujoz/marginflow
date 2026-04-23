@@ -16,7 +16,7 @@ describe("createApiClient", () => {
 
     expect(fetchFn).toHaveBeenCalledWith(
       "http://localhost:4000/dashboard/summary",
-      expect.objectContaining({ method: "GET" }),
+      expect.objectContaining({ credentials: "include", method: "GET" }),
     );
   });
 

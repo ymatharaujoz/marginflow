@@ -2,16 +2,16 @@ import { Card } from "@marginflow/ui";
 
 const panels = [
   {
-    title: "Auth gate seam",
-    description: "Layout exists. Real session check and redirects arrive in milestone five.",
+    title: "Session protection",
+    description: "This route now redirects unauthenticated traffic and renders from API-backed session context.",
   },
   {
-    title: "Data layer seam",
-    description: "TanStack Query provider is mounted so dashboard queries can plug in later.",
+    title: "Organization bootstrap",
+    description: "First successful Google login auto-creates a default workspace owner membership.",
   },
   {
     title: "API seam",
-    description: "Typed client is ready for NestJS endpoints without duplicating business logic.",
+    description: "Cross-origin requests now carry credentials so future product endpoints can trust session cookies.",
   },
 ];
 
@@ -20,14 +20,14 @@ export default function AppHomePage() {
     <main className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
       <Card className="min-h-[340px]">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-foreground-soft">
-          Dashboard placeholder
+          Protected dashboard shell
         </p>
         <h2 className="mt-4 text-4xl font-semibold tracking-tight text-foreground">
-          Private route scaffold is active at `/app`.
+          Authenticated route scaffold is active at `/app`.
         </h2>
         <p className="mt-4 max-w-2xl text-base leading-8 text-foreground-soft">
-          M2 stops here on purpose. No auth, billing, or dashboard metrics yet. This page only
-          marks stable boundary for future protected product work.
+          M5 now owns authentication and access control. Billing, metrics, and product modules
+          still come later, but route protection and org-aware session seams are live.
         </p>
       </Card>
 

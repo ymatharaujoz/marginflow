@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import { createDatabaseClient } from "./client";
-import { dbSchema, organizations, products, users } from "./index";
+import { accounts, dbSchema, organizations, products, users, verifications } from "./index";
 
 describe("@marginflow/database schema", () => {
   it("exports core schema objects", () => {
     expect(dbSchema.organizations).toBe(organizations);
     expect(dbSchema.products).toBe(products);
     expect(dbSchema.users).toBe(users);
+    expect(dbSchema.accounts).toBe(accounts);
+    expect(dbSchema.verifications).toBe(verifications);
   });
 
   it("builds a typed database client without connecting", () => {

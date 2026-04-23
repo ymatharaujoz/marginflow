@@ -3,9 +3,9 @@
 ## Current Focus
 
 - Active milestone: M5
-- Active task: Install Better Auth and wire database-backed auth foundation in `apps/api`
-- Next task: Define organization membership-aware session model and protected route seam
-- Blockers: None
+- Active task: Resolve Drizzle migration artifacts for auth-table rename and manually verify Google OAuth callback flow
+- Next task: Generate the final Drizzle migration with interactive rename confirmation, then append Checkpoint M5
+- Blockers: `drizzle-kit generate` requires an interactive TTY to confirm auth-table renames
 - Last completed checkpoint: M4
 
 ## Checkpoint M0

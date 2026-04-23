@@ -8,6 +8,12 @@ export const dbSchema = schema;
 
 export type User = typeof schema.users.$inferSelect;
 export type NewUser = typeof schema.users.$inferInsert;
+export type Session = typeof schema.sessions.$inferSelect;
+export type NewSession = typeof schema.sessions.$inferInsert;
+export type Account = typeof schema.accounts.$inferSelect;
+export type NewAccount = typeof schema.accounts.$inferInsert;
+export type Verification = typeof schema.verifications.$inferSelect;
+export type NewVerification = typeof schema.verifications.$inferInsert;
 export type Organization = typeof schema.organizations.$inferSelect;
 export type NewOrganization = typeof schema.organizations.$inferInsert;
 export type OrganizationMember = typeof schema.organizationMembers.$inferSelect;

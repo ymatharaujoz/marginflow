@@ -882,11 +882,11 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 
 ```md
 ## Current Focus
-- Active milestone: M0
-- Active task: Configure shared ESLint package
-- Next task: Configure shared tsconfig package
-- Blockers: None
-- Last completed checkpoint: None
+- Active milestone: M5
+- Active task: Resolve Drizzle migration artifacts for auth-table rename and manually verify Google OAuth callback flow
+- Next task: Generate the final Drizzle migration with interactive rename confirmation, then append Checkpoint M5
+- Blockers: `drizzle-kit generate` requires an interactive TTY to confirm auth-table renames
+- Last completed checkpoint: M4
 
 ## Completed Checkpoints
 - [ ] M0 completed
@@ -1177,7 +1177,7 @@ Set up Supabase Postgres, Drizzle schema, migrations, and shared database access
 
 ### Status
 - [ ] Not started
-- [ ] In progress
+- [x] In progress
 - [ ] Blocked
 - [ ] Completed
 
@@ -1190,30 +1190,32 @@ Implement authentication, sessions, organization scoping, and route protection.
 ### Task Groups
 
 #### 5.1 Better Auth Setup
-- [ ] Install and configure Better Auth in backend
-- [ ] Configure database adapter
-- [ ] Configure Google login
-- [ ] Expose auth endpoints
+- [x] Install and configure Better Auth in backend
+- [x] Configure database adapter
+- [x] Configure Google login
+- [x] Expose auth endpoints
 
 #### 5.2 Session and Access Model
-- [ ] Define session strategy
-- [ ] Define organization membership model
-- [ ] Add backend auth guards or equivalent access middleware
-- [ ] Add frontend protected-route behavior
+- [x] Define session strategy
+- [x] Define organization membership model
+- [x] Add backend auth guards or equivalent access middleware
+- [x] Add frontend protected-route behavior
 
 #### 5.3 Auth Quality
-- [ ] Add auth integration tests
-- [ ] Add login/logout flows in frontend
-- [ ] Document auth environment variables
+- [x] Add auth integration tests
+- [x] Add login/logout flows in frontend
+- [x] Document auth environment variables
 
 ### Exit Criteria
 - [ ] User can authenticate
-- [ ] Protected routes are enforced
-- [ ] Organization-scoped access works
-- [ ] Auth flow is documented
+- [x] Protected routes are enforced
+- [x] Organization-scoped access works
+- [x] Auth flow is documented
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] Drizzle migration asset regeneration is still pending because `drizzle-kit generate` requires interactive table-rename confirmation in a TTY shell
+- [x] Google OAuth callback path is implemented but has not yet been manually exercised against real provider credentials
 
 ---
 

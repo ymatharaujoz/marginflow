@@ -5,6 +5,7 @@ import { loadRepoEnv } from "./load-repo-env";
 
 loadRepoEnv(import.meta.url);
 import {
+  accounts,
   billingCustomers,
   marketplaceConnections,
   organizationMembers,
@@ -70,6 +71,18 @@ async function run() {
     .onConflictDoNothing({
       target: [organizationMembers.userId, organizationMembers.organizationId],
     });
+
+  const existingAccount = await db.query.accounts.findFirst({
+    where: and(eq(accounts.providerId, "google"), eq(accounts.accountId, userEmail)),
+  });
+
+  if (!existingAccount) {
+    await db.insert(accounts).values({
+      userId: user.id,
+      providerId: "google",
+      accountId: userEmail,
+    });
+  }
 
   const existingProduct = await db.query.products.findFirst({
     where: and(eq(products.organizationId, organization.id), eq(products.sku, "DEMO-001")),

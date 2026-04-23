@@ -39,12 +39,10 @@ export default function MarketingPage() {
 
           <div className="mt-8 flex flex-wrap gap-3">
             <Button asChild>
-              <Link href="/app">Open app placeholder</Link>
+              <Link href="/sign-in">Sign in with Google</Link>
             </Button>
             <Button asChild variant="secondary">
-              <a href={webEnv.NEXT_PUBLIC_API_BASE_URL} target="_blank" rel="noreferrer">
-                API base configured
-              </a>
+              <Link href="/app">Open protected app</Link>
             </Button>
           </div>
         </section>

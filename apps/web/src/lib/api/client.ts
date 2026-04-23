@@ -21,6 +21,7 @@ export type ApiRequestOptions = Omit<RequestInit, "body" | "method"> & {
 export type ApiClientConfig = {
   baseUrl: string;
   fetchFn?: typeof fetch;
+  credentials?: RequestCredentials;
   defaultHeaders?: HeadersInit;
 };
 
@@ -56,6 +57,7 @@ function normalizePath(path: string) {
 export function createApiClient({
   baseUrl,
   fetchFn = fetch,
+  credentials = "include",
   defaultHeaders,
 }: ApiClientConfig) {
   async function request<T>(
@@ -79,6 +81,7 @@ export function createApiClient({
       method,
       headers,
       body,
+      credentials,
     });
 
     const payload = await parseResponse(response);

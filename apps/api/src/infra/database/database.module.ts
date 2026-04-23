@@ -1,8 +1,9 @@
-import { DynamicModule, Module } from "@nestjs/common";
+import { DynamicModule, Global, Module } from "@nestjs/common";
 import { createDatabaseClient } from "@marginflow/database";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { DATABASE_CLIENT } from "@/common/tokens";
 
+@Global()
 @Module({})
 export class DatabaseModule {
   static register(env: ApiRuntimeEnv): DynamicModule {

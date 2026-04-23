@@ -24,18 +24,75 @@ const updatedAt = () =>
 const organizationId = () => uuid("organization_id").notNull();
 
 export const users = pgTable(
-  "users",
+  "user",
   {
     id: id(),
+    name: varchar("name", { length: 255 }).notNull(),
     email: varchar("email", { length: 320 }).notNull(),
-    name: varchar("name", { length: 255 }),
-    imageUrl: text("image_url"),
     emailVerified: boolean("email_verified").default(false).notNull(),
-    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    image: text("image"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [uniqueIndex("users_email_key").on(table.email)],
+  (table) => [uniqueIndex("user_email_key").on(table.email)],
+);
+
+export const sessions = pgTable(
+  "session",
+  {
+    id: id(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    token: text("token").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    ipAddress: varchar("ip_address", { length: 64 }),
+    userAgent: text("user_agent"),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("session_user_id_idx").on(table.userId),
+    uniqueIndex("session_token_key").on(table.token),
+  ],
+);
+
+export const accounts = pgTable(
+  "account",
+  {
+    id: id(),
+    accountId: varchar("account_id", { length: 255 }).notNull(),
+    providerId: varchar("provider_id", { length: 64 }).notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at", { withTimezone: true }),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("account_user_id_idx").on(table.userId),
+    uniqueIndex("account_provider_account_key").on(table.providerId, table.accountId),
+  ],
+);
+
+export const verifications = pgTable(
+  "verification",
+  {
+    id: id(),
+    identifier: varchar("identifier", { length: 255 }).notNull(),
+    value: text("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
 export const organizations = pgTable(
@@ -65,45 +122,6 @@ export const organizationMembers = pgTable(
   (table) => [
     index("organization_members_organization_id_idx").on(table.organizationId),
     uniqueIndex("organization_members_user_org_key").on(table.userId, table.organizationId),
-  ],
-);
-
-export const sessions = pgTable(
-  "sessions",
-  {
-    id: id(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
-    token: text("token").notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    ipAddress: varchar("ip_address", { length: 64 }),
-    userAgent: text("user_agent"),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (table) => [
-    index("sessions_organization_id_idx").on(table.organizationId),
-    uniqueIndex("sessions_token_key").on(table.token),
-  ],
-);
-
-export const authAccounts = pgTable(
-  "auth_accounts",
-  {
-    id: id(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    provider: varchar("provider", { length: 64 }).notNull(),
-    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at", { withTimezone: true }),
-    scope: text("scope"),
-    tokenType: varchar("token_type", { length: 64 }),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
-  },
-  (table) => [
-    uniqueIndex("auth_accounts_provider_account_key").on(table.provider, table.providerAccountId),
   ],
 );
 
@@ -427,7 +445,21 @@ export const productMetrics = pgTable(
 export const usersRelations = relations(users, ({ many }) => ({
   organizationMembers: many(organizationMembers),
   sessions: many(sessions),
-  authAccounts: many(authAccounts),
+  accounts: many(accounts),
+}));
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, {
+    fields: [sessions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, {
+    fields: [accounts.userId],
+    references: [users.id],
+  }),
 }));
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
@@ -456,24 +488,6 @@ export const organizationMembersRelations = relations(organizationMembers, ({ on
   }),
   user: one(users, {
     fields: [organizationMembers.userId],
-    references: [users.id],
-  }),
-}));
-
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  user: one(users, {
-    fields: [sessions.userId],
-    references: [users.id],
-  }),
-  organization: one(organizations, {
-    fields: [sessions.organizationId],
-    references: [organizations.id],
-  }),
-}));
-
-export const authAccountsRelations = relations(authAccounts, ({ one }) => ({
-  user: one(users, {
-    fields: [authAccounts.userId],
     references: [users.id],
   }),
 }));
