@@ -15,6 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 const id = () => uuid("id").primaryKey().defaultRandom();
+const authId = () => text("id").primaryKey();
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
 const updatedAt = () =>
   timestamp("updated_at", { withTimezone: true })
@@ -26,7 +27,7 @@ const organizationId = () => uuid("organization_id").notNull();
 export const users = pgTable(
   "user",
   {
-    id: id(),
+    id: authId(),
     name: varchar("name", { length: 255 }).notNull(),
     email: varchar("email", { length: 320 }).notNull(),
     emailVerified: boolean("email_verified").default(false).notNull(),
@@ -40,14 +41,14 @@ export const users = pgTable(
 export const sessions = pgTable(
   "session",
   {
-    id: id(),
+    id: authId(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     token: text("token").notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     ipAddress: varchar("ip_address", { length: 64 }),
     userAgent: text("user_agent"),
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
   },
@@ -60,10 +61,10 @@ export const sessions = pgTable(
 export const accounts = pgTable(
   "account",
   {
-    id: id(),
+    id: authId(),
     accountId: varchar("account_id", { length: 255 }).notNull(),
     providerId: varchar("provider_id", { length: 64 }).notNull(),
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     accessToken: text("access_token"),
@@ -85,7 +86,7 @@ export const accounts = pgTable(
 export const verifications = pgTable(
   "verification",
   {
-    id: id(),
+    id: authId(),
     identifier: varchar("identifier", { length: 255 }).notNull(),
     value: text("value").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -113,7 +114,7 @@ export const organizationMembers = pgTable(
   {
     id: id(),
     organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     role: varchar("role", { length: 32 }).default("owner").notNull(),
     isDefault: boolean("is_default").default(false).notNull(),
     createdAt: createdAt(),

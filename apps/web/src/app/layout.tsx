@@ -1,22 +1,36 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Manrope, Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
 import { AppProviders } from "@/components/app-providers";
+import { getSiteUrl, siteConfig } from "@/lib/site";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const bodyFont = Manrope({
+  variable: "--font-body",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const displayFont = Fraunces({
   subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["500", "600", "700"],
+});
+
+const marketingSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-marketing-sans",
+  weight: ["500", "600", "700"],
+});
+
+const marketingDisplay = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-marketing-display",
+  weight: ["500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://marginflow.vercel.app"),
-  title: "MarginFlow",
-  description: "Financial clarity for marketplace sellers and small businesses.",
+  description: siteConfig.defaultDescription,
+  metadataBase: getSiteUrl(),
+  title: siteConfig.defaultTitle,
 };
 
 export default function RootLayout({
@@ -25,7 +39,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-US" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en-US"
+      className={`${bodyFont.variable} ${displayFont.variable} ${marketingSans.variable} ${marketingDisplay.variable}`}
+    >
       <body>
         <AppProviders>{children}</AppProviders>
       </body>

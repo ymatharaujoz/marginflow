@@ -1,4 +1,4 @@
-import { DynamicModule, Module } from "@nestjs/common";
+import { DynamicModule, Global, Module } from "@nestjs/common";
 import type { DatabaseClient } from "@marginflow/database";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { AUTH_INSTANCE, DATABASE_CLIENT } from "@/common/tokens";
@@ -8,6 +8,7 @@ import { AuthService } from "./auth.service";
 import { buildBetterAuth } from "./better-auth.provider";
 import { OrganizationProvisioningService } from "./organization-provisioning.service";
 
+@Global()
 @Module({})
 export class AuthModule {
   static register(env: ApiRuntimeEnv): DynamicModule {

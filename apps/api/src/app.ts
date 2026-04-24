@@ -1,7 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import cors from "@fastify/cors";
-import { toNodeHandler } from "better-auth/node";
+import { fromNodeHeaders } from "better-auth/node";
 import { AppModule } from "./app.module";
 import {
   readApiEnv,
@@ -20,6 +20,7 @@ export async function buildApp(
     new FastifyAdapter(),
     {
       bufferLogs: true,
+      rawBody: true,
     },
   );
 
@@ -34,14 +35,29 @@ export async function buildApp(
   await app.init();
 
   const fastify = app.getHttpAdapter().getInstance();
-  const authHandler = toNodeHandler(app.get(AUTH_INSTANCE) as Parameters<typeof toNodeHandler>[0]);
+  const auth = app.get(AUTH_INSTANCE) as {
+    handler: (request: Request) => Promise<Response>;
+  };
 
   fastify.route({
     method: ["GET", "POST"],
     url: "/auth/*",
     async handler(request, reply) {
-      reply.hijack();
-      await authHandler(request.raw, reply.raw);
+      const url = new URL(request.url, `http://${request.headers.host}`);
+      const headers = fromNodeHeaders(request.headers);
+      const authRequest = new Request(url.toString(), {
+        method: request.method,
+        headers,
+        ...(request.body !== undefined ? { body: JSON.stringify(request.body) } : {}),
+      });
+      const response = await auth.handler(authRequest);
+
+      reply.status(response.status);
+      response.headers.forEach((value, key) => {
+        reply.header(key, value);
+      });
+
+      return reply.send(response.body ? await response.text() : null);
     },
   });
 

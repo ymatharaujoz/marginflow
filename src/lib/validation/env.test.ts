@@ -10,6 +10,8 @@ describe("environment validation", () => {
       GOOGLE_CLIENT_SECRET: "google-secret",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
       SUPABASE_URL: "https://project.supabase.co",
       SUPABASE_ANON_KEY: "anon",
       SUPABASE_SERVICE_ROLE_KEY: "service",

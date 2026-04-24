@@ -2,10 +2,10 @@
 
 ## Current Focus
 
-- Active milestone: M5
-- Active task: finish interactive Drizzle migration regeneration in a TTY shell and manually verify Google OAuth callback flow
-- Next task: run `drizzle-kit generate` in a real TTY, confirm any remaining rename prompts, then verify Google OAuth end to end before appending Checkpoint M5
-- Blockers: `drizzle-kit generate` still requires an interactive TTY shell, and Google OAuth callback is not yet manually verified
+- Active milestone: M7
+- Active task: review shipped marketing site and confirm whether milestone 7 should be marked complete
+- Next task: if approved by the user, switch M7 from in-progress to completed and append Checkpoint M7
+- Blockers: no code blockers for M7; completion tick is waiting on user confirmation per repo workflow
 - Last completed checkpoint: M4
 
 ## Checkpoint M0

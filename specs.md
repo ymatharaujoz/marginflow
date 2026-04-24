@@ -1214,8 +1214,9 @@ Implement authentication, sessions, organization scoping, and route protection.
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
-- [x] Drizzle migration asset regeneration is still pending because `drizzle-kit generate` requires interactive table-rename confirmation in a TTY shell
-- [x] Google OAuth callback path is implemented but has not yet been manually exercised against real provider credentials
+- [x] Better Auth routing and Fastify bridge were corrected to use the live `/auth` base path with request-body forwarding, and server-side Google sign-in now returns a real Google authorization URL
+- [x] Local auth schema drift was repaired in development by resetting the empty local Postgres schema to the current Drizzle baseline, and the Better Auth tables were aligned to string IDs expected by the library
+- [x] Final Google OAuth callback completion still requires a manual browser login against the configured Google app
 - [x] M5 hardening code shipped: shared trusted-origin parsing, lifecycle-managed DB runtime, split auth provisioning seam, and safer frontend auth redirects/error states
 
 ---
@@ -1224,8 +1225,8 @@ Implement authentication, sessions, organization scoping, and route protection.
 
 ### Status
 - [ ] Not started
-- [ ] In progress
-- [ ] Blocked
+- [x] In progress
+- [x] Blocked
 - [ ] Completed
 
 ### Objective
@@ -1238,29 +1239,33 @@ Implement Stripe subscription flows and access gating.
 
 #### 6.1 Stripe Foundation
 - [ ] Configure Stripe products and prices
-- [ ] Define monthly and annual plan identifiers
-- [ ] Implement checkout initiation flow
-- [ ] Model billing customer and subscription mapping
+- [x] Define monthly and annual plan identifiers
+- [x] Implement checkout initiation flow
+- [x] Model billing customer and subscription mapping
 
 #### 6.2 Webhooks and Local State
-- [ ] Add Stripe webhook endpoint in backend
-- [ ] Verify webhook signatures
-- [ ] Mirror subscription state locally
-- [ ] Define entitlement-check helper
+- [x] Add Stripe webhook endpoint in backend
+- [x] Verify webhook signatures
+- [x] Mirror subscription state locally
+- [x] Define entitlement-check helper
 
 #### 6.3 Product Enforcement
-- [ ] Gate protected backend endpoints by entitlement
-- [ ] Gate frontend app entry by entitlement
-- [ ] Add subscription state UI in app
+- [x] Gate protected backend endpoints by entitlement
+- [x] Gate frontend app entry by entitlement
+- [x] Add subscription state UI in app
 
 ### Exit Criteria
 - [ ] User can subscribe
-- [ ] Subscription state is mirrored locally
-- [ ] Protected product usage is gated correctly
+- [x] Subscription state is mirrored locally
+- [x] Protected product usage is gated correctly
 - [ ] Billing flow is tested at minimum critical-path level
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] Real Stripe monthly and annual price IDs are configured in env and were verified as active recurring prices against Stripe
+- [x] End-to-end Stripe checkout plus webhook replay still need one final live pass after the user finishes billing checkout configuration
+- [x] M6 code shipped with API-owned checkout creation, verified webhook signature handling, local subscription mirroring, entitlement guard enforcement, `/billing/subscription`, `/billing/checkout`, `/billing/stripe/webhook`, and the `/app/billing` paywall route
+- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
 
 ---
 
@@ -1268,7 +1273,7 @@ Implement Stripe subscription flows and access gating.
 
 ### Status
 - [ ] Not started
-- [ ] In progress
+- [x] In progress
 - [ ] Blocked
 - [ ] Completed
 
@@ -1281,32 +1286,36 @@ Build the public website and SEO baseline in Next.js.
 ### Task Groups
 
 #### 7.1 Public Pages
-- [ ] Build Hero section
-- [ ] Build Features section
-- [ ] Build Pricing section with monthly/annual toggle
-- [ ] Build Footer
-- [ ] Build final CTA section
+- [x] Build Hero section
+- [x] Build Features section
+- [x] Build Pricing section with monthly/annual toggle
+- [x] Build Footer
+- [x] Build final CTA section
 
 #### 7.2 SEO Foundation
-- [ ] Add metadata strategy
-- [ ] Add sitemap generation
-- [ ] Add robots rules
-- [ ] Add canonical URL strategy
-- [ ] Add Open Graph tags
+- [x] Add metadata strategy
+- [x] Add sitemap generation
+- [x] Add robots rules
+- [x] Add canonical URL strategy
+- [x] Add Open Graph tags
 
 #### 7.3 UX and Performance
-- [ ] Add responsive behavior
-- [ ] Optimize visual loading
-- [ ] Review page performance and page quality
+- [x] Add responsive behavior
+- [x] Optimize visual loading
+- [x] Review page performance and page quality
 
 ### Exit Criteria
-- [ ] Public website is complete
-- [ ] SEO baseline exists
-- [ ] Pricing is clear
-- [ ] CTA flow leads toward signup
+- [x] Public website is complete
+- [x] SEO baseline exists
+- [x] Pricing is clear
+- [x] CTA flow leads toward signup
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] 2026-04: Landing principal redesenhada em PT-BR com partículas (`@tsparticles`), animações (`framer-motion`), hero com mock do dashboard, grade de recursos, integrações, preços (mensal/anual) e CTA alinhados ao layout de marketing.
+- [x] M7 landing and SEO implementation shipped in `apps/web` with dedicated `features`, `pricing`, and `integrations` pages, reusable marketing components, metadata helpers, `robots.txt`, and `sitemap.xml`
+- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- [x] Milestone is ready for final completion tick once user confirms it should be considered done
 
 ---
 

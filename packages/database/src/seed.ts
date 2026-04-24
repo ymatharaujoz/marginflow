@@ -24,8 +24,10 @@ async function run() {
   }
 
   const db = createDatabaseClient(connectionString);
+  const seededAccountId = "account_demo_owner_google";
   const organizationSlug = "demo-org";
   const userEmail = "owner@marginflow.local";
+  const seededUserId = "user_demo_owner";
 
   await db
     .insert(organizations)
@@ -46,6 +48,7 @@ async function run() {
   await db
     .insert(users)
     .values({
+      id: seededUserId,
       email: userEmail,
       name: "Demo Owner",
       emailVerified: true,
@@ -78,6 +81,7 @@ async function run() {
 
   if (!existingAccount) {
     await db.insert(accounts).values({
+      id: seededAccountId,
       userId: user.id,
       providerId: "google",
       accountId: userEmail,

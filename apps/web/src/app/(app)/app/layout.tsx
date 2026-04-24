@@ -1,8 +1,16 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Button, Container } from "@marginflow/ui";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { readServerAuthState } from "@/lib/server-auth";
+
+export const metadata: Metadata = {
+  robots: {
+    follow: false,
+    index: false,
+  },
+};
 
 export default async function ProtectedAppLayout({
   children,
@@ -32,6 +40,9 @@ export default async function ProtectedAppLayout({
             </p>
           </div>
           <div className="flex gap-3">
+            <Button asChild variant="secondary">
+              <Link href="/app/billing">Billing</Link>
+            </Button>
             <Button asChild variant="secondary">
               <Link href="/">Back to marketing</Link>
             </Button>

@@ -11,6 +11,10 @@ const env = {
   DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
   GOOGLE_CLIENT_ID: "google-client-id",
   GOOGLE_CLIENT_SECRET: "google-client-secret",
+  STRIPE_SECRET_KEY: "stripe",
+  STRIPE_WEBHOOK_SECRET: "webhook",
+  STRIPE_PRICE_MONTHLY: "price_monthly",
+  STRIPE_PRICE_ANNUAL: "price_annual",
   NODE_ENV: "test",
   WEB_APP_ORIGIN: "http://localhost:3000",
 } as const;

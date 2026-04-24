@@ -2,6 +2,7 @@ import { Controller, Get, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "./auth.guard";
 import { CurrentAuthContext } from "./current-auth-context";
 import type { AuthenticatedRequestContext } from "./auth.types";
+import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
 
 @Controller("auth-state")
 export class AuthStateController {
@@ -15,7 +16,7 @@ export class AuthStateController {
   }
 
   @Get("protected")
-  @UseGuards(AuthGuard)
+  @UseGuards(EntitlementGuard)
   getProtectedContext(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
       data: {

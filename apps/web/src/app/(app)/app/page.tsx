@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { Card } from "@marginflow/ui";
+import { readServerBillingState } from "@/lib/server-billing";
 
 const panels = [
   {
@@ -15,7 +17,13 @@ const panels = [
   },
 ];
 
-export default function AppHomePage() {
+export default async function AppHomePage() {
+  const billingState = await readServerBillingState();
+
+  if (!billingState?.entitled) {
+    redirect("/app/billing");
+  }
+
   return (
     <main className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
       <Card className="min-h-[340px]">

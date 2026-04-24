@@ -12,6 +12,10 @@ describe("readApiEnv", () => {
         BETTER_AUTH_URL: "http://localhost:4000",
         GOOGLE_CLIENT_ID: "google-client-id",
         GOOGLE_CLIENT_SECRET: "google-client-secret",
+        STRIPE_SECRET_KEY: "stripe",
+        STRIPE_WEBHOOK_SECRET: "webhook",
+        STRIPE_PRICE_MONTHLY: "price_monthly",
+        STRIPE_PRICE_ANNUAL: "price_annual",
         NODE_ENV: "test",
         WEB_APP_ORIGIN: "http://localhost:3000",
       }),
@@ -41,6 +45,10 @@ describe("readApiEnv", () => {
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
@@ -48,6 +56,8 @@ describe("readApiEnv", () => {
     expect(env.DATABASE_URL).toContain("marginflow");
     expect(env.BETTER_AUTH_URL).toBe("http://localhost:4000");
     expect(env.API_DB_POOL_MAX).toBe(12);
+    expect(env.STRIPE_PRICE_MONTHLY).toBe("price_monthly");
+    expect(env.STRIPE_PRICE_ANNUAL).toBe("price_annual");
   });
 
   it("normalizes trusted origins", async () => {
@@ -61,6 +71,10 @@ describe("readApiEnv", () => {
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000, https://marginflow.app, https://admin.marginflow.app ",

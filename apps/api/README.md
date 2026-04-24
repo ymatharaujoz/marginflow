@@ -1,6 +1,6 @@
 # API App
 
-NestJS backend scaffold for MarginFlow. M5 now includes:
+NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
 
 - Fastify adapter
 - `GET /health` health endpoint
@@ -8,6 +8,10 @@ NestJS backend scaffold for MarginFlow. M5 now includes:
 - Better Auth mounted under `/auth/*`
 - session-aware `GET /auth-state/me` and protected guard seam
 - default-organization bootstrap for first authenticated access
+- Stripe-backed billing module with `GET /billing/subscription`
+- API-owned Stripe checkout creation through `POST /billing/checkout`
+- Stripe webhook handling at `POST /billing/stripe/webhook`
+- entitlement enforcement for protected API surfaces
 - shared trusted-origin parsing for Fastify CORS and Better Auth
 - lifecycle-managed Postgres runtime that keeps the `DATABASE_CLIENT` token stable for modules
 - shared exception handling and future Zod validation seam
@@ -39,5 +43,9 @@ NestJS backend scaffold for MarginFlow. M5 now includes:
 - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
 - `AUTH_TRUSTED_ORIGINS`: optional comma-separated extra trusted frontend origins
 - `WEB_APP_ORIGIN`: allowed browser origin for credentialed requests, default `http://localhost:3000`
+- `STRIPE_SECRET_KEY`: Stripe secret API key used for checkout and webhook follow-up fetches
+- `STRIPE_WEBHOOK_SECRET`: Stripe webhook signing secret used to verify raw webhook payloads
+- `STRIPE_PRICE_MONTHLY`: Stripe recurring price ID for the monthly plan
+- `STRIPE_PRICE_ANNUAL`: Stripe recurring price ID for the annual plan
 
 `DATABASE_URL` now matters for runtime boot. For local development, point it at plain Postgres. For production, point it at Supabase Postgres. `SUPABASE_*` values remain reserved for later service integrations.

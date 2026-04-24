@@ -11,6 +11,10 @@ const apiEnvSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string().min(1),
   WEB_APP_ORIGIN: z.string().url().default("http://localhost:3000"),
   AUTH_TRUSTED_ORIGINS: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().min(1),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  STRIPE_PRICE_MONTHLY: z.string().min(1),
+  STRIPE_PRICE_ANNUAL: z.string().min(1),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 
@@ -30,6 +34,10 @@ export function readApiEnv(
     GOOGLE_CLIENT_SECRET: source.GOOGLE_CLIENT_SECRET,
     WEB_APP_ORIGIN: source.WEB_APP_ORIGIN ?? source.NEXT_PUBLIC_APP_URL,
     AUTH_TRUSTED_ORIGINS: source.AUTH_TRUSTED_ORIGINS,
+    STRIPE_SECRET_KEY: source.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: source.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRICE_MONTHLY: source.STRIPE_PRICE_MONTHLY,
+    STRIPE_PRICE_ANNUAL: source.STRIPE_PRICE_ANNUAL,
     NODE_ENV: source.NODE_ENV,
   });
 }
