@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Inject, Injectable } from "@nestjs/common";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import { AuthService } from "@/modules/auth/auth.service";
 import { EntitlementsService } from "./entitlements.service";
@@ -6,7 +6,9 @@ import { EntitlementsService } from "./entitlements.service";
 @Injectable()
 export class EntitlementGuard implements CanActivate {
   constructor(
+    @Inject(AuthService)
     private readonly authService: AuthService,
+    @Inject(EntitlementsService)
     private readonly entitlementsService: EntitlementsService,
   ) {}
 

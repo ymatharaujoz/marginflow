@@ -32,6 +32,7 @@ export class AuthService {
     private readonly auth: BetterAuthLike,
     @Inject(API_RUNTIME_ENV)
     private readonly env: ApiRuntimeEnv,
+    @Inject(OrganizationProvisioningService)
     private readonly organizationProvisioningService: OrganizationProvisioningService,
   ) {}
 

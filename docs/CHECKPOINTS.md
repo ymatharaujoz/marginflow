@@ -2,10 +2,10 @@
 
 ## Current Focus
 
-- Active milestone: M7
-- Active task: review shipped marketing site and confirm whether milestone 7 should be marked complete
-- Next task: if approved by the user, switch M7 from in-progress to completed and append Checkpoint M7
-- Blockers: no code blockers for M7; completion tick is waiting on user confirmation per repo workflow
+- Active milestone: M12
+- Active task: review the new `/app` financial dashboard against the implemented KPI, chart, profitability, and recent-sync flows, then decide whether M12 can be marked complete
+- Next task: optional browser pass on `/app`, then user confirmation for the final M12 completion tick; M10 and M11 still separately need live Mercado Livre callback/sync verification for honest closure
+- Blockers: no code blockers on M12; repo gates are green, but final milestone completion still waits for user confirmation
 - Last completed checkpoint: M4
 
 ## Checkpoint M0

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Inject,
   Post,
   Req,
   UseGuards,
@@ -17,7 +18,9 @@ import { EntitlementsService } from "./entitlements.service";
 @Controller("billing")
 export class BillingController {
   constructor(
+    @Inject(BillingService)
     private readonly billingService: BillingService,
+    @Inject(EntitlementsService)
     private readonly entitlementsService: EntitlementsService,
   ) {}
 

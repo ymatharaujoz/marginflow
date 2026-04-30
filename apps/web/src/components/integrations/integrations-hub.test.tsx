@@ -1,0 +1,132 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { IntegrationsHub } from "./integrations-hub";
+
+const reactQueryMocks = vi.hoisted(() => ({
+  invalidateQueries: vi.fn(),
+  useMutation: vi.fn(() => ({
+    isPending: false,
+    mutate: vi.fn(),
+  })),
+  useQuery: vi.fn(),
+}));
+
+vi.mock("@tanstack/react-query", () => ({
+  useMutation: reactQueryMocks.useMutation,
+  useQuery: reactQueryMocks.useQuery,
+  useQueryClient: () => ({
+    invalidateQueries: reactQueryMocks.invalidateQueries,
+  }),
+}));
+
+describe("IntegrationsHub", () => {
+  function mockQueryByKey() {
+    reactQueryMocks.useQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === "integrations") {
+        return {
+          data: [
+            {
+              connectAvailable: true,
+              connectLabel: "Connect account",
+              connectedAccountId: null,
+              connectedAccountLabel: null,
+              disconnectAvailable: false,
+              disconnectLabel: null,
+              displayName: "Mercado Livre",
+              lastSyncedAt: null,
+              provider: "mercadolivre",
+              status: "disconnected",
+              statusMessage: "No marketplace account is connected yet.",
+              tokenExpiresAt: null,
+            },
+          ],
+          error: null,
+          isFetching: false,
+          isLoading: false,
+        };
+      }
+
+      if (queryKey[0] === "sync-status") {
+        return {
+          data: {
+            activeRun: null,
+            availability: {
+              canRun: true,
+              currentWindowKey: "2026-05-01:morning",
+              currentWindowLabel: "Morning",
+              currentWindowSlot: "morning",
+              lastSuccessfulSyncAt: null,
+              message: "Sync is available for the current daily window.",
+              nextAvailableAt: "2026-05-01T15:00:00.000Z",
+              provider: "mercadolivre",
+              reason: "available",
+            },
+            lastCompletedRun: null,
+          },
+          error: null,
+          isFetching: false,
+          isLoading: false,
+        };
+      }
+
+      return {
+        data: [],
+        error: null,
+        isFetching: false,
+        isLoading: false,
+      };
+    });
+  }
+
+  beforeEach(() => {
+    reactQueryMocks.invalidateQueries.mockReset();
+    reactQueryMocks.useMutation.mockClear();
+    reactQueryMocks.useQuery.mockReset();
+  });
+
+  it("renders provider cards and callback feedback", () => {
+    mockQueryByKey();
+
+    const markup = renderToStaticMarkup(
+      <IntegrationsHub
+        initialMessage="Mercado Livre connected successfully."
+        initialStatus="success"
+        organizationName="MarginFlow"
+      />,
+    );
+
+    expect(markup).toContain("Marketplace connections");
+    expect(markup).toContain("Mercado Livre");
+    expect(markup).toContain("Connect account");
+    expect(markup).toContain("Mercado Livre connected successfully.");
+    expect(markup).toContain("Mercado Livre sync control");
+    expect(markup).toContain("Sync data now");
+  });
+
+  it("renders the API failure state", () => {
+    reactQueryMocks.useQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === "integrations") {
+        return {
+          data: null,
+          error: new Error("Boom"),
+          isFetching: false,
+          isLoading: false,
+        };
+      }
+
+      return {
+        data: null,
+        error: null,
+        isFetching: false,
+        isLoading: false,
+      };
+    });
+
+    const markup = renderToStaticMarkup(
+      <IntegrationsHub initialMessage={null} initialStatus={null} organizationName="MarginFlow" />,
+    );
+
+    expect(markup).toContain("We could not load your provider connections.");
+    expect(markup).toContain("Boom");
+  });
+});

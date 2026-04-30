@@ -41,6 +41,15 @@ export default async function ProtectedAppLayout({
           </div>
           <div className="flex gap-3">
             <Button asChild variant="secondary">
+              <Link href="/app">Dashboard</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/app/products">Products</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/app/integrations">Integrations</Link>
+            </Button>
+            <Button asChild variant="secondary">
               <Link href="/app/billing">Billing</Link>
             </Button>
             <Button asChild variant="secondary">

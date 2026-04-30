@@ -58,6 +58,34 @@ describe("readApiEnv", () => {
     expect(env.API_DB_POOL_MAX).toBe(12);
     expect(env.STRIPE_PRICE_MONTHLY).toBe("price_monthly");
     expect(env.STRIPE_PRICE_ANNUAL).toBe("price_annual");
+    expect(env.MERCADOLIVRE_CLIENT_ID).toBeUndefined();
+  });
+
+  it("accepts optional Mercado Livre oauth configuration", () => {
+    const env = readApiEnv({
+      API_HOST: "127.0.0.1",
+      API_PORT: "4000",
+      API_DB_POOL_MAX: "12",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      GOOGLE_CLIENT_ID: "google-client-id",
+      GOOGLE_CLIENT_SECRET: "google-client-secret",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI: "http://localhost:4000/integrations/mercadolivre/callback",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    expect(env.MERCADOLIVRE_CLIENT_ID).toBe("ml-client-id");
+    expect(env.MERCADOLIVRE_REDIRECT_URI).toBe(
+      "http://localhost:4000/integrations/mercadolivre/callback",
+    );
   });
 
   it("normalizes trusted origins", async () => {

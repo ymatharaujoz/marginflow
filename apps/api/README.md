@@ -11,6 +11,7 @@ NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
 - Stripe-backed billing module with `GET /billing/subscription`
 - API-owned Stripe checkout creation through `POST /billing/checkout`
 - Stripe webhook handling at `POST /billing/stripe/webhook`
+- marketplace connection module with `GET /integrations`, `POST /integrations/mercadolivre/connect`, `GET /integrations/mercadolivre/callback`, and `POST /integrations/:provider/disconnect`
 - entitlement enforcement for protected API surfaces
 - shared trusted-origin parsing for Fastify CORS and Better Auth
 - lifecycle-managed Postgres runtime that keeps the `DATABASE_CLIENT` token stable for modules
@@ -33,6 +34,8 @@ NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
 
 ## Environment
 
+The dev server loads `.env`, `.env.local`, and (when `NODE_ENV` is `development`) `.env.development` from the **monorepo root**, not from `apps/api`. Copy `.env.example` there or set variables in your shell.
+
 - `API_HOST`: listen host, default `0.0.0.0`
 - `API_PORT`: listen port, default `4000`
 - `API_DB_POOL_MAX`: Postgres pool size cap for API runtime, default `10`
@@ -41,6 +44,9 @@ NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
 - `BETTER_AUTH_URL`: absolute API base URL used by Better Auth callbacks and cookies
 - `GOOGLE_CLIENT_ID`: Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
+- `MERCADOLIVRE_CLIENT_ID`: optional Mercado Livre app ID used for the live marketplace connection flow
+- `MERCADOLIVRE_CLIENT_SECRET`: optional Mercado Livre app secret used for token exchange
+- `MERCADOLIVRE_REDIRECT_URI`: optional exact callback URI for Mercado Livre; defaults to `<BETTER_AUTH_URL>/integrations/mercadolivre/callback`
 - `AUTH_TRUSTED_ORIGINS`: optional comma-separated extra trusted frontend origins
 - `WEB_APP_ORIGIN`: allowed browser origin for credentialed requests, default `http://localhost:3000`
 - `STRIPE_SECRET_KEY`: Stripe secret API key used for checkout and webhook follow-up fetches

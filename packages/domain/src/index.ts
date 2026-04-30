@@ -1,3 +1,1 @@
-export const domainModule = {
-  name: "domain",
-} as const;
+export * from "./finance";

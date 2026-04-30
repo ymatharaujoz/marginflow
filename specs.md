@@ -883,9 +883,9 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 ```md
 ## Current Focus
 - Active milestone: M5
-- Active task: finish interactive Drizzle migration regeneration in a TTY shell and manually verify Google OAuth callback flow
-- Next task: run `drizzle-kit generate` in a real TTY, confirm any remaining rename prompts, then execute end-to-end Google OAuth verification before appending Checkpoint M5
-- Blockers: `drizzle-kit generate` still requires an interactive TTY shell, and Google OAuth callback has not yet been manually verified
+- Active task: use the new `TEST.md` runbook to finish manual Google OAuth callback verification and local Stripe checkout/webhook verification
+- Next task: run `drizzle-kit generate` in a real TTY if migration artifacts need regeneration, then execute the full local auth and billing checklist documented in `TEST.md`
+- Blockers: `drizzle-kit generate` still requires an interactive TTY shell, and live Google OAuth plus Stripe checkout/webhook verification still depend on valid local provider configuration
 - Last completed checkpoint: M4
 
 ## Completed Checkpoints
@@ -1214,6 +1214,7 @@ Implement authentication, sessions, organization scoping, and route protection.
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] `/sign-in` no longer tripped a 500 on `GET /auth-state/me`: the API dev runner (`tsx`) does not emit Nest’s `design:paramtypes`, so class-based constructor injection was undefined for `AuthGuard` and other providers until explicit `@Inject(Type)` was added; the marketing `app/error.tsx` no longer wraps segment errors in `<html>/<body>` (that shape belongs only in `global-error.tsx`).
 - [x] Better Auth routing and Fastify bridge were corrected to use the live `/auth` base path with request-body forwarding, and server-side Google sign-in now returns a real Google authorization URL
 - [x] Local auth schema drift was repaired in development by resetting the empty local Postgres schema to the current Drizzle baseline, and the Better Auth tables were aligned to string IDs expected by the library
 - [x] Final Google OAuth callback completion still requires a manual browser login against the configured Google app
@@ -1323,7 +1324,7 @@ Build the public website and SEO baseline in Next.js.
 
 ### Status
 - [ ] Not started
-- [ ] In progress
+- [x] In progress
 - [ ] Blocked
 - [ ] Completed
 
@@ -1337,29 +1338,33 @@ Allow users to create, edit, and manage products and related cost inputs.
 ### Task Groups
 
 #### 8.1 Backend
-- [ ] Create product module
-- [ ] Create product cost module
-- [ ] Create ad cost and manual expense endpoints
-- [ ] Add archive behavior
+- [x] Create product module
+- [x] Create product cost module
+- [x] Create ad cost and manual expense endpoints
+- [x] Add archive behavior
 
 #### 8.2 Frontend
-- [ ] Build product list page
-- [ ] Build create/edit product forms
-- [ ] Build cost entry flows
-- [ ] Build empty and error states
+- [x] Build product list page
+- [x] Build create/edit product forms
+- [x] Build cost entry flows
+- [x] Build empty and error states
 
 #### 8.3 Quality
-- [ ] Add validation tests
-- [ ] Add core integration tests
-- [ ] Verify organization scoping
+- [x] Add validation tests
+- [x] Add core integration tests
+- [x] Verify organization scoping
 
 ### Exit Criteria
-- [ ] User can manage products and costs
-- [ ] Calculated fields can consume stored data
-- [ ] Product CRUD path is functional end to end
+- [x] User can manage products and costs
+- [x] Calculated fields can consume stored data
+- [x] Product CRUD path is functional end to end
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] M8 shipped with protected API endpoints for products, product costs, ad costs, and manual expenses plus a single `/app/products` management hub in the web app
+- [x] Product archive behavior is soft-only via `isActive`, product cost history remains appendable, and product lists now surface the latest recorded cost per product
+- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- [x] Milestone is ready for final completion tick once user confirms it should be considered done
 
 ---
 
@@ -1367,7 +1372,7 @@ Allow users to create, edit, and manage products and related cost inputs.
 
 ### Status
 - [ ] Not started
-- [ ] In progress
+- [x] In progress
 - [ ] Blocked
 - [ ] Completed
 
@@ -1380,31 +1385,36 @@ Implement deterministic financial formulas and metric-generation logic.
 ### Task Groups
 
 #### 9.1 Formula Layer
-- [ ] Implement gross revenue formula
-- [ ] Implement net revenue formula
-- [ ] Implement contribution margin formula
-- [ ] Implement gross margin formula
-- [ ] Implement net profit formula
-- [ ] Implement break-even formulas
+- [x] Implement gross revenue formula
+- [x] Implement net revenue formula
+- [x] Implement contribution margin formula
+- [x] Implement gross margin formula
+- [x] Implement net profit formula
+- [x] Implement break-even formulas
 
 #### 9.2 Metrics and Aggregation
-- [ ] Add product-level profitability calculations
-- [ ] Add channel-level profitability calculations
-- [ ] Add daily metrics generation strategy
-- [ ] Add metric read helpers for dashboard consumption
+- [x] Add product-level profitability calculations
+- [x] Add channel-level profitability calculations
+- [x] Add daily metrics generation strategy
+- [x] Add metric read helpers for dashboard consumption
 
 #### 9.3 Tests
-- [ ] Add unit tests for formulas
-- [ ] Add integration tests for stored metric generation
-- [ ] Verify deterministic outputs
+- [x] Add unit tests for formulas
+- [x] Add integration tests for stored metric generation
+- [x] Verify deterministic outputs
 
 ### Exit Criteria
-- [ ] Core formulas are implemented
-- [ ] Tests validate metric correctness
-- [ ] Dashboard-facing data contracts are available
+- [x] Core formulas are implemented
+- [x] Tests validate metric correctness
+- [x] Dashboard-facing data contracts are available
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] M9 shipped a new `@marginflow/domain` finance engine with deterministic money math, formula helpers, organization finance snapshot types, overview aggregation, and unit coverage for formulas plus zero-edge behavior
+- [x] The API now includes an internal `FinanceModule` and `FinanceService` that build organization-scoped finance snapshots from current tables, map marketplace sales to internal products by SKU, aggregate summary/channel/product/daily read models, and materialize `daily_metrics` plus `product_metrics`
+- [x] Shared dashboard-facing contracts were added in `@marginflow/types`, and materialized metric metadata now carries supporting profitability fields for future M12 dashboard endpoints
+- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- [x] Milestone is ready for final completion tick once user confirms it should be considered done; M8 remains separately pending final confirmation
 
 ---
 
@@ -1412,8 +1422,8 @@ Implement deterministic financial formulas and metric-generation logic.
 
 ### Status
 - [ ] Not started
-- [ ] In progress
-- [ ] Blocked
+- [x] In progress
+- [x] Blocked
 - [ ] Completed
 
 ### Objective
@@ -1426,29 +1436,34 @@ Implement marketplace account connection flows and provider boundaries.
 ### Task Groups
 
 #### 10.1 Provider Boundaries
-- [ ] Define provider interface
-- [ ] Add Mercado Livre provider skeleton
-- [ ] Add Shopee provider skeleton
-- [ ] Add secure token storage strategy
+- [x] Define provider interface
+- [x] Add Mercado Livre provider skeleton
+- [x] Add Shopee provider skeleton
+- [x] Add secure token storage strategy
 
 #### 10.2 Connection Flows
-- [ ] Implement Mercado Livre connect flow
+- [x] Implement Mercado Livre connect flow
 - [ ] Implement Shopee connect flow if credentials are available
-- [ ] Add connection status endpoints
-- [ ] Add disconnection flow if needed
+- [x] Add connection status endpoints
+- [x] Add disconnection flow if needed
 
 #### 10.3 Quality
-- [ ] Add provider mapping tests
-- [ ] Add connection-flow integration tests
-- [ ] Add provider error messaging strategy
+- [x] Add provider mapping tests
+- [x] Add connection-flow integration tests
+- [x] Add provider error messaging strategy
 
 ### Exit Criteria
 - [ ] At least one provider connect flow is functional
-- [ ] Provider boundary exists for future expansion
-- [ ] Connection state is visible in the app
+- [x] Provider boundary exists for future expansion
+- [x] Connection state is visible in the app
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] M10 shipped a protected `IntegrationsModule` in `apps/api` with signed Mercado Livre OAuth state, connection status/read-model endpoints, a callback bridge, and local disconnect flow on top of the existing `marketplace_connections` table
+- [x] The web app now includes a dedicated `/app/integrations` workspace page with provider cards, callback feedback messaging, and connect/disconnect actions wired to the API
+- [x] Shared integration contracts were added in `@marginflow/types`, and Shopee now exists as an explicit skeleton behind the same provider boundary without pretending the live flow is configured
+- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- [x] Final milestone closure is still blocked on manual live Mercado Livre credential setup plus browser callback verification, so the milestone should remain incomplete until that pass succeeds
 
 ---
 
@@ -1456,8 +1471,8 @@ Implement marketplace account connection flows and provider boundaries.
 
 ### Status
 - [ ] Not started
-- [ ] In progress
-- [ ] Blocked
+- [x] In progress
+- [x] Blocked
 - [ ] Completed
 
 ### Objective
@@ -1469,32 +1484,36 @@ Implement the manual sync button, daily window rules, sync status tracking, and 
 ### Task Groups
 
 #### 11.1 Sync Rule Engine
-- [ ] Implement window-key calculation
-- [ ] Implement current-window availability check
-- [ ] Implement duplicate-window blocking
-- [ ] Implement next-available-window response logic
+- [x] Implement window-key calculation
+- [x] Implement current-window availability check
+- [x] Implement duplicate-window blocking
+- [x] Implement next-available-window response logic
 
 #### 11.2 Sync Execution
-- [ ] Create sync run service
-- [ ] Record `processing`, `completed`, and `failed` states
-- [ ] Implement incremental sync strategy
-- [ ] Implement idempotent upsert flow
-- [ ] Recalculate affected metrics after sync
+- [x] Create sync run service
+- [x] Record `processing`, `completed`, and `failed` states
+- [x] Implement incremental sync strategy
+- [x] Implement idempotent upsert flow
+- [x] Recalculate affected metrics after sync
 
 #### 11.3 Frontend UX
-- [ ] Add Sync Data button
-- [ ] Add blocked-state messaging
-- [ ] Add sync status and history UI
-- [ ] Add loading and failure states
+- [x] Add Sync Data button
+- [x] Add blocked-state messaging
+- [x] Add sync status and history UI
+- [x] Add loading and failure states
 
 ### Exit Criteria
 - [ ] User can run sync when allowed
 - [ ] User is blocked after using the current window
-- [ ] Sync history is visible
-- [ ] Updated metrics appear after successful sync
+- [x] Sync history is visible
+- [x] Updated metrics appear after successful sync
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] M11 shipped a new protected `SyncModule` in `apps/api` with `GET /sync/status`, `GET /sync/history`, and `POST /sync/run`, plus a Sao Paulo window-rule engine, provider-based Mercado Livre sync orchestration, sync-run persistence, and finance re-materialization after successful imports
+- [x] The `/app/integrations` workspace now includes manual sync availability, blocked-state messaging, active run feedback, last successful sync details, and recent sync history beside the existing provider cards
+- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- [x] Final milestone closure is still blocked on live Mercado Livre credential setup plus browser verification for account callback, first import, same-window blocking, and real metrics refresh
 
 ---
 
@@ -1502,7 +1521,7 @@ Implement the manual sync button, daily window rules, sync status tracking, and 
 
 ### Status
 - [ ] Not started
-- [ ] In progress
+- [x] In progress
 - [ ] Blocked
 - [ ] Completed
 
@@ -1515,31 +1534,36 @@ Expose useful financial insights through the dashboard.
 ### Task Groups
 
 #### 12.1 Backend Read Models
-- [ ] Implement dashboard summary endpoint
-- [ ] Implement chart endpoint
-- [ ] Implement recent sync endpoint
-- [ ] Implement product profitability read model
+- [x] Implement dashboard summary endpoint
+- [x] Implement chart endpoint
+- [x] Implement recent sync endpoint
+- [x] Implement product profitability read model
 
 #### 12.2 Frontend Dashboard
-- [ ] Build top-level KPI section
-- [ ] Build charts section
-- [ ] Build profitability tables
-- [ ] Build recent sync panel
-- [ ] Build empty states for not-yet-synced accounts
+- [x] Build top-level KPI section
+- [x] Build charts section
+- [x] Build profitability tables
+- [x] Build recent sync panel
+- [x] Build empty states for not-yet-synced accounts
 
 #### 12.3 Dashboard Quality
-- [ ] Validate numbers against domain formulas
-- [ ] Review data-loading states
-- [ ] Review mobile and desktop usability
+- [x] Validate numbers against domain formulas
+- [x] Review data-loading states
+- [x] Review mobile and desktop usability
 
 ### Exit Criteria
-- [ ] Dashboard displays useful financial insight
-- [ ] Summary metrics and charts load correctly
-- [ ] Recent sync data is visible
-- [ ] UI reflects real backend-calculated values
+- [x] Dashboard displays useful financial insight
+- [x] Summary metrics and charts load correctly
+- [x] Recent sync data is visible
+- [x] UI reflects real backend-calculated values
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
+- [x] M12 shipped a new protected `DashboardModule` in `apps/api` with `GET /dashboard/summary`, `GET /dashboard/charts`, `GET /dashboard/recent-sync`, and `GET /dashboard/profitability`, all composed from the existing finance engine plus sync status service
+- [x] The web app now opens entitled users on a real `/app` dashboard with KPI cards, responsive Recharts trend/comparison views, profitability rankings, recent sync visibility, and distinct first-run empty states for no sync data vs missing catalog cost inputs
+- [x] Shared dashboard response contracts were added in `@marginflow/types`, and `/app` navigation now treats Dashboard as the primary workspace home instead of redirecting immediately to Products
+- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- [x] Milestone is ready for final completion tick once user confirms it should be considered done
 
 ---
 

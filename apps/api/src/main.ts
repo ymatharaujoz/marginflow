@@ -1,3 +1,4 @@
+import "./common/config/monorepo-env";
 import "reflect-metadata";
 import { buildApp } from "./app";
 import { readApiEnv } from "@/common/config/api-env";
