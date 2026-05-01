@@ -1,9 +1,25 @@
 import type { HTMLAttributes } from "react";
+import { cn } from "./utils";
 
-function mergeClassNames(...parts: Array<string | undefined>) {
-  return parts.filter(Boolean).join(" ");
-}
+type ContainerSize = "sm" | "md" | "lg" | "xl" | "full";
 
-export function Container({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={mergeClassNames("mx-auto w-full max-w-6xl px-6 md:px-10", className)} {...props} />;
+export type ContainerProps = HTMLAttributes<HTMLDivElement> & {
+  size?: ContainerSize;
+};
+
+const sizeStyles: Record<ContainerSize, string> = {
+  sm: "max-w-3xl",
+  md: "max-w-5xl",
+  lg: "max-w-6xl",
+  xl: "max-w-7xl",
+  full: "max-w-full",
+};
+
+export function Container({ className, size = "lg", ...props }: ContainerProps) {
+  return (
+    <div
+      className={cn("mx-auto w-full px-5 md:px-8", sizeStyles[size], className)}
+      {...props}
+    />
+  );
 }

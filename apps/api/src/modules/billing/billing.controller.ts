@@ -11,7 +11,7 @@ import {
 import { AuthGuard } from "@/modules/auth/auth.guard";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
-import { CreateCheckoutRequestDto } from "./billing.dto";
+import { ConfirmCheckoutRequestDto, CreateCheckoutRequestDto } from "./billing.dto";
 import { BillingService } from "./billing.service";
 import { EntitlementsService } from "./entitlements.service";
 
@@ -29,6 +29,9 @@ export class BillingController {
   async getSubscription(
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,
   ) {
+    await this.billingService.reconcileOrganizationSubscriptionWithStripe(
+      authContext.organization.id,
+    );
     return {
       data: await this.entitlementsService.getBillingSnapshot(authContext.organization.id),
       error: null,
@@ -43,6 +46,20 @@ export class BillingController {
   ) {
     return {
       data: await this.billingService.createCheckoutSession(authContext, body.interval),
+      error: null,
+    };
+  }
+
+  @Post("checkout/confirm")
+  @UseGuards(AuthGuard)
+  async confirmCheckoutSession(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Body() body: ConfirmCheckoutRequestDto,
+  ) {
+    await this.billingService.confirmCheckoutSession(authContext, body.sessionId);
+
+    return {
+      data: await this.entitlementsService.getBillingSnapshot(authContext.organization.id),
       error: null,
     };
   }

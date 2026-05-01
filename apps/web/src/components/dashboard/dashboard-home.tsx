@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Button, Card } from "@marginflow/ui";
+import { Badge, Button, Card, EmptyState, Skeleton } from "@marginflow/ui";
 import type {
   DashboardChartsResponse,
   DashboardProfitabilityResponse,
@@ -23,6 +23,12 @@ import type {
   DashboardSummaryResponse,
 } from "@marginflow/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
+import {
+  translateApiMessage,
+  translateDashboardCardHelper,
+  translateDashboardCardLabel,
+  translateSyncRunStatus,
+} from "@/lib/pt-br/api-ui";
 
 const dashboardSummaryQueryKey = ["dashboard-summary"] as const;
 const dashboardChartsQueryKey = ["dashboard-charts"] as const;
@@ -30,49 +36,36 @@ const dashboardRecentSyncQueryKey = ["dashboard-recent-sync"] as const;
 const dashboardProfitabilityQueryKey = ["dashboard-profitability"] as const;
 
 const chartColors = {
-  grossRevenue: "#0f766e",
-  netProfit: "#0f172a",
-  warning: "#b45309",
+  grossRevenue: "#0e7a6f",
+  netProfit: "#141c22",
+  warning: "#d97706",
 };
 
 function formatMoney(value: string | number) {
   const numeric = typeof value === "number" ? value : Number(value);
-
   return Number.isFinite(numeric)
-    ? new Intl.NumberFormat("en-US", {
-        currency: "USD",
-        style: "currency",
-      }).format(numeric)
+    ? new Intl.NumberFormat("pt-BR", { currency: "BRL", style: "currency" }).format(numeric)
     : String(value);
 }
 
 function formatDecimal(value: string | number, suffix = "") {
   const numeric = typeof value === "number" ? value : Number(value);
-
   return Number.isFinite(numeric)
-    ? `${new Intl.NumberFormat("en-US", {
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 0,
-      }).format(numeric)}${suffix}`
+    ? `${new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(numeric)}${suffix}`
     : `${String(value)}${suffix}`;
 }
 
 function formatMetricDate(value: string) {
-  return new Intl.DateTimeFormat("en-US", {
-    day: "numeric",
-    month: "short",
-  }).format(new Date(`${value}T00:00:00`));
+  return new Intl.DateTimeFormat("pt-BR", { day: "numeric", month: "short" }).format(
+    new Date(`${value}T00:00:00`),
+  );
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) {
-    return "Not available";
-  }
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  if (!value) return "Indisponível";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(value),
+  );
 }
 
 function formatProviderLabel(value: string) {
@@ -84,84 +77,45 @@ function formatProviderLabel(value: string) {
 }
 
 async function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
-  const response = await apiClient.get<{ data: DashboardSummaryResponse; error: null }>(
-    "/dashboard/summary",
-  );
-
+  const response = await apiClient.get<{ data: DashboardSummaryResponse; error: null }>("/dashboard/summary");
   return response.data;
 }
 
 async function fetchDashboardCharts(): Promise<DashboardChartsResponse> {
-  const response = await apiClient.get<{ data: DashboardChartsResponse; error: null }>(
-    "/dashboard/charts",
-  );
-
+  const response = await apiClient.get<{ data: DashboardChartsResponse; error: null }>("/dashboard/charts");
   return response.data;
 }
 
 async function fetchDashboardRecentSync(): Promise<DashboardRecentSyncResponse> {
-  const response = await apiClient.get<{ data: DashboardRecentSyncResponse; error: null }>(
-    "/dashboard/recent-sync",
-  );
-
+  const response = await apiClient.get<{ data: DashboardRecentSyncResponse; error: null }>("/dashboard/recent-sync");
   return response.data;
 }
 
 async function fetchDashboardProfitability(): Promise<DashboardProfitabilityResponse> {
-  const response = await apiClient.get<{ data: DashboardProfitabilityResponse; error: null }>(
-    "/dashboard/profitability",
-  );
-
+  const response = await apiClient.get<{ data: DashboardProfitabilityResponse; error: null }>("/dashboard/profitability");
   return response.data;
 }
 
-function BlockShell({
-  eyebrow,
+function SectionHeader({
   title,
   description,
   action,
-  children,
 }: {
   action?: React.ReactNode;
-  children: React.ReactNode;
   description: string;
-  eyebrow: string;
   title: string;
 }) {
   return (
-    <Card className="space-y-5 border-border bg-surface shadow-[var(--shadow-card)]">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">{eyebrow}</p>
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-          <p className="max-w-3xl text-sm leading-7 text-foreground-soft">{description}</p>
-        </div>
-        {action}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
       </div>
-      {children}
-    </Card>
-  );
-}
-
-function BlockMessage({
-  children,
-  tone = "neutral",
-}: {
-  children: React.ReactNode;
-  tone?: "critical" | "neutral";
-}) {
-  return (
-    <div
-      className={
-        tone === "critical"
-          ? "rounded-[var(--radius-md)] border border-[color:rgba(220,38,38,0.22)] bg-[color:rgba(220,38,38,0.08)] px-4 py-3 text-sm text-foreground"
-          : "rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3 text-sm leading-7 text-foreground-soft"
-      }
-    >
-      {children}
+      {action}
     </div>
   );
 }
+
 
 function formatCardValue(label: string, value: string | number) {
   switch (label) {
@@ -176,28 +130,28 @@ function formatCardValue(label: string, value: string | number) {
   }
 }
 
-function KpiStrip({ summary }: { summary: DashboardSummaryResponse }) {
+function KpiStrip({ data }: { data: DashboardSummaryResponse }) {
+  const metrics = data.summary;
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {summary.cards.map((card) => (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {data.cards.map((card, i) => (
         <div
           key={card.label}
-          className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.9))] px-5 py-5"
+          className="animate-rise-in rounded-[var(--radius-lg)] border border-border bg-surface-strong p-5 shadow-[var(--shadow-xs)] transition-shadow hover:shadow-[var(--shadow-sm)]"
+          style={{ animationDelay: `${i * 80}ms` }}
         >
-          <div
-            className={
-              card.tone === "positive"
-                ? "absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#0f766e,#14b8a6)]"
-                : card.tone === "warning"
-                  ? "absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#b45309,#f59e0b)]"
-                  : "absolute inset-x-0 top-0 h-1 bg-[linear-gradient(90deg,#0f172a,#475569)]"
-            }
-          />
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-accent">{card.label}</p>
-          <p className="mt-4 text-3xl font-semibold tracking-tight text-foreground">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {translateDashboardCardLabel(card.label)}
+            </p>
+            <Badge variant={card.tone === "positive" ? "success" : card.tone === "warning" ? "warning" : "neutral"}>
+              {card.tone === "positive" ? "Positivo" : card.tone === "warning" ? "Atenção" : "—"}
+            </Badge>
+          </div>
+          <p className="mt-3 text-2xl font-bold tracking-tight text-foreground">
             {formatCardValue(card.label, card.value)}
           </p>
-          <p className="mt-3 text-sm leading-7 text-foreground-soft">{card.helperText}</p>
+          <p className="mt-2 text-xs text-muted-foreground">{translateDashboardCardHelper(card.label, metrics) || card.helperText}</p>
         </div>
       ))}
     </div>
@@ -206,22 +160,22 @@ function KpiStrip({ summary }: { summary: DashboardSummaryResponse }) {
 
 function SummaryDetails({ summary }: { summary: DashboardSummaryMetrics }) {
   const detailItems = [
-    { label: "Net revenue", value: formatMoney(summary.netRevenue) },
-    { label: "Contribution margin", value: formatMoney(summary.contributionMargin) },
-    { label: "Total COGS", value: formatMoney(summary.totalCogs) },
-    { label: "Marketplace fees", value: formatMoney(summary.totalFees) },
-    { label: "Ad costs", value: formatMoney(summary.totalAdCosts) },
-    { label: "Manual expenses", value: formatMoney(summary.totalManualExpenses) },
-    { label: "Break-even units", value: formatDecimal(summary.breakEvenUnits) },
-    { label: "Orders / units", value: `${summary.ordersCount} / ${summary.unitsSold}` },
+    { label: "Receita líquida", value: formatMoney(summary.netRevenue) },
+    { label: "Margem de contribuição", value: formatMoney(summary.contributionMargin) },
+    { label: "CMV total", value: formatMoney(summary.totalCogs) },
+    { label: "Taxas marketplace", value: formatMoney(summary.totalFees) },
+    { label: "Custos em anúncios", value: formatMoney(summary.totalAdCosts) },
+    { label: "Despesas manuais", value: formatMoney(summary.totalManualExpenses) },
+    { label: "Unidades no breakeven", value: formatDecimal(summary.breakEvenUnits) },
+    { label: "Pedidos / unidades", value: `${summary.ordersCount} / ${summary.unitsSold}` },
   ];
 
   return (
-    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {detailItems.map((item) => (
-        <div key={item.label} className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">{item.label}</p>
-          <p className="mt-2 text-lg font-semibold text-foreground">{item.value}</p>
+        <div key={item.label} className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+          <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
+          <p className="mt-1.5 text-base font-semibold text-foreground">{item.value}</p>
         </div>
       ))}
     </div>
@@ -231,37 +185,33 @@ function SummaryDetails({ summary }: { summary: DashboardSummaryMetrics }) {
 function FinancialEmptyState({ reason }: { reason: "catalog" | "insufficient" | "sync" }) {
   if (reason === "sync") {
     return (
-      <BlockMessage>
-        No marketplace sync has completed yet. Connect Mercado Livre and run the first import from the
-        integrations workspace to unlock dashboard trends.
-      </BlockMessage>
+      <EmptyState
+        title="Ainda sem dados de sincronização"
+        description="Conecte o Mercado Livre e execute a primeira importação em Integrações para liberar tendências aqui."
+        icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>}
+      />
     );
   }
-
   if (reason === "catalog") {
     return (
-      <BlockMessage>
-        Marketplace data exists, but you still need product costs or manual expenses for stronger
-        profitability insight. Add those records in Products to deepen the analysis.
-      </BlockMessage>
+      <EmptyState
+        title="Cadastre custos de produto"
+        description="Há dados de marketplace, mas faltam custos ou despesas para enxergar lucratividade com confiança."
+        icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>}
+      />
     );
   }
-
   return (
-    <BlockMessage>
-      Data exists, but there is not enough signal yet for trend analysis. Keep syncing orders and
-      recording costs so MarginFlow can build richer comparisons.
-    </BlockMessage>
+    <EmptyState
+      title="Precisamos de mais dados"
+      description="Continue sincronizando pedidos e registrando custos para o MarginFlow montar comparativos mais completos."
+      icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>}
+    />
   );
 }
 
-function normalizeEmptyStateReason(
-  value: "catalog" | "insufficient" | "sync" | "ready" | null,
-): "catalog" | "insufficient" | "sync" {
-  if (value === "catalog" || value === "sync") {
-    return value;
-  }
-
+function normalizeEmptyStateReason(value: "catalog" | "insufficient" | "sync" | "ready" | null): "catalog" | "insufficient" | "sync" {
+  if (value === "catalog" || value === "sync") return value;
   return "insufficient";
 }
 
@@ -270,52 +220,24 @@ function determineFinancialState(
   charts: DashboardChartsResponse | undefined,
   profitability: DashboardProfitabilityResponse | undefined,
 ) {
-  if (!summary || !charts || !profitability) {
-    return null;
-  }
-
+  if (!summary || !charts || !profitability) return null;
   const hasSyncData = charts.daily.length > 0;
-  const hasCatalogCosts =
-    Number(summary.totalCogs) > 0 ||
-    Number(summary.totalAdCosts) > 0 ||
-    Number(summary.totalManualExpenses) > 0;
-  const hasProfitabilitySignal =
-    profitability.products.length > 0 && profitability.channels.length > 0 && hasCatalogCosts;
-
-  if (!hasSyncData) {
-    return "sync" as const;
-  }
-
-  if (!hasCatalogCosts) {
-    return "catalog" as const;
-  }
-
-  if (!hasProfitabilitySignal) {
-    return "insufficient" as const;
-  }
-
+  const hasCatalogCosts = Number(summary.totalCogs) > 0 || Number(summary.totalAdCosts) > 0 || Number(summary.totalManualExpenses) > 0;
+  const hasProfitabilitySignal = profitability.products.length > 0 && profitability.channels.length > 0 && hasCatalogCosts;
+  if (!hasSyncData) return "sync" as const;
+  if (!hasCatalogCosts) return "catalog" as const;
+  if (!hasProfitabilitySignal) return "insufficient" as const;
   return "ready" as const;
 }
 
-function CustomChartTooltip({
-  active,
-  label,
-  payload,
-}: {
-  active?: boolean;
-  label?: string;
-  payload?: Array<{ color?: string; name?: string; value?: number | string }>;
-}) {
-  if (!active || !payload || payload.length === 0) {
-    return null;
-  }
-
+function CustomChartTooltip({ active, label, payload }: { active?: boolean; label?: string; payload?: Array<{ color?: string; name?: string; value?: number | string }> }) {
+  if (!active || !payload || payload.length === 0) return null;
   return (
-    <div className="rounded-[var(--radius-md)] border border-border bg-surface px-3 py-3 shadow-[var(--shadow-card)]">
-      <p className="text-sm font-semibold text-foreground">{label}</p>
-      <div className="mt-2 space-y-1">
+    <div className="rounded-[var(--radius-md)] border border-border bg-surface-strong px-3 py-2.5 shadow-[var(--shadow-md)]">
+      <p className="text-xs font-semibold text-foreground">{label}</p>
+      <div className="mt-1.5 space-y-0.5">
         {payload.map((entry) => (
-          <p key={entry.name} className="text-sm" style={{ color: entry.color ?? "#0f172a" }}>
+          <p key={entry.name} className="text-xs" style={{ color: entry.color ?? "#141c22" }}>
             {entry.name}: {typeof entry.value === "number" ? formatMoney(entry.value) : entry.value}
           </p>
         ))}
@@ -324,386 +246,207 @@ function CustomChartTooltip({
   );
 }
 
-export function DashboardHome({ organizationName }: { organizationName: string }) {
-  const summaryQuery = useQuery({
-    queryFn: fetchDashboardSummary,
-    queryKey: dashboardSummaryQueryKey,
-  });
-  const chartsQuery = useQuery({
-    queryFn: fetchDashboardCharts,
-    queryKey: dashboardChartsQueryKey,
-  });
-  const recentSyncQuery = useQuery({
-    queryFn: fetchDashboardRecentSync,
-    queryKey: dashboardRecentSyncQueryKey,
-  });
-  const profitabilityQuery = useQuery({
-    queryFn: fetchDashboardProfitability,
-    queryKey: dashboardProfitabilityQueryKey,
-  });
-
-  const isUnauthorized =
-    summaryQuery.error instanceof ApiClientError && summaryQuery.error.status === 401;
-  const financialState = determineFinancialState(
-    summaryQuery.data?.summary,
-    chartsQuery.data,
-    profitabilityQuery.data,
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-28 w-full" />
+        ))}
+      </div>
+      <Skeleton className="h-80 w-full" />
+    </div>
   );
+}
+
+export function DashboardHome({ organizationName }: { organizationName: string }) {
+  const summaryQuery = useQuery({ queryFn: fetchDashboardSummary, queryKey: dashboardSummaryQueryKey });
+  const chartsQuery = useQuery({ queryFn: fetchDashboardCharts, queryKey: dashboardChartsQueryKey });
+  const recentSyncQuery = useQuery({ queryFn: fetchDashboardRecentSync, queryKey: dashboardRecentSyncQueryKey });
+  const profitabilityQuery = useQuery({ queryFn: fetchDashboardProfitability, queryKey: dashboardProfitabilityQueryKey });
+
+  const isUnauthorized = summaryQuery.error instanceof ApiClientError && summaryQuery.error.status === 401;
+  const financialState = determineFinancialState(summaryQuery.data?.summary, chartsQuery.data, profitabilityQuery.data);
+  const isLoading = summaryQuery.isLoading || chartsQuery.isLoading;
 
   return (
-    <main className="space-y-6 py-6 md:py-8">
-      <Card className="overflow-hidden border-border bg-[radial-gradient(circle_at_top_left,rgba(20,184,166,0.18),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] shadow-[var(--shadow-card)]">
-        <div className="grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">M12 dashboard</p>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-foreground">
-              Financial insight home for {organizationName}
-            </h1>
-            <p className="max-w-3xl text-base leading-8 text-foreground-soft">
-              MarginFlow now opens with a dedicated financial surface that combines synced marketplace
-              orders, mapped product costs, and manual expenses into one profitability view.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild>
-                <Link href="/app/integrations">Run sync or review imports</Link>
-              </Button>
-              <Button asChild variant="secondary">
-                <Link href="/app/products">Manage products and costs</Link>
-              </Button>
-            </div>
-          </div>
+    <div className="space-y-6">
+      {/* Welcome header */}
+      <div className="animate-rise-in">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Bem-vindo de volta, {organizationName}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Sua visão financeira cruzando dados sincronizados dos marketplaces e custos cadastrados.
+        </p>
+      </div>
 
-          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-            <div className="rounded-[var(--radius-lg)] border border-border bg-white/85 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Live backend values</p>
-              <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                All headline numbers come from backend-owned finance formulas, not duplicated web math.
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-lg)] border border-border bg-white/85 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Sync-aware</p>
-              <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                Recent provider status stays visible so you can relate insight freshness to the last import.
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-lg)] border border-border bg-white/85 px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Built for action</p>
-              <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                Use the charts for trend reading, then jump into Products or Integrations when the numbers need context.
-              </p>
-            </div>
-          </div>
-        </div>
-      </Card>
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-2">
+        <Button asChild size="sm">
+          <Link href="/app/integrations">Sincronizar</Link>
+        </Button>
+        <Button asChild size="sm" variant="secondary">
+          <Link href="/app/products">Gerenciar custos</Link>
+        </Button>
+      </div>
 
-      {isUnauthorized ? (
-        <BlockShell
-          description="Your session is no longer valid for protected dashboard data."
-          eyebrow="Access"
-          title="Authentication required"
-        >
-          <BlockMessage tone="critical">Sign in again and reload the dashboard.</BlockMessage>
-        </BlockShell>
-      ) : null}
+      {isUnauthorized && (
+        <Card variant="outlined" className="border-error/20 bg-error-soft">
+          <p className="text-sm font-medium text-error">
+            Sessão expirada. Entre novamente para ver os dados do painel.
+          </p>
+        </Card>
+      )}
 
-      {!isUnauthorized ? (
-        <BlockShell
-          description="Track revenue, profitability, margin strength, and break-even posture from the latest backend snapshot."
-          eyebrow="Overview"
-          title="Top-level KPIs"
-        >
-          {summaryQuery.isLoading ? <BlockMessage>Loading financial summary...</BlockMessage> : null}
-          {summaryQuery.error ? (
-            <BlockMessage tone="critical">
-              {summaryQuery.error instanceof Error
-                ? summaryQuery.error.message
-                : "Unexpected dashboard summary error."}
-            </BlockMessage>
-          ) : null}
-          {summaryQuery.data ? (
-            <div className="space-y-4">
-              <KpiStrip summary={summaryQuery.data} />
-              <SummaryDetails summary={summaryQuery.data.summary} />
+      {isLoading && <LoadingSkeleton />}
+
+      {/* KPIs */}
+      {!isUnauthorized && summaryQuery.data && (
+        <section className="space-y-4">
+          <KpiStrip data={summaryQuery.data} />
+          <SummaryDetails summary={summaryQuery.data.summary} />
+        </section>
+      )}
+
+      {/* Charts */}
+      {!isUnauthorized && chartsQuery.data && (
+        <section className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
+          <Card>
+            <SectionHeader
+              title="Tendências de desempenho"
+              description="Receita diária e lucro líquido ao longo do tempo."
+            />
+            <div className="mt-5">
+              {financialState && financialState !== "ready" && <FinancialEmptyState reason={financialState} />}
+              {chartsQuery.data.daily.length > 0 && (
+                <div className="h-72 rounded-[var(--radius-md)] border border-border bg-background-soft p-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={chartsQuery.data.daily.map((point) => ({ ...point, label: formatMetricDate(point.metricDate) }))}
+                      margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                      <XAxis dataKey="label" tick={{ fill: "#4a5660", fontSize: 11 }} tickLine={false} />
+                      <YAxis tick={{ fill: "#4a5660", fontSize: 11 }} tickFormatter={(v) => formatMoney(v)} width={68} />
+                      <Tooltip content={<CustomChartTooltip />} />
+                      <Line type="monotone" dataKey="grossRevenue" name="Receita bruta" stroke={chartColors.grossRevenue} strokeWidth={2.5} dot={false} />
+                      <Line type="monotone" dataKey="netProfit" name="Lucro líquido" stroke={chartColors.netProfit} strokeWidth={2.5} activeDot={{ r: 5 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </div>
-          ) : null}
-        </BlockShell>
-      ) : null}
+          </Card>
 
-      {!isUnauthorized ? (
-        <section className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
-          <BlockShell
-            description="Daily revenue and net profit trends show whether each sync is pushing the business in the right direction."
-            eyebrow="Charts"
-            title="Performance trends"
-          >
-            {chartsQuery.isLoading ? <BlockMessage>Loading chart data...</BlockMessage> : null}
-            {chartsQuery.error ? (
-              <BlockMessage tone="critical">
-                {chartsQuery.error instanceof Error
-                  ? chartsQuery.error.message
-                  : "Unexpected dashboard chart error."}
-              </BlockMessage>
-            ) : null}
-            {chartsQuery.data ? (
-              <>
-                {financialState && financialState !== "ready" ? (
-                  <FinancialEmptyState reason={financialState} />
-                ) : null}
-                {chartsQuery.data.daily.length > 0 ? (
-                  <div className="grid gap-4">
-                    <div className="h-80 rounded-[var(--radius-lg)] border border-border bg-background-soft p-4">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                          data={chartsQuery.data.daily.map((point) => ({
-                            ...point,
-                            label: formatMetricDate(point.metricDate),
-                          }))}
-                          margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
-                        >
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
-                          <XAxis dataKey="label" tick={{ fill: "#475569", fontSize: 12 }} tickLine={false} />
-                          <YAxis
-                            tick={{ fill: "#475569", fontSize: 12 }}
-                            tickFormatter={(value) => formatMoney(value)}
-                            width={72}
-                          />
-                          <Tooltip content={<CustomChartTooltip />} />
-                          <Line
-                            type="monotone"
-                            dataKey="grossRevenue"
-                            name="Gross revenue"
-                            stroke={chartColors.grossRevenue}
-                            strokeWidth={3}
-                            dot={false}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="netProfit"
-                            name="Net profit"
-                            stroke={chartColors.netProfit}
-                            strokeWidth={3}
-                            activeDot={{ r: 6 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
+          <Card>
+            <SectionHeader
+              title="Status da sincronização"
+              description="Disponibilidade da janela e frescor dos dados."
+              action={
+                <Button asChild size="sm" variant="ghost">
+                  <Link href="/app/integrations">Ver tudo</Link>
+                </Button>
+              }
+            />
+            <div className="mt-5 space-y-3">
+              {recentSyncQuery.isLoading && <Skeleton className="h-20 w-full" />}
+              {recentSyncQuery.data && (
+                <>
+                  <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">Disponibilidade</p>
+                      <Badge variant={recentSyncQuery.data.availability.canRun ? "success" : "warning"}>
+                        {recentSyncQuery.data.availability.canRun ? "Disponível" : "Bloqueada"}
+                      </Badge>
                     </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{translateApiMessage(recentSyncQuery.data.availability.message)}</p>
+                  </div>
+                  <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+                    <p className="text-xs font-medium text-muted-foreground">Última concluída</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {formatDateTime(recentSyncQuery.data.lastCompletedRun?.finishedAt ?? null)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {recentSyncQuery.data.lastCompletedRun
+                        ? `${recentSyncQuery.data.lastCompletedRun.counts.orders} pedido${recentSyncQuery.data.lastCompletedRun.counts.orders === 1 ? "" : "s"} importado${recentSyncQuery.data.lastCompletedRun.counts.orders === 1 ? "" : "s"}`
+                        : "Ainda não houve sincronização com sucesso"}
+                    </p>
+                  </div>
+                  <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+                    <p className="text-xs font-medium text-muted-foreground">Execução ativa</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">
+                      {recentSyncQuery.data.activeRun
+                        ? translateSyncRunStatus(recentSyncQuery.data.activeRun.status)
+                        : "Nenhuma"}
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+        </section>
+      )}
 
-                    <div className="grid gap-4 md:grid-cols-3">
-                      {chartsQuery.data.daily.slice(-3).reverse().map((point) => (
-                        <div
-                          key={point.metricDate}
-                          className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4"
-                        >
-                          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                            {formatMetricDate(point.metricDate)}
-                          </p>
-                          <p className="mt-2 text-lg font-semibold text-foreground">
-                            {formatMoney(point.netProfit)}
-                          </p>
-                          <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                            Revenue {formatMoney(point.grossRevenue)} with {point.ordersCount} orders.
-                          </p>
-                        </div>
-                      ))}
+      {/* Profitability */}
+      {!isUnauthorized && chartsQuery.data && profitabilityQuery.data && (
+        <section className="grid gap-6 xl:grid-cols-2">
+          <Card>
+            <SectionHeader
+              title="Lucro por canal"
+              description="Comparativo de receita e lucro por canal."
+            />
+            <div className="mt-5">
+              {financialState === "ready" && chartsQuery.data.channels.length > 0 ? (
+                <div className="h-64 rounded-[var(--radius-md)] border border-border bg-background-soft p-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartsQuery.data.channels} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.2)" />
+                      <XAxis dataKey="channel" tick={{ fill: "#4a5660", fontSize: 11 }} tickFormatter={(v) => formatProviderLabel(String(v))} tickLine={false} />
+                      <YAxis tick={{ fill: "#4a5660", fontSize: 11 }} tickFormatter={(v) => formatMoney(v)} width={68} />
+                      <Tooltip content={<CustomChartTooltip />} />
+                      <Bar dataKey="netProfit" name="Lucro líquido" radius={[6, 6, 0, 0]}>
+                        {chartsQuery.data.channels.map((row) => (
+                          <Cell key={row.channel} fill={row.netProfit >= 0 ? chartColors.grossRevenue : chartColors.warning} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <FinancialEmptyState reason={normalizeEmptyStateReason(financialState)} />
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <SectionHeader
+              title="Principais produtos"
+              description="Produtos ordenados por contribuição ao lucro líquido."
+            />
+            <div className="mt-5 space-y-2">
+              {financialState === "ready" && profitabilityQuery.data.products.length > 0 ? (
+                profitabilityQuery.data.products.slice(0, 5).map((row) => (
+                  <div key={row.productId} className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-foreground">{row.productName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {row.sku ?? "Sem SKU"} · {row.summary.unitsSold} unid.
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-foreground">{formatMoney(row.summary.netProfit)}</p>
+                      <p className="text-xs text-muted-foreground">{formatDecimal(row.summary.grossMarginPercent, "%")} margem</p>
                     </div>
                   </div>
-                ) : null}
-              </>
-            ) : null}
-          </BlockShell>
-
-          <BlockShell
-            description="Recent sync availability and the latest Mercado Livre run help explain how fresh the dashboard is."
-            eyebrow="Recent sync"
-            title="Freshness and availability"
-            action={
-              <Button asChild variant="secondary">
-                <Link href="/app/integrations">Open integrations</Link>
-              </Button>
-            }
-          >
-            {recentSyncQuery.isLoading ? <BlockMessage>Loading sync status...</BlockMessage> : null}
-            {recentSyncQuery.error ? (
-              <BlockMessage tone="critical">
-                {recentSyncQuery.error instanceof Error
-                  ? recentSyncQuery.error.message
-                  : "Unexpected recent sync error."}
-              </BlockMessage>
-            ) : null}
-            {recentSyncQuery.data ? (
-              <div className="grid gap-3">
-                <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Availability</p>
-                  <p className="mt-2 text-lg font-semibold text-foreground">
-                    {recentSyncQuery.data.availability.canRun ? "Available now" : "Blocked"}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                    {recentSyncQuery.data.availability.message}
-                  </p>
-                </div>
-                <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Latest completed run</p>
-                  <p className="mt-2 text-lg font-semibold text-foreground">
-                    {formatDateTime(recentSyncQuery.data.lastCompletedRun?.finishedAt ?? null)}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                    {recentSyncQuery.data.lastCompletedRun
-                      ? `${recentSyncQuery.data.lastCompletedRun.counts.orders} imported orders and ${recentSyncQuery.data.lastCompletedRun.counts.items} items.`
-                      : "No successful sync has been recorded yet."}
-                  </p>
-                </div>
-                <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Active provider run</p>
-                  <p className="mt-2 text-lg font-semibold text-foreground">
-                    {recentSyncQuery.data.activeRun?.status ?? "No active run"}
-                  </p>
-                  <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                    {recentSyncQuery.data.activeRun?.startedAt
-                      ? `Started ${formatDateTime(recentSyncQuery.data.activeRun.startedAt)}.`
-                      : `Current provider: ${formatProviderLabel(recentSyncQuery.data.availability.provider)}.`}
-                  </p>
-                </div>
-              </div>
-            ) : null}
-          </BlockShell>
+                ))
+              ) : (
+                <FinancialEmptyState reason={normalizeEmptyStateReason(financialState)} />
+              )}
+            </div>
+          </Card>
         </section>
-      ) : null}
-
-      {!isUnauthorized ? (
-        <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-          <BlockShell
-            description="Channel comparisons show where revenue is concentrating and whether profit is following it."
-            eyebrow="Channel view"
-            title="Profitability by channel"
-          >
-            {chartsQuery.isLoading ? <BlockMessage>Loading channel comparison...</BlockMessage> : null}
-            {chartsQuery.error ? (
-              <BlockMessage tone="critical">
-                {chartsQuery.error instanceof Error
-                  ? chartsQuery.error.message
-                  : "Unexpected channel chart error."}
-              </BlockMessage>
-            ) : null}
-            {chartsQuery.data ? (
-              <>
-                {financialState === "ready" && chartsQuery.data.channels.length > 0 ? (
-                  <div className="h-80 rounded-[var(--radius-lg)] border border-border bg-background-soft p-4">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartsQuery.data.channels} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.25)" />
-                        <XAxis
-                          dataKey="channel"
-                          tick={{ fill: "#475569", fontSize: 12 }}
-                          tickFormatter={(value) => formatProviderLabel(String(value))}
-                          tickLine={false}
-                        />
-                        <YAxis
-                          tick={{ fill: "#475569", fontSize: 12 }}
-                          tickFormatter={(value) => formatMoney(value)}
-                          width={72}
-                        />
-                        <Tooltip content={<CustomChartTooltip />} />
-                        <Bar dataKey="netProfit" name="Net profit" radius={[8, 8, 0, 0]}>
-                          {chartsQuery.data.channels.map((row) => (
-                            <Cell
-                              key={row.channel}
-                              fill={row.netProfit >= 0 ? chartColors.grossRevenue : chartColors.warning}
-                            />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : null}
-                {financialState && financialState !== "ready" ? (
-                  <FinancialEmptyState reason={financialState} />
-                ) : null}
-              </>
-            ) : null}
-          </BlockShell>
-
-          <BlockShell
-            description="Use these tables to spot the products and channels that deserve attention first."
-            eyebrow="Profitability tables"
-            title="Actionable rankings"
-          >
-            {profitabilityQuery.isLoading ? <BlockMessage>Loading profitability rankings...</BlockMessage> : null}
-            {profitabilityQuery.error ? (
-              <BlockMessage tone="critical">
-                {profitabilityQuery.error instanceof Error
-                  ? profitabilityQuery.error.message
-                  : "Unexpected profitability error."}
-              </BlockMessage>
-            ) : null}
-            {profitabilityQuery.data ? (
-              <div className="grid gap-4 xl:grid-cols-2">
-                <div className="rounded-[var(--radius-lg)] border border-border bg-background-soft p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Products</p>
-                  {financialState === "ready" && profitabilityQuery.data.products.length > 0 ? (
-                    <div className="mt-4 space-y-3">
-                      {profitabilityQuery.data.products.slice(0, 6).map((row) => (
-                        <div key={row.productId} className="rounded-[var(--radius-md)] border border-white/70 bg-white/80 px-4 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">{row.productName}</p>
-                              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-foreground-soft">
-                                {row.sku ?? "No SKU"}
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {formatMoney(row.summary.netProfit)}
-                            </p>
-                          </div>
-                          <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                            Revenue {formatMoney(row.summary.grossRevenue)} · Margin{" "}
-                            {formatDecimal(row.summary.grossMarginPercent, "%")} · Units {row.summary.unitsSold}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-4">
-                      <FinancialEmptyState reason={normalizeEmptyStateReason(financialState)} />
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-[var(--radius-lg)] border border-border bg-background-soft p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">Channels</p>
-                  {financialState === "ready" && profitabilityQuery.data.channels.length > 0 ? (
-                    <div className="mt-4 space-y-3">
-                      {profitabilityQuery.data.channels.map((row) => (
-                        <div key={row.channel} className="rounded-[var(--radius-md)] border border-white/70 bg-white/80 px-4 py-3">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="text-sm font-semibold text-foreground">
-                                {formatProviderLabel(row.channel)}
-                              </p>
-                              <p className="mt-1 text-xs uppercase tracking-[0.18em] text-foreground-soft">
-                                {row.summary.ordersCount} orders
-                              </p>
-                            </div>
-                            <p className="text-sm font-semibold text-foreground">
-                              {formatMoney(row.summary.netProfit)}
-                            </p>
-                          </div>
-                          <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                            Revenue {formatMoney(row.summary.grossRevenue)} · Fees {formatMoney(row.summary.totalFees)} · Units {row.summary.unitsSold}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-4">
-                      <FinancialEmptyState reason={normalizeEmptyStateReason(financialState)} />
-                    </div>
-                  )}
-                </div>
-              </div>
-            ) : null}
-          </BlockShell>
-        </section>
-      ) : null}
-    </main>
+      )}
+    </div>
   );
 }

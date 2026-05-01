@@ -33,6 +33,7 @@ describe("billing controller", () => {
     authService = app.get(AuthService);
     billingService = app.get(BillingService);
     entitlementsService = app.get(EntitlementsService);
+    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -140,5 +141,83 @@ describe("billing controller", () => {
     });
 
     expect(response.statusCode).toBe(401);
+  });
+
+  it("confirms completed checkout sessions and returns refreshed billing snapshots", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(billingService, "confirmCheckoutSession").mockResolvedValueOnce(undefined);
+    vi.spyOn(entitlementsService, "getBillingSnapshot").mockResolvedValueOnce({
+      customer: {
+        externalCustomerId: "cus_123",
+        id: "billing_customer_123",
+      },
+      entitled: true,
+      organizationId: "org_123",
+      subscription: {
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: new Date("2026-06-01T00:00:00.000Z").toISOString(),
+        currentPeriodStart: new Date("2026-05-01T00:00:00.000Z").toISOString(),
+        externalSubscriptionId: "sub_123",
+        id: "subscription_123",
+        interval: "monthly",
+        planCode: "marginflow",
+        status: "active",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        sessionId: "cs_test_confirm_123",
+      },
+      url: "/billing/checkout/confirm",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: {
+        customer: {
+          externalCustomerId: "cus_123",
+          id: "billing_customer_123",
+        },
+        entitled: true,
+        organizationId: "org_123",
+        subscription: {
+          cancelAtPeriodEnd: false,
+          currentPeriodEnd: expect.any(String),
+          currentPeriodStart: expect.any(String),
+          externalSubscriptionId: "sub_123",
+          id: "subscription_123",
+          interval: "monthly",
+          planCode: "marginflow",
+          status: "active",
+        },
+      },
+      error: null,
+    });
+    expect(billingService.confirmCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organization: expect.objectContaining({ id: "org_123" }),
+      }),
+      "cs_test_confirm_123",
+    );
   });
 });

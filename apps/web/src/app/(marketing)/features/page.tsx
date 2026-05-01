@@ -3,43 +3,47 @@ import { createPageMetadata, featureGroups } from "@/lib/site";
 
 export const metadata = createPageMetadata({
   description:
-    "Explore how MarginFlow combines dashboards, protected access, and marketplace finance workflows in one product story.",
-  keywords: ["marketplace dashboard", "profitability analytics", "financial SaaS features"],
+    "Veja como o MarginFlow junta dashboards, acesso protegido e fluxos financeiros de marketplace em uma narrativa de produto.",
+  keywords: ["dashboard marketplace", "análises de lucro", "funcionalidades SaaS financeiras"],
   path: "/features",
-  title: "Features | MarginFlow",
+  title: "Recursos | MarginFlow",
 });
 
 export default function FeaturesPage() {
   return (
-    <main className="pt-12 md:pt-16">
-      <Container>
-        <section className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Features</p>
-          <h1 className="mt-4 text-5xl font-semibold tracking-[-0.06em] text-foreground md:text-6xl">
-            Product structure built around profitability decisions.
+    <main className="pt-14 md:pt-20">
+      <Container size="xl">
+        <section className="max-w-3xl animate-rise-in">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-accent">Recursos</p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground md:text-5xl lg:text-6xl">
+            Estrutura de produto voltada à tomada de decisão de lucratividade.
           </h1>
-          <p className="mt-6 text-lg leading-8 text-foreground-soft">
-            MarginFlow keeps frontend polish, backend authority, and finance logic aligned so teams
-            can move from raw marketplace activity to actual profit insight.
+          <p className="mt-6 text-lg leading-8 text-muted-foreground">
+            O MarginFlow alinha frontend, backend e métricas para que você saia da atividade bruta nos
+            marketplaces e chegue ao insight real de lucro.
           </p>
         </section>
 
-        <section className="mt-12 grid gap-6 lg:grid-cols-3">
-          {featureGroups.map((group) => (
+        <section className="mt-14 grid gap-6 lg:grid-cols-3">
+          {featureGroups.map((group, i) => (
             <article
               key={group.title}
-              className="rounded-[2rem] border border-border bg-[color:rgba(255,252,247,0.88)] p-7 shadow-[var(--shadow-card)]"
+              className="animate-rise-in rounded-[var(--radius-2xl)] border border-border bg-surface-strong p-7 shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-lg)]"
+              style={{ animationDelay: `${i * 100}ms` }}
             >
-              <h2 className="text-3xl font-semibold tracking-[-0.04em] text-foreground">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
                 {group.title}
               </h2>
-              <ul className="mt-6 space-y-3 text-sm leading-8 text-foreground-soft">
+              <ul className="mt-6 space-y-3 text-sm leading-7 text-muted-foreground">
                 {group.items.map((item) => (
                   <li
                     key={item}
-                    className="rounded-[1.25rem] border border-border bg-[color:rgba(255,255,255,0.62)] px-4 py-3"
+                    className="flex gap-3 rounded-[var(--radius-lg)] border border-border bg-background-soft/60 px-4 py-3"
                   >
-                    {item}
+                    <svg className="mt-0.5 h-4 w-4 shrink-0 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>{item}</span>
                   </li>
                 ))}
               </ul>

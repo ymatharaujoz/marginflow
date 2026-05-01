@@ -8,3 +8,11 @@ export class CreateCheckoutRequestDto {
 
   interval!: BillingInterval;
 }
+
+export class ConfirmCheckoutRequestDto {
+  static schema = z.object({
+    sessionId: z.string().min(10).regex(/^cs_/),
+  });
+
+  sessionId!: string;
+}

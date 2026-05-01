@@ -10,9 +10,11 @@ NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
 - default-organization bootstrap for first authenticated access
 - Stripe-backed billing module with `GET /billing/subscription`
 - API-owned Stripe checkout creation through `POST /billing/checkout`
+- Authenticated `POST /billing/checkout/confirm` to mirror the subscription after Checkout redirect (covers delayed or missing webhooks during local dev)
+- Live Stripe reconcile on `GET /billing/subscription` and every `EntitlementGuard` gate when Postgres shows `active`/`trialing` for a Stripe-linked row, so cancelling in Stripe revokes access even if webhook delivery stalled
 - Stripe webhook handling at `POST /billing/stripe/webhook`
 - marketplace connection module with `GET /integrations`, `POST /integrations/mercadolivre/connect`, `GET /integrations/mercadolivre/callback`, and `POST /integrations/:provider/disconnect`
-- entitlement enforcement for protected API surfaces
+- entitlement enforcement for protected API surfaces (including `/products` and `/costs/*`)
 - shared trusted-origin parsing for Fastify CORS and Better Auth
 - lifecycle-managed Postgres runtime that keeps the `DATABASE_CLIENT` token stable for modules
 - shared exception handling and future Zod validation seam

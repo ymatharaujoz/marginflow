@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import type { DatabaseClient } from "@marginflow/database";
 import {
   billingCustomers,
@@ -72,6 +72,110 @@ export class BillingService {
       checkoutUrl: session.url,
       sessionId: session.id,
     };
+  }
+
+  /**
+   * After Checkout redirect, synchronizes the Stripe subscription into Postgres when webhooks
+   * are not yet delivered (common in local dev without Stripe CLI forwarding).
+   */
+  async confirmCheckoutSession(
+    authContext: AuthenticatedRequestContext,
+    sessionId: string,
+  ) {
+    const session = await this.stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["subscription"],
+    });
+
+    if (session.mode !== "subscription") {
+      throw new BadRequestException("Checkout session is not a subscription checkout.");
+    }
+
+    const sessionOrganizationId = session.metadata?.organizationId;
+    if (
+      !sessionOrganizationId ||
+      sessionOrganizationId !== authContext.organization.id
+    ) {
+      throw new BadRequestException("Checkout session does not belong to this organization.");
+    }
+
+    if (session.status !== "complete") {
+      throw new BadRequestException("Checkout session is not complete yet.");
+    }
+
+    const customerId =
+      typeof session.customer === "string"
+        ? session.customer
+        : session.customer && "id" in session.customer
+          ? session.customer.id
+          : null;
+
+    const sub = session.subscription;
+
+    let externalSubscriptionId: string | null = null;
+
+    if (typeof sub === "string") {
+      externalSubscriptionId = sub;
+    } else if (sub && typeof sub === "object" && "id" in sub) {
+      externalSubscriptionId = sub.id;
+    }
+
+    if (!externalSubscriptionId) {
+      throw new BadRequestException("Checkout session did not attach a subscription.");
+    }
+
+    await this.syncSubscriptionByExternalId(
+      externalSubscriptionId,
+      authContext.organization.id,
+      customerId,
+    );
+  }
+
+  /**
+   * When webhooks lag, Postgres may still record active/trialing while Stripe already canceled.
+   * Reconcile the latest Stripe-linked row before entitlement checks so UI and API converge.
+   */
+  async reconcileOrganizationSubscriptionWithStripe(organizationId: string) {
+    const subscription = await this.db.query.subscriptions.findFirst({
+      where: (table, { and, eq }) =>
+        and(
+          eq(table.organizationId, organizationId),
+          eq(table.provider, "stripe"),
+          isNotNull(table.billingCustomerId),
+        ),
+      orderBy: (table, { desc }) => [desc(table.updatedAt)],
+    });
+
+    if (!subscription?.externalSubscriptionId) {
+      return;
+    }
+
+    if (subscription.status !== "active" && subscription.status !== "trialing") {
+      return;
+    }
+
+    try {
+      const live = await this.stripe.subscriptions.retrieve(subscription.externalSubscriptionId);
+      const customerId = this.getStripeCustomerId(live.customer);
+      await this.syncSubscriptionObject(live, organizationId, customerId);
+    } catch (error: unknown) {
+      if (
+        error instanceof Stripe.errors.StripeInvalidRequestError &&
+        error.code === "resource_missing"
+      ) {
+        await this.db
+          .update(subscriptions)
+          .set({
+            cancelAtPeriodEnd: false,
+            status: "canceled",
+            updatedAt: new Date(),
+          })
+          .where(eq(subscriptions.id, subscription.id));
+
+        return;
+      }
+
+      throw error;
+    }
   }
 
   async processWebhook(rawBody: Buffer | undefined, signature: string | string[] | undefined) {
@@ -235,7 +339,48 @@ export class BillingService {
     });
 
     if (existingCustomer) {
-      return existingCustomer;
+      /**
+       * DB rows seeded with placeholders (ex. {@code cus_demo_org}) or stale IDs fail Stripe checkout.
+       * Verify the customer exists; if Stripe returns resource_missing, create a fresh customer.
+       */
+      try {
+        await this.stripe.customers.retrieve(existingCustomer.externalCustomerId);
+        return existingCustomer;
+      } catch (error: unknown) {
+        if (
+          error instanceof Stripe.errors.StripeInvalidRequestError &&
+          error.code === "resource_missing"
+        ) {
+          const customer = await this.stripe.customers.create({
+            email: authContext.user.email,
+            metadata: {
+              organizationId: authContext.organization.id,
+              planCode: PLAN_CODE,
+              replacedStaleCustomerId: existingCustomer.externalCustomerId,
+            },
+            name: authContext.organization.name,
+          });
+
+          const [updated] = await this.db
+            .update(billingCustomers)
+            .set({ externalCustomerId: customer.id })
+            .where(eq(billingCustomers.id, existingCustomer.id))
+            .returning({
+              externalCustomerId: billingCustomers.externalCustomerId,
+              id: billingCustomers.id,
+              organizationId: billingCustomers.organizationId,
+              provider: billingCustomers.provider,
+            });
+
+          if (!updated) {
+            throw new BadRequestException("Unable to reconcile Stripe billing customer.");
+          }
+
+          return updated;
+        }
+
+        throw error;
+      }
     }
 
     const customer = await this.stripe.customers.create({

@@ -3,12 +3,14 @@ import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "@/app";
 import { AuthService } from "@/modules/auth/auth.service";
+import { BillingService } from "@/modules/billing/billing.service";
 import { EntitlementsService } from "@/modules/billing/entitlements.service";
 import { IntegrationsService } from "./integrations.service";
 
 describe("integrations controller", () => {
   let app: NestFastifyApplication;
   let authService: AuthService;
+  let billingService: BillingService;
   let entitlementsService: EntitlementsService;
   let integrationsService: IntegrationsService;
 
@@ -33,8 +35,10 @@ describe("integrations controller", () => {
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
     authService = app.get(AuthService);
+    billingService = app.get(BillingService);
     entitlementsService = app.get(EntitlementsService);
     integrationsService = app.get(IntegrationsService);
+    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
   });
 
   afterAll(async () => {

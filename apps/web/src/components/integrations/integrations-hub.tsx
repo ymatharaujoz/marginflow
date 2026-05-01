@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, Card } from "@marginflow/ui";
+import { Badge, Button, Card, EmptyState, Skeleton } from "@marginflow/ui";
 import type {
   IntegrationConnectionRecord,
   IntegrationConnectResponse,
@@ -12,6 +12,13 @@ import type {
   SyncStatusResponse,
 } from "@marginflow/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
+import {
+  translateApiMessage,
+  translateConnectionUiStatus,
+  translateIntegrationButtonLabel,
+  translateSyncRunStatus,
+  translateSyncWindowLabel,
+} from "@/lib/pt-br/api-ui";
 
 const integrationsQueryKey = ["integrations"] as const;
 const syncProvider: IntegrationProviderSlug = "mercadolivre";
@@ -25,25 +32,20 @@ type IntegrationsHubProps = {
 };
 
 function formatDateTime(value: string | null) {
-  if (!value) {
-    return "Not available";
-  }
-
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 function formatCounts(run: SyncRunRecord) {
-  return `${run.counts.orders} order${run.counts.orders === 1 ? "" : "s"}, ${run.counts.products} product${run.counts.products === 1 ? "" : "s"}, ${run.counts.items} item${run.counts.items === 1 ? "" : "s"}, ${run.counts.fees} fee${run.counts.fees === 1 ? "" : "s"}`;
+  const o = run.counts.orders;
+  const p = run.counts.products;
+  const i = run.counts.items;
+  const f = run.counts.fees;
+  return `${o} pedido${o === 1 ? "" : "s"}, ${p} produto${p === 1 ? "" : "s"}, ${i} item${i === 1 ? "" : "s"}, ${f} taxa${f === 1 ? "" : "s"}`;
 }
 
 async function fetchIntegrations(): Promise<IntegrationConnectionRecord[]> {
-  const response = await apiClient.get<{ data: IntegrationConnectionRecord[]; error: null }>(
-    "/integrations",
-  );
-
+  const response = await apiClient.get<{ data: IntegrationConnectionRecord[]; error: null }>("/integrations");
   return response.data;
 }
 
@@ -51,7 +53,6 @@ async function fetchSyncStatus(): Promise<SyncStatusResponse> {
   const response = await apiClient.get<{ data: SyncStatusResponse; error: null }>(
     `/sync/status?provider=${syncProvider}`,
   );
-
   return response.data;
 }
 
@@ -59,47 +60,34 @@ async function fetchSyncHistory(): Promise<SyncRunRecord[]> {
   const response = await apiClient.get<{ data: SyncRunRecord[]; error: null }>(
     `/sync/history?provider=${syncProvider}`,
   );
-
   return response.data;
 }
 
-export function IntegrationsHub({
-  initialMessage,
-  initialStatus,
-  organizationName,
-}: IntegrationsHubProps) {
+export function IntegrationsHub({ initialMessage, initialStatus, organizationName }: IntegrationsHubProps) {
   const queryClient = useQueryClient();
-  const [message, setMessage] = useState<string | null>(initialMessage);
+  const [message, setMessage] = useState<string | null>(() =>
+    initialMessage ? translateApiMessage(initialMessage) || initialMessage : null,
+  );
   const [messageTone, setMessageTone] = useState<"critical" | "neutral">(
     initialStatus === "error" ? "critical" : "neutral",
   );
   const [busyProvider, setBusyProvider] = useState<IntegrationProviderSlug | null>(null);
   const [busyAction, setBusyAction] = useState<"connect" | "disconnect" | null>(null);
 
-  const integrationsQuery = useQuery({
-    queryFn: fetchIntegrations,
-    queryKey: integrationsQueryKey,
-  });
-  const syncStatusQuery = useQuery({
-    queryFn: fetchSyncStatus,
-    queryKey: syncStatusQueryKey,
-  });
-  const syncHistoryQuery = useQuery({
-    queryFn: fetchSyncHistory,
-    queryKey: syncHistoryQueryKey,
-  });
+  const integrationsQuery = useQuery({ queryFn: fetchIntegrations, queryKey: integrationsQueryKey });
+  const syncStatusQuery = useQuery({ queryFn: fetchSyncStatus, queryKey: syncStatusQueryKey });
+  const syncHistoryQuery = useQuery({ queryFn: fetchSyncHistory, queryKey: syncHistoryQueryKey });
 
   const connectMutation = useMutation({
     mutationFn: async (provider: IntegrationProviderSlug) => {
       const response = await apiClient.post<{ data: IntegrationConnectResponse; error: null }>(
-        `/${["integrations", provider, "connect"].join("/")}`,
+        `/integrations/${provider}/connect`,
       );
-
       return response.data;
     },
     onError: (error) => {
       setMessage(
-        error instanceof ApiClientError ? error.message : "Could not start the provider connection.",
+        error instanceof ApiClientError ? error.message : "Não foi possível iniciar a conexão do provedor.",
       );
       setMessageTone("critical");
     },
@@ -115,19 +103,16 @@ export function IntegrationsHub({
   const disconnectMutation = useMutation({
     mutationFn: async (provider: IntegrationProviderSlug) => {
       const response = await apiClient.post<{ data: IntegrationConnectionRecord; error: null }>(
-        `/${["integrations", provider, "disconnect"].join("/")}`,
+        `/integrations/${provider}/disconnect`,
       );
-
       return response.data;
     },
     onError: (error) => {
-      setMessage(
-        error instanceof ApiClientError ? error.message : "Could not disconnect the provider.",
-      );
+      setMessage(error instanceof ApiClientError ? error.message : "Não foi possível desconectar o provedor.");
       setMessageTone("critical");
     },
     onSuccess: async (record) => {
-      setMessage(`${record.displayName} disconnected locally.`);
+      setMessage(`${record.displayName} desconectado localmente.`);
       setMessageTone("neutral");
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
       await queryClient.invalidateQueries({ queryKey: syncStatusQueryKey });
@@ -142,20 +127,18 @@ export function IntegrationsHub({
   const syncMutation = useMutation({
     mutationFn: async () => {
       const response = await apiClient.post<{ data: RunSyncResponse; error: null }>("/sync/run", {
-        body: {
-          provider: syncProvider,
-        },
+        body: { provider: syncProvider },
       });
-
       return response.data;
     },
     onError: (error) => {
-      setMessage(error instanceof ApiClientError ? error.message : "Could not start the sync.");
+      setMessage(error instanceof ApiClientError ? error.message : "Não foi possível iniciar a sincronização.");
       setMessageTone("critical");
     },
     onSuccess: async (data) => {
+      const n = data.run.counts.orders;
       setMessage(
-        `Sync finished with ${data.run.counts.orders} imported order${data.run.counts.orders === 1 ? "" : "s"}.`,
+        `Sincronização finalizada com ${n} pedido${n === 1 ? "" : "s"} importado${n === 1 ? "" : "s"}.`,
       );
       setMessageTone("neutral");
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
@@ -178,172 +161,138 @@ export function IntegrationsHub({
     disconnectMutation.mutate(provider);
   }
 
-  const mercadoLivreConnection = integrationsQuery.data?.find(
-    (connection) => connection.provider === syncProvider,
-  );
   const syncStatus = syncStatusQuery.data;
   const syncHistory = syncHistoryQuery.data ?? [];
+  const mercadoLivreConnection = integrationsQuery.data?.find((c) => c.provider === syncProvider);
   const syncUnavailable =
     mercadoLivreConnection?.status === "unavailable" || syncStatus?.availability.reason === "provider_unavailable";
 
+  const displayMessage = message ? translateApiMessage(message) || message : null;
+
   return (
-    <main className="space-y-6 py-6 md:py-8">
-      <Card className="space-y-4">
-        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-          Marketplace connections
+    <div className="space-y-6">
+      <div className="animate-rise-in">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Integrações</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Conecte {organizationName} aos canais de marketplace e gerencie sincronizações.
         </p>
-        <h1 className="text-4xl font-semibold tracking-tight text-foreground">
-          Connect {organizationName} to the channels that feed MarginFlow.
-        </h1>
-        <p className="max-w-3xl text-base leading-8 text-foreground-soft">
-          M10 introduces provider boundaries plus a first dedicated workspace page for marketplace
-          account connections. Start with Mercado Livre now; Shopee stays mapped into the same
-          architecture without pretending the live credentials already exist.
-        </p>
+      </div>
 
-        {message ? (
-          <p
-            className={
-              messageTone === "critical"
-                ? "rounded-[var(--radius-md)] border border-[color:rgba(220,38,38,0.22)] bg-[color:rgba(220,38,38,0.08)] px-4 py-3 text-sm text-foreground"
-                : "rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3 text-sm text-foreground"
-            }
-          >
-            {message}
-          </p>
-        ) : null}
-      </Card>
+      {displayMessage && (
+        <div
+          className={
+            messageTone === "critical"
+              ? "rounded-[var(--radius-md)] border border-error/20 bg-error-soft px-4 py-3 text-sm text-foreground"
+              : "rounded-[var(--radius-md)] border border-accent/20 bg-accent-soft px-4 py-3 text-sm text-foreground"
+          }
+        >
+          {displayMessage}
+        </div>
+      )}
 
-      {integrationsQuery.isLoading ? (
-        <Card>
-          <p className="text-lg font-semibold text-foreground">Loading provider connections...</p>
-        </Card>
-      ) : null}
+      {integrationsQuery.isLoading && (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Skeleton className="h-48" />
+          <Skeleton className="h-48" />
+        </div>
+      )}
 
-      {integrationsQuery.error ? (
-        <Card>
-          <p className="text-lg font-semibold text-foreground">
-            We could not load your provider connections.
-          </p>
-          <p className="mt-2 text-sm leading-7 text-foreground-soft">
-            {integrationsQuery.error instanceof Error
-              ? integrationsQuery.error.message
-              : "Unexpected connection error."}
+      {integrationsQuery.error && (
+        <Card variant="outlined" className="border-error/20">
+          <p className="text-sm font-medium text-error">
+            {integrationsQuery.error instanceof Error ? integrationsQuery.error.message : "Erro inesperado de conexão."}
           </p>
         </Card>
-      ) : null}
+      )}
 
-      {integrationsQuery.data ? (
+      {integrationsQuery.data && (
         <div className="grid gap-4 xl:grid-cols-2">
           {integrationsQuery.data.map((connection) => {
-            const isConnecting =
-              busyAction === "connect" && busyProvider === connection.provider;
-            const isDisconnecting =
-              busyAction === "disconnect" && busyProvider === connection.provider;
+            const isConnecting = busyAction === "connect" && busyProvider === connection.provider;
+            const isDisconnecting = busyAction === "disconnect" && busyProvider === connection.provider;
             const connectedAccount = connection.connectedAccountLabel ?? connection.connectedAccountId;
 
             return (
-              <Card
-                key={connection.provider}
-                className="border-border bg-surface shadow-[var(--shadow-card)]"
-              >
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">
-                        {connection.provider}
-                      </p>
-                      <h2 className="mt-2 text-2xl font-semibold text-foreground">
-                        {connection.displayName}
-                      </h2>
+              <Card key={connection.provider} variant="interactive" className="animate-rise-in">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-md)] bg-accent-soft text-accent">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
                     </div>
-                    <p className="text-sm leading-7 text-foreground-soft">
-                      {connection.statusMessage}
-                    </p>
+                    <div>
+                      <h2 className="text-base font-semibold text-foreground">{connection.displayName}</h2>
+                      <p className="text-xs text-muted-foreground">{connection.provider}</p>
+                    </div>
                   </div>
+                  <Badge
+                    variant={
+                      connection.status === "connected"
+                        ? "success"
+                        : connection.status === "needs_reconnect"
+                          ? "warning"
+                          : connection.status === "unavailable"
+                            ? "neutral"
+                            : "info"
+                    }
+                  >
+                    {translateConnectionUiStatus(connection.status)}
+                  </Badge>
+                </div>
 
-                  <div className="rounded-full border border-border bg-background-soft px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-foreground-soft">
-                    {connection.status.replaceAll("_", " ")}
+                <p className="mt-4 text-sm text-muted-foreground">{translateApiMessage(connection.statusMessage)}</p>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Conta</p>
+                    <p className="mt-0.5 text-sm text-foreground">{connectedAccount ?? "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Token expira</p>
+                    <p className="mt-0.5 text-sm text-foreground">{formatDateTime(connection.tokenExpiresAt)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Última sincronização</p>
+                    <p className="mt-0.5 text-sm text-foreground">{formatDateTime(connection.lastSyncedAt)}</p>
                   </div>
                 </div>
 
-                <dl className="mt-6 grid gap-4 text-sm text-foreground-soft md:grid-cols-2">
-                  <div>
-                    <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                      Account
-                    </dt>
-                    <dd className="mt-2 text-sm text-foreground">
-                      {connectedAccount ?? "No account connected"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                      Token expires
-                    </dt>
-                    <dd className="mt-2 text-sm text-foreground">
-                      {formatDateTime(connection.tokenExpiresAt)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                      Last sync
-                    </dt>
-                    <dd className="mt-2 text-sm text-foreground">
-                      {formatDateTime(connection.lastSyncedAt)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                      Actions
-                    </dt>
-                    <dd className="mt-2 text-sm text-foreground">
-                      {connection.connectAvailable || connection.disconnectAvailable
-                        ? "Connection controls ready"
-                        : "No live action available yet"}
-                    </dd>
-                  </div>
-                </dl>
-
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <div className="mt-5 flex gap-2">
                   <Button
                     disabled={
-                      !connection.connectAvailable ||
-                      busyProvider !== null ||
-                      integrationsQuery.isFetching
+                      !connection.connectAvailable || busyProvider !== null || integrationsQuery.isFetching
                     }
+                    loading={isConnecting}
                     onClick={() => handleConnect(connection.provider)}
+                    size="sm"
                   >
-                    {isConnecting ? "Opening provider..." : connection.connectLabel}
+                    {translateIntegrationButtonLabel(connection.connectLabel)}
                   </Button>
-                  {connection.disconnectAvailable ? (
+                  {connection.disconnectAvailable && (
                     <Button
                       disabled={busyProvider !== null || integrationsQuery.isFetching}
+                      loading={isDisconnecting}
                       onClick={() => handleDisconnect(connection.provider)}
-                      variant="secondary"
+                      size="sm"
+                      variant="ghost"
                     >
-                      {isDisconnecting
-                        ? "Disconnecting..."
-                        : (connection.disconnectLabel ?? "Disconnect")}
+                      {translateIntegrationButtonLabel(connection.disconnectLabel ?? "Disconnect")}
                     </Button>
-                  ) : null}
+                  )}
                 </div>
               </Card>
             );
           })}
         </div>
-      ) : null}
+      )}
 
-      <Card className="space-y-5 border-border bg-surface shadow-[var(--shadow-card)]">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <Card>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-              Manual sync
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold text-foreground">Mercado Livre sync control</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-foreground-soft">
-              M11 keeps V1 sync manual and bounded. Run one sync per daily window, surface the
-              last result clearly, and let finance metrics re-materialize after each successful
-              import.
+            <h2 className="text-lg font-semibold text-foreground">Sincronização manual</h2>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              Uma sincronização por janela diária. As métricas financeiras são atualizadas após cada importação bem-sucedida.
             </p>
           </div>
           <Button
@@ -353,145 +302,90 @@ export function IntegrationsHub({
               !syncStatus?.availability.canRun ||
               Boolean(syncUnavailable)
             }
+            loading={syncMutation.isPending}
             onClick={() => {
               setMessage(null);
               syncMutation.mutate();
             }}
           >
-            {syncMutation.isPending ? "Syncing..." : "Sync data now"}
+            Sincronizar agora
           </Button>
         </div>
 
-        {syncStatusQuery.isLoading ? (
-          <p className="text-sm text-foreground-soft">Loading sync availability...</p>
-        ) : null}
-
-        {syncStatusQuery.error ? (
-          <div className="rounded-[var(--radius-md)] border border-[color:rgba(220,38,38,0.22)] bg-[color:rgba(220,38,38,0.08)] px-4 py-3 text-sm text-foreground">
-            {syncStatusQuery.error instanceof Error
-              ? syncStatusQuery.error.message
-              : "Unexpected sync status error."}
+        {syncStatusQuery.isLoading && <Skeleton className="mt-4 h-20" />}
+        {syncStatusQuery.error && (
+          <div className="mt-4 rounded-[var(--radius-md)] border border-error/20 bg-error-soft px-4 py-3 text-sm text-error">
+            {syncStatusQuery.error instanceof Error ? syncStatusQuery.error.message : "Erro inesperado no status da sync."}
           </div>
-        ) : null}
+        )}
 
-        {syncStatus ? (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                Availability
+        {syncStatus && (
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Disponibilidade</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {syncStatus.availability.canRun ? "Disponível agora" : "Bloqueada"}
               </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
-                {syncStatus.availability.canRun ? "Available now" : "Blocked"}
+              <p className="mt-1 text-xs text-muted-foreground">{translateApiMessage(syncStatus.availability.message)}</p>
+            </div>
+            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Janela atual</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {translateSyncWindowLabel(syncStatus.availability.currentWindowLabel)}
               </p>
-              <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                {syncStatus.availability.message}
+              <p className="mt-1 text-xs text-muted-foreground">
+                Próxima: {formatDateTime(syncStatus.availability.nextAvailableAt)}
               </p>
             </div>
-            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                Current window
-              </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
-                {syncStatus.availability.currentWindowLabel ?? "Closed right now"}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                Next window or retry moment: {formatDateTime(syncStatus.availability.nextAvailableAt)}
-              </p>
-            </div>
-            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                Last successful sync
-              </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
+            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Último sucesso</p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
                 {formatDateTime(syncStatus.availability.lastSuccessfulSyncAt)}
               </p>
-              <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                {syncStatus.lastCompletedRun
-                  ? formatCounts(syncStatus.lastCompletedRun)
-                  : "No completed imports recorded yet."}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {syncStatus.lastCompletedRun ? formatCounts(syncStatus.lastCompletedRun) : "Ainda não houve importação"}
               </p>
             </div>
-            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent">
-                Active run
-              </p>
-              <p className="mt-2 text-lg font-semibold text-foreground">
-                {syncStatus.activeRun ? syncStatus.activeRun.status : "No active run"}
-              </p>
-              <p className="mt-2 text-sm leading-7 text-foreground-soft">
-                {syncStatus.activeRun?.startedAt
-                  ? `Started ${formatDateTime(syncStatus.activeRun.startedAt)}`
-                  : "Ready to start when the provider and window allow it."}
-              </p>
+            <div className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+              <p className="text-xs font-medium text-muted-foreground">Execução ativa</p>
+                {syncStatus.activeRun ? translateSyncRunStatus(syncStatus.activeRun.status) : "Nenhuma"}
             </div>
           </div>
-        ) : null}
+        )}
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">
-                Recent sync history
-              </p>
-              <p className="mt-1 text-sm text-foreground-soft">
-                Reverse chronological runs for Mercado Livre in this workspace.
-              </p>
-            </div>
-            {mercadoLivreConnection ? (
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground-soft">
-                Provider status: {mercadoLivreConnection.status.replaceAll("_", " ")}
-              </p>
-            ) : null}
-          </div>
-
-          {syncHistoryQuery.isLoading ? (
-            <p className="text-sm text-foreground-soft">Loading sync history...</p>
-          ) : null}
-
-          {syncHistoryQuery.error ? (
-            <div className="rounded-[var(--radius-md)] border border-[color:rgba(220,38,38,0.22)] bg-[color:rgba(220,38,38,0.08)] px-4 py-3 text-sm text-foreground">
-              {syncHistoryQuery.error instanceof Error
-                ? syncHistoryQuery.error.message
-                : "Unexpected sync history error."}
-            </div>
-          ) : null}
-
-          {syncHistory.length === 0 && !syncHistoryQuery.isLoading ? (
-            <div className="rounded-[var(--radius-md)] border border-dashed border-border bg-background-soft px-4 py-4 text-sm leading-7 text-foreground-soft">
-              No sync runs recorded yet. Connect Mercado Livre, wait for an open daily window, and
-              start the first manual import from this page.
-            </div>
-          ) : null}
-
-          {syncHistory.length > 0 ? (
-            <div className="grid gap-3">
+        <div className="mt-6">
+          <h3 className="text-sm font-semibold text-foreground">Histórico recente</h3>
+          {syncHistoryQuery.isLoading && <Skeleton className="mt-3 h-16" />}
+          {syncHistory.length === 0 && !syncHistoryQuery.isLoading && (
+            <EmptyState
+              className="py-8"
+              title="Nenhuma sincronização ainda"
+              description="Conecte um provedor e execute a primeira sync para ver o histórico aqui."
+            />
+          )}
+          {syncHistory.length > 0 && (
+            <div className="mt-3 space-y-2">
               {syncHistory.map((run) => (
-                <div
-                  key={run.id}
-                  className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-4"
-                >
-                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">
-                        {run.status} · {run.windowKey ?? "window unavailable"}
-                      </p>
-                      <p className="mt-1 text-sm text-foreground-soft">
-                        Started {formatDateTime(run.startedAt)} and finished {formatDateTime(run.finishedAt)}
-                      </p>
+                <div key={run.id} className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={run.status === "completed" ? "success" : run.status === "failed" ? "error" : "neutral"}>
+                        {translateSyncRunStatus(run.status)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{run.windowKey ?? "—"}</span>
                     </div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground-soft">
-                      {formatCounts(run)}
-                    </p>
+                    <span className="text-xs text-muted-foreground">{formatCounts(run)}</span>
                   </div>
-                  {run.errorSummary ? (
-                    <p className="mt-3 text-sm leading-7 text-foreground">{run.errorSummary}</p>
-                  ) : null}
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {formatDateTime(run.startedAt)} → {formatDateTime(run.finishedAt)}
+                  </p>
+                  {run.errorSummary && <p className="mt-2 text-xs text-error">{run.errorSummary}</p>}
                 </div>
               ))}
             </div>
-          ) : null}
+          )}
         </div>
       </Card>
-    </main>
+    </div>
   );
 }

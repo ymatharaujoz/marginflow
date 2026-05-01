@@ -3,7 +3,7 @@ import { readPublicEnv } from "@/lib/env";
 
 export const siteConfig = {
   defaultDescription:
-    "MarginFlow gives marketplace sellers one command center for revenue, fees, costs, and true profit clarity.",
+    "MarginFlow centraliza para vendedores de marketplaces faturamento, taxas, custos e lucro real em um só lugar.",
   defaultTitle: "MarginFlow",
   domainFallback: "https://marginflow.vercel.app",
   name: "MarginFlow",
@@ -15,106 +15,112 @@ export const marketingLandingNav = [
   { sectionId: "planos", label: "Planos" },
 ] as const;
 
+/** WhatsApp deep link for demo CTAs. Set `NEXT_PUBLIC_WHATSAPP_DEMO_URL` (e.g. `https://wa.me/5511…`). */
+export function getWhatsappDemoUrl(source: Record<string, string | undefined> = process.env): string | undefined {
+  const raw = source.NEXT_PUBLIC_WHATSAPP_DEMO_URL;
+  return typeof raw === "string" && /^https?:\/\//i.test(raw) ? raw : undefined;
+}
+
 export const heroMetrics = [
-  { label: "Marketplace channels in one view", value: "3" },
-  { label: "Daily sync windows for V1", value: "3" },
-  { label: "Finance signals shown at a glance", value: "12+" },
+  { label: "Canais de marketplace em uma visão", value: "3" },
+  { label: "Janelas diárias de sincronização (V1)", value: "3" },
+  { label: "Sinais financeiros em destaque", value: "12+" },
 ];
 
 export const valueCards = [
   {
-    body: "Revenue, fees, shipping, ads, and costs land in one finance-first workspace instead of ten spreadsheets.",
-    eyebrow: "Unified visibility",
-    title: "See margin truth, not vanity sales.",
+    body: "Receita, taxas, frete, anúncios e custos em um fluxo centrado em finanças, em vez de dez planilhas.",
+    eyebrow: "Visão unificada",
+    title: "Veja a margem real, não só vendas bonitas.",
   },
   {
-    body: "Track which SKU, channel, and campaign drive contribution margin before cash disappears silently.",
-    eyebrow: "Profitability engine",
-    title: "Find what deserves more budget.",
+    body: "Acompanhe qual SKU, canal e campanha puxam a margem de contribuição antes do caixa evaporar.",
+    eyebrow: "Motor de lucratividade",
+    title: "Descubra onde vale investir mais.",
   },
   {
-    body: "Manual sync windows keep V1 operationally simple now while preserving clean seams for future automation.",
-    eyebrow: "Lean operations",
-    title: "Start controlled. Scale later without rewrite.",
+    body: "Janelas de sync manuais deixam o V1 simples hoje e abrem espaço para automação depois, sem rewrite.",
+    eyebrow: "Operação enxuta",
+    title: "Comece controlado. Escala depois.",
   },
 ];
 
 export const featureGroups = [
   {
     items: [
-      "Marketplace revenue, fees, shipping, ads, and manual costs in one model",
-      "Product-level and channel-level profitability views",
-      "Recent sync status with clear availability messaging",
+      "Receita de marketplace, taxas, frete, anúncios e custos manuais num único modelo",
+      "Lucro por produto e por canal na mesma leitura",
+      "Status da última sincronização com mensagens claras de disponibilidade",
     ],
-    title: "Financial command center",
+    title: "Centro financeiro",
   },
   {
     items: [
-      "Google sign-in with organization-scoped access",
-      "Protected app routes and entitlement-aware app entry",
-      "Shared TypeScript contracts across frontend, backend, and schema",
+      "Login Google com escopo por organização",
+      "Rotas protegidas e entrada no app com entitlement",
+      "Contratos TypeScript compartilhados entre frontend, backend e schema",
     ],
-    title: "Strong operational baseline",
+    title: "Base operacional sólida",
   },
   {
     items: [
-      "SEO-ready public site on Next.js",
-      "NestJS API boundary for auth, billing, and sync orchestration",
-      "Drizzle-backed Postgres schema prepared for growth",
+      "Site público pronto para SEO em Next.js",
+      "API NestJS para auth, billing e sincronização",
+      "Schema Drizzle evolutivo sobre Postgres",
     ],
-    title: "Built for real product evolution",
+    title: "Pronto para evoluir o produto",
   },
 ];
 
 export const integrationHighlights = [
   {
-    detail: "Bring order history, fee signals, and product context into one normalized workflow.",
+    detail: "Reúna pedidos, taxas e contextualização de SKU num fluxo normalizado.",
     provider: "Mercado Livre",
   },
   {
-    detail: "Mirror store performance with same finance model so comparisons stay honest.",
+    detail: "Compare lojas no mesmo modelo financeiro para decisões íntegras entre canais.",
     provider: "Shopee",
   },
   {
-    detail: "Layer manual product costs, ad spend, and expenses on top of marketplace data.",
-    provider: "Manual inputs",
+    detail: "Sobre custos de produtos, ads e fixos aos dados vindos dos marketplaces.",
+    provider: "Inputs manuais",
   },
 ];
 
 export const pricingPlans = [
   {
-    annualPrice: "$79",
-    annualSuffix: "/month billed annually",
+    annualPrice: "US$ 79",
+    annualSuffix: "/mês cobrado anualmente",
     ctaHref: "/sign-in",
-    ctaLabel: "Start annual plan",
+    ctaLabel: "Começar plano anual",
     description:
-      "For operators who want steady weekly decision support and lower yearly cost.",
+      "Para operações que precisam de ritmo semanal de decisão e custo anual menor.",
     features: [
-      "One workspace with team-ready organization model",
-      "Mercado Livre and Shopee finance visibility",
-      "Manual sync windows with history tracking",
-      "Subscription-gated app access and billing mirror",
+      "Um workspace com modelo organizacional pensado para time",
+      "Visão financeira Mercado Livre e Shopee",
+      "Sync manual em janelas com histórico",
+      "Acesso ao app condicionado à assinatura e espelho de billing",
     ],
-    monthlyPrice: "$99",
-    monthlySuffix: "/month",
-    name: "Growth",
+    monthlyPrice: "US$ 99",
+    monthlySuffix: "/mês",
+    name: "Crescimento",
   },
   {
-    annualPrice: "Custom",
-    annualSuffix: "multi-store setup",
+    annualPrice: "Sob consulta",
+    annualSuffix: "várias lojas",
     ctaHref: "/sign-in",
-    ctaLabel: "Talk through rollout",
+    ctaLabel: "Falar sobre implantação",
     description:
-      "For brands preparing deeper operational reviews, launch support, and rollout planning.",
+      "Para marcas com onboarding mais denso, governança e planejamento de expansão.",
     features: [
-      "Everything in Growth",
-      "Priority onboarding for finance setup",
-      "Support for multi-channel operating reviews",
-      "Launch planning for future automation phases",
+      "Tudo do plano Crescimento",
+      "Onboarding prioritário financeiro",
+      "Apoio a revisões multi-canal",
+      "Planejamento das fases de automação",
     ],
-    monthlyPrice: "Custom",
-    monthlySuffix: "tailored scope",
-    name: "Scale",
+    monthlyPrice: "Sob consulta",
+    monthlySuffix: "escopo sob medida",
+    name: "Escala",
   },
 ];
 
@@ -122,31 +128,31 @@ export const publicRoutes = [
   {
     changeFrequency: "weekly" as const,
     description:
-      "MarginFlow homepage for marketplace finance visibility, pricing overview, and clear CTA.",
+      "MarginFlow — visibilidade financeira para marketplaces, preços e chamada principal.",
     path: "/",
     priority: 1,
-    title: "MarginFlow | Financial clarity for marketplace sellers",
+    title: "MarginFlow | Clareza financeira para sellers",
   },
   {
     changeFrequency: "weekly" as const,
-    description: "Feature overview for dashboards, sync control, and profitability analytics.",
+    description: "Panorama das funcionalidades: painéis, sync e métricas de lucro.",
     path: "/features",
     priority: 0.8,
-    title: "Features | MarginFlow",
+    title: "Recursos | MarginFlow",
   },
   {
     changeFrequency: "weekly" as const,
-    description: "Pricing options for MarginFlow monthly and annual subscription plans.",
+    description: "Planos de assinatura MarginFlow mensal e anual.",
     path: "/pricing",
     priority: 0.8,
-    title: "Pricing | MarginFlow",
+    title: "Preços | MarginFlow",
   },
   {
     changeFrequency: "weekly" as const,
-    description: "Marketplace integration overview for Mercado Livre, Shopee, and manual cost inputs.",
+    description: "Integrações Mercado Livre, Shopee e entradas manuais de custo.",
     path: "/integrations",
     priority: 0.75,
-    title: "Integrations | MarginFlow",
+    title: "Integrações | MarginFlow",
   },
 ];
 

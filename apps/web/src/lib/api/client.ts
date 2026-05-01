@@ -39,6 +39,24 @@ async function parseResponse(response: Response) {
   return null;
 }
 
+function extractApiErrorMessage(payload: unknown, fallback: string): string {
+  if (typeof payload === "object" && payload !== null) {
+    const base = payload as Record<string, unknown>;
+    if (typeof base.message === "string") return base.message;
+    if (Array.isArray(base.message)) {
+      return base.message.map((part) => String(part)).join(", ");
+    }
+
+    if (typeof base.error === "object" && base.error !== null) {
+      const nested = base.error as Record<string, unknown>;
+      if (typeof nested.message === "string") return nested.message;
+      if (Array.isArray(nested.message)) return nested.message.map((part) => String(part)).join(", ");
+    }
+  }
+
+  return fallback;
+}
+
 function normalizeBody(body: ApiRequestOptions["body"]) {
   if (!body || body instanceof FormData || body instanceof URLSearchParams || typeof body === "string" || body instanceof Blob || body instanceof ArrayBuffer) {
     return { body, contentType: undefined };
@@ -87,15 +105,10 @@ export function createApiClient({
     const payload = await parseResponse(response);
 
     if (!response.ok) {
-      throw new ApiClientError(
-        typeof payload === "object" && payload !== null && "message" in payload
-          ? String(payload.message)
-          : `API request failed with status ${response.status}`,
-        {
-          status: response.status,
-          payload,
-        },
-      );
+      throw new ApiClientError(extractApiErrorMessage(payload, `API request failed with status ${response.status}`), {
+        status: response.status,
+        payload,
+      });
     }
 
     return payload as T;

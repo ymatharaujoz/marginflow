@@ -170,11 +170,10 @@ describe("DashboardHome", () => {
 
     const markup = renderToStaticMarkup(<DashboardHome organizationName="MarginFlow" />);
 
-    expect(markup).toContain("Financial insight home for MarginFlow");
-    expect(markup).toContain("Top-level KPIs");
-    expect(markup).toContain("Gross revenue");
-    expect(markup).toContain("Freshness and availability");
-    expect(markup).toContain("Profitability tables");
+    expect(markup).toContain("Bem-vindo de volta, MarginFlow");
+    expect(markup).toContain("Receita bruta");
+    expect(markup).toContain("Status da sincronização");
+    expect(markup).toContain("Principais produtos");
     expect(markup).toContain("Premium Notebook");
   });
 
@@ -250,7 +249,7 @@ describe("DashboardHome", () => {
 
     const markup = renderToStaticMarkup(<DashboardHome organizationName="MarginFlow" />);
 
-    expect(markup).toContain("No marketplace sync has completed yet.");
-    expect(markup).toContain("Connect this marketplace account before running the first sync.");
+    expect(markup).toContain("Ainda sem dados de sincronização");
+    expect(markup).toContain("Conecte o Mercado Livre e execute a primeira importação em Integrações para liberar tendências aqui.");
   });
 });

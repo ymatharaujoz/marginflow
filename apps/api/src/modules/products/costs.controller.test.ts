@@ -3,6 +3,8 @@ import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "@/app";
 import { AuthService } from "@/modules/auth/auth.service";
+import { BillingService } from "@/modules/billing/billing.service";
+import { EntitlementsService } from "@/modules/billing/entitlements.service";
 import { ProductsService } from "./products.service";
 
 const authContext = {
@@ -28,6 +30,8 @@ const authContext = {
 describe("costs controller", () => {
   let app: NestFastifyApplication;
   let authService: AuthService;
+  let billingService: BillingService;
+  let entitlementsService: EntitlementsService;
   let productsService: ProductsService;
 
   beforeAll(async () => {
@@ -49,7 +53,10 @@ describe("costs controller", () => {
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
     authService = app.get(AuthService);
+    billingService = app.get(BillingService);
+    entitlementsService = app.get(EntitlementsService);
     productsService = app.get(ProductsService);
+    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -58,6 +65,12 @@ describe("costs controller", () => {
 
   it("creates product cost entries for authenticated requests", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce(authContext);
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
     vi.spyOn(productsService, "createProductCost").mockResolvedValueOnce({
       amount: "12.00",
       costType: "base",
@@ -90,6 +103,12 @@ describe("costs controller", () => {
 
   it("rejects invalid ad cost payloads", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce(authContext);
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -107,6 +126,12 @@ describe("costs controller", () => {
 
   it("lists manual expenses", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce(authContext);
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
     vi.spyOn(productsService, "listManualExpenses").mockResolvedValueOnce([
       {
         amount: "40.00",

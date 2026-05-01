@@ -89,10 +89,12 @@ function createService() {
     checkout: {
       sessions: {
         create: vi.fn(),
+        retrieve: vi.fn(),
       },
     },
     customers: {
       create: vi.fn(),
+      retrieve: vi.fn(),
     },
     subscriptions: {
       retrieve: vi.fn(),
@@ -122,6 +124,7 @@ describe("BillingService", () => {
       provider: "stripe",
     };
     db.query.billingCustomers.findFirst.mockResolvedValue(existingCustomer);
+    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" } as Stripe.Response<Stripe.Customer>);
     stripe.checkout.sessions.create.mockResolvedValue({
       id: "cs_123",
       url: "https://checkout.stripe.test/session",
@@ -154,6 +157,8 @@ describe("BillingService", () => {
       checkoutUrl: "https://checkout.stripe.test/session",
       sessionId: "cs_123",
     });
+
+    expect(stripe.customers.retrieve).toHaveBeenCalledWith("cus_123");
 
     expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -241,6 +246,174 @@ describe("BillingService", () => {
         organizationId: "org_123",
         provider: "stripe",
         subscriptionId: "subscription_local_123",
+      }),
+    );
+  });
+
+  it("mirrors subscription state locally after confirming a completed Checkout session", async () => {
+    const { db, insertSubscriptionValues, service, stripe } = createService();
+
+    db.query.billingCustomers.findFirst.mockResolvedValue(null);
+    db.query.subscriptions.findFirst.mockResolvedValue(null);
+
+    stripe.checkout.sessions.retrieve.mockResolvedValue({
+      customer: "cus_456",
+      id: "cs_456",
+      metadata: {
+        organizationId: "org_888",
+      },
+      mode: "subscription",
+      status: "complete",
+      subscription: "sub_confirm_1",
+    } as Stripe.Response<Stripe.Checkout.Session>);
+
+    stripe.subscriptions.retrieve.mockResolvedValue({
+      cancel_at_period_end: false,
+      current_period_end: 1_777_888_888,
+      current_period_start: 1_777_000_000,
+      customer: "cus_456",
+      id: "sub_confirm_1",
+      items: {
+        data: [
+          {
+            price: {
+              id: "price_monthly",
+              recurring: {
+                interval: "month",
+              } as never,
+            },
+          },
+        ],
+      },
+      status: "trialing",
+    } as unknown as Stripe.Response<Stripe.Subscription>);
+
+    insertSubscriptionValues.mockReturnValueOnce({
+      returning: vi.fn().mockResolvedValue([{ id: "subscription_local_confirm" }]),
+    });
+
+    await service.confirmCheckoutSession(
+      {
+        organization: {
+          id: "org_888",
+          name: "Org",
+          role: "owner",
+          slug: "org",
+        },
+        session: {
+          expiresAt: new Date("2026-05-01T00:00:00.000Z"),
+          id: "session_confirm",
+        },
+        user: {
+          email: "owner@marginflow.local",
+          emailVerified: true,
+          id: "user_888",
+          image: null,
+          name: "Owner",
+        },
+      },
+      "cs_456",
+    );
+
+    expect(stripe.checkout.sessions.retrieve).toHaveBeenCalledWith("cs_456", {
+      expand: ["subscription"],
+    });
+    expect(insertSubscriptionValues).toHaveBeenCalledWith(
+      expect.objectContaining({
+        externalSubscriptionId: "sub_confirm_1",
+        organizationId: "org_888",
+        status: "trialing",
+      }),
+    );
+  });
+
+  it("marks local subscription canceled during reconcile when Stripe returns resource_missing", async () => {
+    const { db, service, stripe } = createService();
+    db.query.subscriptions.findFirst.mockResolvedValue({
+      billingCustomerId: "bc_local",
+      externalSubscriptionId: "sub_stale_active",
+      id: "local_sub",
+      organizationId: "org_retry",
+      provider: "stripe",
+      status: "active",
+    });
+
+    const missing = Stripe.errors.generateV1Error({
+      code: "resource_missing",
+      message: "No such subscription",
+      type: "invalid_request_error",
+    });
+    stripe.subscriptions.retrieve.mockRejectedValue(missing);
+
+    const where = vi.fn().mockResolvedValue(undefined);
+    const set = vi.fn().mockReturnValue({ where });
+    db.update.mockReturnValue({ set });
+
+    await service.reconcileOrganizationSubscriptionWithStripe("org_retry");
+
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancelAtPeriodEnd: false,
+        status: "canceled",
+      }),
+    );
+  });
+
+  it("mirrors a canceled Stripe subscription during reconcile while Postgres showed active", async () => {
+    const { db, service, stripe } = createService();
+
+    db.query.subscriptions.findFirst.mockResolvedValueOnce({
+      billingCustomerId: "bc_local",
+      externalSubscriptionId: "sub_live_cancel",
+      id: "local_sub",
+      organizationId: "org_retry",
+      provider: "stripe",
+      status: "active",
+    });
+    db.query.subscriptions.findFirst.mockResolvedValueOnce({
+      id: "local_sub",
+      organizationId: "org_retry",
+    });
+
+    db.query.billingCustomers.findFirst.mockResolvedValueOnce({
+      externalCustomerId: "cus_777",
+      id: "bc_local",
+      organizationId: "org_retry",
+      provider: "stripe",
+    });
+
+    stripe.subscriptions.retrieve.mockResolvedValueOnce({
+      cancel_at_period_end: false,
+      current_period_end: 1_780_888_888,
+      current_period_start: 1_780_100_000,
+      customer: "cus_777",
+      id: "sub_live_cancel",
+      items: {
+        data: [
+          {
+            price: {
+              id: "price_monthly",
+              recurring: {
+                interval: "month",
+              } as never,
+            },
+          },
+        ],
+      },
+      status: "canceled",
+    } as unknown as Stripe.Response<Stripe.Subscription>);
+
+    const returning = vi.fn().mockResolvedValue([{ id: "local_sub" }]);
+    const where = vi.fn().mockReturnValue({ returning });
+    const set = vi.fn().mockReturnValue({ where });
+    db.update.mockReturnValue({ set });
+
+    await service.reconcileOrganizationSubscriptionWithStripe("org_retry");
+
+    expect(set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_retry",
+        status: "canceled",
       }),
     );
   });

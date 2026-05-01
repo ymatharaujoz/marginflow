@@ -882,11 +882,24 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 
 ```md
 ## Current Focus
-- Active milestone: M5
-- Active task: use the new `TEST.md` runbook to finish manual Google OAuth callback verification and local Stripe checkout/webhook verification
-- Next task: run `drizzle-kit generate` in a real TTY if migration artifacts need regeneration, then execute the full local auth and billing checklist documented in `TEST.md`
-- Blockers: `drizzle-kit generate` still requires an interactive TTY shell, and live Google OAuth plus Stripe checkout/webhook verification still depend on valid local provider configuration
-- Last completed checkpoint: M4
+- Active milestone: M10
+- Active task: use the expanded `TEST.md` runbook to validate the live Mercado Livre connection flow, then continue with the real sync verification path for M11
+- Next task: complete Mercado Livre browser callback verification in `/app/integrations`, then run the first real sync, confirm same-window blocking, and verify refreshed metrics on `/app`
+- Blockers: M5 and M6 were cleared by live local verification; honest closure is still pending on M10 Mercado Livre callback validation and M11 real sync validation
+- Note: Long Postgres FK names were replaced with explicit short constraint names in `packages/database` (schema + `0000_small_dazzler.sql` + snapshot) to avoid 63-byte identifier truncation notices during `db:migrate`. If `0000` already ran against a database, reset that DB or add a manual `RENAME CONSTRAINT` migration from the truncated names Postgres created.
+- Note: `db:seed` and `db:migrate` call `sql.end()` on the postgres-js client so CLI processes exit cleanly (previously the open pool kept Node alive indefinitely).
+- Note: Stripe subscription reads exclude seed placeholder rows (`subscriptions.billing_customer_id` must be present). Entitlements treat `trialing` and `active` as paid access; `GET /billing/subscription` and `EntitlementGuard` reconcile rows still marked `active`/`trialing` against Stripe immediately so cancelling in the Dashboard retracts access even when webhooks lag (`POST /billing/checkout/confirm` still covers the success redirect gap before webhooks). **`/products` and `/costs/*` use `EntitlementGuard` with `AuthGuard`.**
+- Note: User-facing strings in `apps/web` default to Brazilian Portuguese (`pt-BR`), including localized labels for KPIs/dashboard copy and mappings for backend English phrases often shown next to integrations and sync controls.
+- Last completed checkpoint: M6
+
+## UI Redesign (cross-cutting)
+- [x] Phase 1: Design system foundation (tokens, primitives)
+- [x] Phase 2: App shell (sidebar + top bar layout)
+- [x] Phase 3: Marketing pages (landing, features, pricing, sign-in, integrations)
+- [x] Phase 4: App pages (dashboard, products, integrations hub, billing)
+- [x] Phase 5: Animations (Framer Motion + CSS transitions)
+- [x] Phase 6: Responsive + cleanup
+- [x] Phase 7: Verification (lint ✓, typecheck ✓, build ✓, tests ✓)
 
 ## Completed Checkpoints
 - [ ] M0 completed
@@ -904,8 +917,8 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] **M2** Frontend Web App Scaffold
 - [x] **M3** Backend API Scaffold on Render
 - [x] **M4** Database and Schema
-- [ ] **M5** Authentication and Access Control
-- [ ] **M6** Billing and Entitlements
+- [x] **M5** Authentication and Access Control
+- [x] **M6** Billing and Entitlements
 - [ ] **M7** Marketing Site and SEO
 - [ ] **M8** Product and Cost Management
 - [ ] **M9** Financial Domain Engine
@@ -1173,13 +1186,13 @@ Set up Supabase Postgres, Drizzle schema, migrations, and shared database access
 
 ---
 
-## [ ] M5. Authentication and Access Control
+## [x] M5. Authentication and Access Control
 
 ### Status
 - [ ] Not started
-- [x] In progress
-- [x] Blocked
-- [ ] Completed
+- [ ] In progress
+- [ ] Blocked
+- [x] Completed
 
 ### Objective
 Implement authentication, sessions, organization scoping, and route protection.
@@ -1207,7 +1220,7 @@ Implement authentication, sessions, organization scoping, and route protection.
 - [x] Document auth environment variables
 
 ### Exit Criteria
-- [ ] User can authenticate
+- [x] User can authenticate
 - [x] Protected routes are enforced
 - [x] Organization-scoped access works
 - [x] Auth flow is documented
@@ -1217,18 +1230,18 @@ Implement authentication, sessions, organization scoping, and route protection.
 - [x] `/sign-in` no longer tripped a 500 on `GET /auth-state/me`: the API dev runner (`tsx`) does not emit Nest’s `design:paramtypes`, so class-based constructor injection was undefined for `AuthGuard` and other providers until explicit `@Inject(Type)` was added; the marketing `app/error.tsx` no longer wraps segment errors in `<html>/<body>` (that shape belongs only in `global-error.tsx`).
 - [x] Better Auth routing and Fastify bridge were corrected to use the live `/auth` base path with request-body forwarding, and server-side Google sign-in now returns a real Google authorization URL
 - [x] Local auth schema drift was repaired in development by resetting the empty local Postgres schema to the current Drizzle baseline, and the Better Auth tables were aligned to string IDs expected by the library
-- [x] Final Google OAuth callback completion still requires a manual browser login against the configured Google app
+- [x] Manual browser verification completed on 2026-05-01: Google login succeeded locally, the user accessed the platform, and sign-out also completed successfully
 - [x] M5 hardening code shipped: shared trusted-origin parsing, lifecycle-managed DB runtime, split auth provisioning seam, and safer frontend auth redirects/error states
 
 ---
 
-## [ ] M6. Billing and Entitlements
+## [x] M6. Billing and Entitlements
 
 ### Status
 - [ ] Not started
-- [x] In progress
-- [x] Blocked
-- [ ] Completed
+- [ ] In progress
+- [ ] Blocked
+- [x] Completed
 
 ### Objective
 Implement Stripe subscription flows and access gating.
@@ -1239,7 +1252,7 @@ Implement Stripe subscription flows and access gating.
 ### Task Groups
 
 #### 6.1 Stripe Foundation
-- [ ] Configure Stripe products and prices
+- [x] Configure Stripe products and prices
 - [x] Define monthly and annual plan identifiers
 - [x] Implement checkout initiation flow
 - [x] Model billing customer and subscription mapping
@@ -1256,15 +1269,15 @@ Implement Stripe subscription flows and access gating.
 - [x] Add subscription state UI in app
 
 ### Exit Criteria
-- [ ] User can subscribe
+- [x] User can subscribe
 - [x] Subscription state is mirrored locally
 - [x] Protected product usage is gated correctly
-- [ ] Billing flow is tested at minimum critical-path level
+- [x] Billing flow is tested at minimum critical-path level
 
 ### Blockers / Notes
 - [ ] No blockers currently logged
 - [x] Real Stripe monthly and annual price IDs are configured in env and were verified as active recurring prices against Stripe
-- [x] End-to-end Stripe checkout plus webhook replay still need one final live pass after the user finishes billing checkout configuration
+- [x] Manual browser verification completed on 2026-05-01: Stripe checkout succeeded locally, payment unlocked the platform, and subscription-gated access was released after the real billing flow
 - [x] M6 code shipped with API-owned checkout creation, verified webhook signature handling, local subscription mirroring, entitlement guard enforcement, `/billing/subscription`, `/billing/checkout`, `/billing/stripe/webhook`, and the `/app/billing` paywall route
 - [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
 

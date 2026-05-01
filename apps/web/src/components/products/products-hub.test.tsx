@@ -40,9 +40,9 @@ describe("ProductsHub", () => {
 
     const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
 
-    expect(markup).toContain("Product and cost management hub");
-    expect(markup).toContain("No catalog data exists yet.");
-    expect(markup).toContain("Create product");
+    expect(markup).toContain("Gestão de produtos e custos");
+    expect(markup).toContain("Ainda não há dados no catálogo.");
+    expect(markup).toContain("Criar produto");
   });
 
   it("renders API failure state", () => {
@@ -54,7 +54,7 @@ describe("ProductsHub", () => {
 
     const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
 
-    expect(markup).toContain("We could not load your catalog");
+    expect(markup).toContain("Não conseguimos carregar seu catálogo");
     expect(markup).toContain("Boom");
   });
 });

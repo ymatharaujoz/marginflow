@@ -2,6 +2,7 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -213,12 +214,7 @@ export const syncRuns = pgTable(
   {
     id: id(),
     organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
-    marketplaceConnectionId: uuid("marketplace_connection_id").references(
-      () => marketplaceConnections.id,
-      {
-        onDelete: "set null",
-      },
-    ),
+    marketplaceConnectionId: uuid("marketplace_connection_id"),
     provider: varchar("provider", { length: 32 }).notNull(),
     status: varchar("status", { length: 32 }).default("pending").notNull(),
     windowKey: varchar("window_key", { length: 64 }),
@@ -232,6 +228,11 @@ export const syncRuns = pgTable(
   (table) => [
     index("sync_runs_organization_id_idx").on(table.organizationId),
     index("sync_runs_org_provider_created_idx").on(table.organizationId, table.provider, table.createdAt),
+    foreignKey({
+      name: "sync_runs_marketplace_connection_fk",
+      columns: [table.marketplaceConnectionId],
+      foreignColumns: [marketplaceConnections.id],
+    }).onDelete("set null"),
   ],
 );
 
@@ -240,12 +241,7 @@ export const externalProducts = pgTable(
   {
     id: id(),
     organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
-    marketplaceConnectionId: uuid("marketplace_connection_id").references(
-      () => marketplaceConnections.id,
-      {
-        onDelete: "set null",
-      },
-    ),
+    marketplaceConnectionId: uuid("marketplace_connection_id"),
     provider: varchar("provider", { length: 32 }).notNull(),
     externalProductId: varchar("external_product_id", { length: 255 }).notNull(),
     sku: varchar("sku", { length: 128 }),
@@ -261,6 +257,11 @@ export const externalProducts = pgTable(
       table.provider,
       table.externalProductId,
     ),
+    foreignKey({
+      name: "external_products_marketplace_connection_fk",
+      columns: [table.marketplaceConnectionId],
+      foreignColumns: [marketplaceConnections.id],
+    }).onDelete("set null"),
   ],
 );
 
@@ -269,12 +270,7 @@ export const externalOrders = pgTable(
   {
     id: id(),
     organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
-    marketplaceConnectionId: uuid("marketplace_connection_id").references(
-      () => marketplaceConnections.id,
-      {
-        onDelete: "set null",
-      },
-    ),
+    marketplaceConnectionId: uuid("marketplace_connection_id"),
     syncRunId: uuid("sync_run_id").references(() => syncRuns.id, { onDelete: "set null" }),
     provider: varchar("provider", { length: 32 }).notNull(),
     externalOrderId: varchar("external_order_id", { length: 255 }).notNull(),
@@ -293,6 +289,11 @@ export const externalOrders = pgTable(
       table.provider,
       table.externalOrderId,
     ),
+    foreignKey({
+      name: "external_orders_marketplace_connection_fk",
+      columns: [table.marketplaceConnectionId],
+      foreignColumns: [marketplaceConnections.id],
+    }).onDelete("set null"),
   ],
 );
 
@@ -304,16 +305,21 @@ export const externalOrderItems = pgTable(
     externalOrderId: uuid("external_order_id").notNull().references(() => externalOrders.id, {
       onDelete: "cascade",
     }),
-    externalProductId: uuid("external_product_id").references(() => externalProducts.id, {
-      onDelete: "set null",
-    }),
+    externalProductId: uuid("external_product_id"),
     quantity: integer("quantity").default(1).notNull(),
     unitPrice: numeric("unit_price", { precision: 14, scale: 2 }).default("0").notNull(),
     totalPrice: numeric("total_price", { precision: 14, scale: 2 }).default("0").notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index("external_order_items_organization_id_idx").on(table.organizationId)],
+  (table) => [
+    index("external_order_items_organization_id_idx").on(table.organizationId),
+    foreignKey({
+      name: "external_order_items_external_product_fk",
+      columns: [table.externalProductId],
+      foreignColumns: [externalProducts.id],
+    }).onDelete("set null"),
+  ],
 );
 
 export const externalFees = pgTable(

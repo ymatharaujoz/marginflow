@@ -711,8 +711,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "external_order_items_external_product_id_external_products_id_fk": {
-          "name": "external_order_items_external_product_id_external_products_id_fk",
+        "external_order_items_external_product_fk": {
+          "name": "external_order_items_external_product_fk",
           "tableFrom": "external_order_items",
           "tableTo": "external_products",
           "columnsFrom": [
@@ -879,8 +879,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "external_orders_marketplace_connection_id_marketplace_connections_id_fk": {
-          "name": "external_orders_marketplace_connection_id_marketplace_connections_id_fk",
+        "external_orders_marketplace_connection_fk": {
+          "name": "external_orders_marketplace_connection_fk",
           "tableFrom": "external_orders",
           "tableTo": "marketplace_connections",
           "columnsFrom": [
@@ -1039,8 +1039,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "external_products_marketplace_connection_id_marketplace_connections_id_fk": {
-          "name": "external_products_marketplace_connection_id_marketplace_connections_id_fk",
+        "external_products_marketplace_connection_fk": {
+          "name": "external_products_marketplace_connection_fk",
           "tableFrom": "external_products",
           "tableTo": "marketplace_connections",
           "columnsFrom": [
@@ -2439,8 +2439,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "sync_runs_marketplace_connection_id_marketplace_connections_id_fk": {
-          "name": "sync_runs_marketplace_connection_id_marketplace_connections_id_fk",
+        "sync_runs_marketplace_connection_fk": {
+          "name": "sync_runs_marketplace_connection_fk",
           "tableFrom": "sync_runs",
           "tableTo": "marketplace_connections",
           "columnsFrom": [

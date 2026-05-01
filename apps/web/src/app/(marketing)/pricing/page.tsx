@@ -4,28 +4,28 @@ import { createPageMetadata } from "@/lib/site";
 
 export const metadata = createPageMetadata({
   description:
-    "Review MarginFlow monthly and annual pricing, compare plan intent, and move into subscription setup.",
-  keywords: ["SaaS pricing", "annual billing", "monthly billing", "marketplace analytics pricing"],
+    "Confira os preços MarginFlow mensal e anual, compare objetivos dos planos e avance para a contratação.",
+  keywords: ["preço SaaS", "cobrança anual", "cobrança mensal", "analytics marketplace"],
   path: "/pricing",
-  title: "Pricing | MarginFlow",
+  title: "Preços | MarginFlow",
 });
 
 export default function PricingPage() {
   return (
-    <main className="pt-12 md:pt-16">
-      <Container>
-        <section className="max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">Pricing</p>
-          <h1 className="mt-4 text-5xl font-semibold tracking-[-0.06em] text-foreground md:text-6xl">
-            Clear subscription paths for sellers who need profit visibility.
+    <main className="pt-14 md:pt-20">
+      <Container size="xl">
+        <section className="mx-auto max-w-3xl text-center animate-rise-in">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-accent">Preços</p>
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-foreground md:text-5xl">
+            Opções claras de assinatura para quem precisa enxergar lucro nas vendas.
           </h1>
-          <p className="mt-6 text-lg leading-8 text-foreground-soft">
-            Plans are designed around finance clarity, protected access, and room to grow into a
-            stronger operating system over time.
+          <p className="mt-6 text-lg leading-8 text-muted-foreground">
+            Os planos priorizam clareza financeira, acesso protegido e espaço para o seu sistema de
+            operação amadurecer com o tempo.
           </p>
         </section>
 
-        <section className="mt-12">
+        <section className="mt-14">
           <PricingToggle />
         </section>
       </Container>

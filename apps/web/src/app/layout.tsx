@@ -40,7 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en-US"
+      lang="pt-BR"
       className={`${bodyFont.variable} ${displayFont.variable} ${marketingSans.variable} ${marketingDisplay.variable}`}
     >
       <body>

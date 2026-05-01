@@ -3,11 +3,15 @@ import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "@/app";
 import { AuthService } from "@/modules/auth/auth.service";
+import { BillingService } from "@/modules/billing/billing.service";
+import { EntitlementsService } from "@/modules/billing/entitlements.service";
 import { ProductsService } from "./products.service";
 
 describe("products controller", () => {
   let app: NestFastifyApplication;
   let authService: AuthService;
+  let billingService: BillingService;
+  let entitlementsService: EntitlementsService;
   let productsService: ProductsService;
 
   beforeAll(async () => {
@@ -29,7 +33,10 @@ describe("products controller", () => {
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
     authService = app.get(AuthService);
+    billingService = app.get(BillingService);
+    entitlementsService = app.get(EntitlementsService);
     productsService = app.get(ProductsService);
+    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -55,6 +62,12 @@ describe("products controller", () => {
         image: null,
         name: "Mateus",
       },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
     });
     vi.spyOn(productsService, "listProducts").mockResolvedValueOnce([
       {
@@ -108,6 +121,12 @@ describe("products controller", () => {
         name: "Mateus",
       },
     });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
     vi.spyOn(productsService, "createProduct").mockResolvedValueOnce({
       createdAt: "2026-04-28T10:00:00.000Z",
       id: "product_1",
@@ -159,6 +178,12 @@ describe("products controller", () => {
         image: null,
         name: "Mateus",
       },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
     });
 
     const response = await app.inject({

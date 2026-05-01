@@ -2,11 +2,11 @@
 
 ## Current Focus
 
-- Active milestone: M12
-- Active task: review the new `/app` financial dashboard against the implemented KPI, chart, profitability, and recent-sync flows, then decide whether M12 can be marked complete
-- Next task: optional browser pass on `/app`, then user confirmation for the final M12 completion tick; M10 and M11 still separately need live Mercado Livre callback/sync verification for honest closure
-- Blockers: no code blockers on M12; repo gates are green, but final milestone completion still waits for user confirmation
-- Last completed checkpoint: M4
+- Active milestone: M10
+- Active task: validate the live Mercado Livre connection flow in `/app/integrations`, then continue with the first real sync pass for M11
+- Next task: complete Mercado Livre callback verification, run a real sync, confirm same-window blocking, and verify refreshed metrics on `/app`
+- Blockers: M5 and M6 are now cleared by local browser verification; honest closure is still pending on M10 callback validation, M11 real sync validation, and explicit user confirmation if M12 should be considered done
+- Last completed checkpoint: M6
 
 ## Checkpoint M0
 
@@ -62,3 +62,25 @@
 - Known issues: local `db:migrate` and `db:seed` depend on valid Postgres credentials in `DATABASE_URL`; milestone completion accepted by user despite local auth mismatch during agent verification
 - Next recommended milestone: M5
 - Next recommended task: install Better Auth in `apps/api`, connect it to the new Drizzle schema baseline, and start protected access control wiring
+
+## Checkpoint M5
+
+- Date: 2026-05-01
+- Milestone: M5. Authentication and Access Control
+- Summary of what shipped: Better Auth remained integrated across web and API, and the previously pending live verification gate was cleared with a successful local Google login, protected platform access, and sign-out validation
+- Key files/modules added: existing auth surface reused across `apps/api/src/modules/auth`, `apps/web/src/app/(marketing)/sign-in`, and protected app routing in `apps/web/src/app/(app)/app`
+- Tests added or updated: prior repo verification already passed; milestone closure is now backed by the user's real browser pass for sign-in, session use, protected access, and sign-out
+- Known issues: no code blockers remain on M5
+- Next recommended milestone: M6
+- Next recommended task: keep the validated auth baseline and continue with billing verification and closure
+
+## Checkpoint M6
+
+- Date: 2026-05-01
+- Milestone: M6. Billing and Entitlements
+- Summary of what shipped: the previously blocked billing milestone was cleared through a real local Stripe payment flow that unlocked the platform and confirmed subscription-gated access release
+- Key files/modules added: existing billing surface reused across `apps/api/src/modules/billing`, `/app/billing`, and protected `/app` entitlement routing
+- Tests added or updated: prior repo verification already passed; milestone closure is now backed by the user's real browser pass for checkout and paid access unlock
+- Known issues: no code blockers remain on M6
+- Next recommended milestone: M10
+- Next recommended task: validate Mercado Livre callback end to end, then move into the first real sync verification path for M11

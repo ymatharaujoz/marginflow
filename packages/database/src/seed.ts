@@ -1,12 +1,10 @@
 import { and } from "drizzle-orm";
 import { eq } from "drizzle-orm";
 import { createDatabaseClient } from "./client";
+import { createPostgresConnection } from "./connection";
 import { loadRepoEnv } from "./load-repo-env";
-
-loadRepoEnv(import.meta.url);
 import {
   accounts,
-  billingCustomers,
   marketplaceConnections,
   organizationMembers,
   organizations,
@@ -16,6 +14,8 @@ import {
   users,
 } from "./schema";
 
+loadRepoEnv(import.meta.url);
+
 async function run() {
   const connectionString = process.env.DATABASE_URL;
 
@@ -23,7 +23,21 @@ async function run() {
     throw new Error("DATABASE_URL is required to seed the database.");
   }
 
-  const db = createDatabaseClient(connectionString);
+  const sql = createPostgresConnection(connectionString);
+
+  try {
+    const db = createDatabaseClient(sql);
+    await seedDatabase(db);
+
+    console.info("Database seed finished.");
+  } finally {
+    await sql.end({ timeout: 10 });
+  }
+}
+
+async function seedDatabase(
+  db: ReturnType<typeof createDatabaseClient>,
+) {
   const seededAccountId = "account_demo_owner_google";
   const organizationSlug = "demo-org";
   const userEmail = "owner@marginflow.local";
@@ -101,21 +115,6 @@ async function run() {
     });
   }
 
-  await db
-    .insert(billingCustomers)
-    .values({
-      organizationId: organization.id,
-      provider: "stripe",
-      externalCustomerId: "cus_demo_org",
-    })
-    .onConflictDoNothing({
-      target: [billingCustomers.provider, billingCustomers.externalCustomerId],
-    });
-
-  const customer = await db.query.billingCustomers.findFirst({
-    where: eq(billingCustomers.organizationId, organization.id),
-  });
-
   const existingSubscription = await db.query.subscriptions.findFirst({
     where: and(
       eq(subscriptions.organizationId, organization.id),
@@ -126,7 +125,7 @@ async function run() {
   if (!existingSubscription) {
     await db.insert(subscriptions).values({
       organizationId: organization.id,
-      billingCustomerId: customer?.id,
+      billingCustomerId: null,
       provider: "stripe",
       externalSubscriptionId: "sub_demo_org",
       planCode: "starter-monthly",

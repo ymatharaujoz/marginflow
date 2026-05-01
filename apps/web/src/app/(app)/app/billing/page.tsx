@@ -7,6 +7,7 @@ import { readServerBillingState } from "@/lib/server-billing";
 type BillingPageProps = {
   searchParams?: Promise<{
     checkout?: string;
+    session_id?: string;
   }>;
 };
 
@@ -29,6 +30,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   return (
     <Container>
       <BillingPanel
+        checkoutSessionId={resolvedSearchParams?.session_id ?? null}
         checkoutState={checkoutState}
         organizationName={authState.organization.name}
         snapshot={billingState}

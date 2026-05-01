@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Inject, Injectable } from "@nestjs/common";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import { AuthService } from "@/modules/auth/auth.service";
+import { BillingService } from "./billing.service";
 import { EntitlementsService } from "./entitlements.service";
 
 @Injectable()
@@ -8,6 +9,8 @@ export class EntitlementGuard implements CanActivate {
   constructor(
     @Inject(AuthService)
     private readonly authService: AuthService,
+    @Inject(BillingService)
+    private readonly billingService: BillingService,
     @Inject(EntitlementsService)
     private readonly entitlementsService: EntitlementsService,
   ) {}
@@ -26,6 +29,9 @@ export class EntitlementGuard implements CanActivate {
       (await this.authService.requireRequestContext(request.raw ? request.raw : request));
 
     request.authContext = authContext;
+    await this.billingService.reconcileOrganizationSubscriptionWithStripe(
+      authContext.organization.id,
+    );
     await this.entitlementsService.requireActiveEntitlement(authContext.organization.id);
 
     return true;

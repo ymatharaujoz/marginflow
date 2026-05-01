@@ -1,7 +1,10 @@
 import { HttpException, Inject, Injectable } from "@nestjs/common";
+import { isNotNull } from "drizzle-orm";
 import type { DatabaseClient } from "@marginflow/database";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import type { BillingSnapshot } from "./billing.types";
+
+const ENTITLED_STATUSES = new Set(["active", "trialing"]);
 
 @Injectable()
 export class EntitlementsService {
@@ -18,14 +21,19 @@ export class EntitlementsService {
       }),
       this.db.query.subscriptions.findFirst({
         where: (table, { and, eq }) =>
-          and(eq(table.organizationId, organizationId), eq(table.provider, "stripe")),
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.provider, "stripe"),
+            /** Seed placeholder rows omit a billing row; entitlement always tracks Stripe-linked rows only. */
+            isNotNull(table.billingCustomerId),
+          ),
         orderBy: (table, { desc }) => [desc(table.updatedAt)],
       }),
     ]);
 
     return {
       organizationId,
-      entitled: subscription?.status === "active",
+      entitled: subscription != null && ENTITLED_STATUSES.has(subscription.status),
       customer: customer
         ? {
             externalCustomerId: customer.externalCustomerId,

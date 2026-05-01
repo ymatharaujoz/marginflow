@@ -2,6 +2,7 @@ import { migrate } from "drizzle-orm/postgres-js/migrator";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDatabaseClient } from "./client";
+import { createPostgresConnection } from "./connection";
 import { loadRepoEnv } from "./load-repo-env";
 
 loadRepoEnv(import.meta.url);
@@ -13,10 +14,16 @@ async function run() {
     throw new Error("DATABASE_URL is required to run database migrations.");
   }
 
-  const db = createDatabaseClient(connectionString);
-  const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
+  const sql = createPostgresConnection(connectionString);
 
-  await migrate(db, { migrationsFolder });
+  try {
+    const db = createDatabaseClient(sql);
+    const migrationsFolder = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
+
+    await migrate(db, { migrationsFolder });
+  } finally {
+    await sql.end({ timeout: 10 });
+  }
 }
 
 run().catch((error) => {

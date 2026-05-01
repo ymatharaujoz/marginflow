@@ -2,7 +2,7 @@ import postgres, { type Options, type Sql } from "postgres";
 
 export type PostgresConnectionOptions = Pick<
   Options<Record<string, postgres.PostgresType>>,
-  "max"
+  "max" | "connect_timeout"
 >;
 
 export function createPostgresConnection(
@@ -12,5 +12,6 @@ export function createPostgresConnection(
   return postgres(connectionString, {
     max: options.max ?? 10,
     prepare: false,
+    connect_timeout: options.connect_timeout ?? 30,
   });
 }

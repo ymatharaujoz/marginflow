@@ -14,10 +14,10 @@ export function MarketingBackdrop() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 120% 80% at 50% -20%, rgba(0, 212, 255, 0.09), transparent 55%), radial-gradient(ellipse 70% 50% at 100% 30%, rgba(0, 123, 255, 0.06), transparent 50%), linear-gradient(180deg, #f8fafc 0%, #ffffff 45%, #f1f5f9 100%)",
+            "radial-gradient(ellipse 100% 70% at 50% -15%, rgba(14, 122, 111, 0.06), transparent 50%), radial-gradient(ellipse 60% 50% at 95% 30%, rgba(14, 122, 111, 0.04), transparent 50%), linear-gradient(180deg, #fdfcfa 0%, #ffffff 40%, #f8f6f3 100%)",
         }}
       />
-      <div className="mf-grid-bg absolute inset-0 opacity-[0.55]" aria-hidden />
+      <div className="mf-grid-bg absolute inset-0 opacity-40" aria-hidden />
       <ParticleBackground />
     </div>
   );

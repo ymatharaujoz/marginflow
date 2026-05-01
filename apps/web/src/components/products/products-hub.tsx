@@ -68,7 +68,7 @@ function formatMoney(value: string) {
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "No date";
+    return "Sem data";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -108,10 +108,10 @@ function SectionHeader({
   title: string;
 }) {
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-accent">{eyebrow}</p>
-      <h2 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h2>
-      <p className="max-w-2xl text-sm leading-7 text-foreground-soft">{description}</p>
+    <div className="space-y-1.5">
+      <p className="text-xs font-bold uppercase tracking-wider text-accent">{eyebrow}</p>
+      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+      <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>
     </div>
   );
 }
@@ -127,8 +127,8 @@ function SectionMessage({
     <p
       className={
         tone === "critical"
-          ? "rounded-[var(--radius-md)] border border-[color:rgba(220,38,38,0.22)] bg-[color:rgba(220,38,38,0.08)] px-4 py-3 text-sm text-foreground"
-          : "rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3 text-sm text-foreground-soft"
+          ? "rounded-[var(--radius-md)] border border-error/20 bg-error-soft px-4 py-3 text-sm text-foreground"
+          : "rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3 text-sm text-muted-foreground"
       }
     >
       {children}
@@ -152,10 +152,10 @@ function TextInput({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm text-foreground-soft">
-      <span>{label}</span>
+    <label className="grid gap-1.5 text-sm">
+      <span className="font-medium text-foreground">{label}</span>
       <input
-        className="min-h-11 rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm text-foreground outline-none transition-colors focus:border-border-strong"
+        className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         required={required}
@@ -177,10 +177,10 @@ function TextArea({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm text-foreground-soft">
-      <span>{label}</span>
+    <label className="grid gap-1.5 text-sm">
+      <span className="font-medium text-foreground">{label}</span>
       <textarea
-        className="min-h-28 rounded-[var(--radius-md)] border border-border bg-surface px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-border-strong"
+        className="min-h-24 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
         onChange={(event) => onChange(event.target.value)}
         value={value}
       />
@@ -200,10 +200,10 @@ function SelectInput({
   value: string;
 }) {
   return (
-    <label className="grid gap-2 text-sm text-foreground-soft">
-      <span>{label}</span>
+    <label className="grid gap-1.5 text-sm">
+      <span className="font-medium text-foreground">{label}</span>
       <select
-        className="min-h-11 rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm text-foreground outline-none transition-colors focus:border-border-strong"
+        className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3 text-sm text-foreground transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
         onChange={(event) => onChange(event.target.value)}
         value={value}
       >
@@ -237,7 +237,7 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
   const productOptions = useMemo(
     () =>
       (catalogQuery.data?.products ?? []).map((product) => ({
-        label: `${product.name}${product.isActive ? "" : " (archived)"}`,
+        label: `${product.name}${product.isActive ? "" : " (arquivado)"}`,
         value: product.id,
       })),
     [catalogQuery.data?.products],
@@ -266,13 +266,13 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     },
     onError: (error) => {
       setFeedbackMessage(
-        error instanceof ApiClientError ? error.message : "Product request failed.",
+        error instanceof ApiClientError ? error.message : "Não foi possível processar o produto.",
       );
     },
     onSuccess: async () => {
       setEditingProductId(null);
       setProductForm(initialProductForm);
-      await refreshCatalog(editingProductId ? "Product updated." : "Product created.");
+      await refreshCatalog(editingProductId ? "Produto atualizado." : "Produto criado.");
     },
   });
 
@@ -293,7 +293,7 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     },
     onError: (error) => {
       setFeedbackMessage(
-        error instanceof ApiClientError ? error.message : "Product cost request failed.",
+        error instanceof ApiClientError ? error.message : "Não foi possível processar o custo do produto.",
       );
     },
     onSuccess: async () => {
@@ -302,7 +302,7 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
         ...initialProductCostForm,
             productId: selectedProductId,
           });
-      await refreshCatalog(editingProductCostId ? "Product cost updated." : "Product cost created.");
+      await refreshCatalog(editingProductCostId ? "Custo do produto atualizado." : "Custo do produto criado.");
     },
   });
 
@@ -320,13 +320,13 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     },
     onError: (error) => {
       setFeedbackMessage(
-        error instanceof ApiClientError ? error.message : "Ad cost request failed.",
+        error instanceof ApiClientError ? error.message : "Não foi possível processar o custo em anúncios.",
       );
     },
     onSuccess: async () => {
       setEditingAdCostId(null);
       setAdCostForm(initialAdCostForm);
-      await refreshCatalog(editingAdCostId ? "Ad cost updated." : "Ad cost created.");
+      await refreshCatalog(editingAdCostId ? "Custo em anúncios atualizado." : "Custo em anúncios criado.");
     },
   });
 
@@ -347,14 +347,14 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     },
     onError: (error) => {
       setFeedbackMessage(
-        error instanceof ApiClientError ? error.message : "Expense request failed.",
+        error instanceof ApiClientError ? error.message : "Não foi possível processar a despesa.",
       );
     },
     onSuccess: async () => {
       setEditingManualExpenseId(null);
       setManualExpenseForm(initialManualExpenseForm);
       await refreshCatalog(
-        editingManualExpenseId ? "Expense updated." : "Expense created.",
+        editingManualExpenseId ? "Despesa atualizada." : "Despesa criada.",
       );
     },
   });
@@ -368,11 +368,11 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
       }),
     onError: (error) => {
       setFeedbackMessage(
-        error instanceof ApiClientError ? error.message : "Archive request failed.",
+        error instanceof ApiClientError ? error.message : "Não foi possível arquivar o produto.",
       );
     },
     onSuccess: async () => {
-      await refreshCatalog("Product archived.");
+      await refreshCatalog("Produto arquivado.");
     },
   });
 
@@ -383,9 +383,9 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     return (
       <Card>
         <SectionHeader
-          description="Loading products, costs, and expense entries from the API."
-          eyebrow="M8 workspace"
-          title="Preparing your management hub"
+          description="Carregando produtos, custos e lançamentos de despesas da API."
+          eyebrow="Catálogo"
+          title="Preparando o hub de gestão"
         />
       </Card>
     );
@@ -395,9 +395,9 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     return (
       <Card>
         <SectionHeader
-          description="Your session is no longer valid for protected product data. Sign in again and retry."
-          eyebrow="Access"
-          title="Authentication required"
+          description="Sua sessão não é mais válida para dados protegidos de produtos. Entre novamente e tente de novo."
+          eyebrow="Acesso"
+          title="É necessário autenticar"
         />
       </Card>
     );
@@ -407,15 +407,13 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     return (
       <Card>
         <SectionHeader
-          description="The protected product workspace could not load from the API."
-          eyebrow="Error state"
-          title="We could not load your catalog"
+          description="Não foi possível carregar o workspace de produtos a partir da API."
+          eyebrow="Erro"
+          title="Não conseguimos carregar seu catálogo"
         />
         <div className="mt-6">
           <SectionMessage tone="critical">
-            {catalogQuery.error instanceof Error
-              ? catalogQuery.error.message
-              : "Unexpected error while loading the catalog."}
+            {catalogQuery.error instanceof Error ? catalogQuery.error.message : "Erro inesperado ao carregar o catálogo."}
           </SectionMessage>
         </div>
       </Card>
@@ -430,22 +428,21 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     <div className="space-y-6">
       <Card>
         <SectionHeader
-          description={`${organizationName} can now create products, track dated product costs, register manual ad spend, and record general expenses in one protected workspace.`}
-          eyebrow="M8 workspace"
-          title="Product and cost management hub"
+          description={`${organizationName}: crie produtos, registre custos por data, gastos em anúncios e despesas gerais ou operacionais protegidas no mesmo hub.`}
+          eyebrow="Operação"
+          title="Gestão de produtos e custos"
         />
-        <div className="mt-6 flex flex-wrap gap-3 text-sm text-foreground-soft">
-          <span>{products.length} products</span>
-          <span>{productCosts.length} product cost entries</span>
-          <span>{adCosts.length} ad cost entries</span>
-          <span>{manualExpenses.length} manual expenses</span>
+        <div className="mt-6 flex flex-wrap gap-3 text-sm text-muted-foreground">
+          <span>{products.length} produtos</span>
+          <span>{productCosts.length} lançamentos de custo por produto</span>
+          <span>{adCosts.length} lançamentos em anúncios</span>
+          <span>{manualExpenses.length} despesas manuais</span>
         </div>
         {feedbackMessage ? <div className="mt-6"><SectionMessage>{feedbackMessage}</SectionMessage></div> : null}
         {!hasCatalogData ? (
           <div className="mt-6">
             <SectionMessage>
-              No catalog data exists yet. Start by creating your first product, then attach product
-              costs, ad costs, or general expenses.
+              Ainda não há dados no catálogo. Comece criando o primeiro produto e associe custos de produto, anúncios ou despesas gerais.
             </SectionMessage>
           </div>
         ) : null}
@@ -454,28 +451,25 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <SectionHeader
-            description="Products are organization-scoped and can be archived without deleting history."
-            eyebrow="Products"
-            title="Catalog"
+            description="Produtos ficam ligados à organização e podem ser arquivados sem apagar histórico."
+            eyebrow="Lista"
+            title="Catálogo"
           />
           <div className="mt-6 grid gap-4">
             {products.length === 0 ? (
-              <SectionMessage>No products registered yet.</SectionMessage>
+              <SectionMessage>Nenhum produto cadastrado ainda.</SectionMessage>
             ) : (
               products.map((product) => (
-                <div
-                  key={product.id}
-                  className="rounded-[var(--radius-md)] border border-border bg-background-soft p-4"
-                >
+                <div key={product.id} className="rounded-[var(--radius-md)] border border-border bg-background-soft p-4">
                   <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                       <h3 className="text-lg font-semibold text-foreground">{product.name}</h3>
-                      <p className="mt-1 text-sm text-foreground-soft">
-                        SKU: {product.sku ?? "not set"} · Price: {formatMoney(product.sellingPrice)}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        SKU: {product.sku ?? "não informado"} · Preço: {formatMoney(product.sellingPrice)}
                       </p>
-                      <p className="mt-1 text-sm text-foreground-soft">
-                        Status: {product.isActive ? "active" : "archived"} · Latest cost:{" "}
-                        {product.latestCost ? formatMoney(product.latestCost.amount) : "none"}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Status: {product.isActive ? "ativo" : "arquivado"} · Último custo:{" "}
+                        {product.latestCost ? formatMoney(product.latestCost.amount) : "sem registro"}
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -492,15 +486,11 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                         }}
                         variant="secondary"
                       >
-                        Edit
+                        Editar
                       </Button>
                       {product.isActive ? (
-                        <Button
-                          disabled={archiveMutation.isPending}
-                          onClick={() => archiveMutation.mutate(product)}
-                          variant="secondary"
-                        >
-                          Archive
+                        <Button disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(product)} variant="secondary">
+                          Arquivar
                         </Button>
                       ) : null}
                     </div>
@@ -513,64 +503,40 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
 
         <Card>
           <SectionHeader
-            description="Use the same form for first-time creation or later edits."
-            eyebrow="Product form"
-            title={editingProductId ? "Edit product" : "Create product"}
+            description="Use o mesmo fluxo para cadastrar agora ou ajustar depois."
+            eyebrow="Produto"
+            title={editingProductId ? "Editar produto" : "Criar produto"}
           />
-          <form
-            className="mt-6 grid gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setFeedbackMessage(null);
-              productMutation.mutate();
-            }}
-          >
+          <form className="mt-6 grid gap-4" onSubmit={(event) => {
+            event.preventDefault();
+            setFeedbackMessage(null);
+            productMutation.mutate();
+          }}>
             <TextInput
-              label="Product name"
+              label="Nome do produto"
               onChange={(value) => setProductForm((current) => ({ ...current, name: value }))}
               required
               value={productForm.name}
             />
+            <TextInput label="SKU" onChange={(value) => setProductForm((current) => ({ ...current, sku: normalizeTextInput(value) }))} value={productForm.sku ?? ""} />
             <TextInput
-              label="SKU"
-              onChange={(value) => setProductForm((current) => ({ ...current, sku: normalizeTextInput(value) }))}
-              value={productForm.sku ?? ""}
-            />
-            <TextInput
-              label="Selling price"
+              label="Preço de venda"
               onChange={(value) => setProductForm((current) => ({ ...current, sellingPrice: value }))}
               required
               type="number"
               value={productForm.sellingPrice}
             />
-            <label className="flex items-center gap-3 text-sm text-foreground-soft">
-              <input
-                checked={productForm.isActive}
-                onChange={(event) =>
-                  setProductForm((current) => ({ ...current, isActive: event.target.checked }))
-                }
-                type="checkbox"
-              />
-              Product is active
+            <label className="flex items-center gap-3 text-sm text-muted-foreground">
+              <input checked={productForm.isActive} onChange={(event) => setProductForm((current) => ({ ...current, isActive: event.target.checked }))} type="checkbox" />
+              Produto ativo
             </label>
             <div className="flex flex-wrap gap-3">
               <Button disabled={productMutation.isPending} type="submit">
-                {productMutation.isPending
-                  ? "Saving..."
-                  : editingProductId
-                    ? "Update product"
-                    : "Create product"}
+                {productMutation.isPending ? "Salvando..." : editingProductId ? "Atualizar produto" : "Criar produto"}
               </Button>
               {editingProductId ? (
-                <Button
-                  onClick={() => {
-                    setEditingProductId(null);
-                    setProductForm(initialProductForm);
-                  }}
-                  type="button"
-                  variant="secondary"
-                >
-                  Cancel
+                <Button onClick={() => { setEditingProductId(null); setProductForm(initialProductForm); }} type="button" variant="secondary">
+                  Cancelar
                 </Button>
               ) : null}
             </div>
@@ -581,13 +547,13 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Card>
           <SectionHeader
-            description="Cost history stays appendable so later metric calculations can evaluate dated values."
-            eyebrow="Product costs"
-            title="History-enabled cost entries"
+            description="Novos valores entram ao longo do tempo para que relatórios usem dados datados sem apagar histórico."
+            eyebrow="Custos de produto"
+            title="Lançamentos de custo ao longo do tempo"
           />
           <div className="mt-6 grid gap-4">
             {productCosts.length === 0 ? (
-              <SectionMessage>No product costs recorded yet.</SectionMessage>
+              <SectionMessage>Nenhum custo de produto registrado.</SectionMessage>
             ) : (
               productCosts.map((cost) => {
                 const product = products.find((entry) => entry.id === cost.productId);
@@ -596,12 +562,12 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <div>
                         <h3 className="text-base font-semibold text-foreground">
-                          {product?.name ?? "Unknown product"} · {cost.costType}
+                          {product?.name ?? "Produto desconhecido"} · {cost.costType}
                         </h3>
-                        <p className="mt-1 text-sm text-foreground-soft">
-                          {formatMoney(cost.amount)} · Effective {formatDate(cost.effectiveFrom)}
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {formatMoney(cost.amount)} · Vigência {formatDate(cost.effectiveFrom)}
                         </p>
-                        <p className="mt-1 text-sm text-foreground-soft">{cost.notes ?? "No notes"}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{cost.notes ?? "Sem observações"}</p>
                       </div>
                       <Button
                         onClick={() => {
@@ -618,7 +584,7 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                         }}
                         variant="secondary"
                       >
-                        Edit
+                        Editar
                       </Button>
                     </div>
                   </div>
@@ -630,77 +596,42 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
 
         <Card>
           <SectionHeader
-            description="Each entry is stored independently so the latest value can be resolved without deleting history."
-            eyebrow="Cost form"
-            title={editingProductCostId ? "Edit product cost" : "Create product cost"}
+            description="Cada lançamento fica gravado independentemente para manter reconciliações futuras."
+            eyebrow="Formulário de custo"
+            title={editingProductCostId ? "Editar custo do produto" : "Criar custo do produto"}
           />
-          <form
-            className="mt-6 grid gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setFeedbackMessage(null);
-              productCostMutation.mutate();
-            }}
-          >
+          <form className="mt-6 grid gap-4" onSubmit={(event) => {
+            event.preventDefault();
+            setFeedbackMessage(null);
+            productCostMutation.mutate();
+          }}>
             <SelectInput
-              label="Product"
+              label="Produto"
               onChange={(value) => setProductCostForm((current) => ({ ...current, productId: value }))}
-              options={productOptions.length > 0 ? productOptions : [{ label: "Create a product first", value: "" }]}
+              options={
+                productOptions.length > 0 ? productOptions : [{ label: "Crie um produto primeiro", value: "" }]
+              }
               value={selectedProductId}
             />
-            <TextInput
-              label="Cost type"
-              onChange={(value) => setProductCostForm((current) => ({ ...current, costType: value }))}
-              required
-              value={productCostForm.costType}
-            />
-            <TextInput
-              label="Amount"
-              onChange={(value) => setProductCostForm((current) => ({ ...current, amount: value }))}
-              required
-              type="number"
-              value={productCostForm.amount}
-            />
-            <TextInput
-              label="Currency"
-              onChange={(value) => setProductCostForm((current) => ({ ...current, currency: value }))}
-              value={productCostForm.currency}
-            />
-            <TextInput
-              label="Effective from"
-              onChange={(value) => setProductCostForm((current) => ({ ...current, effectiveFrom: normalizeTextInput(value) }))}
-              type="date"
-              value={productCostForm.effectiveFrom ?? ""}
-            />
-            <TextArea
-              label="Notes"
-              onChange={(value) => setProductCostForm((current) => ({ ...current, notes: normalizeTextInput(value) }))}
-              value={productCostForm.notes ?? ""}
-            />
+            <TextInput label="Tipo de custo" onChange={(value) => setProductCostForm((current) => ({ ...current, costType: value }))} required value={productCostForm.costType} />
+            <TextInput label="Valor" onChange={(value) => setProductCostForm((current) => ({ ...current, amount: value }))} required type="number" value={productCostForm.amount} />
+            <TextInput label="Moeda" onChange={(value) => setProductCostForm((current) => ({ ...current, currency: value }))} value={productCostForm.currency} />
+            <TextInput label="Início da vigência" onChange={(value) => setProductCostForm((current) => ({ ...current, effectiveFrom: normalizeTextInput(value) }))} type="date" value={productCostForm.effectiveFrom ?? ""} />
+            <TextArea label="Observações" onChange={(value) => setProductCostForm((current) => ({ ...current, notes: normalizeTextInput(value) }))} value={productCostForm.notes ?? ""} />
             <div className="flex flex-wrap gap-3">
-              <Button
-                disabled={productCostMutation.isPending || productOptions.length === 0}
-                type="submit"
-              >
-                {productCostMutation.isPending
-                  ? "Saving..."
-                  : editingProductCostId
-                    ? "Update cost"
-                    : "Create cost"}
+              <Button disabled={productCostMutation.isPending || productOptions.length === 0} type="submit">
+                {productCostMutation.isPending ? "Salvando..." : editingProductCostId ? "Atualizar custo" : "Criar custo"}
               </Button>
               {editingProductCostId ? (
                 <Button
                   onClick={() => {
                     setEditingProductCostId(null);
-                    setProductCostForm({
-                      ...initialProductCostForm,
-                      productId: productOptions[0]?.value ?? "",
-                    });
+                    setProductCostForm({ ...initialProductCostForm, productId: productOptions[0]?.value ?? "" });
                   }}
                   type="button"
                   variant="secondary"
                 >
-                  Cancel
+                  Cancelar
                 </Button>
               ) : null}
             </div>
@@ -711,13 +642,13 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
       <section className="grid gap-6 xl:grid-cols-2">
         <Card>
           <SectionHeader
-            description="Manual ad spend can optionally link back to a product while still capturing channel-level context."
-            eyebrow="Ad costs"
-            title="Advertising spend"
+            description="Gasto manual em ads pode ficar opcionalmente ligado a um produto, mantendo o contexto por canal."
+            eyebrow="Gastos com anúncios"
+            title="Spend em mídia paga"
           />
           <div className="mt-6 grid gap-4">
             {adCosts.length === 0 ? (
-              <SectionMessage>No ad cost entries recorded yet.</SectionMessage>
+              <SectionMessage>Nenhum gasto em anúncios registrado.</SectionMessage>
             ) : (
               adCosts.map((cost) => {
                 const linkedProduct = products.find((entry) => entry.id === cost.productId);
@@ -728,10 +659,10 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                         <h3 className="text-base font-semibold text-foreground">
                           {cost.channel} · {formatMoney(cost.amount)}
                         </h3>
-                        <p className="mt-1 text-sm text-foreground-soft">
-                          Product: {linkedProduct?.name ?? "Not linked"} · Spent {formatDate(cost.spentAt)}
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Produto: {linkedProduct?.name ?? "Sem vínculo"} · Gasto em {formatDate(cost.spentAt)}
                         </p>
-                        <p className="mt-1 text-sm text-foreground-soft">{cost.notes ?? "No notes"}</p>
+                        <p className="mt-1 text-sm text-muted-foreground">{cost.notes ?? "Sem observações"}</p>
                       </div>
                       <Button
                         onClick={() => {
@@ -748,7 +679,7 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                         }}
                         variant="secondary"
                       >
-                        Edit
+                        Editar
                       </Button>
                     </div>
                   </div>
@@ -760,74 +691,33 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
 
         <Card>
           <SectionHeader
-            description="Use this for channel spend even before marketplace integrations begin syncing real ads data."
-            eyebrow="Ad cost form"
-            title={editingAdCostId ? "Edit ad cost" : "Create ad cost"}
+            description="Use para registrar investimento em canal antes dos marketplaces entregarem dados detalhados de anúncios."
+            eyebrow="Formulário de anúncio"
+            title={editingAdCostId ? "Editar gasto em anúncio" : "Registrar gasto em anúncio"}
           />
-          <form
-            className="mt-6 grid gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setFeedbackMessage(null);
-              adCostMutation.mutate();
-            }}
-          >
+          <form className="mt-6 grid gap-4" onSubmit={(event) => {
+            event.preventDefault();
+            setFeedbackMessage(null);
+            adCostMutation.mutate();
+          }}>
             <SelectInput
-              label="Linked product"
+              label="Produto vinculado"
               onChange={(value) => setAdCostForm((current) => ({ ...current, productId: value || null }))}
-              options={[
-                { label: "No linked product", value: "" },
-                ...productOptions,
-              ]}
+              options={[{ label: "Sem produto vinculado", value: "" }, ...productOptions]}
               value={adCostForm.productId ?? ""}
             />
-            <TextInput
-              label="Channel"
-              onChange={(value) => setAdCostForm((current) => ({ ...current, channel: value }))}
-              required
-              value={adCostForm.channel}
-            />
-            <TextInput
-              label="Amount"
-              onChange={(value) => setAdCostForm((current) => ({ ...current, amount: value }))}
-              required
-              type="number"
-              value={adCostForm.amount}
-            />
-            <TextInput
-              label="Currency"
-              onChange={(value) => setAdCostForm((current) => ({ ...current, currency: value }))}
-              value={adCostForm.currency}
-            />
-            <TextInput
-              label="Spent at"
-              onChange={(value) => setAdCostForm((current) => ({ ...current, spentAt: normalizeTextInput(value) }))}
-              type="date"
-              value={adCostForm.spentAt ?? ""}
-            />
-            <TextArea
-              label="Notes"
-              onChange={(value) => setAdCostForm((current) => ({ ...current, notes: normalizeTextInput(value) }))}
-              value={adCostForm.notes ?? ""}
-            />
+            <TextInput label="Canal" onChange={(value) => setAdCostForm((current) => ({ ...current, channel: value }))} required value={adCostForm.channel} />
+            <TextInput label="Valor" onChange={(value) => setAdCostForm((current) => ({ ...current, amount: value }))} required type="number" value={adCostForm.amount} />
+            <TextInput label="Moeda" onChange={(value) => setAdCostForm((current) => ({ ...current, currency: value }))} value={adCostForm.currency} />
+            <TextInput label="Data do gasto" onChange={(value) => setAdCostForm((current) => ({ ...current, spentAt: normalizeTextInput(value) }))} type="date" value={adCostForm.spentAt ?? ""} />
+            <TextArea label="Observações" onChange={(value) => setAdCostForm((current) => ({ ...current, notes: normalizeTextInput(value) }))} value={adCostForm.notes ?? ""} />
             <div className="flex flex-wrap gap-3">
               <Button disabled={adCostMutation.isPending} type="submit">
-                {adCostMutation.isPending
-                  ? "Saving..."
-                  : editingAdCostId
-                    ? "Update ad cost"
-                    : "Create ad cost"}
+                {adCostMutation.isPending ? "Salvando..." : editingAdCostId ? "Atualizar gasto" : "Registrar gasto"}
               </Button>
               {editingAdCostId ? (
-                <Button
-                  onClick={() => {
-                    setEditingAdCostId(null);
-                    setAdCostForm(initialAdCostForm);
-                  }}
-                  type="button"
-                  variant="secondary"
-                >
-                  Cancel
+                <Button onClick={() => { setEditingAdCostId(null); setAdCostForm(initialAdCostForm); }} type="button" variant="secondary">
+                  Cancelar
                 </Button>
               ) : null}
             </div>
@@ -838,13 +728,13 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
       <section className="grid gap-6 xl:grid-cols-2">
         <Card>
           <SectionHeader
-            description="General expenses stay separate from product costs so later financial formulas can classify them correctly."
-            eyebrow="Manual expenses"
-            title="General expense entries"
+            description="Custos gerais ficam separados dos custos de produto para fórmulas financeiras não se misturarem."
+            eyebrow="Despesas manuais"
+            title="Lançamentos de despesa geral"
           />
           <div className="mt-6 grid gap-4">
             {manualExpenses.length === 0 ? (
-              <SectionMessage>No manual expenses recorded yet.</SectionMessage>
+              <SectionMessage>Nenhuma despesa manual registrada.</SectionMessage>
             ) : (
               manualExpenses.map((expense) => (
                 <div key={expense.id} className="rounded-[var(--radius-md)] border border-border bg-background-soft p-4">
@@ -853,10 +743,10 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                       <h3 className="text-base font-semibold text-foreground">
                         {expense.category} · {formatMoney(expense.amount)}
                       </h3>
-                      <p className="mt-1 text-sm text-foreground-soft">
-                        Incurred {formatDate(expense.incurredAt)}
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Competência em {formatDate(expense.incurredAt)}
                       </p>
-                      <p className="mt-1 text-sm text-foreground-soft">{expense.notes ?? "No notes"}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{expense.notes ?? "Sem observações"}</p>
                     </div>
                     <Button
                       onClick={() => {
@@ -872,7 +762,7 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                       }}
                       variant="secondary"
                     >
-                      Edit
+                      Editar
                     </Button>
                   </div>
                 </div>
@@ -883,67 +773,27 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
 
         <Card>
           <SectionHeader
-            description="Capture fixed or ad hoc operational costs until richer accounting flows arrive."
-            eyebrow="Expense form"
-            title={editingManualExpenseId ? "Edit expense" : "Create expense"}
+            description="Registre fixos ou eventuais até que fluxos mais avançados de contabilidade entrem no produto."
+            eyebrow="Formulário de despesa"
+            title={editingManualExpenseId ? "Editar despesa" : "Nova despesa"}
           />
-          <form
-            className="mt-6 grid gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setFeedbackMessage(null);
-              manualExpenseMutation.mutate();
-            }}
-          >
-            <TextInput
-              label="Category"
-              onChange={(value) => setManualExpenseForm((current) => ({ ...current, category: value }))}
-              required
-              value={manualExpenseForm.category}
-            />
-            <TextInput
-              label="Amount"
-              onChange={(value) => setManualExpenseForm((current) => ({ ...current, amount: value }))}
-              required
-              type="number"
-              value={manualExpenseForm.amount}
-            />
-            <TextInput
-              label="Currency"
-              onChange={(value) => setManualExpenseForm((current) => ({ ...current, currency: value }))}
-              value={manualExpenseForm.currency}
-            />
-            <TextInput
-              label="Incurred at"
-              onChange={(value) => setManualExpenseForm((current) => ({ ...current, incurredAt: normalizeTextInput(value) }))}
-              type="date"
-              value={manualExpenseForm.incurredAt ?? ""}
-            />
-            <TextArea
-              label="Notes"
-              onChange={(value) =>
-                setManualExpenseForm((current) => ({ ...current, notes: normalizeTextInput(value) }))
-              }
-              value={manualExpenseForm.notes ?? ""}
-            />
+          <form className="mt-6 grid gap-4" onSubmit={(event) => {
+            event.preventDefault();
+            setFeedbackMessage(null);
+            manualExpenseMutation.mutate();
+          }}>
+            <TextInput label="Categoria" onChange={(value) => setManualExpenseForm((current) => ({ ...current, category: value }))} required value={manualExpenseForm.category} />
+            <TextInput label="Valor" onChange={(value) => setManualExpenseForm((current) => ({ ...current, amount: value }))} required type="number" value={manualExpenseForm.amount} />
+            <TextInput label="Moeda" onChange={(value) => setManualExpenseForm((current) => ({ ...current, currency: value }))} value={manualExpenseForm.currency} />
+            <TextInput label="Data da competência" onChange={(value) => setManualExpenseForm((current) => ({ ...current, incurredAt: normalizeTextInput(value) }))} type="date" value={manualExpenseForm.incurredAt ?? ""} />
+            <TextArea label="Observações" onChange={(value) => setManualExpenseForm((current) => ({ ...current, notes: normalizeTextInput(value) }))} value={manualExpenseForm.notes ?? ""} />
             <div className="flex flex-wrap gap-3">
               <Button disabled={manualExpenseMutation.isPending} type="submit">
-                {manualExpenseMutation.isPending
-                  ? "Saving..."
-                  : editingManualExpenseId
-                    ? "Update expense"
-                    : "Create expense"}
+                {manualExpenseMutation.isPending ? "Salvando..." : editingManualExpenseId ? "Atualizar despesa" : "Criar despesa"}
               </Button>
               {editingManualExpenseId ? (
-                <Button
-                  onClick={() => {
-                    setEditingManualExpenseId(null);
-                    setManualExpenseForm(initialManualExpenseForm);
-                  }}
-                  type="button"
-                  variant="secondary"
-                >
-                  Cancel
+                <Button onClick={() => { setEditingManualExpenseId(null); setManualExpenseForm(initialManualExpenseForm); }} type="button" variant="secondary">
+                  Cancelar
                 </Button>
               ) : null}
             </div>

@@ -2,11 +2,12 @@ import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from "@n
 import { AuthGuard } from "@/modules/auth/auth.guard";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
+import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
 import { ProductsService } from "./products.service";
 import { CreateProductRequestDto, UpdateProductRequestDto } from "./products.dto";
 
 @Controller("products")
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, EntitlementGuard)
 export class ProductsController {
   constructor(
     @Inject(ProductsService)

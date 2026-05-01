@@ -20,22 +20,30 @@ describe("createApiClient", () => {
     );
   });
 
-  it("maps non-2xx responses to ApiClientError", async () => {
+  it("reads nested Nest error.message from API JSON errors", async () => {
     const client = createApiClient({
       baseUrl: "http://localhost:4000",
       fetchFn: async () =>
-        new Response(JSON.stringify({ message: "Unauthorized" }), {
-          status: 401,
-          headers: { "content-type": "application/json" },
-        }),
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "No such customer: cus_xyz",
+              statusCode: 500,
+            },
+            path: "/billing/checkout",
+            timestamp: "",
+          }),
+          {
+            status: 500,
+            headers: { "content-type": "application/json" },
+          },
+        ),
     });
 
-    await expect(client.get("/dashboard/summary")).rejects.toEqual(
+    await expect(client.post("/billing/checkout", { body: { interval: "monthly" } })).rejects.toEqual(
       expect.objectContaining({
-        name: "ApiClientError",
-        message: "Unauthorized",
-        payload: { message: "Unauthorized" },
-        status: 401,
+        message: "No such customer: cus_xyz",
+        status: 500,
       }),
     );
   });

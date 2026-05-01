@@ -1,18 +1,21 @@
-import { Container, Card } from "@marginflow/ui";
+import { Container, Skeleton } from "@marginflow/ui";
 
 export default function Loading() {
   return (
-    <main className="min-h-screen py-10">
-      <Container className="flex min-h-[70vh] items-center justify-center">
-        <Card className="max-w-xl animate-pulse text-center">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-foreground-soft">
-            MarginFlow
-          </p>
-          <h1 className="mt-4 text-3xl font-semibold text-foreground">Loading workspace</h1>
-          <p className="mt-3 text-base leading-7 text-foreground-soft">
-            Preparing route shell, providers, and placeholder data surface.
-          </p>
-        </Card>
+    <main className="flex min-h-screen items-center justify-center py-10">
+      <Container size="sm" className="flex flex-col items-center gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft animate-pulse">
+          <svg className="h-5 w-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path d="M12 2L2 7l10 5 10-5-10-5z" />
+            <path d="M2 17l10 5 10-5" />
+            <path d="M2 12l10 5 10-5" />
+          </svg>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-foreground">Carregando workspace</p>
+          <p className="mt-1 text-xs text-muted-foreground">Preparando sua experiência no MarginFlow</p>
+        </div>
+        <Skeleton className="h-2 w-32" />
       </Container>
     </main>
   );

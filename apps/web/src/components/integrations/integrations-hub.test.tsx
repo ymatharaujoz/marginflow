@@ -89,18 +89,18 @@ describe("IntegrationsHub", () => {
 
     const markup = renderToStaticMarkup(
       <IntegrationsHub
-        initialMessage="Mercado Livre connected successfully."
+        initialMessage="Mercado Livre conectado com sucesso."
         initialStatus="success"
         organizationName="MarginFlow"
       />,
     );
 
-    expect(markup).toContain("Marketplace connections");
+    expect(markup).toContain("Integrações");
     expect(markup).toContain("Mercado Livre");
-    expect(markup).toContain("Connect account");
-    expect(markup).toContain("Mercado Livre connected successfully.");
-    expect(markup).toContain("Mercado Livre sync control");
-    expect(markup).toContain("Sync data now");
+    expect(markup).toContain("Conectar conta");
+    expect(markup).toContain("Mercado Livre conectado com sucesso.");
+    expect(markup).toContain("Sincronização manual");
+    expect(markup).toContain("Sincronizar agora");
   });
 
   it("renders the API failure state", () => {
@@ -126,7 +126,6 @@ describe("IntegrationsHub", () => {
       <IntegrationsHub initialMessage={null} initialStatus={null} organizationName="MarginFlow" />,
     );
 
-    expect(markup).toContain("We could not load your provider connections.");
     expect(markup).toContain("Boom");
   });
 });

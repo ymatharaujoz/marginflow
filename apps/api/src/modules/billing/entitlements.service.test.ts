@@ -26,9 +26,10 @@ function createService({
 }
 
 describe("EntitlementsService", () => {
-  it("treats only active subscriptions as entitled", async () => {
+  it("treats active subscriptions as entitled", async () => {
     const { service } = createService({
       subscription: {
+        billingCustomerId: "billing_customer_row",
         cancelAtPeriodEnd: false,
         currentPeriodEnd: new Date("2026-05-01T00:00:00.000Z"),
         currentPeriodStart: new Date("2026-04-01T00:00:00.000Z"),
@@ -37,6 +38,24 @@ describe("EntitlementsService", () => {
         interval: "monthly",
         planCode: "marginflow",
         status: "active",
+      },
+    });
+
+    await expect(service.isOrganizationEntitled("org_123")).resolves.toBe(true);
+  });
+
+  it("treats trialing subscriptions as entitled", async () => {
+    const { service } = createService({
+      subscription: {
+        billingCustomerId: "billing_customer_row",
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: new Date("2026-05-01T00:00:00.000Z"),
+        currentPeriodStart: new Date("2026-04-01T00:00:00.000Z"),
+        externalSubscriptionId: "sub_123",
+        id: "subscription_123",
+        interval: "monthly",
+        planCode: "marginflow",
+        status: "trialing",
       },
     });
 

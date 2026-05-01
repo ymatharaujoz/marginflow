@@ -2,12 +2,14 @@ import { HttpException, UnauthorizedException } from "@nestjs/common";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "@/app";
+import { BillingService } from "@/modules/billing/billing.service";
 import { EntitlementsService } from "@/modules/billing/entitlements.service";
 import { AuthService } from "./auth.service";
 
 describe("auth guard", () => {
   let app: NestFastifyApplication;
   let authService: AuthService;
+  let billingService: BillingService;
   let entitlementsService: EntitlementsService;
 
   beforeAll(async () => {
@@ -29,7 +31,9 @@ describe("auth guard", () => {
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
     authService = app.get(AuthService);
+    billingService = app.get(BillingService);
     entitlementsService = app.get(EntitlementsService);
+    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
   });
 
   afterAll(async () => {

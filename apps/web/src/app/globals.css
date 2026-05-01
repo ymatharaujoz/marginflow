@@ -1,25 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f0e8;
-  --background-soft: #fffaf4;
-  --foreground: #172027;
-  --foreground-soft: #4d5a62;
-  --surface: rgba(255, 252, 247, 0.84);
+  /* ─── Core palette ─── */
+  --background: #f8f6f3;
+  --background-soft: #fdfcfa;
+  --foreground: #141c22;
+  --foreground-soft: #4a5660;
+  --muted: #8d9aa5;
+  --muted-foreground: #6b7a85;
+
+  /* ─── Surfaces ─── */
+  --surface: rgba(255, 253, 250, 0.88);
   --surface-strong: #ffffff;
-  --border: rgba(23, 32, 39, 0.1);
-  --border-strong: rgba(23, 32, 39, 0.18);
-  --accent: #14786e;
-  --accent-strong: #0f5f57;
-  --accent-foreground: #f7fffd;
-  --warning: #d17d40;
-  --shadow-soft: 0 24px 80px rgba(23, 32, 39, 0.08);
-  --shadow-card: 0 18px 40px rgba(23, 32, 39, 0.08);
-  --shadow-hero: 0 28px 90px rgba(23, 32, 39, 0.16);
-  --radius-xl: 28px;
-  --radius-lg: 20px;
-  --radius-md: 14px;
-  --radius-sm: 10px;
+  --surface-elevated: rgba(255, 255, 255, 0.96);
+
+  /* ─── Borders ─── */
+  --border: rgba(20, 28, 34, 0.08);
+  --border-strong: rgba(20, 28, 34, 0.16);
+  --border-focus: rgba(20, 120, 110, 0.48);
+
+  /* ─── Brand / accent ─── */
+  --accent: #0e7a6f;
+  --accent-strong: #0b5f56;
+  --accent-soft: rgba(14, 122, 111, 0.08);
+  --accent-foreground: #f0fffe;
+
+  /* ─── Semantic ─── */
+  --success: #16a34a;
+  --success-soft: rgba(22, 163, 74, 0.08);
+  --error: #dc2626;
+  --error-soft: rgba(220, 38, 38, 0.06);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.08);
+  --info: #2563eb;
+  --info-soft: rgba(37, 99, 235, 0.06);
+
+  /* ─── Elevation / shadows ─── */
+  --shadow-xs: 0 1px 2px rgba(20, 28, 34, 0.04);
+  --shadow-sm: 0 2px 6px rgba(20, 28, 34, 0.05);
+  --shadow-md: 0 6px 20px rgba(20, 28, 34, 0.07);
+  --shadow-lg: 0 16px 48px rgba(20, 28, 34, 0.09);
+  --shadow-xl: 0 24px 64px rgba(20, 28, 34, 0.12);
+  --shadow-card: 0 2px 8px rgba(20, 28, 34, 0.04), 0 8px 32px rgba(20, 28, 34, 0.06);
+  --shadow-hero: 0 28px 80px rgba(20, 28, 34, 0.14);
+
+  /* ─── Radii ─── */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-full: 9999px;
+
+  /* ─── Transitions ─── */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 360ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 @theme inline {
@@ -27,14 +65,26 @@
   --color-background-soft: var(--background-soft);
   --color-foreground: var(--foreground);
   --color-foreground-soft: var(--foreground-soft);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-surface: var(--surface);
   --color-surface-strong: var(--surface-strong);
+  --color-surface-elevated: var(--surface-elevated);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
+  --color-border-focus: var(--border-focus);
   --color-accent: var(--accent);
   --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
   --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-error: var(--error);
+  --color-error-soft: var(--error-soft);
   --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --font-sans: var(--font-body);
   --font-mono: var(--font-body);
 }
@@ -51,12 +101,14 @@ body {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(20, 120, 110, 0.16), transparent 30%),
-    radial-gradient(circle at top right, rgba(209, 125, 64, 0.14), transparent 26%),
-    linear-gradient(180deg, #fffaf4 0%, #f4ece3 100%);
+    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(14, 122, 111, 0.06), transparent),
+    radial-gradient(ellipse 60% 50% at 90% 0%, rgba(217, 119, 6, 0.04), transparent),
+    linear-gradient(180deg, var(--background-soft) 0%, var(--background) 100%);
   color: var(--foreground);
-  font-family: var(--font-body), sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 a {
@@ -72,7 +124,7 @@ select {
 }
 
 ::selection {
-  background: rgba(15, 118, 110, 0.18);
+  background: rgba(14, 122, 111, 0.14);
 }
 
 h1,
@@ -80,14 +132,16 @@ h2,
 h3,
 h4 {
   font-family: var(--font-display), serif;
+  letter-spacing: -0.02em;
 }
+
+/* ─── Animations ─── */
 
 @keyframes riseIn {
   from {
     opacity: 0;
-    transform: translate3d(0, 18px, 0);
+    transform: translate3d(0, 16px, 0);
   }
-
   to {
     opacity: 1;
     transform: translate3d(0, 0, 0);
@@ -95,24 +149,55 @@ h4 {
 }
 
 @keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInLeft {
   from {
     opacity: 0;
+    transform: translate3d(-12px, 0, 0);
   }
-
   to {
     opacity: 1;
+    transform: translate3d(0, 0, 0);
   }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
 .animate-rise-in {
-  animation: riseIn 720ms cubic-bezier(0.2, 1, 0.3, 1) both;
+  animation: riseIn 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .animate-fade-in {
-  animation: fadeIn 480ms ease both;
+  animation: fadeIn 400ms ease both;
 }
 
-/* Marketing landing (Portuguese site shell) */
+.animate-slide-in-left {
+  animation: slideInLeft 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, var(--border) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Marketing site fonts ─── */
+
 .marketing-site {
   font-family: var(--font-marketing-sans), var(--font-body), system-ui, sans-serif;
 }
@@ -123,9 +208,22 @@ h4 {
   font-family: var(--font-marketing-display), var(--font-display), ui-serif, Georgia, serif;
 }
 
+/* ─── Utility patterns ─── */
+
 .mf-grid-bg {
   background-image:
-    linear-gradient(to right, rgb(226 232 240 / 0.65) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(226 232 240 / 0.65) 1px, transparent 1px);
+    linear-gradient(to right, rgb(226 232 240 / 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(226 232 240 / 0.5) 1px, transparent 1px);
   background-size: 48px 48px;
+}
+
+.mf-glass {
+  background: var(--surface-elevated);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border: 1px solid var(--border);
+}
+
+.mf-focus-ring {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
 }
