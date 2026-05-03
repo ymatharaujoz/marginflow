@@ -14,7 +14,7 @@ export function MarketingBackdrop() {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 100% 70% at 50% -15%, rgba(14, 122, 111, 0.06), transparent 50%), radial-gradient(ellipse 60% 50% at 95% 30%, rgba(14, 122, 111, 0.04), transparent 50%), linear-gradient(180deg, #fdfcfa 0%, #ffffff 40%, #f8f6f3 100%)",
+            "radial-gradient(ellipse 100% 70% at 50% -15%, rgba(14, 122, 111, 0.07), transparent 50%), radial-gradient(ellipse 60% 50% at 95% 30%, rgba(14, 122, 111, 0.05), transparent 50%), linear-gradient(180deg, #f2ede6 0%, #ebe6df 45%, #e3ddd4 100%)",
         }}
       />
       <div className="mf-grid-bg absolute inset-0 opacity-40" aria-hidden />

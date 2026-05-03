@@ -1,3 +1,7 @@
+import {
+  syncedProductLinkSchema,
+  type SyncedProductLinkInput,
+} from "@marginflow/validation";
 import { z } from "zod";
 
 export class IntegrationProviderParamDto {
@@ -20,4 +24,20 @@ export class MercadoLivreCallbackQueryDto {
   error?: string;
   error_description?: string;
   state?: string;
+}
+
+export class IntegrationExternalProductParamDto {
+  static schema = z.object({
+    externalProductId: z.string().trim().min(1),
+    provider: z.enum(["mercadolivre", "shopee"]),
+  });
+
+  externalProductId!: string;
+  provider!: "mercadolivre" | "shopee";
+}
+
+export class LinkSyncedProductRequestDto implements SyncedProductLinkInput {
+  static schema = syncedProductLinkSchema;
+
+  productId!: string;
 }

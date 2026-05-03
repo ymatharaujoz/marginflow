@@ -3,9 +3,9 @@
 ## Current Focus
 
 - Active milestone: M10
-- Active task: validate the live Mercado Livre connection flow in `/app/integrations`, then continue with the first real sync pass for M11
-- Next task: complete Mercado Livre callback verification, run a real sync, confirm same-window blocking, and verify refreshed metrics on `/app`
-- Blockers: M5 and M6 are now cleared by local browser verification; honest closure is still pending on M10 callback validation, M11 real sync validation, and explicit user confirmation if M12 should be considered done
+- Active task: validate the live Mercado Livre connection flow in `/app/integrations`, then continue with the first real sync pass for M11 and the imported-product review flow in `/app/products`
+- Next task: complete Mercado Livre callback verification, run a real sync, confirm same-window blocking, verify refreshed metrics on `/app`, and review at least one synced product import/link action in `/app/products`
+- Blockers: M5 and M6 are now cleared by local browser verification; honest closure is still pending on M10 callback validation, M11 real sync validation, imported-product live review validation, and explicit user confirmation if M12 should be considered done. Local Mercado Livre verification may require a stable ngrok callback URL that points to the local API while keeping web auth and app routing on localhost
 - Last completed checkpoint: M6
 
 ## Checkpoint M0

@@ -19,6 +19,14 @@ export const clientEnvSchema = z.object({
   NEXT_PUBLIC_API_BASE_URL: z.string().url(),
   /** e.g. https://wa.me/5511999999999?text=... for “Agendar demonstração” on marketing */
   NEXT_PUBLIC_WHATSAPP_DEMO_URL: z.string().url().optional(),
+  /** Product name across marketing and app shell (default applied in `readPublicEnv` if omitted). */
+  NEXT_PUBLIC_APP_NAME: z.string().min(1).max(120).optional(),
+  /** Short mark in the logo tile (letter, monogram, or emoji; default `M`). */
+  NEXT_PUBLIC_APP_ICON: z.string().min(1).max(24).optional(),
+  /** Display label for the monthly plan price (e.g. `US$ 99`). */
+  NEXT_PUBLIC_PRICE_MONTHLY_LABEL: z.string().min(1).max(40).optional(),
+  /** Display label for the annual plan’s per-month equivalent (e.g. `US$ 79`). */
+  NEXT_PUBLIC_PRICE_ANNUAL_LABEL: z.string().min(1).max(40).optional(),
 });
 
 export function validateServerEnv(input: Record<string, string | undefined>) {

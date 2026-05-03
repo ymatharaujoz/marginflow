@@ -246,12 +246,17 @@ export const externalProducts = pgTable(
     externalProductId: varchar("external_product_id", { length: 255 }).notNull(),
     sku: varchar("sku", { length: 128 }),
     title: text("title"),
+    linkedProductId: uuid("linked_product_id").references(() => products.id, {
+      onDelete: "set null",
+    }),
+    reviewStatus: varchar("review_status", { length: 48 }).default("unreviewed").notNull(),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (table) => [
     index("external_products_organization_id_idx").on(table.organizationId),
+    index("external_products_linked_product_id_idx").on(table.linkedProductId),
     uniqueIndex("external_products_org_provider_external_key").on(
       table.organizationId,
       table.provider,
@@ -564,6 +569,10 @@ export const externalProductsRelations = relations(externalProducts, ({ one, man
     fields: [externalProducts.marketplaceConnectionId],
     references: [marketplaceConnections.id],
   }),
+  linkedProduct: one(products, {
+    fields: [externalProducts.linkedProductId],
+    references: [products.id],
+  }),
   orderItems: many(externalOrderItems),
 }));
 
@@ -615,6 +624,7 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     fields: [products.organizationId],
     references: [organizations.id],
   }),
+  externalProducts: many(externalProducts),
   productCosts: many(productCosts),
   adCosts: many(adCosts),
   productMetrics: many(productMetrics),

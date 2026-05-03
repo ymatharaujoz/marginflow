@@ -302,11 +302,13 @@ export class FinanceService {
       })),
       id: row.id,
       items: row.items.map((item: SnapshotOrderRow["items"][number]) => {
+        const linkedProductId = item.externalProduct?.linkedProductId ?? null;
         const normalizedSku = normalizeSku(item.externalProduct?.sku);
 
         return {
           id: item.id,
-          productId: normalizedSku ? productIdsBySku.get(normalizedSku) ?? null : null,
+          productId:
+            linkedProductId ?? (normalizedSku ? productIdsBySku.get(normalizedSku) ?? null : null),
           quantity: item.quantity,
           sku: item.externalProduct?.sku ?? null,
           totalPrice: String(item.totalPrice),

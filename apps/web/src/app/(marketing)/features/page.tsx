@@ -1,12 +1,13 @@
 import { Container } from "@marginflow/ui";
-import { createPageMetadata, featureGroups } from "@/lib/site";
+import { createPageMetadata, featureGroups, resolveSiteConfig, sitePageTitle } from "@/lib/site";
+
+const brand = resolveSiteConfig();
 
 export const metadata = createPageMetadata({
-  description:
-    "Veja como o MarginFlow junta dashboards, acesso protegido e fluxos financeiros de marketplace em uma narrativa de produto.",
+  description: `Veja como o ${brand.name} junta dashboards, acesso protegido e fluxos financeiros de marketplace em uma narrativa de produto.`,
   keywords: ["dashboard marketplace", "análises de lucro", "funcionalidades SaaS financeiras"],
   path: "/features",
-  title: "Recursos | MarginFlow",
+  title: sitePageTitle("Recursos"),
 });
 
 export default function FeaturesPage() {
@@ -19,7 +20,7 @@ export default function FeaturesPage() {
             Estrutura de produto voltada à tomada de decisão de lucratividade.
           </h1>
           <p className="mt-6 text-lg leading-8 text-muted-foreground">
-            O MarginFlow alinha frontend, backend e métricas para que você saia da atividade bruta nos
+            O {brand.name} alinha frontend, backend e métricas para que você saia da atividade bruta nos
             marketplaces e chegue ao insight real de lucro.
           </p>
         </section>

@@ -10,6 +10,8 @@
     "dev": "corepack pnpm exec turbo run dev --parallel",
     "dev:api": "corepack pnpm --filter @marginflow/api dev",
     "dev:web": "corepack pnpm --filter @marginflow/web dev",
+    "ngrok:mercadolivre:callback": "node ./scripts/ngrok-mercadolivre-callback.mjs",
+    "ngrok:mercadolivre:callback:url": "node ./scripts/print-mercadolivre-callback-url.mjs",
     "db:generate": "corepack pnpm --filter @marginflow/database db:generate",
     "db:migrate": "corepack pnpm --filter @marginflow/database db:migrate",
     "db:studio": "corepack pnpm --filter @marginflow/database db:studio",

@@ -1,13 +1,14 @@
 import { Container } from "@marginflow/ui";
 import { PricingToggle } from "@/components/marketing/pricing-toggle";
-import { createPageMetadata } from "@/lib/site";
+import { createPageMetadata, resolveSiteConfig, sitePageTitle } from "@/lib/site";
+
+const brand = resolveSiteConfig();
 
 export const metadata = createPageMetadata({
-  description:
-    "Confira os preços MarginFlow mensal e anual, compare objetivos dos planos e avance para a contratação.",
+  description: `Confira os preços ${brand.name} mensal e anual, compare objetivos dos planos e avance para a contratação.`,
   keywords: ["preço SaaS", "cobrança anual", "cobrança mensal", "analytics marketplace"],
   path: "/pricing",
-  title: "Preços | MarginFlow",
+  title: sitePageTitle("Preços"),
 });
 
 export default function PricingPage() {

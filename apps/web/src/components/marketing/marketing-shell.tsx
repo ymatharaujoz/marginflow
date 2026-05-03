@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Container } from "@marginflow/ui";
 import { MarketingBackdrop } from "@/components/marketing/marketing-backdrop";
 import { MarketingNavLinks } from "@/components/marketing/marketing-nav-links";
+import { resolveSiteConfig } from "@/lib/site";
+
+const brand = resolveSiteConfig();
 
 export function MarketingShell({
   children,
@@ -15,13 +18,13 @@ export function MarketingShell({
       <div className="relative z-10">
         {/* Header */}
         <Container size="xl" className="pt-5 md:pt-7">
-          <header className="sticky top-4 z-40 flex items-center justify-between rounded-[var(--radius-xl)] border border-white/60 bg-white/70 px-5 py-3 shadow-[var(--shadow-md)] backdrop-blur-xl md:px-7">
+          <header className="sticky top-4 z-40 flex items-center justify-between rounded-[var(--radius-xl)] border border-[#e0d8ce]/70 bg-[#f7f4ef]/78 px-5 py-3 shadow-[var(--shadow-md)] backdrop-blur-xl md:px-7">
             <Link href="/" className="group flex items-center gap-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-br from-[#0e7a6f] to-[#14b8a6] text-base font-bold text-white shadow-[0_4px_12px_rgba(14,122,111,0.3)] transition-transform group-hover:scale-[1.04]">
-                M
+                {brand.icon}
               </span>
               <span className="hidden text-[0.9rem] font-bold tracking-tight text-foreground sm:block">
-                MarginFlow
+                {brand.name}
               </span>
             </Link>
 
@@ -48,15 +51,15 @@ export function MarketingShell({
             <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-8 sm:gap-y-4 sm:text-left">
               <Link href="/" className="flex items-center gap-2.5 text-foreground transition-opacity hover:opacity-85">
                 <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-gradient-to-br from-[#0e7a6f] to-[#14b8a6] text-[0.65rem] font-bold text-white">
-                  M
+                  {brand.icon}
                 </span>
-                <span className="text-sm font-semibold tracking-tight">MarginFlow</span>
+                <span className="text-sm font-semibold tracking-tight">{brand.name}</span>
               </Link>
               <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1 sm:justify-start">
                 <MarketingNavLinks linkClassName="text-sm text-[#64748b] transition-colors hover:text-foreground" />
               </nav>
               <p className="text-xs tabular-nums text-[#94a3b8] sm:ml-auto sm:text-right">
-                &copy; {new Date().getFullYear()} MarginFlow
+                &copy; {new Date().getFullYear()} {brand.name}
               </p>
             </div>
           </footer>

@@ -33,6 +33,7 @@ describe("ProductsHub", () => {
         manualExpenses: [],
         productCosts: [],
         products: [],
+        syncedProducts: [],
       },
       error: null,
       isLoading: false,
@@ -40,9 +41,10 @@ describe("ProductsHub", () => {
 
     const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
 
-    expect(markup).toContain("Gestão de produtos e custos");
-    expect(markup).toContain("Ainda não há dados no catálogo.");
+    expect(markup).toContain("Gestao de produtos e custos");
+    expect(markup).toContain("Ainda nao ha dados no catalogo.");
     expect(markup).toContain("Criar produto");
+    expect(markup).toContain("Produtos sincronizados para revisao");
   });
 
   it("renders API failure state", () => {
@@ -54,7 +56,7 @@ describe("ProductsHub", () => {
 
     const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
 
-    expect(markup).toContain("Não conseguimos carregar seu catálogo");
+    expect(markup).toContain("Nao conseguimos carregar seu catalogo");
     expect(markup).toContain("Boom");
   });
 });

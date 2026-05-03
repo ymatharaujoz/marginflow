@@ -5,6 +5,7 @@ import { Container } from "@marginflow/ui";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { scrollToLandingSection } from "@/components/marketing/scroll-to-landing-section";
+import { PUBLIC_BRAND } from "@/lib/public-branding";
 import { getWhatsappDemoUrl } from "@/lib/site";
 
 const easeOut = [0.16, 1, 0.3, 1] as const;
@@ -245,7 +246,7 @@ export function LandingPage() {
               animate="visible"
               className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg"
             >
-              O MarginFlow entrega uma plataforma premium para acompanhar margem, lucro líquido, resultados de POS,
+              O {PUBLIC_BRAND.name} entrega uma plataforma premium para acompanhar margem, lucro líquido, resultados de POS,
               quantidade de vendas e desempenho por canal em um dashboard moderno e intuitivo.
             </motion.p>
             <motion.div custom={3} variants={fadeUp} initial="hidden" animate="visible" className="mt-8 flex flex-wrap gap-3">

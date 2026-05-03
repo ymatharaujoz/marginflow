@@ -1,23 +1,35 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
 import {
+  externalProducts,
   marketplaceConnections,
   type DatabaseClient,
+  type ExternalOrder,
+  type ExternalOrderItem,
+  type ExternalProduct,
   type MarketplaceConnection,
+  type Product,
 } from "@marginflow/database";
 import type {
   IntegrationConnectionRecord,
   IntegrationConnectResponse,
   IntegrationProviderSlug,
+  SyncedProductActionResult,
+  SyncedProductLinkedProduct,
+  SyncedProductRecord,
+  SyncedProductReviewStatus,
+  SyncedProductSuggestedMatch,
 } from "@marginflow/types";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
+import { ProductsService } from "@/modules/products/products.service";
 import {
   createSignedIntegrationState,
   readSignedIntegrationState,
@@ -33,6 +45,15 @@ type CallbackQuery = {
   error?: string;
   error_description?: string;
   state?: string;
+};
+
+type ExternalProductOrderItemRow = ExternalOrderItem & {
+  externalOrder: ExternalOrder | null;
+};
+
+type SyncedExternalProductRow = ExternalProduct & {
+  linkedProduct: Product | null;
+  orderItems: ExternalProductOrderItemRow[];
 };
 
 function toIsoString(value: Date | string | null | undefined) {
@@ -52,6 +73,28 @@ function isExpired(value: Date | string | null | undefined) {
   return date.getTime() <= Date.now();
 }
 
+function toDecimalString(value: number | string | null | undefined) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value.toFixed(2);
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed.toFixed(2) : "0.00";
+  }
+
+  return "0.00";
+}
+
+function normalizeSku(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
 @Injectable()
 export class IntegrationsService {
   private readonly providers: IntegrationProvider[];
@@ -59,6 +102,8 @@ export class IntegrationsService {
   constructor(
     @Inject(DATABASE_CLIENT)
     private readonly db: DatabaseClient,
+    @Inject(ProductsService)
+    private readonly productsService: ProductsService,
     @Inject(API_RUNTIME_ENV)
     private readonly env: ApiRuntimeEnv,
   ) {
@@ -235,6 +280,179 @@ export class IntegrationsService {
     return this.toConnectionRecord(provider, createdRow);
   }
 
+  async listSyncedProducts(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+  ): Promise<SyncedProductRecord[]> {
+    this.assertSyncProductProvider(providerSlug);
+
+    const [externalProductRows, productRows] = await Promise.all([
+      this.db.query.externalProducts.findMany({
+        orderBy: (table) => [desc(table.updatedAt), desc(table.createdAt)],
+        where: (table) =>
+          and(eq(table.organizationId, organizationId), eq(table.provider, providerSlug)),
+        with: {
+          linkedProduct: true,
+          orderItems: {
+            with: {
+              externalOrder: true,
+            },
+          },
+        },
+      }),
+      this.db.query.products.findMany({
+        orderBy: (table) => [desc(table.createdAt)],
+        where: (table) => eq(table.organizationId, organizationId),
+      }),
+    ]);
+
+    return externalProductRows.map((row) => this.toSyncedProductRecord(row, productRows));
+  }
+
+  async importSyncedProduct(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+    externalProductId: string,
+  ): Promise<SyncedProductActionResult> {
+    this.assertSyncProductProvider(providerSlug);
+
+    const externalProduct = await this.requireSyncedExternalProduct(
+      organizationId,
+      providerSlug,
+      externalProductId,
+    );
+
+    if (
+      externalProduct.linkedProductId &&
+      externalProduct.reviewStatus === "linked_to_existing_product"
+    ) {
+      throw new ConflictException(
+        "This synced product is already linked to an existing catalog product.",
+      );
+    }
+
+    if (
+      externalProduct.linkedProductId &&
+      externalProduct.reviewStatus === "imported_as_internal_product"
+    ) {
+      return this.buildSyncedProductActionResult(
+        organizationId,
+        providerSlug,
+        externalProductId,
+        "This synced product was already imported into the catalog.",
+      );
+    }
+
+    const sellingPrice = this.selectLatestUnitPrice(externalProduct.orderItems) ?? "0.00";
+    const createdProduct = await this.productsService.createProduct(organizationId, {
+      isActive: true,
+      name: externalProduct.title?.trim() || `Produto Mercado Livre ${externalProduct.externalProductId}`,
+      sellingPrice,
+      sku: externalProduct.sku,
+    });
+
+    await this.db
+      .update(externalProducts)
+      .set({
+        linkedProductId: createdProduct.id,
+        reviewStatus: "imported_as_internal_product",
+        updatedAt: new Date(),
+      })
+      .where(eq(externalProducts.id, externalProduct.id));
+
+    return this.buildSyncedProductActionResult(
+      organizationId,
+      providerSlug,
+      externalProductId,
+      "Produto sincronizado importado para o cat\u00e1logo.",
+    );
+  }
+
+  async linkSyncedProduct(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+    externalProductId: string,
+    productId: string,
+  ): Promise<SyncedProductActionResult> {
+    this.assertSyncProductProvider(providerSlug);
+
+    const externalProduct = await this.requireSyncedExternalProduct(
+      organizationId,
+      providerSlug,
+      externalProductId,
+    );
+    const product = await this.productsService.requireProductAccess(organizationId, productId);
+
+    if (
+      externalProduct.reviewStatus === "imported_as_internal_product" &&
+      externalProduct.linkedProductId &&
+      externalProduct.linkedProductId !== product.id
+    ) {
+      throw new ConflictException(
+        "This synced product was already imported as an internal catalog product.",
+      );
+    }
+
+    if (
+      externalProduct.linkedProductId === product.id &&
+      externalProduct.reviewStatus === "linked_to_existing_product"
+    ) {
+      return this.buildSyncedProductActionResult(
+        organizationId,
+        providerSlug,
+        externalProductId,
+        "Produto sincronizado j\u00e1 vinculado ao cat\u00e1logo selecionado.",
+      );
+    }
+
+    await this.db
+      .update(externalProducts)
+      .set({
+        linkedProductId: product.id,
+        reviewStatus: "linked_to_existing_product",
+        updatedAt: new Date(),
+      })
+      .where(eq(externalProducts.id, externalProduct.id));
+
+    return this.buildSyncedProductActionResult(
+      organizationId,
+      providerSlug,
+      externalProductId,
+      "Produto sincronizado vinculado ao produto existente.",
+    );
+  }
+
+  async ignoreSyncedProduct(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+    externalProductId: string,
+  ): Promise<SyncedProductActionResult> {
+    this.assertSyncProductProvider(providerSlug);
+    await this.requireSyncedExternalProduct(organizationId, providerSlug, externalProductId);
+
+    await this.db
+      .update(externalProducts)
+      .set({
+        linkedProductId: null,
+        reviewStatus: "ignored",
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(externalProducts.organizationId, organizationId),
+          eq(externalProducts.provider, providerSlug),
+          eq(externalProducts.externalProductId, externalProductId),
+        ),
+      );
+
+    return this.buildSyncedProductActionResult(
+      organizationId,
+      providerSlug,
+      externalProductId,
+      "Produto sincronizado marcado para revis\u00e3o posterior.",
+    );
+  }
+
   private buildRedirectUrl(
     baseRedirect: string,
     input: {
@@ -259,6 +477,36 @@ export class IntegrationsService {
     }
 
     return provider;
+  }
+
+  private assertSyncProductProvider(providerSlug: IntegrationProviderSlug) {
+    if (providerSlug !== "mercadolivre") {
+      throw new BadRequestException(
+        "Only Mercado Livre synced products are available in this workspace right now.",
+      );
+    }
+  }
+
+  private async buildSyncedProductActionResult(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+    externalProductId: string,
+    message: string,
+  ): Promise<SyncedProductActionResult> {
+    const syncedProducts = await this.listSyncedProducts(organizationId, providerSlug);
+    const syncedProduct = syncedProducts.find(
+      (product) => product.externalProductId === externalProductId,
+    );
+
+    if (!syncedProduct) {
+      throw new NotFoundException("Synced product not found.");
+    }
+
+    return {
+      linkedProduct: syncedProduct.linkedProduct,
+      message,
+      syncedProduct,
+    };
   }
 
   private rethrowProviderError(error: unknown): never {
@@ -360,6 +608,133 @@ export class IntegrationsService {
             ? "Account disconnected."
             : "Provider credentials are missing, so reconnect is unavailable right now.",
       tokenExpiresAt: toIsoString(row.tokenExpiresAt),
+    };
+  }
+
+  private async requireSyncedExternalProduct(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+    externalProductId: string,
+  ) {
+    const row =
+      (await this.db.query.externalProducts.findFirst({
+        where: (table) =>
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.provider, providerSlug),
+            eq(table.externalProductId, externalProductId),
+          ),
+        with: {
+          linkedProduct: true,
+          orderItems: {
+            with: {
+              externalOrder: true,
+            },
+          },
+        },
+      })) ?? null;
+
+    if (!row) {
+      throw new NotFoundException("Synced product not found.");
+    }
+
+    return row;
+  }
+
+  private selectLatestUnitPrice(orderItems: ExternalProductOrderItemRow[]) {
+    const latestItem = [...orderItems].sort((left, right) => {
+      const leftTime = left.externalOrder?.orderedAt?.getTime() ?? left.updatedAt.getTime();
+      const rightTime = right.externalOrder?.orderedAt?.getTime() ?? right.updatedAt.getTime();
+      return rightTime - leftTime;
+    })[0];
+
+    return latestItem ? toDecimalString(latestItem.unitPrice) : null;
+  }
+
+  private toLinkedProductSummary(product: Product | null): SyncedProductLinkedProduct | null {
+    if (!product) {
+      return null;
+    }
+
+    return {
+      id: product.id,
+      isActive: product.isActive,
+      name: product.name,
+      sku: product.sku,
+    };
+  }
+
+  private toSuggestedMatches(
+    externalProduct: ExternalProduct,
+    productsList: Product[],
+    reviewStatus: SyncedProductReviewStatus,
+  ): SyncedProductSuggestedMatch[] {
+    if (
+      externalProduct.linkedProductId ||
+      reviewStatus === "ignored" ||
+      reviewStatus === "imported_as_internal_product"
+    ) {
+      return [];
+    }
+
+    const normalizedExternalSku = normalizeSku(externalProduct.sku);
+
+    if (!normalizedExternalSku) {
+      return [];
+    }
+
+    return productsList
+      .filter((product) => normalizeSku(product.sku) === normalizedExternalSku)
+      .slice(0, 3)
+      .map((product) => ({
+        isActive: product.isActive,
+        name: product.name,
+        productId: product.id,
+        reason: "sku_exact",
+        sku: product.sku,
+      }));
+  }
+
+  private toSyncedProductRecord(
+    row: SyncedExternalProductRow,
+    productsList: Product[],
+  ): SyncedProductRecord {
+    const uniqueOrderIds = new Set<string>();
+    let unitsSold = 0;
+    let grossRevenue = 0;
+    let lastOrderedAt: string | null = null;
+
+    for (const item of row.orderItems) {
+      uniqueOrderIds.add(item.externalOrderId);
+      unitsSold += item.quantity;
+      grossRevenue += Number(item.totalPrice) || 0;
+
+      const orderedAt = item.externalOrder?.orderedAt ?? null;
+      const orderedAtIso = orderedAt ? orderedAt.toISOString() : null;
+
+      if (orderedAtIso && (!lastOrderedAt || orderedAtIso > lastOrderedAt)) {
+        lastOrderedAt = orderedAtIso;
+      }
+    }
+
+    return {
+      externalProductId: row.externalProductId,
+      grossRevenue: toDecimalString(grossRevenue),
+      id: row.id,
+      lastOrderedAt,
+      latestUnitPrice: this.selectLatestUnitPrice(row.orderItems),
+      linkedProduct: this.toLinkedProductSummary(row.linkedProduct),
+      orderCount: uniqueOrderIds.size,
+      provider: row.provider as IntegrationProviderSlug,
+      reviewStatus: row.reviewStatus as SyncedProductReviewStatus,
+      sku: row.sku,
+      suggestedMatches: this.toSuggestedMatches(
+        row,
+        productsList,
+        row.reviewStatus as SyncedProductReviewStatus,
+      ),
+      title: row.title,
+      unitsSold,
     };
   }
 }

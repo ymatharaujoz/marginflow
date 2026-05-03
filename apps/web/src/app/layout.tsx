@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Manrope, Playfair_Display, Plus_Jakarta_Sans } from "next/font/google";
 import { AppProviders } from "@/components/app-providers";
-import { getSiteUrl, siteConfig } from "@/lib/site";
+import { getSiteUrl, resolveSiteConfig } from "@/lib/site";
 import "./globals.css";
 
 const bodyFont = Manrope({
@@ -27,10 +27,12 @@ const marketingDisplay = Playfair_Display({
   weight: ["500", "600", "700"],
 });
 
+const rootSite = resolveSiteConfig();
+
 export const metadata: Metadata = {
-  description: siteConfig.defaultDescription,
+  description: rootSite.defaultDescription,
   metadataBase: getSiteUrl(),
-  title: siteConfig.defaultTitle,
+  title: rootSite.defaultTitle,
 };
 
 export default function RootLayout({

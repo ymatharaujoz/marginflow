@@ -2,17 +2,17 @@
 
 :root {
   /* ─── Core palette ─── */
-  --background: #f8f6f3;
-  --background-soft: #fdfcfa;
+  --background: #ebe6df;
+  --background-soft: #f2ede6;
   --foreground: #141c22;
   --foreground-soft: #4a5660;
   --muted: #8d9aa5;
   --muted-foreground: #6b7a85;
 
   /* ─── Surfaces ─── */
-  --surface: rgba(255, 253, 250, 0.88);
-  --surface-strong: #ffffff;
-  --surface-elevated: rgba(255, 255, 255, 0.96);
+  --surface: rgba(247, 244, 239, 0.92);
+  --surface-strong: #f7f4ef;
+  --surface-elevated: rgba(252, 249, 244, 0.96);
 
   /* ─── Borders ─── */
   --border: rgba(20, 28, 34, 0.08);
@@ -212,8 +212,8 @@ h4 {
 
 .mf-grid-bg {
   background-image:
-    linear-gradient(to right, rgb(226 232 240 / 0.5) 1px, transparent 1px),
-    linear-gradient(to bottom, rgb(226 232 240 / 0.5) 1px, transparent 1px);
+    linear-gradient(to right, rgb(180 170 155 / 0.22) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(180 170 155 / 0.22) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 

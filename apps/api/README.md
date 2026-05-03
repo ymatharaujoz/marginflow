@@ -27,6 +27,8 @@ NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
 - `corepack pnpm --filter @marginflow/api build`
 - `corepack pnpm --filter @marginflow/api start`
 - `corepack pnpm --filter @marginflow/api test`
+- `corepack pnpm ngrok:mercadolivre:callback`
+- `corepack pnpm ngrok:mercadolivre:callback:url`
 
 ## Render baseline
 
@@ -41,6 +43,8 @@ The dev server loads `.env`, `.env.local`, and (when `NODE_ENV` is `development`
 - `API_HOST`: listen host, default `0.0.0.0`
 - `API_PORT`: listen port, default `4000`
 - `API_DB_POOL_MAX`: Postgres pool size cap for API runtime, default `10`
+- `NGROK_AUTHTOKEN`: optional local ngrok auth token used by the helper tunnel script
+- `NGROK_DOMAIN`: optional reserved ngrok domain used by the helper tunnel script
 - `DATABASE_URL`: Postgres connection string used by Drizzle for local development and Supabase production
 - `BETTER_AUTH_SECRET`: Better Auth signing secret
 - `BETTER_AUTH_URL`: absolute API base URL used by Better Auth callbacks and cookies
@@ -57,3 +61,30 @@ The dev server loads `.env`, `.env.local`, and (when `NODE_ENV` is `development`
 - `STRIPE_PRICE_ANNUAL`: Stripe recurring price ID for the annual plan
 
 `DATABASE_URL` now matters for runtime boot. For local development, point it at plain Postgres. For production, point it at Supabase Postgres. `SUPABASE_*` values remain reserved for later service integrations.
+
+## Ngrok for Mercado Livre local callbacks
+
+Keep the default local app flow unchanged:
+
+- `BETTER_AUTH_URL=http://localhost:4000`
+- `WEB_APP_ORIGIN=http://localhost:3000`
+- web app still runs on `http://localhost:3000`
+- API still runs on `http://localhost:4000`
+
+Use ngrok only to give Mercado Livre a stable public callback URL for the local API.
+
+Recommended root `.env` additions:
+
+- `NGROK_AUTHTOKEN=...`
+- `NGROK_DOMAIN=your-reserved-domain.ngrok.app`
+- `MERCADOLIVRE_REDIRECT_URI=https://your-reserved-domain.ngrok.app/integrations/mercadolivre/callback`
+
+Workflow:
+
+1. Start the API locally with `corepack pnpm dev:api`
+2. Start the tunnel with `corepack pnpm ngrok:mercadolivre:callback`
+3. Print the exact callback URL with `corepack pnpm ngrok:mercadolivre:callback:url`
+4. Register that exact URL in the Mercado Livre developer portal
+5. Run the existing connection flow from `/app/integrations`
+
+The ngrok helper assumes the ngrok agent is already installed locally and available on your `PATH`.

@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { Avatar } from "@marginflow/ui";
+import { PUBLIC_BRAND } from "@/lib/public-branding";
 
 type AppSidebarProps = {
   collapsed: boolean;
@@ -84,12 +85,10 @@ export function AppSidebar({ collapsed, onToggle, user, organization }: AppSideb
       {/* Logo / brand */}
       <div className={cn("flex h-16 items-center border-b border-border", collapsed ? "justify-center" : "px-5")}>
         <button onClick={onToggle} type="button" className="flex items-center gap-2.5 text-foreground hover:text-accent transition-colors" aria-label="Alternar menu lateral">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
-          {!collapsed && <span className="text-sm font-bold tracking-tight">MarginFlow</span>}
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-br from-[#0e7a6f] to-[#14b8a6] text-xs font-bold text-white shadow-[0_2px_8px_rgba(14,122,111,0.22)]">
+            {PUBLIC_BRAND.icon}
+          </span>
+          {!collapsed && <span className="text-sm font-bold tracking-tight">{PUBLIC_BRAND.name}</span>}
         </button>
       </div>
 

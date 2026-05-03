@@ -273,7 +273,12 @@ export class ProductsService {
       manualExpenses: expenseRows,
       productCosts: costRows,
       products: productsList,
+      syncedProducts: [],
     };
+  }
+
+  async requireProductAccess(organizationId: string, productId: string) {
+    return this.ensureProductAccess(organizationId, productId);
   }
 
   private async ensureProductAccess(organizationId: string, productId: string) {

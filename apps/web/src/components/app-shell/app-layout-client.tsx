@@ -58,8 +58,10 @@ export function AppLayoutClient({ children, organization, user }: AppLayoutClien
       {/* Main content area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppTopBar onMenuToggle={() => setMobileOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
-          {children}
+        <main className="flex-1 overflow-y-auto py-6 md:py-8">
+          <div className="mx-auto w-full max-w-[min(100%,1440px)] px-6 sm:px-8 md:px-10 lg:px-12 xl:px-14">
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -162,6 +162,62 @@ describe("integrations controller", () => {
     );
   });
 
+  it("lists synced Mercado Livre products for authenticated entitled requests", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(integrationsService, "listSyncedProducts").mockResolvedValueOnce([
+      {
+        externalProductId: "MLB-1",
+        grossRevenue: "42.00",
+        id: "external_1",
+        lastOrderedAt: "2026-05-01T11:00:00.000Z",
+        latestUnitPrice: "21.00",
+        linkedProduct: null,
+        orderCount: 1,
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-42",
+        suggestedMatches: [],
+        title: "Kit Mercado Livre",
+        unitsSold: 2,
+      },
+    ]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/integrations/mercadolivre/products",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: [expect.objectContaining({ externalProductId: "MLB-1", reviewStatus: "unreviewed" })],
+      error: null,
+    });
+  });
+
   it("rejects unauthenticated disconnect requests", async () => {
     vi.spyOn(authService, "requireRequestContext").mockRejectedValueOnce(
       new UnauthorizedException("Authentication required."),

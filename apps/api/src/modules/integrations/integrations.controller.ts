@@ -4,6 +4,7 @@ import {
   Inject,
   Param,
   Post,
+  Body,
   Query,
   Res,
   UseGuards,
@@ -13,7 +14,9 @@ import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import {
+  IntegrationExternalProductParamDto,
   IntegrationProviderParamDto,
+  LinkSyncedProductRequestDto,
   MercadoLivreCallbackQueryDto,
 } from "./integrations.dto";
 import { IntegrationsService } from "./integrations.service";
@@ -62,6 +65,71 @@ export class IntegrationsController {
     );
 
     return reply.send();
+  }
+
+  @Get(":provider/products")
+  @UseGuards(EntitlementGuard)
+  async listSyncedProducts(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param() params: IntegrationProviderParamDto,
+  ) {
+    return {
+      data: await this.integrationsService.listSyncedProducts(
+        authContext.organization.id,
+        params.provider,
+      ),
+      error: null,
+    };
+  }
+
+  @Post(":provider/products/:externalProductId/import")
+  @UseGuards(EntitlementGuard)
+  async importSyncedProduct(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param() params: IntegrationExternalProductParamDto,
+  ) {
+    return {
+      data: await this.integrationsService.importSyncedProduct(
+        authContext.organization.id,
+        params.provider,
+        params.externalProductId,
+      ),
+      error: null,
+    };
+  }
+
+  @Post(":provider/products/:externalProductId/link")
+  @UseGuards(EntitlementGuard)
+  async linkSyncedProduct(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param() params: IntegrationExternalProductParamDto,
+    @Body() body: LinkSyncedProductRequestDto,
+  ) {
+    return {
+      data: await this.integrationsService.linkSyncedProduct(
+        authContext.organization.id,
+        params.provider,
+        params.externalProductId,
+        body.productId,
+      ),
+      error: null,
+    };
+  }
+
+  @Post(":provider/products/:externalProductId/ignore")
+  @UseGuards(EntitlementGuard)
+  async ignoreSyncedProduct(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param() params: IntegrationExternalProductParamDto,
+  ) {
+    return {
+      data: await this.integrationsService.ignoreSyncedProduct(
+        authContext.organization.id,
+        params.provider,
+        params.externalProductId,
+      ),
+      error: null,
+    };
   }
 
   @Post(":provider/disconnect")

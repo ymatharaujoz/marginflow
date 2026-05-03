@@ -5,47 +5,58 @@ import { useRouter } from "next/navigation";
 import { Badge, Button, Card } from "@marginflow/ui";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import type { ServerBillingState } from "@/lib/server-billing";
+import { PUBLIC_BRAND } from "@/lib/public-branding";
 
-const plans = [
-  {
-    description: "Pagamento mensal. Cancele quando quiser.",
-    interval: "monthly" as const,
-    title: "Mensal",
-    badge: null,
-  },
-  {
-    description: "Compromisso anual para um caminho mais enxuto de billing.",
-    interval: "annual" as const,
-    title: "Anual",
-    badge: "Economize 20%",
-  },
-];
+function billingPlans() {
+  const monthly = PUBLIC_BRAND.priceMonthlyLabel;
+  const annual = PUBLIC_BRAND.priceAnnualLabel;
+  return [
+    {
+      badge: null,
+      description: "Flexível para testar o ritmo da operação. Cancele quando quiser.",
+      emphasized: false,
+      interval: "monthly" as const,
+      priceDetail: "cobrado mensalmente",
+      priceLine: monthly,
+      title: "Mensal",
+    },
+    {
+      badge: "Economize 20%",
+      description: "Melhor custo para equipes que já consolidaram o uso da plataforma.",
+      emphasized: true,
+      interval: "annual" as const,
+      priceDetail: `cobrado anualmente (equivalente a ${annual}/mês)`,
+      priceLine: annual,
+      title: "Anual",
+    },
+  ];
+}
+
+const includedFeatures = [
+  "Workspace com visão financeira Mercado Livre e Shopee",
+  "Sincronização manual em janelas, com histórico",
+  "Indicadores de margem, lucro e custos no mesmo painel",
+  "Assinatura gerenciável e cobrança segura via Stripe",
+] as const;
 
 type BillingPanelProps = {
   checkoutSessionId: string | null;
   checkoutState: string | null;
   organizationName: string;
-  snapshot: ServerBillingState | null;
 };
 
-function translateSubscriptionStatus(status: string): string {
-  const map: Record<string, string> = {
-    active: "ativo",
-    inactive: "inativo",
-    canceled: "cancelado",
-    cancelled: "cancelado",
-    past_due: "em atraso",
-    trialing: "em teste",
-    unpaid: "não pago",
-  };
-  return map[status] ?? status;
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  );
 }
 
 export function BillingPanel({
   checkoutSessionId,
   checkoutState,
   organizationName,
-  snapshot,
 }: BillingPanelProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState<"monthly" | "annual" | null>(null);
@@ -103,7 +114,10 @@ export function BillingPanel({
     setMessage(null);
 
     try {
-      const response = await apiClient.post<{ data: { checkoutUrl: string; sessionId: string }; error: null }>("/billing/checkout", { body: { interval } });
+      const response = await apiClient.post<{ data: { checkoutUrl: string; sessionId: string }; error: null }>(
+        "/billing/checkout",
+        { body: { interval } },
+      );
       window.location.assign(response.data.checkoutUrl);
     } catch (error) {
       const nextMessage =
@@ -117,73 +131,133 @@ export function BillingPanel({
     }
   }
 
-  const rawStatus = snapshot?.subscription?.status ?? "inactive";
+  const plans = billingPlans();
+  const isBusy = isSubmitting !== null || isConfirmingCheckout;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="animate-rise-in text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft">
-          <svg className="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-          </svg>
-        </div>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-foreground">
-          Assine para liberar o workspace
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {organizationName} precisa de uma assinatura ativa para usar o MarginFlow por completo.
-        </p>
-      </div>
-
-      {/* Checkout status message */}
+    <div className="w-full max-w-5xl space-y-10">
       {message && (
         <div
-          className={`rounded-[var(--radius-md)] border px-4 py-3 text-sm ${
+          className={`flex gap-3 rounded-[var(--radius-lg)] border px-4 py-3.5 text-sm shadow-[var(--shadow-sm)] ${
             checkoutState === "success"
-              ? "border-success/20 bg-success-soft text-foreground"
+              ? "border-success/25 bg-success-soft text-foreground"
               : checkoutState === "cancelled"
-                ? "border-warning/20 bg-warning-soft text-foreground"
-                : "border-error/20 bg-error-soft text-foreground"
+                ? "border-warning/25 bg-warning-soft text-foreground"
+                : "border-error/25 bg-error-soft text-foreground"
           }`}
+          role="status"
         >
-          {message}
+          {checkoutState === "success" ? (
+            <svg className="mt-0.5 h-5 w-5 shrink-0 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          ) : checkoutState === "cancelled" ? (
+            <svg className="mt-0.5 h-5 w-5 shrink-0 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          ) : (
+            <svg className="mt-0.5 h-5 w-5 shrink-0 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          )}
+          <p className="leading-relaxed">{message}</p>
         </div>
       )}
 
-      {/* Plan cards */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {plans.map((plan) => (
-          <Card key={plan.interval} variant="interactive" className="relative flex h-full flex-col animate-rise-in text-center">
-            {plan.badge && (
-              <Badge variant="accent" className="absolute right-4 top-4">
-                {plan.badge}
-              </Badge>
-            )}
-            <h2 className="text-lg font-semibold text-foreground">{plan.title}</h2>
-            <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-            <div className="mt-auto w-full pt-6">
-              <Button
-                className="w-full text-white hover:text-white focus-visible:text-white"
-                disabled={isSubmitting !== null || isConfirmingCheckout}
-                loading={isSubmitting === plan.interval}
-                onClick={() => void handleCheckout(plan.interval)}
-              >
-                Escolher {plan.title.toLowerCase()}
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+      <div className="grid gap-10 lg:grid-cols-[1fr_minmax(0,26rem)] lg:items-center lg:gap-10 xl:grid-cols-[1fr_minmax(0,28rem)] xl:gap-14">
+        <header className="space-y-6 animate-rise-in lg:max-w-md lg:justify-self-end lg:pr-2 xl:max-w-lg xl:pr-4">
+          <Badge variant="accent" className="text-[11px] font-semibold uppercase tracking-wider">
+            Assinatura
+          </Badge>
+          <div className="space-y-3">
+            <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-foreground md:text-[2rem] md:leading-tight">
+              Ative o {PUBLIC_BRAND.name} para{" "}
+              <span className="text-accent-strong">{organizationName}</span>
+            </h1>
+            <p className="text-base leading-relaxed text-muted-foreground">
+              Escolha mensal ou anual. Após o pagamento, seu time acessa o app completo — produtos, integrações,
+              painel — no mesmo workspace.
+            </p>
+          </div>
+          <ul className="space-y-3 text-sm text-foreground">
+            {includedFeatures.map((line) => (
+              <li key={line} className="flex gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+                  <CheckIcon className="h-3 w-3" />
+                </span>
+                <span className="leading-snug">{line}</span>
+              </li>
+            ))}
+          </ul>
+        </header>
 
-      {/* Current status */}
-      <Card variant="outlined" padding="sm" className="text-center">
-        <p className="text-xs text-muted-foreground">
-          Status atual: <span className="font-medium text-foreground">{translateSubscriptionStatus(rawStatus)}</span>
-          {" · "}
-          Liberado: <span className="font-medium text-foreground">{snapshot?.entitled ? "Sim" : "Não"}</span>
-        </p>
-      </Card>
+        <div className="space-y-4">
+          <h2 className="sr-only">Planos disponíveis</h2>
+          <div className="grid grid-cols-1 gap-4 md:gap-5">
+            {plans.map((plan) => (
+              <Card
+                key={plan.interval}
+                padding="lg"
+                variant="default"
+                className={`relative flex h-full flex-col transition-shadow duration-[var(--transition-normal)] animate-rise-in ${
+                  plan.emphasized
+                    ? "border-accent/35 bg-surface-strong shadow-[var(--shadow-md)] ring-1 ring-accent/20"
+                    : "hover:shadow-[var(--shadow-md)]"
+                }`}
+              >
+                {plan.badge && (
+                  <Badge variant="accent" className="absolute right-4 top-4 z-10">
+                    {plan.badge}
+                  </Badge>
+                )}
+                <div className="flex flex-1 flex-col">
+                  <h3 className="text-lg font-semibold text-foreground">{plan.title}</h3>
+                  <div className="mt-4 flex items-baseline gap-1.5">
+                    <span className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
+                      {plan.priceLine}
+                    </span>
+                    <span className="text-sm font-medium text-muted-foreground">/mês</span>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{plan.priceDetail}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{plan.description}</p>
+                  <div className="mt-6">
+                    <Button
+                      className="w-full"
+                      disabled={isBusy}
+                      loading={isSubmitting === plan.interval}
+                      onClick={() => void handleCheckout(plan.interval)}
+                      size="lg"
+                      variant="primary"
+                    >
+                      Assinar
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+          <p className="flex items-start gap-2 text-center text-xs leading-relaxed text-muted-foreground sm:text-left">
+            <svg
+              className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.75}
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+              />
+            </svg>
+            <span>
+              Cobrança e cartão são processados pelo Stripe. Você pode atualizar ou cancelar a assinatura pelo portal
+              de billing quando disponível.
+            </span>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

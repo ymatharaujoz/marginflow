@@ -83,6 +83,10 @@ export const manualExpenseUpdateSchema = manualExpenseFormSchema.partial().refin
   "At least one expense field must be provided.",
 );
 
+export const syncedProductLinkSchema = z.object({
+  productId: z.string().uuid(),
+});
+
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type ProductCostFormInput = z.infer<typeof productCostFormSchema>;
@@ -91,3 +95,4 @@ export type AdCostFormInput = z.infer<typeof adCostFormSchema>;
 export type AdCostUpdateInput = z.infer<typeof adCostUpdateSchema>;
 export type ManualExpenseFormInput = z.infer<typeof manualExpenseFormSchema>;
 export type ManualExpenseUpdateInput = z.infer<typeof manualExpenseUpdateSchema>;
+export type SyncedProductLinkInput = z.infer<typeof syncedProductLinkSchema>;

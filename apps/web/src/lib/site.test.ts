@@ -27,6 +27,7 @@ describe("site helpers", () => {
     expect(metadata.alternates?.canonical).toBe("https://marginflow.vercel.app/pricing");
     expect(metadata.openGraph).toEqual(
       expect.objectContaining({
+        siteName: "MarginFlow",
         title: "Pricing | MarginFlow",
         url: "https://marginflow.vercel.app/pricing",
       }),

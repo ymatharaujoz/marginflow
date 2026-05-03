@@ -23,6 +23,7 @@ import type {
   DashboardSummaryResponse,
 } from "@marginflow/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
+import { PUBLIC_BRAND } from "@/lib/public-branding";
 import {
   translateApiMessage,
   translateDashboardCardHelper,
@@ -204,7 +205,7 @@ function FinancialEmptyState({ reason }: { reason: "catalog" | "insufficient" | 
   return (
     <EmptyState
       title="Precisamos de mais dados"
-      description="Continue sincronizando pedidos e registrando custos para o MarginFlow montar comparativos mais completos."
+      description={`Continue sincronizando pedidos e registrando custos para o ${PUBLIC_BRAND.name} montar comparativos mais completos.`}
       icon={<svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>}
     />
   );

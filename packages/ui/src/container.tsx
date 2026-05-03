@@ -18,7 +18,11 @@ const sizeStyles: Record<ContainerSize, string> = {
 export function Container({ className, size = "lg", ...props }: ContainerProps) {
   return (
     <div
-      className={cn("mx-auto w-full px-5 md:px-8", sizeStyles[size], className)}
+      className={cn(
+        "mx-auto w-full px-6 sm:px-8 md:px-10 lg:px-12 xl:px-14",
+        sizeStyles[size],
+        className,
+      )}
       {...props}
     />
   );

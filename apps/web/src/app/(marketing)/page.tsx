@@ -1,9 +1,10 @@
 import { LandingPage } from "@/components/marketing/landing-page";
-import { createPageMetadata } from "@/lib/site";
+import { brandSeoTitle, createPageMetadata, resolveSiteConfig } from "@/lib/site";
+
+const brand = resolveSiteConfig();
 
 export const metadata = createPageMetadata({
-  description:
-    "MarginFlow é uma plataforma premium para acompanhar margem, lucro líquido, vendas e performance por canal em um só lugar.",
+  description: `${brand.name} é uma plataforma premium para acompanhar margem, lucro líquido, vendas e performance por canal em um só lugar.`,
   keywords: [
     "dashboard financeiro",
     "margem de lucro",
@@ -13,7 +14,7 @@ export const metadata = createPageMetadata({
     "analytics marketplace",
   ],
   path: "/",
-  title: "MarginFlow | Clareza sobre lucro e margem para o seu negócio",
+  title: brandSeoTitle("Clareza sobre lucro e margem para o seu negócio"),
 });
 
 export default function MarketingPage() {

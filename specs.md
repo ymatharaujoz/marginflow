@@ -205,6 +205,7 @@ Operators or small teams helping manage stores, products, and profitability deci
 ### 9.1 V1 Included Features
 
 #### Public marketing site
+
 - Hero section with strong CTA
 - Features section
 - Pricing section with monthly/annual toggle
@@ -213,6 +214,7 @@ Operators or small teams helping manage stores, products, and profitability deci
 - SEO-ready metadata, sitemap, canonical structure, and robots
 
 #### Authentication and access
+
 - Signup/login
 - Google login
 - Session management
@@ -220,12 +222,14 @@ Operators or small teams helping manage stores, products, and profitability deci
 - Organization/workspace association
 
 #### Billing
+
 - Monthly and annual subscription plans
 - Stripe checkout
 - Local subscription state mirroring
 - Subscription-gated access
 
 #### Dashboard
+
 - Revenue indicators
 - Profitability indicators
 - Margin indicators
@@ -234,18 +238,21 @@ Operators or small teams helping manage stores, products, and profitability deci
 - Sync-window availability messaging
 
 #### Products and costs
+
 - Manual product registration
 - Product cost registration
 - Ad cost input
 - Manual expense input
 
 #### Integrations
+
 - Marketplace connection structure
 - Manual sync trigger
 - Sync history and status tracking
 - Three sync windows per day
 
 #### Financial calculations
+
 - Gross revenue
 - Net revenue
 - Gross margin
@@ -285,6 +292,7 @@ The public website must:
 - Look modern and premium, inspired by Stripe, Vercel, and Linear
 
 #### Acceptance Criteria
+
 - User can understand product value in under 10 seconds
 - Pricing clearly distinguishes monthly and annual billing
 - CTA is visible above the fold and near the bottom of the page
@@ -301,6 +309,7 @@ The application must:
 - Associate users with an organization/workspace model
 
 #### Acceptance Criteria
+
 - User can sign up using Google
 - User can access dashboard only when authenticated
 - Unauthenticated users are redirected appropriately
@@ -315,6 +324,7 @@ The product must:
 - Restrict protected features when plan state is inactive or invalid
 
 #### Acceptance Criteria
+
 - User can subscribe to a plan
 - Successful payment unlocks dashboard access
 - Failed or inactive subscription blocks protected usage according to product rules
@@ -332,6 +342,7 @@ The application must allow users to:
 - Edit and archive products
 
 #### Acceptance Criteria
+
 - User can create and edit products
 - Calculated fields update correctly
 - Archived products do not appear as active by default
@@ -347,6 +358,7 @@ The application must support:
 - Sync history tracking
 
 #### Acceptance Criteria
+
 - User can connect a supported marketplace account
 - User can trigger sync when allowed
 - Sync result is recorded with status and timestamps
@@ -363,6 +375,7 @@ The sync feature must:
 - Show the next available sync window when blocked
 
 #### Proposed Window Definition
+
 - Morning: 06:00 to 11:59
 - Afternoon: 12:00 to 17:59
 - Evening: 18:00 to 23:59
@@ -370,6 +383,7 @@ The sync feature must:
 Time zone should initially use the product’s primary business time zone and later become organization-configurable.
 
 #### Acceptance Criteria
+
 - If the current window was already used, sync is blocked
 - If the current window was not used, sync is allowed
 - UI shows current sync availability and next allowed time
@@ -387,6 +401,7 @@ The dashboard must show:
 - Time-based charts for financial evolution
 
 #### Acceptance Criteria
+
 - Dashboard loads core summary metrics without spreadsheet work
 - User can understand profitability at a glance
 - Calculations match defined formulas
@@ -398,6 +413,7 @@ The dashboard must show:
 The application must calculate and expose at least the following:
 
 ### 11.1 Core Metrics
+
 - Gross revenue
 - Net revenue
 - Total cost of goods sold
@@ -423,6 +439,7 @@ These formulas should be centralized in backend domain services and tested.
 - Break-even Quantity = fixed costs / contribution margin per unit
 
 ### 11.3 Requirements
+
 - Calculations must be deterministic
 - Calculation logic must not be duplicated across frontend and backend
 - All formulas must have unit tests
@@ -464,6 +481,7 @@ The product should feel:
 SEO applies primarily to public pages served by the Next.js frontend.
 
 ### 13.1 Public SEO Scope
+
 - homepage
 - pricing page
 - features page
@@ -471,9 +489,11 @@ SEO applies primarily to public pages served by the Next.js frontend.
 - future blog or comparison pages
 
 ### 13.2 Private App SEO Scope
+
 Private dashboard routes must be noindexed.
 
 ### 13.3 Required SEO Features
+
 - metadata per page
 - Open Graph tags
 - canonical URLs
@@ -483,6 +503,7 @@ Private dashboard routes must be noindexed.
 - strong Core Web Vitals hygiene
 
 ### 13.4 Acceptance Criteria
+
 - Public pages expose metadata correctly
 - Sitemap is generated
 - Robots file is available
@@ -516,6 +537,7 @@ V1 still avoids workers, queues, and Redis. The NestJS backend will execute sync
 ### 14.4 Stack
 
 #### Frontend
+
 - Next.js App Router
 - React
 - TypeScript
@@ -524,37 +546,46 @@ V1 still avoids workers, queues, and Redis. The NestJS backend will execute sync
 - TanStack Query
 
 #### Backend
+
 - NestJS
 - TypeScript
 - Fastify adapter preferred
 - Zod for validation boundaries
 
 #### Authentication
+
 - Better Auth
 - Google login
 
 #### Billing
+
 - Stripe
 
 #### Database
+
 - Supabase Postgres
 
 #### ORM / Schema / Migrations
+
 - Drizzle ORM
 
 #### Charts
+
 - Recharts or similar React chart library
 
 #### Linting and code quality
+
 - ESLint
 - TypeScript strict mode
 - Prettier optional but recommended
 
 #### Testing
+
 - Vitest for unit/integration tests
 - Playwright for end-to-end tests
 
 #### CI/CD
+
 - GitHub Actions
 - Vercel for `apps/web`
 - Render for `apps/api`
@@ -566,6 +597,7 @@ V1 still avoids workers, queues, and Redis. The NestJS backend will execute sync
 The entire stack must be TypeScript.
 
 ### Required Areas
+
 - Next.js frontend
 - NestJS backend
 - database schema and queries
@@ -577,6 +609,7 @@ The entire stack must be TypeScript.
 - repository tooling where applicable
 
 ### Rules
+
 - Enable `strict` TypeScript mode
 - Avoid `any` except where explicitly documented and isolated
 - Prefer inferred types from schema and validators where practical
@@ -587,12 +620,14 @@ The entire stack must be TypeScript.
 ## 16. Linting and Quality Gates
 
 ### Required
+
 - ESLint configured for TypeScript, Next.js, and NestJS
 - CI must fail on lint errors
 - CI must fail on typecheck errors
 - CI must fail on test failures for protected branches
 
 ### Recommended Scripts
+
 - `lint`
 - `typecheck`
 - `test`
@@ -651,6 +686,7 @@ packages/
 ### 18.1 Core Tables
 
 #### Users and organizations
+
 - users
 - organizations
 - organization_members
@@ -658,11 +694,13 @@ packages/
 - auth_accounts
 
 #### Billing
+
 - billing_customers
 - subscriptions
 - subscription_events
 
 #### Marketplace connections
+
 - marketplace_connections
 - sync_runs
 - external_orders
@@ -671,16 +709,19 @@ packages/
 - external_fees
 
 #### Product and cost management
+
 - products
 - product_costs
 - ad_costs
 - manual_expenses
 
 #### Analytics
+
 - daily_metrics
 - product_metrics
 
 ### 18.2 Important Notes
+
 - All business data should be organization-scoped
 - Index organization foreign keys consistently
 - Sync history should record provider, status, timestamps, and error summary
@@ -694,15 +735,18 @@ packages/
 The NestJS backend is the API authority. The Next.js frontend must consume this API.
 
 ### 19.1 Auth and Billing
+
 - `POST /auth/*`
 - `POST /billing/stripe/webhook`
 
 ### 19.2 Dashboard
+
 - `GET /dashboard/summary`
 - `GET /dashboard/charts`
 - `GET /dashboard/recent-sync`
 
 ### 19.3 Products and Costs
+
 - `GET /products`
 - `POST /products`
 - `PATCH /products/:id`
@@ -711,6 +755,7 @@ The NestJS backend is the API authority. The Next.js frontend must consume this 
 - `PATCH /costs/:id`
 
 ### 19.4 Integrations and Sync
+
 - `POST /integrations/mercadolivre/connect`
 - `POST /integrations/shopee/connect`
 - `POST /sync/run`
@@ -718,6 +763,7 @@ The NestJS backend is the API authority. The Next.js frontend must consume this 
 - `GET /sync/history`
 
 ### 19.5 API Rules
+
 - Validate all inputs with Zod or equivalent validated DTO boundaries
 - Return typed response shapes
 - Use organization-scoped authorization checks
@@ -733,6 +779,7 @@ The NestJS backend is the API authority. The Next.js frontend must consume this 
 V1 sync is manual, bounded, and incremental.
 
 ### Rules
+
 - User triggers sync manually
 - Sync allowed only once per window
 - Sync fetches only new or changed data since the last successful sync when supported
@@ -754,12 +801,14 @@ V1 sync is manual, bounded, and incremental.
 12. Frontend displays result and updated availability state
 
 ### 20.3 Sync Risks
+
 - external API slowness
 - long-running sync requests
 - partial sync failures
 - duplicate runs if locking is weak
 
 ### 20.4 Mitigations
+
 - keep sync incremental
 - limit sync scope
 - maintain sync status table
@@ -784,16 +833,19 @@ V1 sync is manual, bounded, and incremental.
 ## 22. Performance Requirements
 
 ### 22.1 Public Site
+
 - fast initial load
 - good Core Web Vitals targets
 - CDN-friendly output
 
 ### 22.2 Private App
+
 - dashboard summary endpoints should be performant
 - frontend should avoid repeated expensive polling
 - backend should avoid recalculating everything from raw tables on every request if it becomes expensive
 
 ### 22.3 Sync
+
 - keep runtime bounded
 - incremental processing only
 - fail clearly if provider or time-window rules prevent execution
@@ -803,12 +855,14 @@ V1 sync is manual, bounded, and incremental.
 ## 23. Observability Requirements
 
 ### Required in V1
+
 - error logging for backend routes
 - logging for sync runs
 - logging for Stripe webhooks
 - traceable failure messages in sync history
 
 ### Nice to Have
+
 - structured request logging
 - monitoring provider integration failures by provider
 - analytics for onboarding completion and sync usage
@@ -818,7 +872,9 @@ V1 sync is manual, bounded, and incremental.
 ## 24. Testing Requirements
 
 ### 24.1 Unit Tests
+
 Must cover:
+
 - financial formulas
 - sync window calculation
 - plan and entitlement rules
@@ -826,7 +882,9 @@ Must cover:
 - domain validation rules
 
 ### 24.2 Integration Tests
+
 Must cover:
+
 - database repositories
 - Stripe webhook handling
 - sync orchestration logic
@@ -834,7 +892,9 @@ Must cover:
 - key NestJS modules
 
 ### 24.3 End-to-End Tests
+
 Must cover:
+
 - signup/login with Google mocked or adapted for test strategy
 - subscription unlock flow where feasible
 - product creation
@@ -848,6 +908,7 @@ Must cover:
 This PRD is checkbox-driven. The sections below are the operational source of truth for implementation progress.
 
 ### 25.1 How to Use This Tracker
+
 - Mark milestone-level checkboxes only when the milestone exit criteria are satisfied
 - Mark task-level checkboxes as implementation work is completed and merged
 - Keep exactly one item under Current Focus checked at a time
@@ -855,28 +916,30 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - When a milestone is finished, update `docs/CHECKPOINTS.md` with a short summary of what shipped
 
 ### 25.2 Overall Progress Snapshot
-- [x] M0. Repository Foundation
-- [x] M1. Monorepo and Shared Packages
-- [x] M2. Frontend Web App Scaffold
-- [x] M3. Backend API Scaffold on Render
-- [x] M4. Database and Schema
-- [ ] M5. Authentication and Access Control
-- [ ] M6. Billing and Entitlements
-- [ ] M7. Marketing Site and SEO
-- [ ] M8. Product and Cost Management
-- [ ] M9. Financial Domain Engine
-- [ ] M10. Marketplace Connections
-- [ ] M11. Manual Sync System with 3 Daily Windows
-- [ ] M12. Dashboard and Insights
-- [ ] M13. Quality, Observability, and Hardening
-- [ ] M14. Launch and Post-Launch Readiness
+
+- M0. Repository Foundation
+- M1. Monorepo and Shared Packages
+- M2. Frontend Web App Scaffold
+- M3. Backend API Scaffold on Render
+- M4. Database and Schema
+- M5. Authentication and Access Control
+- M6. Billing and Entitlements
+- M7. Marketing Site and SEO
+- M8. Product and Cost Management
+- M9. Financial Domain Engine
+- M10. Marketplace Connections
+- M11. Manual Sync System with 3 Daily Windows
+- M12. Dashboard and Insights
+- M13. Quality, Observability, and Hardening
+- M14. Launch and Post-Launch Readiness
 
 ### 25.3 Current Focus
-- [x] Active milestone identified
-- [x] Active task identified
-- [x] Dependencies checked
-- [x] Blockers reviewed
-- [x] Next task queued
+
+- Active milestone identified
+- Active task identified
+- Dependencies checked
+- Blockers reviewed
+- Next task queued
 
 ### 25.4 Suggested Tracker Fields for Repo Updates
 
@@ -887,8 +950,9 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - Next task: complete Mercado Livre browser callback verification in `/app/integrations`, then run the first real sync, confirm same-window blocking, and verify refreshed metrics on `/app`
 - Blockers: M5 and M6 were cleared by live local verification; honest closure is still pending on M10 Mercado Livre callback validation and M11 real sync validation
 - Note: Long Postgres FK names were replaced with explicit short constraint names in `packages/database` (schema + `0000_small_dazzler.sql` + snapshot) to avoid 63-byte identifier truncation notices during `db:migrate`. If `0000` already ran against a database, reset that DB or add a manual `RENAME CONSTRAINT` migration from the truncated names Postgres created.
+- Note: `pnpm ngrok:mercadolivre:callback` normalizes `NGROK_DOMAIN` (strip `https://` / `http://`, trailing `/`) before `ngrok http --domain`, avoiding ERR_NGROK_9038 when the env value was copied with a trailing slash.
 - Note: `db:seed` and `db:migrate` call `sql.end()` on the postgres-js client so CLI processes exit cleanly (previously the open pool kept Node alive indefinitely).
-- Note: Stripe subscription reads exclude seed placeholder rows (`subscriptions.billing_customer_id` must be present). Entitlements treat `trialing` and `active` as paid access; `GET /billing/subscription` and `EntitlementGuard` reconcile rows still marked `active`/`trialing` against Stripe immediately so cancelling in the Dashboard retracts access even when webhooks lag (`POST /billing/checkout/confirm` still covers the success redirect gap before webhooks). **`/products` and `/costs/*` use `EntitlementGuard` with `AuthGuard`.**
+- Note: Stripe subscription reads exclude seed placeholder rows (`subscriptions.billing_customer_id` must be present). Entitlements treat `trialing` and `active` as paid access; `GET /billing/subscription` and `EntitlementGuard` reconcile rows still marked `active`/`trialing` against Stripe immediately so cancelling in the Dashboard retracts access even when webhooks lag (`POST /billing/checkout/confirm` still covers the success redirect gap before webhooks). **`/products` and `/costs/`* use `EntitlementGuard` with `AuthGuard`.**
 - Note: User-facing strings in `apps/web` default to Brazilian Portuguese (`pt-BR`), including localized labels for KPIs/dashboard copy and mappings for backend English phrases often shown next to integrations and sync controls.
 - Last completed checkpoint: M6
 
@@ -900,6 +964,10 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] Phase 5: Animations (Framer Motion + CSS transitions)
 - [x] Phase 6: Responsive + cleanup
 - [x] Phase 7: Verification (lint ✓, typecheck ✓, build ✓, tests ✓)
+- Note: Page chrome uses warmer off-white tokens (`globals.css`), a softer marketing backdrop gradient, and aligned marketing nav glass. Shared `Container` gutters scale `px-6` → `xl:px-14`; the app shell main column and top bar share `max-w-[min(100%,1440px)]` with the same padding scale so wide viewports stay centered without hurting small screens.
+- Note: `/sign-in` uses a SaaS-style layout (brand header, eyebrow + title hierarchy, Google-standard OAuth button styling, trust copy, back link, pricing cross-link) in `sign-in/page.tsx` and `sign-in-panel.tsx`.
+- Note: `/app/billing` uses a two-column hero + plan cards layout (`billing-panel.tsx`): feature checklist, Stripe trust line, emphasized annual tier; removed inline “Status atual” / “Liberado” copy; page no longer wraps `Container` so width follows the app shell content column.
+- Note: Public branding and displayed plan prices come from `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_ICON`, `NEXT_PUBLIC_PRICE_MONTHLY_LABEL`, and `NEXT_PUBLIC_PRICE_ANNUAL_LABEL` (see `.env.example`; defaults applied in `readPublicEnv` / `public-branding.ts`).
 
 ## Completed Checkpoints
 - [ ] M0 completed
@@ -912,30 +980,34 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 ## 26. Milestone Map
 
 ### 26.1 Milestone Sequence
-- [x] **M0** Repository Foundation
-- [x] **M1** Monorepo and Shared Packages
-- [x] **M2** Frontend Web App Scaffold
-- [x] **M3** Backend API Scaffold on Render
-- [x] **M4** Database and Schema
-- [x] **M5** Authentication and Access Control
-- [x] **M6** Billing and Entitlements
-- [ ] **M7** Marketing Site and SEO
-- [ ] **M8** Product and Cost Management
-- [ ] **M9** Financial Domain Engine
-- [ ] **M10** Marketplace Connections
-- [ ] **M11** Manual Sync System with 3 Daily Windows
-- [ ] **M12** Dashboard and Insights
-- [ ] **M13** Quality, Observability, and Hardening
-- [ ] **M14** Launch and Post-Launch Readiness
+
+- **M0** Repository Foundation
+- **M1** Monorepo and Shared Packages
+- **M2** Frontend Web App Scaffold
+- **M3** Backend API Scaffold on Render
+- **M4** Database and Schema
+- **M5** Authentication and Access Control
+- **M6** Billing and Entitlements
+- **M7** Marketing Site and SEO
+- **M8** Product and Cost Management
+- **M9** Financial Domain Engine
+- **M10** Marketplace Connections
+- **M11** Manual Sync System with 3 Daily Windows
+- **M12** Dashboard and Insights
+- **M13** Quality, Observability, and Hardening
+- **M14** Launch and Post-Launch Readiness
 
 ### 26.2 Milestone Completion Rule
+
 A milestone is complete only when:
+
 - every required task in that milestone is checked
 - the milestone exit criteria are satisfied
 - required tests for that milestone are passing
 - the checkpoint note has been written to `docs/CHECKPOINTS.md`
 
 ### 26.3 Dependency Notes
+
 - M0 blocks everything
 - M1 depends on M0
 - M2 and M3 depend on M1
@@ -960,714 +1032,837 @@ A milestone is complete only when:
 ## [x] M0. Repository Foundation
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [x] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Establish a strict TypeScript, ESLint, CI, and repository baseline.
 
 ### Dependencies
+
 - none
 
 ### Task Groups
 
 #### 0.1 Repository Setup
-- [x] Initialize repository
-- [x] Add top-level README with setup instructions
-- [x] Define branching and PR conventions
-- [x] Add `.editorconfig`, `.gitignore`, and repository hygiene files
+
+- Initialize repository
+- Add top-level README with setup instructions
+- Define branching and PR conventions
+- Add `.editorconfig`, `.gitignore`, and repository hygiene files
 
 #### 0.2 TypeScript and Linting Baseline
-- [x] Configure strict TypeScript defaults
-- [x] Configure ESLint base strategy
-- [x] Decide and document Prettier usage
-- [x] Define path alias strategy
+
+- Configure strict TypeScript defaults
+- Configure ESLint base strategy
+- Decide and document Prettier usage
+- Define path alias strategy
 
 #### 0.3 CI Baseline
-- [x] Add CI workflow for lint, typecheck, test, and build
-- [x] Verify local developer startup flow
-- [x] Add required scripts to root package.json
+
+- Add CI workflow for lint, typecheck, test, and build
+- Verify local developer startup flow
+- Add required scripts to root package.json
 
 ### Exit Criteria
-- [x] Repository installs cleanly
-- [x] Root scripts run successfully
-- [x] ESLint passes
-- [x] Typecheck passes
-- [x] Build pipeline passes
-- [x] Setup instructions are documented
+
+- Repository installs cleanly
+- Root scripts run successfully
+- ESLint passes
+- Typecheck passes
+- Build pipeline passes
+- Setup instructions are documented
 
 ### Blockers / Notes
-- [x] No blockers currently logged
+
+- No blockers currently logged
 
 ---
 
 ## [x] M1. Monorepo and Shared Packages
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [x] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Create the monorepo shape and shared packages used by both frontend and backend.
 
 ### Dependencies
+
 - M0 complete
 
 ### Task Groups
 
 #### 1.1 Workspace Setup
-- [x] Configure pnpm workspaces
-- [x] Configure Turborepo
-- [x] Add root-level task pipeline
-- [x] Document package boundaries
+
+- Configure pnpm workspaces
+- Configure Turborepo
+- Add root-level task pipeline
+- Document package boundaries
 
 #### 1.2 Shared Packages
-- [x] Create `packages/types`
-- [x] Create `packages/database`
-- [x] Create `packages/domain`
-- [x] Create `packages/validation`
-- [x] Create `packages/ui`
-- [x] Create `packages/eslint-config`
-- [x] Create `packages/tsconfig`
+
+- Create `packages/types`
+- Create `packages/database`
+- Create `packages/domain`
+- Create `packages/validation`
+- Create `packages/ui`
+- Create `packages/eslint-config`
+- Create `packages/tsconfig`
 
 #### 1.3 Shared Package Validation
-- [x] Verify package imports from both apps
-- [x] Verify build and type resolution across apps
-- [x] Document package ownership rules
+
+- Verify package imports from both apps
+- Verify build and type resolution across apps
+- Document package ownership rules
 
 ### Exit Criteria
-- [x] Monorepo workspace resolves correctly
-- [x] Shared packages build or typecheck successfully
-- [x] Both apps can consume shared packages
-- [x] Repository structure is documented
+
+- Monorepo workspace resolves correctly
+- Shared packages build or typecheck successfully
+- Both apps can consume shared packages
+- Repository structure is documented
 
 ### Blockers / Notes
-- [x] No blockers currently logged
+
+- No blockers currently logged
 
 ---
 
 ## [x] M2. Frontend Web App Scaffold
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [x] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Create the Next.js frontend with public and private route boundaries.
 
 ### Dependencies
+
 - M1 complete
 
 ### Task Groups
 
 #### 2.1 Web Bootstrap
-- [x] Initialize Next.js App Router app in `apps/web`
-- [x] Add Tailwind CSS
-- [x] Add base UI primitives and design tokens
+
+- Initialize Next.js App Router app in `apps/web`
+- Add Tailwind CSS
+- Add base UI primitives and design tokens
 
 #### 2.2 Route Structure
-- [x] Create `(marketing)` route group
-- [x] Create `(app)` route group
-- [x] Create base layouts
-- [x] Create protected app layout placeholder
+
+- Create `(marketing)` route group
+- Create `(app)` route group
+- Create base layouts
+- Create protected app layout placeholder
 
 #### 2.3 Frontend Conventions
-- [x] Add API client layer for NestJS communication
-- [x] Add frontend env configuration
-- [x] Add error/loading UI conventions
-- [x] Add TanStack Query baseline where appropriate
+
+- Add API client layer for NestJS communication
+- Add frontend env configuration
+- Add error/loading UI conventions
+- Add TanStack Query baseline where appropriate
 
 ### Exit Criteria
-- [x] Frontend runs locally
-- [x] Marketing and app route groups exist
-- [x] Shared UI foundation exists
-- [x] API client layer is established
+
+- Frontend runs locally
+- Marketing and app route groups exist
+- Shared UI foundation exists
+- API client layer is established
 
 ### Blockers / Notes
-- [x] No blockers currently logged
+
+- No blockers currently logged
 
 ---
 
 ## [x] M3. Backend API Scaffold on Render
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [x] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Create the NestJS backend and prepare it for deployment on Render.
 
 ### Dependencies
+
 - M1 complete
 
 ### Task Groups
 
 #### 3.1 API Bootstrap
-- [x] Initialize NestJS app in `apps/api`
-- [x] Choose and configure HTTP adapter
-- [x] Add health endpoint
-- [x] Add module skeleton
+
+- Initialize NestJS app in `apps/api`
+- Choose and configure HTTP adapter
+- Add health endpoint
+- Add module skeleton
 
 #### 3.2 API Architecture
-- [x] Create `common`, `modules`, `infra`, and `integrations` structure
-- [x] Add global validation strategy
-- [x] Add error handling and exception filters
-- [x] Add CORS and cookie/session strategy for web-to-api communication
+
+- Create `common`, `modules`, `infra`, and `integrations` structure
+- Add global validation strategy
+- Add error handling and exception filters
+- Add CORS and cookie/session strategy for web-to-api communication
 
 #### 3.3 Render Readiness
-- [x] Add Render build and start commands
-- [x] Add environment variable documentation for Render
-- [x] Add health check path
-- [x] Verify production boot flow locally
+
+- Add Render build and start commands
+- Add environment variable documentation for Render
+- Add health check path
+- Verify production boot flow locally
 
 ### Exit Criteria
-- [x] Backend runs locally
-- [x] Health endpoint works
-- [x] Base modules compile
-- [x] Render deploy instructions are documented
+
+- Backend runs locally
+- Health endpoint works
+- Base modules compile
+- Render deploy instructions are documented
 
 ### Blockers / Notes
-- [x] No blockers currently logged
+
+- No blockers currently logged
 
 ---
 
 ## [x] M4. Database and Schema
 
 ### Status
-  - [ ] Not started
-  - [ ] In progress
-  - [ ] Blocked
-  - [x] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Set up Supabase Postgres, Drizzle schema, migrations, and shared database access.
 
 ### Dependencies
+
 - M1 complete
 
 ### Task Groups
 
 #### 4.1 Database Foundation
-  - [x] Configure database package
-  - [x] Configure Drizzle
-  - [x] Add migration workflow
-  - [x] Add environment validation for DB access
+
+- Configure database package
+- Configure Drizzle
+- Add migration workflow
+- Add environment validation for DB access
 
 #### 4.2 Initial Schema
-  - [x] Model users and organizations
-  - [x] Model billing tables
-  - [x] Model marketplace connection tables
-  - [x] Model products, costs, and expenses
-  - [x] Model sync history
-  - [x] Model metrics tables
+
+- Model users and organizations
+- Model billing tables
+- Model marketplace connection tables
+- Model products, costs, and expenses
+- Model sync history
+- Model metrics tables
 
 #### 4.3 Database Quality
-  - [x] Add indexes for organization-scoped access
-  - [x] Add seed or fixture strategy for local development
-  - [x] Document migration and rollback flow
+
+- Add indexes for organization-scoped access
+- Add seed or fixture strategy for local development
+- Document migration and rollback flow
 
 ### Exit Criteria
-  - [x] Database connection works from backend
-  - [x] Migrations run successfully
-  - [x] Initial schema exists
-  - [x] Local development data strategy exists
+
+- Database connection works from backend
+- Migrations run successfully
+- Initial schema exists
+- Local development data strategy exists
 
 ### Blockers / Notes
-  - [x] No blockers currently logged
-  - [x] User accepted milestone completion after implementation landed and migration generation plus repo verification passed
+
+- No blockers currently logged
+- User accepted milestone completion after implementation landed and migration generation plus repo verification passed
 
 ---
 
 ## [x] M5. Authentication and Access Control
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [x] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Implement authentication, sessions, organization scoping, and route protection.
 
 ### Dependencies
+
 - M3 and M4 complete
 
 ### Task Groups
 
 #### 5.1 Better Auth Setup
-- [x] Install and configure Better Auth in backend
-- [x] Configure database adapter
-- [x] Configure Google login
-- [x] Expose auth endpoints
+
+- Install and configure Better Auth in backend
+- Configure database adapter
+- Configure Google login
+- Expose auth endpoints
 
 #### 5.2 Session and Access Model
-- [x] Define session strategy
-- [x] Define organization membership model
-- [x] Add backend auth guards or equivalent access middleware
-- [x] Add frontend protected-route behavior
+
+- Define session strategy
+- Define organization membership model
+- Add backend auth guards or equivalent access middleware
+- Add frontend protected-route behavior
 
 #### 5.3 Auth Quality
-- [x] Add auth integration tests
-- [x] Add login/logout flows in frontend
-- [x] Document auth environment variables
+
+- Add auth integration tests
+- Add login/logout flows in frontend
+- Document auth environment variables
 
 ### Exit Criteria
-- [x] User can authenticate
-- [x] Protected routes are enforced
-- [x] Organization-scoped access works
-- [x] Auth flow is documented
+
+- User can authenticate
+- Protected routes are enforced
+- Organization-scoped access works
+- Auth flow is documented
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] `/sign-in` no longer tripped a 500 on `GET /auth-state/me`: the API dev runner (`tsx`) does not emit Nest’s `design:paramtypes`, so class-based constructor injection was undefined for `AuthGuard` and other providers until explicit `@Inject(Type)` was added; the marketing `app/error.tsx` no longer wraps segment errors in `<html>/<body>` (that shape belongs only in `global-error.tsx`).
-- [x] Better Auth routing and Fastify bridge were corrected to use the live `/auth` base path with request-body forwarding, and server-side Google sign-in now returns a real Google authorization URL
-- [x] Local auth schema drift was repaired in development by resetting the empty local Postgres schema to the current Drizzle baseline, and the Better Auth tables were aligned to string IDs expected by the library
-- [x] Manual browser verification completed on 2026-05-01: Google login succeeded locally, the user accessed the platform, and sign-out also completed successfully
-- [x] M5 hardening code shipped: shared trusted-origin parsing, lifecycle-managed DB runtime, split auth provisioning seam, and safer frontend auth redirects/error states
+
+- No blockers currently logged
+- `/sign-in` no longer tripped a 500 on `GET /auth-state/me`: the API dev runner (`tsx`) does not emit Nest’s `design:paramtypes`, so class-based constructor injection was undefined for `AuthGuard` and other providers until explicit `@Inject(Type)` was added; the marketing `app/error.tsx` no longer wraps segment errors in `<html>/<body>` (that shape belongs only in `global-error.tsx`).
+- Better Auth routing and Fastify bridge were corrected to use the live `/auth` base path with request-body forwarding, and server-side Google sign-in now returns a real Google authorization URL
+- Local auth schema drift was repaired in development by resetting the empty local Postgres schema to the current Drizzle baseline, and the Better Auth tables were aligned to string IDs expected by the library
+- Manual browser verification completed on 2026-05-01: Google login succeeded locally, the user accessed the platform, and sign-out also completed successfully
+- M5 hardening code shipped: shared trusted-origin parsing, lifecycle-managed DB runtime, split auth provisioning seam, and safer frontend auth redirects/error states
 
 ---
 
 ## [x] M6. Billing and Entitlements
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [x] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Implement Stripe subscription flows and access gating.
 
 ### Dependencies
+
 - M5 complete
 
 ### Task Groups
 
 #### 6.1 Stripe Foundation
-- [x] Configure Stripe products and prices
-- [x] Define monthly and annual plan identifiers
-- [x] Implement checkout initiation flow
-- [x] Model billing customer and subscription mapping
+
+- Configure Stripe products and prices
+- Define monthly and annual plan identifiers
+- Implement checkout initiation flow
+- Model billing customer and subscription mapping
 
 #### 6.2 Webhooks and Local State
-- [x] Add Stripe webhook endpoint in backend
-- [x] Verify webhook signatures
-- [x] Mirror subscription state locally
-- [x] Define entitlement-check helper
+
+- Add Stripe webhook endpoint in backend
+- Verify webhook signatures
+- Mirror subscription state locally
+- Define entitlement-check helper
 
 #### 6.3 Product Enforcement
-- [x] Gate protected backend endpoints by entitlement
-- [x] Gate frontend app entry by entitlement
-- [x] Add subscription state UI in app
+
+- Gate protected backend endpoints by entitlement
+- Gate frontend app entry by entitlement
+- Add subscription state UI in app
 
 ### Exit Criteria
-- [x] User can subscribe
-- [x] Subscription state is mirrored locally
-- [x] Protected product usage is gated correctly
-- [x] Billing flow is tested at minimum critical-path level
+
+- User can subscribe
+- Subscription state is mirrored locally
+- Protected product usage is gated correctly
+- Billing flow is tested at minimum critical-path level
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] Real Stripe monthly and annual price IDs are configured in env and were verified as active recurring prices against Stripe
-- [x] Manual browser verification completed on 2026-05-01: Stripe checkout succeeded locally, payment unlocked the platform, and subscription-gated access was released after the real billing flow
-- [x] M6 code shipped with API-owned checkout creation, verified webhook signature handling, local subscription mirroring, entitlement guard enforcement, `/billing/subscription`, `/billing/checkout`, `/billing/stripe/webhook`, and the `/app/billing` paywall route
-- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+
+- No blockers currently logged
+- Real Stripe monthly and annual price IDs are configured in env and were verified as active recurring prices against Stripe
+- Manual browser verification completed on 2026-05-01: Stripe checkout succeeded locally, payment unlocked the platform, and subscription-gated access was released after the real billing flow
+- M6 code shipped with API-owned checkout creation, verified webhook signature handling, local subscription mirroring, entitlement guard enforcement, `/billing/subscription`, `/billing/checkout`, `/billing/stripe/webhook`, and the `/app/billing` paywall route
+- Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
 
 ---
 
-## [ ] M7. Marketing Site and SEO
+## [] M7. Marketing Site and SEO
 
 ### Status
-- [ ] Not started
-- [x] In progress
-- [ ] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Build the public website and SEO baseline in Next.js.
 
 ### Dependencies
+
 - M2 complete
 
 ### Task Groups
 
 #### 7.1 Public Pages
-- [x] Build Hero section
-- [x] Build Features section
-- [x] Build Pricing section with monthly/annual toggle
-- [x] Build Footer
-- [x] Build final CTA section
+
+- Build Hero section
+- Build Features section
+- Build Pricing section with monthly/annual toggle
+- Build Footer
+- Build final CTA section
 
 #### 7.2 SEO Foundation
-- [x] Add metadata strategy
-- [x] Add sitemap generation
-- [x] Add robots rules
-- [x] Add canonical URL strategy
-- [x] Add Open Graph tags
+
+- Add metadata strategy
+- Add sitemap generation
+- Add robots rules
+- Add canonical URL strategy
+- Add Open Graph tags
 
 #### 7.3 UX and Performance
-- [x] Add responsive behavior
-- [x] Optimize visual loading
-- [x] Review page performance and page quality
+
+- Add responsive behavior
+- Optimize visual loading
+- Review page performance and page quality
 
 ### Exit Criteria
-- [x] Public website is complete
-- [x] SEO baseline exists
-- [x] Pricing is clear
-- [x] CTA flow leads toward signup
+
+- Public website is complete
+- SEO baseline exists
+- Pricing is clear
+- CTA flow leads toward signup
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] 2026-04: Landing principal redesenhada em PT-BR com partículas (`@tsparticles`), animações (`framer-motion`), hero com mock do dashboard, grade de recursos, integrações, preços (mensal/anual) e CTA alinhados ao layout de marketing.
-- [x] M7 landing and SEO implementation shipped in `apps/web` with dedicated `features`, `pricing`, and `integrations` pages, reusable marketing components, metadata helpers, `robots.txt`, and `sitemap.xml`
-- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
-- [x] Milestone is ready for final completion tick once user confirms it should be considered done
+
+- No blockers currently logged
+- 2026-04: Landing principal redesenhada em PT-BR com partículas (`@tsparticles`), animações (`framer-motion`), hero com mock do dashboard, grade de recursos, integrações, preços (mensal/anual) e CTA alinhados ao layout de marketing.
+- M7 landing and SEO implementation shipped in `apps/web` with dedicated `features`, `pricing`, and `integrations` pages, reusable marketing components, metadata helpers, `robots.txt`, and `sitemap.xml`
+- Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- Milestone is ready for final completion tick once user confirms it should be considered done
 
 ---
 
 ## [ ] M8. Product and Cost Management
 
 ### Status
-- [ ] Not started
-- [x] In progress
-- [ ] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Allow users to create, edit, and manage products and related cost inputs.
 
 ### Dependencies
+
 - M4 complete
 - M5 complete
 
 ### Task Groups
 
 #### 8.1 Backend
-- [x] Create product module
-- [x] Create product cost module
-- [x] Create ad cost and manual expense endpoints
-- [x] Add archive behavior
+
+- Create product module
+- Create product cost module
+- Create ad cost and manual expense endpoints
+- Add archive behavior
 
 #### 8.2 Frontend
-- [x] Build product list page
-- [x] Build create/edit product forms
-- [x] Build cost entry flows
-- [x] Build empty and error states
+
+- Build product list page
+- Build create/edit product forms
+- Build cost entry flows
+- Build empty and error states
 
 #### 8.3 Quality
-- [x] Add validation tests
-- [x] Add core integration tests
-- [x] Verify organization scoping
+
+- Add validation tests
+- Add core integration tests
+- Verify organization scoping
 
 ### Exit Criteria
-- [x] User can manage products and costs
-- [x] Calculated fields can consume stored data
-- [x] Product CRUD path is functional end to end
+
+- User can manage products and costs
+- Calculated fields can consume stored data
+- Product CRUD path is functional end to end
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] M8 shipped with protected API endpoints for products, product costs, ad costs, and manual expenses plus a single `/app/products` management hub in the web app
-- [x] Product archive behavior is soft-only via `isActive`, product cost history remains appendable, and product lists now surface the latest recorded cost per product
-- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
-- [x] Milestone is ready for final completion tick once user confirms it should be considered done
+
+- No blockers currently logged
+- M8 shipped with protected API endpoints for products, product costs, ad costs, and manual expenses plus a single `/app/products` management hub in the web app
+- Product archive behavior is soft-only via `isActive`, product cost history remains appendable, and product lists now surface the latest recorded cost per product
+- The protected `/app/products` workspace now also surfaces Mercado Livre synced-product review items so users can keep manual products while importing, linking, or ignoring marketplace-discovered products
+- Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- Milestone is ready for final completion tick once user confirms it should be considered done
 
 ---
 
 ## [ ] M9. Financial Domain Engine
 
 ### Status
-- [ ] Not started
-- [x] In progress
-- [ ] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Implement deterministic financial formulas and metric-generation logic.
 
 ### Dependencies
+
 - M4 and M8 complete
 
 ### Task Groups
 
 #### 9.1 Formula Layer
-- [x] Implement gross revenue formula
-- [x] Implement net revenue formula
-- [x] Implement contribution margin formula
-- [x] Implement gross margin formula
-- [x] Implement net profit formula
-- [x] Implement break-even formulas
+
+- Implement gross revenue formula
+- Implement net revenue formula
+- Implement contribution margin formula
+- Implement gross margin formula
+- Implement net profit formula
+- Implement break-even formulas
 
 #### 9.2 Metrics and Aggregation
-- [x] Add product-level profitability calculations
-- [x] Add channel-level profitability calculations
-- [x] Add daily metrics generation strategy
-- [x] Add metric read helpers for dashboard consumption
+
+- Add product-level profitability calculations
+- Add channel-level profitability calculations
+- Add daily metrics generation strategy
+- Add metric read helpers for dashboard consumption
 
 #### 9.3 Tests
-- [x] Add unit tests for formulas
-- [x] Add integration tests for stored metric generation
-- [x] Verify deterministic outputs
+
+- Add unit tests for formulas
+- Add integration tests for stored metric generation
+- Verify deterministic outputs
 
 ### Exit Criteria
-- [x] Core formulas are implemented
-- [x] Tests validate metric correctness
-- [x] Dashboard-facing data contracts are available
+
+- Core formulas are implemented
+- Tests validate metric correctness
+- Dashboard-facing data contracts are available
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] M9 shipped a new `@marginflow/domain` finance engine with deterministic money math, formula helpers, organization finance snapshot types, overview aggregation, and unit coverage for formulas plus zero-edge behavior
-- [x] The API now includes an internal `FinanceModule` and `FinanceService` that build organization-scoped finance snapshots from current tables, map marketplace sales to internal products by SKU, aggregate summary/channel/product/daily read models, and materialize `daily_metrics` plus `product_metrics`
-- [x] Shared dashboard-facing contracts were added in `@marginflow/types`, and materialized metric metadata now carries supporting profitability fields for future M12 dashboard endpoints
-- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
-- [x] Milestone is ready for final completion tick once user confirms it should be considered done; M8 remains separately pending final confirmation
+
+- No blockers currently logged
+- M9 shipped a new `@marginflow/domain` finance engine with deterministic money math, formula helpers, organization finance snapshot types, overview aggregation, and unit coverage for formulas plus zero-edge behavior
+- The API now includes an internal `FinanceModule` and `FinanceService` that build organization-scoped finance snapshots from current tables, map marketplace sales to internal products by SKU, aggregate summary/channel/product/daily read models, and materialize `daily_metrics` plus `product_metrics`
+- Shared dashboard-facing contracts were added in `@marginflow/types`, and materialized metric metadata now carries supporting profitability fields for future M12 dashboard endpoints
+- Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- Milestone is ready for final completion tick once user confirms it should be considered done; M8 remains separately pending final confirmation
 
 ---
 
 ## [ ] M10. Marketplace Connections
 
 ### Status
-- [ ] Not started
-- [x] In progress
-- [x] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Implement marketplace account connection flows and provider boundaries.
 
 ### Dependencies
+
 - M4 complete
 - M5 complete
 
 ### Task Groups
 
 #### 10.1 Provider Boundaries
-- [x] Define provider interface
-- [x] Add Mercado Livre provider skeleton
-- [x] Add Shopee provider skeleton
-- [x] Add secure token storage strategy
+
+- Define provider interface
+- Add Mercado Livre provider skeleton
+- Add Shopee provider skeleton
+- Add secure token storage strategy
 
 #### 10.2 Connection Flows
-- [x] Implement Mercado Livre connect flow
-- [ ] Implement Shopee connect flow if credentials are available
-- [x] Add connection status endpoints
-- [x] Add disconnection flow if needed
+
+- Implement Mercado Livre connect flow
+- Implement Shopee connect flow if credentials are available
+- Add connection status endpoints
+- Add disconnection flow if needed
 
 #### 10.3 Quality
-- [x] Add provider mapping tests
-- [x] Add connection-flow integration tests
-- [x] Add provider error messaging strategy
+
+- Add provider mapping tests
+- Add connection-flow integration tests
+- Add provider error messaging strategy
 
 ### Exit Criteria
-- [ ] At least one provider connect flow is functional
-- [x] Provider boundary exists for future expansion
-- [x] Connection state is visible in the app
+
+- At least one provider connect flow is functional
+- Provider boundary exists for future expansion
+- Connection state is visible in the app
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] M10 shipped a protected `IntegrationsModule` in `apps/api` with signed Mercado Livre OAuth state, connection status/read-model endpoints, a callback bridge, and local disconnect flow on top of the existing `marketplace_connections` table
-- [x] The web app now includes a dedicated `/app/integrations` workspace page with provider cards, callback feedback messaging, and connect/disconnect actions wired to the API
-- [x] Shared integration contracts were added in `@marginflow/types`, and Shopee now exists as an explicit skeleton behind the same provider boundary without pretending the live flow is configured
-- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
-- [x] Final milestone closure is still blocked on manual live Mercado Livre credential setup plus browser callback verification, so the milestone should remain incomplete until that pass succeeds
+
+- No blockers currently logged
+- M10 shipped a protected `IntegrationsModule` in `apps/api` with signed Mercado Livre OAuth state, connection status/read-model endpoints, a callback bridge, and local disconnect flow on top of the existing `marketplace_connections` table
+- The web app now includes a dedicated `/app/integrations` workspace page with provider cards, callback feedback messaging, and connect/disconnect actions wired to the API
+- Shared integration contracts were added in `@marginflow/types`, and Shopee now exists as an explicit skeleton behind the same provider boundary without pretending the live flow is configured
+- Mercado Livre synced products can now be listed and reviewed through protected API endpoints for imported catalog review, explicit link-to-existing-product, and ignore actions without auto-creating active internal products during sync
+- Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- Final milestone closure is still blocked on manual live Mercado Livre credential setup plus browser callback verification, so the milestone should remain incomplete until that pass succeeds
 
 ---
 
 ## [ ] M11. Manual Sync System with 3 Daily Windows
 
 ### Status
-- [ ] Not started
-- [x] In progress
-- [x] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Implement the manual sync button, daily window rules, sync status tracking, and incremental import flow.
 
 ### Dependencies
+
 - M9 and M10 complete
 
 ### Task Groups
 
 #### 11.1 Sync Rule Engine
-- [x] Implement window-key calculation
-- [x] Implement current-window availability check
-- [x] Implement duplicate-window blocking
-- [x] Implement next-available-window response logic
+
+- Implement window-key calculation
+- Implement current-window availability check
+- Implement duplicate-window blocking
+- Implement next-available-window response logic
 
 #### 11.2 Sync Execution
-- [x] Create sync run service
-- [x] Record `processing`, `completed`, and `failed` states
-- [x] Implement incremental sync strategy
-- [x] Implement idempotent upsert flow
-- [x] Recalculate affected metrics after sync
+
+- Create sync run service
+- Record `processing`, `completed`, and `failed` states
+- Implement incremental sync strategy
+- Implement idempotent upsert flow
+- Recalculate affected metrics after sync
 
 #### 11.3 Frontend UX
-- [x] Add Sync Data button
-- [x] Add blocked-state messaging
-- [x] Add sync status and history UI
-- [x] Add loading and failure states
+
+- Add Sync Data button
+- Add blocked-state messaging
+- Add sync status and history UI
+- Add loading and failure states
 
 ### Exit Criteria
-- [ ] User can run sync when allowed
-- [ ] User is blocked after using the current window
-- [x] Sync history is visible
-- [x] Updated metrics appear after successful sync
+
+- User can run sync when allowed
+- User is blocked after using the current window
+- Sync history is visible
+- Updated metrics appear after successful sync
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] M11 shipped a new protected `SyncModule` in `apps/api` with `GET /sync/status`, `GET /sync/history`, and `POST /sync/run`, plus a Sao Paulo window-rule engine, provider-based Mercado Livre sync orchestration, sync-run persistence, and finance re-materialization after successful imports
-- [x] The `/app/integrations` workspace now includes manual sync availability, blocked-state messaging, active run feedback, last successful sync details, and recent sync history beside the existing provider cards
-- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
-- [x] Final milestone closure is still blocked on live Mercado Livre credential setup plus browser verification for account callback, first import, same-window blocking, and real metrics refresh
+
+- No blockers currently logged
+- M11 shipped a new protected `SyncModule` in `apps/api` with `GET /sync/status`, `GET /sync/history`, and `POST /sync/run`, plus a Sao Paulo window-rule engine, provider-based Mercado Livre sync orchestration, sync-run persistence, and finance re-materialization after successful imports
+- The `/app/integrations` workspace now includes manual sync availability, blocked-state messaging, active run feedback, last successful sync details, and recent sync history beside the existing provider cards
+- Successful Mercado Livre sync imports now feed a review-first catalog workflow in `/app/products`, where external products stay read-only until the user imports or links them to the internal catalog, and finance matching now prefers explicit links before SKU fallback
+- Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- Final milestone closure is still blocked on live Mercado Livre credential setup plus browser verification for account callback, first import, same-window blocking, and real metrics refresh
 
 ---
 
 ## [ ] M12. Dashboard and Insights
 
 ### Status
-- [ ] Not started
-- [x] In progress
-- [ ] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Expose useful financial insights through the dashboard.
 
 ### Dependencies
+
 - M9 and M11 complete
 
 ### Task Groups
 
 #### 12.1 Backend Read Models
-- [x] Implement dashboard summary endpoint
-- [x] Implement chart endpoint
-- [x] Implement recent sync endpoint
-- [x] Implement product profitability read model
+
+- Implement dashboard summary endpoint
+- Implement chart endpoint
+- Implement recent sync endpoint
+- Implement product profitability read model
 
 #### 12.2 Frontend Dashboard
-- [x] Build top-level KPI section
-- [x] Build charts section
-- [x] Build profitability tables
-- [x] Build recent sync panel
-- [x] Build empty states for not-yet-synced accounts
+
+- Build top-level KPI section
+- Build charts section
+- Build profitability tables
+- Build recent sync panel
+- Build empty states for not-yet-synced accounts
 
 #### 12.3 Dashboard Quality
-- [x] Validate numbers against domain formulas
-- [x] Review data-loading states
-- [x] Review mobile and desktop usability
+
+- Validate numbers against domain formulas
+- Review data-loading states
+- Review mobile and desktop usability
 
 ### Exit Criteria
-- [x] Dashboard displays useful financial insight
-- [x] Summary metrics and charts load correctly
-- [x] Recent sync data is visible
-- [x] UI reflects real backend-calculated values
+
+- Dashboard displays useful financial insight
+- Summary metrics and charts load correctly
+- Recent sync data is visible
+- UI reflects real backend-calculated values
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
-- [x] M12 shipped a new protected `DashboardModule` in `apps/api` with `GET /dashboard/summary`, `GET /dashboard/charts`, `GET /dashboard/recent-sync`, and `GET /dashboard/profitability`, all composed from the existing finance engine plus sync status service
-- [x] The web app now opens entitled users on a real `/app` dashboard with KPI cards, responsive Recharts trend/comparison views, profitability rankings, recent sync visibility, and distinct first-run empty states for no sync data vs missing catalog cost inputs
-- [x] Shared dashboard response contracts were added in `@marginflow/types`, and `/app` navigation now treats Dashboard as the primary workspace home instead of redirecting immediately to Products
-- [x] Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
-- [x] Milestone is ready for final completion tick once user confirms it should be considered done
+
+- No blockers currently logged
+- M12 shipped a new protected `DashboardModule` in `apps/api` with `GET /dashboard/summary`, `GET /dashboard/charts`, `GET /dashboard/recent-sync`, and `GET /dashboard/profitability`, all composed from the existing finance engine plus sync status service
+- The web app now opens entitled users on a real `/app` dashboard with KPI cards, responsive Recharts trend/comparison views, profitability rankings, recent sync visibility, and distinct first-run empty states for no sync data vs missing catalog cost inputs
+- Shared dashboard response contracts were added in `@marginflow/types`, and `/app` navigation now treats Dashboard as the primary workspace home instead of redirecting immediately to Products
+- Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
+- Milestone is ready for final completion tick once user confirms it should be considered done
 
 ---
 
 ## [ ] M13. Quality, Observability, and Hardening
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Improve reliability, error visibility, and launch confidence.
 
 ### Dependencies
+
 - Core product path is functional
 
 ### Task Groups
 
 #### 13.1 Quality Gates
-- [ ] Expand unit test coverage
-- [ ] Expand integration test coverage
-- [ ] Add end-to-end smoke coverage
-- [ ] Enforce CI branch protections
+
+- Expand unit test coverage
+- Expand integration test coverage
+- Add end-to-end smoke coverage
+- Enforce CI branch protections
 
 #### 13.2 Observability
-- [ ] Add structured logging for backend
-- [ ] Add sync failure logging
-- [ ] Add webhook failure logging
-- [ ] Add operational troubleshooting notes
+
+- Add structured logging for backend
+- Add sync failure logging
+- Add webhook failure logging
+- Add operational troubleshooting notes
 
 #### 13.3 Hardening
-- [ ] Review secrets handling
-- [ ] Review error redaction
-- [ ] Review API rate protection strategy
-- [ ] Review deployment environment parity
+
+- Review secrets handling
+- Review error redaction
+- Review API rate protection strategy
+- Review deployment environment parity
 
 ### Exit Criteria
-- [ ] Critical flows are covered by tests
-- [ ] Logs support debugging
-- [ ] Deployment posture is documented
-- [ ] Release confidence is acceptable
+
+- Critical flows are covered by tests
+- Logs support debugging
+- Deployment posture is documented
+- Release confidence is acceptable
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
+
+- No blockers currently logged
 
 ---
 
 ## [ ] M14. Launch and Post-Launch Readiness
 
 ### Status
-- [ ] Not started
-- [ ] In progress
-- [ ] Blocked
-- [ ] Completed
+
+- Not started
+- In progress
+- Blocked
+- Completed
 
 ### Objective
+
 Prepare the product for initial launch and clear next-step evolution.
 
 ### Dependencies
+
 - Launch-critical milestones complete
 
 ### Task Groups
 
 #### 14.1 Launch Readiness
-- [ ] Verify production environment variables
-- [ ] Verify web and API domains
-- [ ] Verify Stripe production configuration
-- [ ] Verify Supabase production configuration
-- [ ] Verify Render production deployment
-- [ ] Verify Vercel production deployment
+
+- Verify production environment variables
+- Verify web and API domains
+- Verify Stripe production configuration
+- Verify Supabase production configuration
+- Verify Render production deployment
+- Verify Vercel production deployment
 
 #### 14.2 Product Readiness
-- [ ] Validate onboarding path
-- [ ] Validate billing-to-access path
-- [ ] Validate marketplace connect-to-sync path
-- [ ] Validate dashboard insight path
+
+- Validate onboarding path
+- Validate billing-to-access path
+- Validate marketplace connect-to-sync path
+- Validate dashboard insight path
 
 #### 14.3 Post-Launch Planning
-- [ ] Define V2 extraction points for jobs and workers
-- [ ] Document future queue/Redis strategy
-- [ ] Document next product milestones
-- [ ] Write launch retrospective template
+
+- Define V2 extraction points for jobs and workers
+- Document future queue/Redis strategy
+- Document next product milestones
+- Write launch retrospective template
 
 ### Exit Criteria
-- [ ] Production stack is verified
-- [ ] Launch-critical journey works end to end
-- [ ] Next technical evolution path is documented
+
+- Production stack is verified
+- Launch-critical journey works end to end
+- Next technical evolution path is documented
 
 ### Blockers / Notes
-- [ ] No blockers currently logged
+
+- No blockers currently logged
 
 ---
 

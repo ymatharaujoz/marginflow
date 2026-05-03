@@ -1,13 +1,32 @@
 import type { Metadata } from "next";
 import { readPublicEnv } from "@/lib/env";
 
-export const siteConfig = {
-  defaultDescription:
-    "MarginFlow centraliza para vendedores de marketplaces faturamento, taxas, custos e lucro real em um só lugar.",
-  defaultTitle: "MarginFlow",
-  domainFallback: "https://marginflow.vercel.app",
-  name: "MarginFlow",
-};
+/** Canonical URL fallback when `NEXT_PUBLIC_APP_URL` is invalid. */
+export const SITE_DOMAIN_FALLBACK = "https://marginflow.vercel.app";
+
+export function resolveSiteConfig(source: Record<string, string | undefined> = process.env) {
+  const env = readPublicEnv(source);
+  const name = env.NEXT_PUBLIC_APP_NAME;
+  return {
+    defaultDescription: `${name} centraliza para vendedores de marketplaces faturamento, taxas, custos e lucro real em um só lugar.`,
+    defaultTitle: name,
+    domainFallback: SITE_DOMAIN_FALLBACK,
+    icon: env.NEXT_PUBLIC_APP_ICON,
+    name,
+    priceAnnualLabel: env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL,
+    priceMonthlyLabel: env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL,
+  };
+}
+
+/** e.g. `Recursos | MyApp` */
+export function sitePageTitle(segment: string, source: Record<string, string | undefined> = process.env) {
+  return `${segment} | ${readPublicEnv(source).NEXT_PUBLIC_APP_NAME}`;
+}
+
+/** e.g. `MyApp | Tagline for the home page` */
+export function brandSeoTitle(tagline: string, source: Record<string, string | undefined> = process.env) {
+  return `${readPublicEnv(source).NEXT_PUBLIC_APP_NAME} | ${tagline}`;
+}
 
 /** In-page sections on the marketing homepage (`/`). Header/footer use these instead of separate routes. */
 export const marketingLandingNav = [
@@ -87,9 +106,8 @@ export const integrationHighlights = [
   },
 ];
 
-export const pricingPlans = [
+const pricingPlansTemplate = [
   {
-    annualPrice: "US$ 79",
     annualSuffix: "/mês cobrado anualmente",
     ctaHref: "/sign-in",
     ctaLabel: "Começar plano anual",
@@ -101,7 +119,6 @@ export const pricingPlans = [
       "Sync manual em janelas com histórico",
       "Acesso ao app condicionado à assinatura e espelho de billing",
     ],
-    monthlyPrice: "US$ 99",
     monthlySuffix: "/mês",
     name: "Crescimento",
   },
@@ -122,45 +139,64 @@ export const pricingPlans = [
     monthlySuffix: "escopo sob medida",
     name: "Escala",
   },
-];
+] as const;
 
-export const publicRoutes = [
-  {
-    changeFrequency: "weekly" as const,
-    description:
-      "MarginFlow — visibilidade financeira para marketplaces, preços e chamada principal.",
-    path: "/",
-    priority: 1,
-    title: "MarginFlow | Clareza financeira para sellers",
-  },
-  {
-    changeFrequency: "weekly" as const,
-    description: "Panorama das funcionalidades: painéis, sync e métricas de lucro.",
-    path: "/features",
-    priority: 0.8,
-    title: "Recursos | MarginFlow",
-  },
-  {
-    changeFrequency: "weekly" as const,
-    description: "Planos de assinatura MarginFlow mensal e anual.",
-    path: "/pricing",
-    priority: 0.8,
-    title: "Preços | MarginFlow",
-  },
-  {
-    changeFrequency: "weekly" as const,
-    description: "Integrações Mercado Livre, Shopee e entradas manuais de custo.",
-    path: "/integrations",
-    priority: 0.75,
-    title: "Integrações | MarginFlow",
-  },
-];
+export function getPricingPlans(source: Record<string, string | undefined> = process.env) {
+  const env = readPublicEnv(source);
+  const [growth, scale] = pricingPlansTemplate;
+  return [
+    {
+      ...growth,
+      annualPrice: env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL,
+      monthlyPrice: env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL,
+    },
+    { ...scale },
+  ];
+}
+
+export const pricingPlans = getPricingPlans();
+
+export function getPublicRoutes(source: Record<string, string | undefined> = process.env) {
+  const name = readPublicEnv(source).NEXT_PUBLIC_APP_NAME;
+  return [
+    {
+      changeFrequency: "weekly" as const,
+      description: `${name} — visibilidade financeira para marketplaces, preços e chamada principal.`,
+      path: "/",
+      priority: 1,
+      title: `${name} | Clareza financeira para sellers`,
+    },
+    {
+      changeFrequency: "weekly" as const,
+      description: "Panorama das funcionalidades: painéis, sync e métricas de lucro.",
+      path: "/features",
+      priority: 0.8,
+      title: `Recursos | ${name}`,
+    },
+    {
+      changeFrequency: "weekly" as const,
+      description: `Planos de assinatura ${name} mensal e anual.`,
+      path: "/pricing",
+      priority: 0.8,
+      title: `Preços | ${name}`,
+    },
+    {
+      changeFrequency: "weekly" as const,
+      description: "Integrações Mercado Livre, Shopee e entradas manuais de custo.",
+      path: "/integrations",
+      priority: 0.75,
+      title: `Integrações | ${name}`,
+    },
+  ];
+}
+
+export const publicRoutes = getPublicRoutes();
 
 export function getSiteUrl(source: Record<string, string | undefined> = process.env) {
   try {
     return new URL(readPublicEnv(source).NEXT_PUBLIC_APP_URL);
   } catch {
-    return new URL(siteConfig.domainFallback);
+    return new URL(SITE_DOMAIN_FALLBACK);
   }
 }
 
@@ -177,6 +213,7 @@ type MetadataInput = {
 
 export function createPageMetadata({ description, keywords, path, title }: MetadataInput): Metadata {
   const url = buildAbsoluteUrl(path);
+  const siteName = readPublicEnv().NEXT_PUBLIC_APP_NAME;
 
   return {
     alternates: {
@@ -186,7 +223,7 @@ export function createPageMetadata({ description, keywords, path, title }: Metad
     keywords,
     openGraph: {
       description,
-      siteName: siteConfig.name,
+      siteName,
       title,
       type: "website",
       url,

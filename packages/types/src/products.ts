@@ -1,3 +1,5 @@
+import type { IntegrationProviderSlug } from "./integrations";
+
 export type DecimalString = string;
 
 export type ProductFormValues = {
@@ -86,9 +88,59 @@ export type ProductListItem = ProductRecord & {
   latestCost: ProductCostRecord | null;
 };
 
+export type SyncedProductReviewStatus =
+  | "ignored"
+  | "imported_as_internal_product"
+  | "linked_to_existing_product"
+  | "unreviewed";
+
+export type SyncedProductSuggestedMatchReason = "sku_exact";
+
+export type SyncedProductSuggestedMatch = {
+  productId: string;
+  name: string;
+  sku: string | null;
+  isActive: boolean;
+  reason: SyncedProductSuggestedMatchReason;
+};
+
+export type SyncedProductLinkedProduct = {
+  id: string;
+  name: string;
+  sku: string | null;
+  isActive: boolean;
+};
+
+export type SyncedProductRecord = {
+  id: string;
+  externalProductId: string;
+  provider: IntegrationProviderSlug;
+  title: string | null;
+  sku: string | null;
+  reviewStatus: SyncedProductReviewStatus;
+  linkedProduct: SyncedProductLinkedProduct | null;
+  suggestedMatches: SyncedProductSuggestedMatch[];
+  orderCount: number;
+  unitsSold: number;
+  grossRevenue: DecimalString;
+  latestUnitPrice: DecimalString | null;
+  lastOrderedAt: string | null;
+};
+
+export type SyncedProductLinkFormValues = {
+  productId: string;
+};
+
+export type SyncedProductActionResult = {
+  linkedProduct: SyncedProductLinkedProduct | null;
+  message: string;
+  syncedProduct: SyncedProductRecord;
+};
+
 export type ProductCatalogSnapshot = {
   adCosts: AdCostRecord[];
   manualExpenses: ManualExpenseRecord[];
   productCosts: ProductCostRecord[];
   products: ProductListItem[];
+  syncedProducts: SyncedProductRecord[];
 };

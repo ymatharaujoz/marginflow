@@ -1,12 +1,13 @@
 import { Container } from "@marginflow/ui";
-import { createPageMetadata, integrationHighlights } from "@/lib/site";
+import { createPageMetadata, integrationHighlights, resolveSiteConfig, sitePageTitle } from "@/lib/site";
+
+const brand = resolveSiteConfig();
 
 export const metadata = createPageMetadata({
-  description:
-    "Mercado Livre, Shopee e registros financeiros manuais no mesmo modelo de lucro dentro do MarginFlow.",
+  description: `Mercado Livre, Shopee e registros financeiros manuais no mesmo modelo de lucro dentro do ${brand.name}.`,
   keywords: ["integração Mercado Livre", "integração Shopee", "sincronização manual"],
   path: "/integrations",
-  title: "Integrações | MarginFlow",
+  title: sitePageTitle("Integrações"),
 });
 
 export default function IntegrationsPage() {
@@ -21,7 +22,7 @@ export default function IntegrationsPage() {
             Dois trilhos de marketplace, uma mesma língua financeira.
           </h1>
           <p className="mt-6 text-lg leading-8 text-muted-foreground">
-            O MarginFlow mantém o sync manual e delimitado no V1 — menos pontos de falha hoje e
+            O {brand.name} mantém o sync manual e delimitado no V1 — menos pontos de falha hoje e
             caminho limpo para automação depois.
           </p>
           <div className="mt-8 rounded-[var(--radius-2xl)] border border-foreground/10 bg-gradient-to-b from-[#141c22] to-[#1e3a3a] p-7 text-white shadow-[var(--shadow-xl)]">

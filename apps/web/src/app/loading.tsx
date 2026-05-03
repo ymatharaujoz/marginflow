@@ -1,4 +1,7 @@
 import { Container, Skeleton } from "@marginflow/ui";
+import { resolveSiteConfig } from "@/lib/site";
+
+const brand = resolveSiteConfig();
 
 export default function Loading() {
   return (
@@ -13,7 +16,7 @@ export default function Loading() {
         </div>
         <div className="text-center">
           <p className="text-sm font-medium text-foreground">Carregando workspace</p>
-          <p className="mt-1 text-xs text-muted-foreground">Preparando sua experiência no MarginFlow</p>
+          <p className="mt-1 text-xs text-muted-foreground">Preparando sua experiência no {brand.name}</p>
         </div>
         <Skeleton className="h-2 w-32" />
       </Container>
