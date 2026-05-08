@@ -32,6 +32,7 @@ describe("sync controller", () => {
       STRIPE_PRICE_MONTHLY: "price_monthly",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
     authService = app.get(AuthService);
@@ -140,6 +141,29 @@ describe("sync controller", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
       data: [expect.objectContaining({ id: "sync_123" })],
+      error: null,
+    });
+  });
+
+  it("clears sync history", async () => {
+    mockEntitledContext();
+    vi.spyOn(syncService, "clearHistory").mockResolvedValueOnce({
+      clearedCount: 2,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        provider: "mercadolivre",
+      },
+      url: "/sync/history/clear",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: {
+        clearedCount: 2,
+      },
       error: null,
     });
   });

@@ -102,3 +102,19 @@ export function resolveSyncWindowState(now: Date = new Date()): SyncWindowState 
 
   return buildWindowState(parts, "evening", toSaoPauloIso(plusDays(parts, 1), 6));
 }
+
+/**
+ * Next whole-hour instant (within `maxSteps` hours) where {@link resolveSyncWindowState} reports an open window.
+ * Used when dev-only guard relaxation skips overnight closure but a valid `windowKey` is still required for sync runs.
+ */
+export function resolveSyncWindowStateAtNextOpenHour(now: Date = new Date(), maxSteps = 24): SyncWindowState {
+  for (let h = 0; h < maxSteps; h += 1) {
+    const candidate = new Date(now.getTime() + h * 60 * 60 * 1000);
+    const state = resolveSyncWindowState(candidate);
+    if (state.syncOpen) {
+      return state;
+    }
+  }
+
+  return resolveSyncWindowState(now);
+}

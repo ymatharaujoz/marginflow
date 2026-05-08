@@ -1,4 +1,7 @@
+"use client";
+
 import type { ImgHTMLAttributes } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "./utils";
 
 type AvatarSize = "sm" | "md" | "lg";
@@ -23,22 +26,50 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-export function Avatar({ className, fallback, size = "md", src, alt, ...props }: AvatarProps) {
-  const sizeClass = sizeStyles[size];
+function InitialsFallback({
+  className,
+  sizeClass,
+  fallback,
+  alt,
+}: {
+  className?: string;
+  sizeClass: string;
+  fallback?: string;
+  alt?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center rounded-full bg-accent-soft font-semibold text-accent-strong",
+        sizeClass,
+        className,
+      )}
+      aria-label={alt}
+    >
+      {fallback ? getInitials(fallback) : "?"}
+    </span>
+  );
+}
 
-  if (!src) {
-    return (
-      <span
-        className={cn(
-          "inline-flex items-center justify-center rounded-full bg-accent-soft font-semibold text-accent-strong",
-          sizeClass,
-          className,
-        )}
-        aria-label={alt}
-      >
-        {fallback ? getInitials(fallback) : "?"}
-      </span>
-    );
+export function Avatar({
+  className,
+  fallback,
+  size = "md",
+  src,
+  alt,
+  referrerPolicy = "no-referrer",
+  onError,
+  ...props
+}: AvatarProps) {
+  const sizeClass = sizeStyles[size];
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setLoadFailed(false);
+  }, [src]);
+
+  if (!src || loadFailed) {
+    return <InitialsFallback className={className} sizeClass={sizeClass} fallback={fallback} alt={alt} />;
   }
 
   return (
@@ -46,6 +77,11 @@ export function Avatar({ className, fallback, size = "md", src, alt, ...props }:
       alt={alt}
       className={cn("rounded-full object-cover", sizeClass, className)}
       src={src}
+      referrerPolicy={referrerPolicy}
+      onError={(event) => {
+        setLoadFailed(true);
+        onError?.(event);
+      }}
       {...props}
     />
   );

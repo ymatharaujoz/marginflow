@@ -55,3 +55,7 @@ export type RunSyncResponse = {
   run: SyncRunRecord;
   availability: SyncAvailability;
 };
+
+export type ClearSyncHistoryResponse = {
+  clearedCount: number;
+};

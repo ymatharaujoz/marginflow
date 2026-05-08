@@ -8,7 +8,7 @@ export function resolveSiteConfig(source: Record<string, string | undefined> = p
   const env = readPublicEnv(source);
   const name = env.NEXT_PUBLIC_APP_NAME;
   return {
-    defaultDescription: `${name} centraliza para vendedores de marketplaces faturamento, taxas, custos e lucro real em um só lugar.`,
+    defaultDescription: `${name} é a plataforma de analytics para sellers que querem vender mais e lucrar mais. Centralize métricas de Mercado Livre, Shopee e Amazon em um só lugar.`,
     defaultTitle: name,
     domainFallback: SITE_DOMAIN_FALLBACK,
     icon: env.NEXT_PUBLIC_APP_ICON,
@@ -67,27 +67,34 @@ export const valueCards = [
 export const featureGroups = [
   {
     items: [
-      "Receita de marketplace, taxas, frete, anúncios e custos manuais num único modelo",
-      "Lucro por produto e por canal na mesma leitura",
-      "Status da última sincronização com mensagens claras de disponibilidade",
+      "Dashboard em tempo real com métricas de receita, lucro e margem",
+      "Gestão de lucro por SKU considerando todos os custos",
+      "Analytics avançado com gráficos e tendências",
+      "Insights com IA para otimização de preços",
+      "Performance de anúncios e ROI por campanha",
+      "Comparativos entre marketplaces",
     ],
-    title: "Centro financeiro",
+    title: "Analytics Completo",
   },
   {
     items: [
-      "Login Google com escopo por organização",
-      "Rotas protegidas e entrada no app com entitlement",
-      "Contratos TypeScript compartilhados entre frontend, backend e schema",
+      "Alertas automáticos de margem negativa",
+      "Relatórios executivos em PDF",
+      "Integração com Mercado Livre, Shopee e Amazon",
+      "Sincronização manual em janelas diárias",
+      "Histórico completo de vendas e métricas",
     ],
-    title: "Base operacional sólida",
+    title: "Gestão Profissional",
   },
   {
     items: [
-      "Site público pronto para SEO em Next.js",
-      "API NestJS para auth, billing e sincronização",
-      "Schema Drizzle evolutivo sobre Postgres",
+      "Login seguro com Google",
+      "Acesso protegido por assinatura",
+      "API para integrações customizadas",
+      "Suporte prioritário no plano Growth",
+      "Onboarding dedicado no plano Scale",
     ],
-    title: "Pronto para evoluir o produto",
+    title: "Segurança & Suporte",
   },
 ];
 
@@ -108,35 +115,39 @@ export const integrationHighlights = [
 
 const pricingPlansTemplate = [
   {
+    annualPrice: "R$ 63",
     annualSuffix: "/mês cobrado anualmente",
     ctaHref: "/sign-in",
-    ctaLabel: "Começar plano anual",
-    description:
-      "Para operações que precisam de ritmo semanal de decisão e custo anual menor.",
+    ctaLabel: "Começar Gratuitamente",
+    description: "Para operações que precisam de ritmo semanal de decisão e custo anual menor.",
     features: [
-      "Um workspace com modelo organizacional pensado para time",
-      "Visão financeira Mercado Livre e Shopee",
-      "Sync manual em janelas com histórico",
-      "Acesso ao app condicionado à assinatura e espelho de billing",
+      "Produtos ilimitados",
+      "Múltiplos marketplaces",
+      "Dashboard em tempo real",
+      "Analytics avançado",
+      "Insights com IA",
+      "Suporte prioritário",
     ],
+    monthlyPrice: "R$ 79",
     monthlySuffix: "/mês",
     name: "Crescimento",
   },
   {
     annualPrice: "Sob consulta",
-    annualSuffix: "várias lojas",
+    annualSuffix: "escopo customizado",
     ctaHref: "/sign-in",
-    ctaLabel: "Falar sobre implantação",
-    description:
-      "Para marcas com onboarding mais denso, governança e planejamento de expansão.",
+    ctaLabel: "Falar com Vendas",
+    description: "Para marcas com onboarding mais denso, governança e planejamento de expansão.",
     features: [
       "Tudo do plano Crescimento",
-      "Onboarding prioritário financeiro",
-      "Apoio a revisões multi-canal",
-      "Planejamento das fases de automação",
+      "API access",
+      "Onboarding dedicado",
+      "Relatórios customizados",
+      "SLA garantido",
+      "Gerente de conta",
     ],
     monthlyPrice: "Sob consulta",
-    monthlySuffix: "escopo sob medida",
+    monthlySuffix: "escopo customizado",
     name: "Escala",
   },
 ] as const;
@@ -147,8 +158,8 @@ export function getPricingPlans(source: Record<string, string | undefined> = pro
   return [
     {
       ...growth,
-      annualPrice: env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL,
-      monthlyPrice: env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL,
+      annualPrice: env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL || growth.annualPrice,
+      monthlyPrice: env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL || growth.monthlyPrice,
     },
     { ...scale },
   ];
@@ -164,25 +175,25 @@ export function getPublicRoutes(source: Record<string, string | undefined> = pro
       description: `${name} — visibilidade financeira para marketplaces, preços e chamada principal.`,
       path: "/",
       priority: 1,
-      title: `${name} | Clareza financeira para sellers`,
+      title: `${name} | Venda mais. Lucre mais.`,
     },
     {
       changeFrequency: "weekly" as const,
-      description: "Panorama das funcionalidades: painéis, sync e métricas de lucro.",
+      description: "Panorama das funcionalidades: dashboard, analytics, insights com IA e métricas de lucro.",
       path: "/features",
       priority: 0.8,
       title: `Recursos | ${name}`,
     },
     {
       changeFrequency: "weekly" as const,
-      description: `Planos de assinatura ${name} mensal e anual.`,
+      description: `Planos de assinatura ${name} mensal e anual. Comece gratuitamente.`,
       path: "/pricing",
       priority: 0.8,
       title: `Preços | ${name}`,
     },
     {
       changeFrequency: "weekly" as const,
-      description: "Integrações Mercado Livre, Shopee e entradas manuais de custo.",
+      description: "Integrações Mercado Livre, Shopee, Amazon e entradas manuais de custo.",
       path: "/integrations",
       priority: 0.75,
       title: `Integrações | ${name}`,

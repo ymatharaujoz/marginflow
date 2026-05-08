@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { DashboardHome } from "@/components/dashboard/dashboard-home";
+import { DashboardHome } from "@/modules/dashboard";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
 

@@ -1,5 +1,6 @@
+"use client";
+
 import Link from "next/link";
-import { Container } from "@marginflow/ui";
 import { MarketingBackdrop } from "@/components/marketing/marketing-backdrop";
 import { MarketingNavLinks } from "@/components/marketing/marketing-nav-links";
 import { resolveSiteConfig } from "@/lib/site";
@@ -12,58 +13,95 @@ export function MarketingShell({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="marketing-site relative min-h-screen text-[#0f172a]" lang="pt-BR">
+    <div className="marketing-site relative min-h-screen" lang="pt-BR">
       <MarketingBackdrop />
 
       <div className="relative z-10">
         {/* Header */}
-        <Container size="xl" className="pt-5 md:pt-7">
-          <header className="sticky top-4 z-40 flex items-center justify-between rounded-[var(--radius-xl)] border border-[#e0d8ce]/70 bg-[#f7f4ef]/78 px-5 py-3 shadow-[var(--shadow-md)] backdrop-blur-xl md:px-7">
-            <Link href="/" className="group flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-br from-[#0e7a6f] to-[#14b8a6] text-base font-bold text-white shadow-[0_4px_12px_rgba(14,122,111,0.3)] transition-transform group-hover:scale-[1.04]">
-                {brand.icon}
-              </span>
-              <span className="hidden text-[0.9rem] font-bold tracking-tight text-foreground sm:block">
-                {brand.name}
-              </span>
-            </Link>
-
-            <nav className="hidden items-center gap-1 md:flex">
-              <MarketingNavLinks linkClassName="rounded-[var(--radius-full)] px-4 py-2 text-sm font-medium text-[#475569] transition-all hover:bg-[#f1f5f9] hover:text-[#0f172a]" />
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <Link
-                href="/sign-in"
-                className="inline-flex h-9 items-center justify-center rounded-[var(--radius-full)] bg-accent px-5 text-xs font-semibold !text-white shadow-[0_2px_8px_rgba(14,122,111,0.25)] transition-all hover:bg-accent-strong hover:shadow-[0_4px_16px_rgba(14,122,111,0.3)] active:scale-[0.97]"
-              >
-                Acessar plataforma
+        <header className="fixed left-0 right-0 top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl">
+            <nav className="flex items-center justify-between rounded-2xl border border-border/50 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-xl md:px-6">
+              {/* Logo */}
+              <Link href="/" className="group flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-strong text-sm font-bold text-white shadow-md transition-transform group-hover:scale-105">
+                  {brand.icon}
+                </span>
+                <span className="hidden text-base font-bold tracking-tight text-foreground sm:block">
+                  {brand.name}
+                </span>
               </Link>
-            </div>
-          </header>
-        </Container>
+
+              {/* Navigation */}
+              <div className="hidden items-center gap-1 md:flex">
+                <MarketingNavLinks linkClassName="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-accent/5 hover:text-foreground" />
+                <Link
+                  href="/features"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-accent/5 hover:text-foreground"
+                >
+                  Recursos
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-accent/5 hover:text-foreground"
+                >
+                  Preços
+                </Link>
+              </div>
+
+              {/* CTA Button */}
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/sign-in"
+                  className="inline-flex h-9 items-center justify-center rounded-xl bg-accent px-5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-accent-strong hover:shadow-md active:scale-[0.98]"
+                >
+                  Acessar
+                </Link>
+              </div>
+            </nav>
+          </div>
+        </header>
+
+        {/* Spacer for fixed header */}
+        <div className="h-24" />
 
         {children}
 
         {/* Footer */}
-        <Container size="xl" className="pb-10 pt-20 md:pb-14 md:pt-28">
-          <footer className="border-t border-border/70 pt-8 md:pt-10">
-            <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-8 sm:gap-y-4 sm:text-left">
-              <Link href="/" className="flex items-center gap-2.5 text-foreground transition-opacity hover:opacity-85">
-                <span className="flex h-7 w-7 items-center justify-center rounded-[var(--radius-sm)] bg-gradient-to-br from-[#0e7a6f] to-[#14b8a6] text-[0.65rem] font-bold text-white">
+        <footer className="border-t border-border bg-white/50 py-12 backdrop-blur-sm">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
+              {/* Logo */}
+              <Link href="/" className="flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-strong text-xs font-bold text-white">
                   {brand.icon}
                 </span>
-                <span className="text-sm font-semibold tracking-tight">{brand.name}</span>
+                <span className="text-sm font-semibold text-foreground">{brand.name}</span>
               </Link>
-              <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-1 sm:justify-start">
-                <MarketingNavLinks linkClassName="text-sm text-[#64748b] transition-colors hover:text-foreground" />
+
+              {/* Links */}
+              <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
+                <MarketingNavLinks linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground" />
+                <Link
+                  href="/features"
+                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Recursos
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Preços
+                </Link>
               </nav>
-              <p className="text-xs tabular-nums text-[#94a3b8] sm:ml-auto sm:text-right">
-                &copy; {new Date().getFullYear()} {brand.name}
+
+              {/* Copyright */}
+              <p className="text-xs text-muted-foreground">
+                &copy; {new Date().getFullYear()} {brand.name}. Todos os direitos reservados.
               </p>
             </div>
-          </footer>
-        </Container>
+          </div>
+        </footer>
       </div>
     </div>
   );

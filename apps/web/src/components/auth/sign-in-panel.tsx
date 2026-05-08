@@ -91,9 +91,6 @@ export function SignInPanel() {
         <p className="text-center text-xs font-semibold uppercase tracking-[0.14em] text-foreground/75">
           {PUBLIC_BRAND.name}
         </p>
-        <h1 className="mt-3 text-center text-2xl font-semibold tracking-tight text-foreground md:text-[1.65rem]">
-          Entrar
-        </h1>
         <p className="mt-3 text-center text-sm leading-relaxed text-muted-foreground">
           Entre com o Google para acessar sua ferramenta.
         </p>

@@ -22,6 +22,7 @@ const env = {
   STRIPE_PRICE_MONTHLY: "price_monthly",
   STRIPE_SECRET_KEY: "stripe",
   STRIPE_WEBHOOK_SECRET: "webhook",
+  SYNC_RELAX_GUARDS: false,
   WEB_APP_ORIGIN: "http://localhost:3000",
 } as const;
 
@@ -265,7 +266,7 @@ describe("BillingService", () => {
       mode: "subscription",
       status: "complete",
       subscription: "sub_confirm_1",
-    } as Stripe.Response<Stripe.Checkout.Session>);
+    } as unknown as Stripe.Response<Stripe.Checkout.Session>);
 
     stripe.subscriptions.retrieve.mockResolvedValue({
       cancel_at_period_end: false,
@@ -338,11 +339,11 @@ describe("BillingService", () => {
       status: "active",
     });
 
-    const missing = Stripe.errors.generateV1Error({
+    const missing = new Stripe.errors.StripeInvalidRequestError({
       code: "resource_missing",
       message: "No such subscription",
       type: "invalid_request_error",
-    });
+    } as any);
     stripe.subscriptions.retrieve.mockRejectedValue(missing);
 
     const where = vi.fn().mockResolvedValue(undefined);

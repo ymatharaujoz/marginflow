@@ -18,6 +18,7 @@ import {
   type SyncRun,
 } from "@marginflow/database";
 import type {
+  ClearSyncHistoryResponse,
   IntegrationProviderSlug,
   RunSyncResponse,
   SyncAvailability,
@@ -25,7 +26,7 @@ import type {
   SyncRunRecord,
   SyncStatusResponse,
 } from "@marginflow/types";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { FinanceService } from "@/modules/finance/finance.service";
@@ -36,7 +37,7 @@ import {
   type IntegrationSyncCursor,
   type IntegrationSyncResult,
 } from "@/modules/integrations/integrations.types";
-import { resolveSyncWindowState } from "./sync-window";
+import { resolveSyncWindowState, resolveSyncWindowStateAtNextOpenHour } from "./sync-window";
 
 function toIsoString(value: Date | string | null | undefined) {
   if (!value) {
@@ -102,11 +103,11 @@ export class SyncService {
     @Inject(DATABASE_CLIENT)
     private readonly db: DatabaseClient,
     @Inject(API_RUNTIME_ENV)
-    env: ApiRuntimeEnv,
+    private readonly env: ApiRuntimeEnv,
     @Inject(FinanceService)
     private readonly financeService: FinanceService,
   ) {
-    this.providers = createIntegrationProviders(env);
+    this.providers = createIntegrationProviders(this.env);
   }
 
   async getStatus(
@@ -136,6 +137,26 @@ export class SyncService {
     });
 
     return rows.map((row) => this.toRunRecord(row));
+  }
+
+  async clearHistory(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+  ): Promise<ClearSyncHistoryResponse> {
+    const rows = await this.db
+      .delete(syncRuns)
+      .where(
+        and(
+          eq(syncRuns.organizationId, organizationId),
+          eq(syncRuns.provider, providerSlug),
+          ne(syncRuns.status, "processing"),
+        ),
+      )
+      .returning({ id: syncRuns.id });
+
+    return {
+      clearedCount: rows.length,
+    };
   }
 
   async runSync(
@@ -244,7 +265,12 @@ export class SyncService {
     activeRun: SyncRun | null,
     lastCompletedRun: SyncRun | null,
   ): SyncAvailability {
-    const windowState = resolveSyncWindowState();
+    const relaxGuards = Boolean(this.env.SYNC_RELAX_GUARDS) && this.env.NODE_ENV !== "production";
+    const rawWindowState = resolveSyncWindowState();
+    const windowState =
+      relaxGuards && !rawWindowState.syncOpen
+        ? resolveSyncWindowStateAtNextOpenHour()
+        : rawWindowState;
     const lastSuccessfulSyncAt =
       toIsoString(lastCompletedRun?.finishedAt) ?? toIsoString(connection?.lastSyncedAt);
 
@@ -318,32 +344,34 @@ export class SyncService {
       };
     }
 
-    if (!windowState.syncOpen) {
-      return {
-        canRun: false,
-        currentWindowKey: null,
-        currentWindowLabel: null,
-        currentWindowSlot: null,
-        lastSuccessfulSyncAt,
-        message: "Sync is unavailable overnight. The next daily window opens at 06:00.",
-        nextAvailableAt: windowState.nextAvailableAt,
-        provider: provider.provider,
-        reason: "outside_window",
-      };
-    }
+    if (!relaxGuards) {
+      if (!windowState.syncOpen) {
+        return {
+          canRun: false,
+          currentWindowKey: null,
+          currentWindowLabel: null,
+          currentWindowSlot: null,
+          lastSuccessfulSyncAt,
+          message: "Sync is unavailable overnight. The next daily window opens at 06:00.",
+          nextAvailableAt: windowState.nextAvailableAt,
+          provider: provider.provider,
+          reason: "outside_window",
+        };
+      }
 
-    if (lastCompletedRun?.windowKey && lastCompletedRun.windowKey === windowState.currentWindowKey) {
-      return {
-        canRun: false,
-        currentWindowKey: windowState.currentWindowKey,
-        currentWindowLabel: windowState.currentWindowLabel,
-        currentWindowSlot: windowState.currentWindowSlot,
-        lastSuccessfulSyncAt,
-        message: "This daily sync window was already used. Wait for the next window to open.",
-        nextAvailableAt: windowState.nextAvailableAt,
-        provider: provider.provider,
-        reason: "window_already_used",
-      };
+      if (lastCompletedRun?.windowKey && lastCompletedRun.windowKey === windowState.currentWindowKey) {
+        return {
+          canRun: false,
+          currentWindowKey: windowState.currentWindowKey,
+          currentWindowLabel: windowState.currentWindowLabel,
+          currentWindowSlot: windowState.currentWindowSlot,
+          lastSuccessfulSyncAt,
+          message: "This daily sync window was already used. Wait for the next window to open.",
+          nextAvailableAt: windowState.nextAvailableAt,
+          provider: provider.provider,
+          reason: "window_already_used",
+        };
+      }
     }
 
     return {

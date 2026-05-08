@@ -1,15 +1,14 @@
 "use client";
 
 import { createAuthClient } from "better-auth/react";
+import { getWebEnv } from "@/lib/env";
 
 export function resolveAuthBaseUrl(apiBaseUrl: string) {
   const trimmedBaseUrl = apiBaseUrl.replace(/\/+$/, "");
   return `${trimmedBaseUrl}/auth`;
 }
 
-const baseURL = resolveAuthBaseUrl(
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000",
-);
+const baseURL = resolveAuthBaseUrl(getWebEnv().NEXT_PUBLIC_API_BASE_URL);
 
 export const authClient = createAuthClient({
   baseURL,

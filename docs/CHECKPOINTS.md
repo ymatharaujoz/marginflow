@@ -3,9 +3,11 @@
 ## Current Focus
 
 - Active milestone: M10
-- Active task: validate the live Mercado Livre connection flow in `/app/integrations`, then continue with the first real sync pass for M11 and the imported-product review flow in `/app/products`
-- Next task: complete Mercado Livre callback verification, run a real sync, confirm same-window blocking, verify refreshed metrics on `/app`, and review at least one synced product import/link action in `/app/products`
+- Active task: use the expanded root `TEST.md` Mercado Livre runbook with detailed cURL steps for token exchange, test-user creation, and test listings to validate the live connection flow in `/app/integrations`, then continue with the first real sync pass for M11 and the imported-product review flow in `/app/products`
+- Next task: follow `TEST.md` end to end with Mercado Livre test users and test listings, complete callback verification, run a real sync, confirm same-window blocking, verify refreshed metrics on `/app`, and review at least one synced product import/link action in `/app/products`
 - Blockers: M5 and M6 are now cleared by local browser verification; honest closure is still pending on M10 callback validation, M11 real sync validation, imported-product live review validation, and explicit user confirmation if M12 should be considered done. Local Mercado Livre verification may require a stable ngrok callback URL that points to the local API while keeping web auth and app routing on localhost
+- Note: Dashboard refactor milestones 1 and 2 from SPEC-DASHBOARD-INICIAL.md were implemented locally on 2026-05-08 with a new apps/web/src/modules/dashboard boundary, extracted dashboard helpers/hooks, and behavior-preserving /app rewiring; milestone completion is still pending repo verification plus user confirmation.
+- Note: 2026-05-08 `/app/products` synced-product loading no longer depends on Drizzle's deep nested relation query; `IntegrationsService` now reads external products and order items separately and tolerates legacy `external_products` schemas that still lack `linked_product_id` / `review_status`.
 - Last completed checkpoint: M6
 
 ## Checkpoint M0
@@ -84,3 +86,5 @@
 - Known issues: no code blockers remain on M6
 - Next recommended milestone: M10
 - Next recommended task: validate Mercado Livre callback end to end, then move into the first real sync verification path for M11
+
+

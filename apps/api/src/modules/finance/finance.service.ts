@@ -10,6 +10,7 @@ import {
 } from "@marginflow/domain";
 import {
   dailyMetrics,
+  externalProducts,
   productMetrics,
   type DatabaseClient,
   type ExternalFee,
@@ -36,12 +37,9 @@ type SnapshotProductRow = Product & {
 };
 type SnapshotOrderRow = ExternalOrder & {
   fees: ExternalFee[];
-  items: Array<
-    ExternalOrderItem & {
-      externalProduct: ExternalProduct | null;
-    }
-  >;
+  items: ExternalOrderItem[];
 };
+type SnapshotExternalProductRow = Pick<ExternalProduct, "id" | "linkedProductId" | "sku">;
 
 export function normalizeSku(value: string | null | undefined) {
   if (!value) {
@@ -81,6 +79,25 @@ export function toMetricDate(value: Date | string | null | undefined) {
   return value.slice(0, 10);
 }
 
+function isMissingExternalProductReviewColumns(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error && typeof error.code === "string" ? error.code : null;
+  const message =
+    "message" in error && typeof error.message === "string" ? error.message : null;
+
+  if (code === "42703") {
+    return true;
+  }
+
+  return Boolean(
+    message &&
+      (message.includes("linked_product_id") || message.includes("review_status")),
+  );
+}
+
 @Injectable()
 export class FinanceService {
   constructor(
@@ -89,7 +106,7 @@ export class FinanceService {
   ) {}
 
   async buildFinanceSnapshot(organizationId: string): Promise<FinanceSnapshot> {
-    const [productRows, orderRows, adCostRows, expenseRows] = await Promise.all([
+    const [productRows, orderRows, adCostRows, expenseRows, externalProductRows] = await Promise.all([
       this.db.query.products.findMany({
         orderBy: (table) => [desc(table.createdAt)],
         where: (table) => eq(table.organizationId, organizationId),
@@ -104,11 +121,7 @@ export class FinanceService {
         where: (table) => eq(table.organizationId, organizationId),
         with: {
           fees: true,
-          items: {
-            with: {
-              externalProduct: true,
-            },
-          },
+          items: true,
         },
       }),
       this.db.query.adCosts.findMany({
@@ -119,6 +132,7 @@ export class FinanceService {
         orderBy: (table) => [desc(table.incurredAt), desc(table.createdAt)],
         where: (table) => eq(table.organizationId, organizationId),
       }),
+      this.readExternalProductsForFinance(organizationId),
     ]);
 
     const products = productRows.map((row) => this.toFinancialProduct(row));
@@ -127,7 +141,10 @@ export class FinanceService {
         .map((product) => [normalizeSku(product.sku), product.id] as const)
         .filter((entry): entry is readonly [string, string] => entry[0] !== null),
     );
-    const orders = orderRows.map((row) => this.toFinancialOrder(row, productIdsBySku));
+    const externalProductsById = new Map(
+      externalProductRows.map((product) => [product.id, product]),
+    );
+    const orders = orderRows.map((row) => this.toFinancialOrder(row, productIdsBySku, externalProductsById));
     const adCosts = adCostRows.map<FinancialAdCostInput>((row) => ({
       amount: String(row.amount),
       channel: row.channel.trim().toLowerCase(),
@@ -273,6 +290,38 @@ export class FinanceService {
     });
   }
 
+  private async readExternalProductsForFinance(
+    organizationId: string,
+  ): Promise<SnapshotExternalProductRow[]> {
+    try {
+      return await this.db
+        .select({
+          id: externalProducts.id,
+          linkedProductId: externalProducts.linkedProductId,
+          sku: externalProducts.sku,
+        })
+        .from(externalProducts)
+        .where(eq(externalProducts.organizationId, organizationId));
+    } catch (error) {
+      if (!isMissingExternalProductReviewColumns(error)) {
+        throw error;
+      }
+
+      const legacyRows = await this.db
+        .select({
+          id: externalProducts.id,
+          sku: externalProducts.sku,
+        })
+        .from(externalProducts)
+        .where(eq(externalProducts.organizationId, organizationId));
+
+      return legacyRows.map((row) => ({
+        ...row,
+        linkedProductId: null,
+      }));
+    }
+  }
+
   private toFinancialProduct(row: SnapshotProductRow): FinancialProductInput {
     return {
       id: row.id,
@@ -293,6 +342,7 @@ export class FinanceService {
   private toFinancialOrder(
     row: SnapshotOrderRow,
     productIdsBySku: Map<string, string>,
+    externalProductsById: Map<string, SnapshotExternalProductRow>,
   ): FinancialOrderInput {
     return {
       discountAmount: "0.00",
@@ -302,15 +352,16 @@ export class FinanceService {
       })),
       id: row.id,
       items: row.items.map((item: SnapshotOrderRow["items"][number]) => {
-        const linkedProductId = item.externalProduct?.linkedProductId ?? null;
-        const normalizedSku = normalizeSku(item.externalProduct?.sku);
+        const externalProduct = item.externalProductId ? externalProductsById.get(item.externalProductId) : null;
+        const linkedProductId = externalProduct?.linkedProductId ?? null;
+        const normalizedSku = normalizeSku(externalProduct?.sku);
 
         return {
           id: item.id,
           productId:
             linkedProductId ?? (normalizedSku ? productIdsBySku.get(normalizedSku) ?? null : null),
           quantity: item.quantity,
-          sku: item.externalProduct?.sku ?? null,
+          sku: externalProduct?.sku ?? null,
           totalPrice: String(item.totalPrice),
           unitPrice: String(item.unitPrice),
         };

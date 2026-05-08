@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Container } from "@marginflow/ui";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { scrollToLandingSection } from "@/components/marketing/scroll-to-landing-section";
 import { PUBLIC_BRAND } from "@/lib/public-branding";
 import { getWhatsappDemoUrl } from "@/lib/site";
+import { HeroMetrics, ProgressMetrics, DashboardMetrics } from "./hero-metrics";
+import { HeroIntegrationLine, MarketplaceLogosBar } from "./marketplace-icons";
+import { DashboardShowcase } from "./dashboard-showcase";
+import { SocialProof } from "./social-proof";
+import { IntegrationsSection } from "./integrations-section";
 
 const easeOut = [0.16, 1, 0.3, 1] as const;
 
@@ -33,14 +37,6 @@ function ScheduleDemoLink({ className }: { className: string }) {
   );
 }
 
-function IconOrb({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-soft to-[#ccfbf1] text-accent shadow-[0_0_20px_rgba(14,122,111,0.15)] ring-1 ring-accent/20">
-      {children}
-    </span>
-  );
-}
-
 function CheckIcon() {
   return (
     <svg className="h-4 w-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -49,46 +45,240 @@ function CheckIcon() {
   );
 }
 
-function ProgressRow({
-  label,
-  value,
+function IconOrb({ children, color = "accent" }: { children: React.ReactNode; color?: string }) {
+  const colorClasses: Record<string, string> = {
+    accent: "from-accent/20 to-accent/5 text-accent",
+    blue: "from-blue-500/20 to-blue-500/5 text-blue-600",
+    purple: "from-purple-500/20 to-purple-500/5 text-purple-600",
+    green: "from-green-500/20 to-green-500/5 text-green-600",
+    orange: "from-orange-500/20 to-orange-500/5 text-orange-600",
+    pink: "from-pink-500/20 to-pink-500/5 text-pink-600",
+    cyan: "from-cyan-500/20 to-cyan-500/5 text-cyan-600",
+    indigo: "from-indigo-500/20 to-indigo-500/5 text-indigo-600",
+  };
+
+  return (
+    <span
+      className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${colorClasses[color] || colorClasses.accent} shadow-sm ring-1 ring-black/5`}
+    >
+      {children}
+    </span>
+  );
+}
+
+// Hero Dashboard Preview Component
+function HeroDashboardPreview() {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 40, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.8, delay: 0.3, ease: easeOut }}
+      className="relative"
+    >
+      {/* Glow effect */}
+      <div className="absolute -inset-4 rounded-3xl bg-accent/10 blur-3xl" />
+
+      {/* Dashboard Card */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-md bg-gradient-to-br from-accent to-accent-strong" />
+            <span className="text-sm font-semibold text-foreground">{PUBLIC_BRAND.name}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+            <span className="text-xs text-muted-foreground">Ao vivo</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-5">
+          <div className="mb-4">
+            <p className="text-xs text-muted-foreground">Visão geral - Maio 2026</p>
+            <h3 className="text-lg font-bold text-foreground">Dashboard do negócio</h3>
+          </div>
+
+          <DashboardMetrics />
+
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <p className="mb-3 text-xs font-medium text-muted-foreground">Métricas de performance</p>
+              <ProgressMetrics />
+            </div>
+
+            <div className="rounded-xl border border-border bg-gradient-to-br from-accent/5 to-transparent p-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10">
+                  <svg className="h-3 w-3 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <span className="text-xs font-semibold text-accent">Dica do dia</span>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Seus produtos no Mercado Livre têm margem 15% maior que na Shopee. Considere redirecionar
+                anúncios.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Floating badge */}
+      <motion.div
+        className="absolute -right-4 top-10 hidden rounded-xl border border-border bg-white p-3 shadow-lg md:block"
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-success/10">
+            <svg className="h-4 w-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground">Meta batida!</p>
+            <p className="text-[10px] text-muted-foreground">Lucro: +18% do planejado</p>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// Feature Card Component
+function FeatureCard({
+  title,
+  description,
+  icon,
+  color,
+  index,
+}: {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  color: string;
+  index: number;
+}) {
+  const reduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{
+        duration: 0.5,
+        delay: reduceMotion ? 0 : index * 0.05,
+        ease: easeOut,
+      }}
+      whileHover={reduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
+      className="group relative flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
+    >
+      <IconOrb color={color}>{icon}</IconOrb>
+      <h3 className="mt-4 text-lg font-semibold text-foreground">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
+
+      {/* Hover indicator */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-2xl bg-accent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+    </motion.div>
+  );
+}
+
+// Pricing Card Component
+function PricingCard({
+  name,
+  price,
+  period,
+  description,
+  features,
+  featured = false,
+  cta,
+  href,
   delay,
 }: {
-  label: string;
-  value: number;
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  featured?: boolean;
+  cta: string;
+  href: string;
   delay: number;
 }) {
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-xs font-medium text-[#64748b]">
-        <span>{label}</span>
-        <span className="tabular-nums text-foreground">{value}%</span>
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{
+        duration: 0.6,
+        delay: reduceMotion ? 0 : delay,
+        ease: easeOut,
+      }}
+      whileHover={reduceMotion ? undefined : { y: -8, transition: { duration: 0.2 } }}
+      className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:shadow-xl ${
+        featured
+          ? "border-accent bg-gradient-to-b from-white to-accent/[0.02] ring-1 ring-accent/20"
+          : "border-border bg-white"
+      }`}
+    >
+      {featured && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <span className="rounded-full bg-accent px-4 py-1 text-xs font-semibold text-white shadow-md">
+            Mais popular
+          </span>
+        </div>
+      )}
+
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{name}</h3>
+        <div className="mt-2 flex items-baseline gap-1">
+          <span className="text-4xl font-bold text-foreground">{price}</span>
+          <span className="text-sm text-muted-foreground">/{period}</span>
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-foreground/[0.06]">
-        <motion.div
-          className="h-full rounded-full bg-gradient-to-r from-accent to-[#14b8a6]"
-          initial={reduceMotion ? { width: `${value}%` } : { width: 0 }}
-          whileInView={reduceMotion ? undefined : { width: `${value}%` }}
-          viewport={{ once: true, margin: "-40px" }}
-          transition={{ duration: 1.1, delay, ease: easeOut }}
-        />
-      </div>
-    </div>
+
+      <Link
+        href={href}
+        className={`mb-6 inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold transition-all ${
+          featured
+            ? "bg-accent text-white shadow-md hover:bg-accent-strong hover:shadow-lg"
+            : "border border-border bg-white text-foreground hover:border-accent/30 hover:bg-accent/[0.02]"
+        }`}
+      >
+        {cta}
+      </Link>
+
+      <ul className="mt-auto space-y-3">
+        {features.map((feature) => (
+          <li key={feature} className="flex items-start gap-3 text-sm text-muted-foreground">
+            <CheckIcon />
+            <span>{feature}</span>
+          </li>
+        ))}
+      </ul>
+    </motion.div>
   );
 }
 
 export function LandingPage() {
   const reduceMotion = useReducedMotion();
-  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
     offset: ["start start", "end start"],
   });
   const smoothProgress = useSpring(scrollYProgress, { damping: 28, stiffness: 120 });
-  const dashboardY = useTransform(smoothProgress, [0, 1], reduceMotion ? [0, 0] : [0, -18]);
+  const dashboardY = useTransform(smoothProgress, [0, 1], reduceMotion ? [0, 0] : [0, -30]);
 
   useEffect(() => {
     const hash = window.location.hash.replace(/^#/, "");
@@ -97,467 +287,397 @@ export function LandingPage() {
     window.requestAnimationFrame(run);
   }, []);
 
-  const fadeUp = {
-    hidden: { opacity: 0, y: reduceMotion ? 0 : 24 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: { delay: reduceMotion ? 0 : 0.08 * i, duration: 0.65, ease: easeOut },
-    }),
-  };
-
-  const featureCards = [
+  const features = [
     {
-      title: "Inteligência de margem",
-      body: "Acompanhe margem bruta e lucro líquido em uma única visualização para entender o que realmente impulsiona o desempenho.",
-      icon: (
-        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
-          <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7-6.3-4.6-6.3 4.6 2.3-7-6-4.6h7.6z" />
-        </svg>
-      ),
-    },
-    {
-      title: "Monitoramento de vendas",
-      body: "Veja quantidade de vendas, tendência de pedidos e movimentação de faturamento com visibilidade quase em tempo real.",
+      title: "Dashboard em Tempo Real",
+      description: "Acompanhe receita, lucro e margem em tempo real com atualizações automáticas a cada sincronização.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" d="M4 19h16M7 15l3-3 3 2 4-5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       ),
+      color: "accent",
     },
     {
-      title: "Performance de POS",
-      body: "Compare o desempenho dos pontos de venda, identifique os melhores canais e encontre rapidamente lojas com baixa performance.",
+      title: "Gestão de Lucro por SKU",
+      description: "Saiba exatamente quanto cada produto está lucrando, considerando todos os custos e taxas.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V7l7-4z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
       ),
+      color: "blue",
     },
     {
-      title: "Dashboards executivos",
-      body: "Use dashboards visuais e gráficos pensados para empresários que precisam de respostas rápidas, não de mais abas em planilhas.",
+      title: "Analytics Avançado",
+      description: "Gráficos detalhados de vendas, comparativos por período e análise de tendências de crescimento.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" d="M6 18V8M12 18V4M18 18v-8" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
         </svg>
       ),
+      color: "purple",
     },
     {
-      title: "Integrações com marketplaces",
-      body: "Centralize seus números com conectores para canais como Mercado Livre, Shopee e Amazon.",
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="10" />
-          <path strokeLinecap="round" d="M2 12h20M12 2a15 15 0 010 20" />
-        </svg>
-      ),
-    },
-    {
-      title: "Alertas para decisão",
-      body: "Identifique variações incomuns em lucro, margem ou volume de vendas antes que se tornem problemas operacionais caros.",
+      title: "Insights com IA",
+      description: "Receba recomendações inteligentes sobre preços, estoque e oportunidades de crescimento.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       ),
+      color: "orange",
     },
-  ];
-
-  const integrations = [
-    { name: "Mercado Livre", body: "Unifique pedidos, faturamento e margens com leitura consistente do canal." },
-    { name: "Shopee", body: "Acompanhe performance e lucro com o mesmo modelo financeiro dos demais canais." },
-    { name: "Amazon", body: "Prepare a visão consolidada enquanto o conector evolui no roteiro do produto." },
-  ];
-
-  const steps = [
-    { title: "Captura", body: "Receba dados dos marketplaces e pontos de venda em um único fluxo." },
-    { title: "Consolidação", body: "Agrupe lucro, margem e quantidade de vendas sem retrabalho manual." },
-    { title: "Decisão", body: "Use o dashboard para agir rápido com base em números centralizados." },
+    {
+      title: "Performance de Anúncios",
+      description: "Acompanhe o ROI de seus anúncios e otimize seus investimentos em marketing.",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+        </svg>
+      ),
+      color: "pink",
+    },
+    {
+      title: "Comparativos entre Marketplaces",
+      description: "Compare a performance do seu negócio entre Mercado Livre, Shopee e Amazon em uma única visão.",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+        </svg>
+      ),
+      color: "cyan",
+    },
+    {
+      title: "Alertas Automáticos",
+      description: "Seja notificado quando produtos atingirem margem negativa ou quando houver variações anormais.",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+      ),
+      color: "indigo",
+    },
+    {
+      title: "Relatórios Inteligentes",
+      description: "Gere relatórios executivos em PDF com os indicadores mais importantes do seu negócio.",
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      ),
+      color: "green",
+    },
   ];
 
   const plans = [
     {
-      name: "Inicial",
-      slug: "inicial",
-      monthlyPrice: "R$ 24",
-      annualPrice: "R$ 19",
-      suffix: "/ usuário",
-      description: "Para quem está começando a profissionalizar a leitura de lucro e margem.",
-      cta: "Escolher Inicial",
-      href: "/sign-in",
+      name: "Starter",
+      monthlyPrice: "R$ 29",
+      annualPrice: "R$ 24",
+      description: "Perfeito para quem está começando a profissionalizar a operação.",
+      features: [
+        "Até 100 produtos",
+        "1 marketplace",
+        "Dashboard essencial",
+        "Sincronização manual",
+        "Suporte por email",
+      ],
+      cta: "Começar Gratuitamente",
       featured: false,
-      features: ["Dashboard financeiro principal", "Métricas de vendas e lucro", "Gráficos essenciais", "Suporte por email"],
     },
     {
-      name: "Pro",
-      slug: "pro",
+      name: "Growth",
       monthlyPrice: "R$ 79",
       annualPrice: "R$ 63",
-      suffix: "/ usuário",
-      description: "Para operações que precisam de análise mais profunda e ritmo semanal de decisão.",
-      cta: "Escolher Pro",
-      href: "/sign-in",
+      description: "Para operações que precisam escalar com dados e insights.",
+      features: [
+        "Produtos ilimitados",
+        "Múltiplos marketplaces",
+        "Analytics avançado",
+        "Insights com IA",
+        "Suporte prioritário",
+        "Relatórios executivos",
+      ],
+      cta: "Começar Gratuitamente",
       featured: true,
-      features: ["Análise avançada de margem", "Detalhamento de lucro líquido", "Acompanhamento de POS", "Suporte prioritário"],
     },
     {
-      name: "Enterprise",
-      slug: "enterprise",
-      monthlyPrice: "Personalizado",
-      annualPrice: "Personalizado",
-      suffix: "",
-      description: "Para grupos com integrações específicas, SLAs e onboarding dedicado.",
-      cta: "Falar com vendas",
-      href: "/sign-in",
+      name: "Scale",
+      monthlyPrice: "R$ 149",
+      annualPrice: "R$ 119",
+      description: "Para empresas com operação complexa e equipes grandes.",
+      features: [
+        "Tudo do plano Growth",
+        "API access",
+        "Onboarding dedicado",
+        "Relatórios customizados",
+        "SLA garantido",
+        "Gerente de conta",
+      ],
+      cta: "Falar com Vendas",
       featured: false,
-      features: ["Integrações personalizadas", "Onboarding dedicado", "Relatórios executivos", "SLAs customizados"],
     },
   ];
 
   return (
-    <main>
-      {/* Hero */}
-      <Container size="xl" className="pt-12 md:pt-16">
-        <section ref={heroRef} className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-10">
-          <div>
-            <motion.p
-              custom={0}
-              variants={fadeUp}
-              initial="hidden"
-              animate="visible"
-              className="inline-flex rounded-[var(--radius-full)] border border-accent/20 bg-accent-soft px-4 py-1.5 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-accent-strong"
-            >
-              Visibilidade financeira premium
-            </motion.p>
-            <motion.h1
-              custom={1}
-              variants={fadeUp}
-              initial="hidden"
-              animate="visible"
-              className="mt-6 max-w-2xl font-[family-name:var(--font-marketing-display)] text-4xl font-semibold leading-[1.12] tracking-tight text-foreground md:text-5xl lg:text-[3.15rem]"
-            >
-              Veja os números que realmente movem o seu negócio.
-            </motion.h1>
-            <motion.p
-              custom={2}
-              variants={fadeUp}
-              initial="hidden"
-              animate="visible"
-              className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground md:text-lg"
-            >
-              O {PUBLIC_BRAND.name} entrega uma plataforma premium para acompanhar margem, lucro líquido, resultados de POS,
-              quantidade de vendas e desempenho por canal em um dashboard moderno e intuitivo.
-            </motion.p>
-            <motion.div custom={3} variants={fadeUp} initial="hidden" animate="visible" className="mt-8 flex flex-wrap gap-3">
-              <ScheduleDemoLink className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-full)] bg-accent px-6 py-2.5 text-sm font-semibold !text-white shadow-[0_4px_16px_rgba(14,122,111,0.25)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_24px_rgba(14,122,111,0.3)] active:scale-[0.97]" />
-              <a
-                href="#planos"
-                className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-full)] border border-border bg-white px-5 py-2.5 text-sm font-semibold text-foreground shadow-[var(--shadow-xs)] transition-all hover:border-border-strong hover:shadow-[var(--shadow-sm)]"
-                onClick={(e) => { e.preventDefault(); scrollToLandingSection("planos"); }}
-              >
-                Ver planos
-              </a>
-            </motion.div>
-            <motion.div custom={4} variants={fadeUp} initial="hidden" animate="visible" className="mt-10 grid gap-4 sm:grid-cols-3">
-              {[
-                { value: "+18,4%", label: "Mais clareza sobre a margem" },
-                { value: "24/7", label: "Acesso aos indicadores do negócio" },
-                { value: "+10 painéis", label: "Para lucro, vendas e POS" },
-              ].map((card) => (
-                <motion.article
-                  key={card.label}
-                  whileHover={reduceMotion ? undefined : { y: -4 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                  className="rounded-[var(--radius-lg)] border border-border bg-white/90 p-5 shadow-[var(--shadow-sm)] backdrop-blur-sm"
-                >
-                  <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground">{card.value}</p>
-                  <p className="mt-2 text-xs font-medium leading-relaxed text-muted-foreground">{card.label}</p>
-                </motion.article>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* Dashboard Preview */}
-          <motion.div style={{ y: dashboardY }} className="relative lg:pl-4">
-            <div className="pointer-events-none absolute -right-8 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl" aria-hidden />
-            <div className="pointer-events-none absolute -left-4 top-12 h-56 w-56 rounded-full bg-accent/8 blur-3xl" aria-hidden />
-            <motion.article
-              initial={reduceMotion ? false : { opacity: 0, x: 36 }}
-              animate={reduceMotion ? undefined : { opacity: 1, x: 0 }}
-              transition={{ duration: 0.85, ease: easeOut, delay: 0.15 }}
-              className="relative rounded-[var(--radius-2xl)] border border-border bg-white p-6 shadow-[var(--shadow-xl)] md:p-8"
-            >
-              <motion.div animate={reduceMotion ? undefined : { y: [0, -5, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}>
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Visão geral do desempenho</p>
-                    <h2 className="mt-2 font-[family-name:var(--font-marketing-display)] text-xl font-semibold text-foreground md:text-2xl">
-                      Dashboard do negócio em abril
-                    </h2>
-                  </div>
-                  <span className="rounded-[var(--radius-full)] bg-success-soft px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-green-700">
-                    Atualizado ao vivo
-                  </span>
-                </div>
-
-                <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_1.05fr]">
-                  <div className="space-y-5">
-                    <p className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground">Métricas principais</p>
-                    <ProgressRow label="Lucro líquido" value={84} delay={0.1} />
-                    <ProgressRow label="Margem" value={78} delay={0.22} />
-                    <ProgressRow label="Quantidade de vendas" value={91} delay={0.34} />
-                    <div className="rounded-[var(--radius-md)] bg-foreground/[0.02] p-4 text-sm leading-relaxed text-muted-foreground">
-                      <span className="font-semibold text-foreground">Roteiro de integrações:</span> Mercado Livre, Shopee e Amazon em um único fluxo de leitura.
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    <div className="rounded-[var(--radius-lg)] border border-border bg-gradient-to-br from-background-soft to-white p-5">
-                      <p className="text-xs font-medium text-muted-foreground">Lucro líquido</p>
-                      <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">R$ 48,2 mil</p>
-                      <p className="mt-2 text-sm font-medium text-accent">Alta de 12,6% vs. mês anterior</p>
-                    </div>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-[var(--radius-lg)] border border-border bg-white p-4">
-                        <p className="text-xs text-muted-foreground">Margem operacional</p>
-                        <p className="mt-2 text-2xl font-bold text-foreground">18,7%</p>
-                        <p className="mt-1 text-sm font-semibold text-success">+2,1 pts</p>
-                      </div>
-                      <div className="rounded-[var(--radius-lg)] border border-border bg-white p-4">
-                        <p className="text-xs text-muted-foreground">Vendas na semana</p>
-                        <p className="mt-2 text-2xl font-bold text-foreground">1.284</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Pedidos</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.article>
-          </motion.div>
-        </section>
-      </Container>
-
-      {/* Features */}
-      <Container size="xl" className="pt-24 md:pt-32">
-        <section id="recursos" className="scroll-mt-28 text-center">
-          <motion.span initial={{ opacity: 0, y: 12 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }} className="inline-flex rounded-[var(--radius-full)] border border-accent/20 bg-white px-4 py-1.5 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-accent-strong">
-            Feito para clareza do negócio
-          </motion.span>
-          <motion.h2 initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.05 }} className="mx-auto mt-5 max-w-4xl font-[family-name:var(--font-marketing-display)] text-3xl font-semibold leading-tight text-foreground md:text-4xl">
-            Tudo o que o empresário precisa para entender lucro, vendas e desempenho por canal.
-          </motion.h2>
-          <motion.p initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.6, delay: 0.1 }} className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground md:text-lg">
-            De métricas ao vivo a gráficos executivos, cada bloco foi desenhado para ajudar você a tomar decisões comerciais com mais rapidez.
-          </motion.p>
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {featureCards.map((card, i) => (
-              <motion.article
-                key={card.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-60px" }}
-                transition={{ duration: 0.55, delay: reduceMotion ? 0 : i * 0.06 }}
-                whileHover={reduceMotion ? undefined : { y: -6, transition: { duration: 0.25 } }}
-                className="flex flex-col rounded-[var(--radius-xl)] border border-border bg-white/95 p-6 text-left shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-lg)]"
-              >
-                <IconOrb>{card.icon}</IconOrb>
-                <h3 className="mt-5 text-lg font-bold text-foreground">{card.title}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{card.body}</p>
-              </motion.article>
-            ))}
-          </div>
-        </section>
-      </Container>
-
-      {/* Integrations */}
-      <Container size="xl" className="pt-24 md:pt-32">
-        <section className="rounded-[var(--radius-2xl)] border border-border bg-white/90 p-6 shadow-[var(--shadow-lg)] backdrop-blur-sm md:p-10 lg:p-12">
-          <div className="text-center">
-            <span className="inline-flex rounded-[var(--radius-full)] border border-accent/20 bg-accent-soft px-4 py-1.5 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-accent-strong">
-              Integrações
-            </span>
-            <h2 className="mx-auto mt-5 max-w-3xl font-[family-name:var(--font-marketing-display)] text-3xl font-semibold text-foreground md:text-[2.15rem]">
-              Uma área de integrações mais limpa, clara e preparada para crescer.
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-              Em vez de misturar cards e blocos pesados, a seção apresenta os marketplaces de forma organizada e explica o valor da centralização com um fluxo visual simples.
-            </p>
-          </div>
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {integrations.map((item, i) => (
-              <motion.article
-                key={item.name}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: reduceMotion ? 0 : i * 0.08 }}
-                whileHover={reduceMotion ? undefined : { y: -4 }}
-                className="rounded-[var(--radius-xl)] border border-border bg-gradient-to-b from-white to-background-soft p-5 shadow-[var(--shadow-sm)] transition-shadow hover:shadow-[var(--shadow-md)]"
-              >
-                <div className="flex items-start gap-3">
-                  <IconOrb>
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14v10a2 2 0 01-2 2H7a2 2 0 01-2-2V9z" />
-                    </svg>
-                  </IconOrb>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h3 className="font-bold text-foreground">{item.name}</h3>
-                        <p className="text-xs text-muted-foreground">Marketplace</p>
-                      </div>
-                      <span className="shrink-0 rounded-[var(--radius-full)] bg-warning-soft px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-amber-700">
-                        Planejado
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
-                  </div>
-                </div>
-              </motion.article>
-            ))}
-          </div>
-          <div className="mt-8 rounded-[var(--radius-xl)] border border-border bg-background/60 p-5 md:p-6">
-            <div className="grid gap-4 md:grid-cols-3">
-              {steps.map((step, i) => (
-                <motion.div
-                  key={step.title}
-                  initial={{ opacity: 0, y: 12 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: reduceMotion ? 0 : 0.1 + i * 0.06 }}
-                  className="rounded-[var(--radius-lg)] border border-white/80 bg-white/90 p-4 shadow-[var(--shadow-xs)]"
-                >
-                  <p className="text-[0.7rem] font-bold uppercase tracking-[0.18em] text-accent">
-                    {i + 1}. {step.title}
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      </Container>
-
-      {/* Pricing */}
-      <Container size="xl" className="pt-24 md:pt-32">
-        <section id="planos" className="scroll-mt-28 text-center">
-          <span className="inline-flex rounded-[var(--radius-full)] bg-accent-soft px-4 py-1.5 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-accent-strong">
-            Planos flexíveis
-          </span>
-          <h2 className="mx-auto mt-5 max-w-3xl font-[family-name:var(--font-marketing-display)] text-3xl font-semibold text-foreground md:text-4xl">
-            Escolha o plano ideal para o momento da sua empresa.
-          </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Comece com visibilidade essencial, avance para análises mais profundas e evolua para relatórios personalizados conforme o negócio cresce.
-          </p>
-
-          <div className="mx-auto mt-8 inline-flex rounded-[var(--radius-full)] border border-border bg-white p-1 shadow-[var(--shadow-sm)]">
-            {(["monthly", "annual"] as const).map((key) => {
-              const active = billing === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setBilling(key)}
-                  className={[
-                    "relative rounded-[var(--radius-full)] px-6 py-2.5 text-sm font-semibold transition-all",
-                    active ? "text-white" : "text-muted-foreground hover:text-foreground",
-                  ].join(" ")}
-                >
-                  {active && (
-                    <motion.span
-                      layoutId="billing-pill"
-                      className="absolute inset-0 rounded-[var(--radius-full)] bg-accent shadow-[0_2px_8px_rgba(14,122,111,0.25)]"
-                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative">{key === "monthly" ? "Mensal" : "Anual"}</span>
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-sm font-medium text-accent">
-            Economize 20% no plano anual e ganhe onboarding prioritário.
-          </p>
-
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {plans.map((plan, i) => {
-              const price = billing === "monthly" ? plan.monthlyPrice : plan.annualPrice;
-              return (
-                <motion.article
-                  key={plan.slug}
-                  initial={{ opacity: 0, y: 22 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: reduceMotion ? 0 : i * 0.08 }}
-                  whileHover={reduceMotion ? undefined : { y: -8 }}
-                  className={[
-                    "relative flex flex-col rounded-[var(--radius-2xl)] border bg-white p-7 text-left shadow-[var(--shadow-card)] transition-shadow hover:shadow-[var(--shadow-lg)]",
-                    plan.featured ? "border-accent ring-2 ring-accent/20" : "border-border",
-                  ].join(" ")}
-                >
-                  {plan.featured && (
-                    <span className="absolute right-5 top-5 rounded-[var(--radius-full)] bg-accent-soft px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wide text-accent-strong">
-                      Mais popular
-                    </span>
-                  )}
-                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-foreground">{plan.name}</p>
-                  <div className="mt-4 flex flex-wrap items-baseline gap-1">
-                    <span className="text-4xl font-bold tracking-tight text-foreground">{price}</span>
-                    {plan.suffix && <span className="text-sm text-muted-foreground">{plan.suffix}</span>}
-                  </div>
-                  <p className="mt-4 text-sm leading-relaxed text-muted-foreground">{plan.description}</p>
-                  <Link
-                    href={plan.href}
-                    className={[
-                      "mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-full)] px-5 py-2.5 text-sm font-semibold transition-all",
-                      plan.featured
-                        ? "bg-accent text-white shadow-[0_4px_16px_rgba(14,122,111,0.25)] hover:bg-accent-strong"
-                        : "border border-border bg-white text-foreground hover:border-border-strong hover:shadow-[var(--shadow-sm)]",
-                    ].join(" ")}
-                  >
-                    {plan.cta}
-                  </Link>
-                  <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
-                    {plan.features.map((f) => (
-                      <li key={f} className="flex gap-2">
-                        <CheckIcon />
-                        <span>{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.article>
-              );
-            })}
-          </div>
-        </section>
-      </Container>
-
-      {/* CTA */}
-      <Container size="xl" className="pt-24 md:pb-4 md:pt-32">
-        <motion.section
-          id="demo"
-          initial={{ opacity: 0, y: 24 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.65, ease: easeOut }}
-          className="rounded-[var(--radius-2xl)] border border-border bg-gradient-to-r from-accent-soft to-warning-soft p-8 shadow-[var(--shadow-lg)] md:p-12"
-        >
-          <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+    <main className="relative">
+      {/* Hero Section */}
+      <section ref={heroRef} className="relative pt-20 md:pt-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            {/* Hero Content */}
             <div className="max-w-2xl">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent-strong">
-                Pronto para elevar sua visibilidade?
-              </p>
-              <h2 className="mt-4 font-[family-name:var(--font-marketing-display)] text-2xl font-semibold leading-tight text-foreground md:text-3xl">
-                Dê ao seu negócio uma visão mais clara sobre lucro, margem e performance de vendas.
-              </h2>
+              {/* Eyebrow */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: easeOut }}
+                className="inline-flex items-center rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent"
+              >
+                Plataforma de Analytics para Sellers
+              </motion.p>
+
+              {/* Headline */}
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1, ease: easeOut }}
+                className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl lg:text-6xl"
+              >
+                Venda mais.
+                <br />
+                <span className="text-accent">Lucre mais.</span>
+              </motion.h1>
+
+              {/* Subheadline */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2, ease: easeOut }}
+                className="mt-6 text-lg leading-relaxed text-muted-foreground md:text-xl"
+              >
+                A única plataforma que centraliza métricas de vendas, lucro, margem e performance de todos os
+                seus marketplaces em um só lugar.
+              </motion.p>
+
+              {/* CTAs */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3, ease: easeOut }}
+                className="mt-8 flex flex-wrap gap-4"
+              >
+                <Link
+                  href="/sign-in"
+                  className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-8 text-sm font-semibold text-white shadow-md transition-all hover:bg-accent-strong hover:shadow-lg active:scale-[0.98]"
+                >
+                  Começar Gratuitamente
+                </Link>
+                <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-white px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
+              </motion.div>
+
+              {/* Marketplace Logos */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4, ease: easeOut }}
+                className="mt-10"
+              >
+                <MarketplaceLogosBar />
+              </motion.div>
+
+              {/* Hero Metrics */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5, ease: easeOut }}
+                className="mt-10"
+              >
+                <HeroMetrics />
+              </motion.div>
             </div>
-            <motion.div whileHover={reduceMotion ? undefined : { scale: 1.03 }} whileTap={{ scale: 0.98 }}>
-              <ScheduleDemoLink className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-[var(--radius-full)] bg-accent px-8 py-3 text-sm font-semibold !text-white shadow-[0_4px_16px_rgba(14,122,111,0.25)] transition-all hover:bg-accent-strong hover:shadow-[0_8px_24px_rgba(14,122,111,0.3)]" />
+
+            {/* Hero Dashboard Preview */}
+            <motion.div style={{ y: dashboardY }} className="lg:pl-8">
+              <HeroDashboardPreview />
             </motion.div>
           </div>
-        </motion.section>
-      </Container>
+        </div>
+      </section>
+
+      {/* Dashboard Showcase Section */}
+      <DashboardShowcase />
+
+      {/* Features Section */}
+      <section id="recursos" className="scroll-mt-28 py-24 md:py-32">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: easeOut }}
+            className="mb-16 text-center"
+          >
+            <span className="inline-flex items-center rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent">
+              Recursos
+            </span>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
+              Tudo que você precisa para escalar
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+              De métricas ao vivo a insights com IA, cada funcionalidade foi pensada para ajudar você a vender
+              mais e lucrar mais.
+            </p>
+          </motion.div>
+
+          {/* Features Grid */}
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature, index) => (
+              <FeatureCard
+                key={feature.title}
+                title={feature.title}
+                description={feature.description}
+                icon={feature.icon}
+                color={feature.color}
+                index={index}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Integrations Section */}
+      <IntegrationsSection />
+
+      {/* Social Proof Section */}
+      <div className="bg-[#fafafa]">
+        <SocialProof />
+      </div>
+
+      {/* Pricing Section */}
+      <section id="planos" className="scroll-mt-28 py-24 md:py-32">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: easeOut }}
+            className="mb-12 text-center"
+          >
+            <span className="inline-flex items-center rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent">
+              Planos
+            </span>
+            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
+              Escolha o plano ideal para você
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+              Comece gratuitamente e evolua conforme seu negócio cresce. Sem taxa de setup, cancele quando
+              quiser.
+            </p>
+          </motion.div>
+
+          {/* Billing Toggle */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="mb-12 flex flex-col items-center gap-4"
+          >
+            <div className="inline-flex items-center rounded-full border border-border bg-white p-1 shadow-sm">
+              {(["monthly", "annual"] as const).map((key) => {
+                const active = billing === key;
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setBilling(key)}
+                    className={`relative rounded-full px-6 py-2.5 text-sm font-semibold transition-all ${
+                      active ? "text-white" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {active && (
+                      <motion.span
+                        layoutId="billing-pill"
+                        className="absolute inset-0 rounded-full bg-accent shadow-md"
+                        transition={{ type: "spring", stiffness: 400, damping: 35 }}
+                      />
+                    )}
+                    <span className="relative">{key === "monthly" ? "Mensal" : "Anual"}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {billing === "annual" && (
+              <motion.p
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-sm font-medium text-accent"
+              >
+                Economize 20% no plano anual
+              </motion.p>
+            )}
+          </motion.div>
+
+          {/* Pricing Cards */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            {plans.map((plan, index) => (
+              <PricingCard
+                key={plan.name}
+                name={plan.name}
+                price={billing === "monthly" ? plan.monthlyPrice : plan.annualPrice}
+                period={billing === "monthly" ? "mês" : "mês"}
+                description={plan.description}
+                features={plan.features}
+                featured={plan.featured}
+                cta={plan.cta}
+                href="/sign-in"
+                delay={index * 0.1}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA Section */}
+      <section id="demo" className="relative py-24 md:py-32">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white via-accent/[0.02] to-white" />
+
+        <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: easeOut }}
+          >
+            <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
+              Pronto para ver o lucro real do seu negócio?
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
+              Junte-se a centenas de sellers profissionais que já descobriram onde estavam perdendo dinheiro.
+            </p>
+
+            <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+              <Link
+                href="/sign-in"
+                className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-8 text-sm font-semibold text-white shadow-lg transition-all hover:bg-accent-strong hover:shadow-xl active:scale-[0.98]"
+              >
+                Começar Agora
+              </Link>
+              <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-white px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
+            </div>
+
+            <p className="mt-6 text-sm text-muted-foreground">
+              Setup em 2 minutos. Cancele quando quiser. Sem cartão de crédito.
+            </p>
+          </motion.div>
+        </div>
+      </section>
     </main>
   );
 }

@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
 
-vi.mock("@/components/dashboard/dashboard-home", () => ({
+vi.mock("@/modules/dashboard", () => ({
   DashboardHome: dashboardHomeMock,
 }));
 

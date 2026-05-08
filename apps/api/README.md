@@ -59,6 +59,7 @@ The dev server loads `.env`, `.env.local`, and (when `NODE_ENV` is `development`
 - `STRIPE_WEBHOOK_SECRET`: Stripe webhook signing secret used to verify raw webhook payloads
 - `STRIPE_PRICE_MONTHLY`: Stripe recurring price ID for the monthly plan
 - `STRIPE_PRICE_ANNUAL`: Stripe recurring price ID for the annual plan
+- `SYNC_RELAX_GUARDS`: when `true` / `1` / `yes`, skips overnight and “window already used” sync availability checks for local testing; **ignored when `NODE_ENV` is `production`**
 
 `DATABASE_URL` now matters for runtime boot. For local development, point it at plain Postgres. For production, point it at Supabase Postgres. `SUPABASE_*` values remain reserved for later service integrations.
 

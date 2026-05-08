@@ -35,6 +35,17 @@ export class SyncController {
     };
   }
 
+  @Post("history/clear")
+  async clearHistory(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Body() body: SyncProviderDto,
+  ) {
+    return {
+      data: await this.syncService.clearHistory(authContext.organization.id, body.provider),
+      error: null,
+    };
+  }
+
   @Post("run")
   async runSync(
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,

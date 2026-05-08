@@ -1,0 +1,363 @@
+"use client";
+
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { Package, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react";
+import { Card, EmptyState, Badge } from "@marginflow/ui";
+import { StatusBadge } from "@/components/ui-premium/status-badge";
+import { slideInUpVariants } from "@/lib/animations";
+import type { DashboardProfitabilityResponse } from "@marginflow/types";
+import { buildDashboardProductRows } from "../calculations/product-rows";
+import { formatMoney, formatPercent, formatNumber } from "../utils/formatters";
+
+interface ProductsTableProps {
+  data: DashboardProfitabilityResponse;
+  className?: string;
+}
+
+const healthBadgeConfig = {
+  critical: { status: "error" as const, label: "Crítico" },
+  attention: { status: "warning" as const, label: "Atenção" },
+  neutral: { status: "inactive" as const, label: "Neutro" },
+  healthy: { status: "success" as const, label: "Saudável" },
+  scalable: { status: "active" as const, label: "Escalável" },
+};
+
+const channelLabels: Record<string, string> = {
+  mercadolivre: "MELI",
+};
+
+function getChannelBadge(channel: string) {
+  const label = channelLabels[channel] ?? "MELI";
+  return <Badge variant="default">{label}</Badge>;
+}
+
+function formatTrendValue(value: number, isPositiveGood = true) {
+  const isPositive = value >= 0;
+  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+  const colorClass =
+    isPositiveGood
+      ? isPositive
+        ? "text-success"
+        : "text-error"
+      : isPositive
+        ? "text-error"
+        : "text-success";
+
+  return (
+    <div className={`flex items-center justify-end gap-1 ${colorClass}`}>
+      <TrendIcon className="h-3 w-3" />
+      <span className="text-sm font-medium">
+        {isPositive ? "+" : ""}
+        {formatPercent(value, { digits: 1 })}
+      </span>
+    </div>
+  );
+}
+
+export function ProductsTable({ data, className = "" }: ProductsTableProps) {
+  const allRows = buildDashboardProductRows(data);
+  // Pegar apenas os 5 melhores produtos (ordenados por lucro)
+  const rows = allRows
+    .filter((row) => row.netSales > 0) // Excluir produtos sem vendas
+    .sort((a, b) => b.profit - a.profit)
+    .slice(0, 5);
+
+  if (rows.length === 0) {
+    return (
+      <Card padding="lg" className={className}>
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-foreground">Produtos</h3>
+          <p className="text-xs text-muted-foreground">Performance por SKU</p>
+        </div>
+        <EmptyState
+          title="Nenhum produto com dados suficientes"
+          description="Cadastre produtos e custos para visualizar a lucratividade por item."
+          icon={<Package className="h-6 w-6" />}
+          action={
+            <Link
+              href="/app/products"
+              className="inline-flex items-center gap-1 text-sm font-medium text-accent transition-colors hover:text-accent-strong"
+            >
+              Cadastrar produtos
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          }
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <motion.div variants={slideInUpVariants}>
+      <Card padding="lg" className={className}>
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">TOP 5 PRODUTOS</h3>
+            <p className="text-xs text-muted-foreground">MAIORES LUCRO POR SKU</p>
+          </div>
+          <Link
+            href="/app/products"
+            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent-strong"
+          >
+            Ver todos
+            <ArrowUpRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {/* Scroll horizontal para a tabela expandida */}
+        <div className="overflow-x-auto -mx-2 px-2">
+          <div className="min-w-[1400px]">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border bg-surface-strong/95">
+                  {/* 1. Nome */}
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Produto
+                  </th>
+                  {/* 2. SKU */}
+                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    SKU
+                  </th>
+                  {/* 3. Marketplace */}
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Marketplace
+                  </th>
+                  {/* 4. Vendas */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Vendas
+                  </th>
+                  {/* 5. Devoluções */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Devol.
+                  </th>
+                  {/* 6. Vendas Líquidas */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Líquida
+                  </th>
+                  {/* 7. Receita */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Receita
+                  </th>
+                  {/* 8. Ticket Médio */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Ticket
+                  </th>
+                  {/* 9. Comissão */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Comissão
+                  </th>
+                  {/* 10. Frete */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Frete
+                  </th>
+                  {/* 11. Imposto */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Imposto
+                  </th>
+                  {/* 12. Custo */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Custo
+                  </th>
+                  {/* 13. ADS (Investimento) */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Ads $
+                  </th>
+                  {/* 14. ADS (ROAS) */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    ROAS
+                  </th>
+                  {/* 15. Lucro */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Lucro
+                  </th>
+                  {/* 16. Margem */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Margem
+                  </th>
+                  {/* 17. ROI */}
+                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    ROI
+                  </th>
+                  {/* 18. Saúde Financeira */}
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Saúde
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((row, index) => {
+                  const returnRate = row.sales > 0 ? row.returns / row.sales : 0;
+                  const healthBadge = healthBadgeConfig[row.health];
+
+                  return (
+                    <motion.tr
+                      key={row.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03, duration: 0.3 }}
+                      className="transition-colors duration-150 hover:bg-foreground/[0.015]"
+                    >
+                      {/* 1. Nome */}
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+                            <Package className="h-4 w-4 text-accent" />
+                          </div>
+                          <div className="min-w-0 max-w-[180px]">
+                            <p className="truncate text-sm font-medium text-foreground">{row.name}</p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* 2. SKU */}
+                      <td className="px-3 py-3">
+                        <span className="text-xs font-mono text-muted-foreground">{row.sku || "—"}</span>
+                      </td>
+
+                      {/* 3. Marketplace */}
+                      <td className="px-3 py-3 text-center">{getChannelBadge(row.channelLabel)}</td>
+
+                      {/* 4. Vendas */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-foreground">{formatNumber(row.sales)}</span>
+                      </td>
+
+                      {/* 5. Devoluções */}
+                      <td className="px-3 py-3 text-right">
+                        <div className="flex flex-col items-end">
+                          <span className={`text-sm ${returnRate > 0.15 ? "text-error" : "text-foreground"}`}>
+                            {formatNumber(row.returns)}
+                          </span>
+                          {returnRate > 0.05 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              ({formatPercent(returnRate * 100, { digits: 0 })})
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 6. Vendas Líquidas */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm font-medium text-foreground">{formatNumber(row.netSales)}</span>
+                      </td>
+
+                      {/* 7. Receita */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm font-medium text-foreground">{formatMoney(row.revenue)}</span>
+                      </td>
+
+                      {/* 8. Ticket Médio */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-muted-foreground">{formatMoney(row.averageTicket)}</span>
+                      </td>
+
+                      {/* 9. Comissão */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-muted-foreground">{formatMoney(row.commission)}</span>
+                      </td>
+
+                      {/* 10. Frete */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-muted-foreground">{formatMoney(row.shipping)}</span>
+                      </td>
+
+                      {/* 11. Imposto */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-muted-foreground">{formatMoney(row.tax)}</span>
+                      </td>
+
+                      {/* 12. Custo */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-muted-foreground">{formatMoney(row.totalCost)}</span>
+                      </td>
+
+                      {/* 13. ADS (Investimento) */}
+                      <td className="px-3 py-3 text-right">
+                        <span className="text-sm text-muted-foreground">
+                          {row.adSpend > 0 ? formatMoney(row.adSpend) : "—"}
+                        </span>
+                      </td>
+
+                      {/* 14. ADS (ROAS) */}
+                      <td className="px-3 py-3 text-right">
+                        {row.roas !== null && row.roas > 0 ? (
+                          <div className="flex items-center justify-end gap-1">
+                            {row.roas >= 3 ? (
+                              <TrendingUp className="h-3 w-3 text-success" />
+                            ) : row.roas < 1 ? (
+                              <TrendingDown className="h-3 w-3 text-error" />
+                            ) : null}
+                            <span
+                              className={`text-sm font-medium ${
+                                row.roas >= 3
+                                  ? "text-success"
+                                  : row.roas >= 1
+                                    ? "text-accent"
+                                    : "text-error"
+                              }`}
+                            >
+                              {row.roas.toFixed(1)}x
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </td>
+
+                      {/* 15. Lucro */}
+                      <td className="px-3 py-3 text-right">
+                        <span className={`text-sm font-semibold ${row.profit >= 0 ? "text-success" : "text-error"}`}>
+                          {formatMoney(row.profit)}
+                        </span>
+                      </td>
+
+                      {/* 16. Margem */}
+                      <td className="px-3 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {row.margin >= 20 ? (
+                            <ArrowUpRight className="h-3.5 w-3.5 text-success" />
+                          ) : row.margin < 10 ? (
+                            <ArrowDownRight className="h-3.5 w-3.5 text-error" />
+                          ) : null}
+                          <span
+                            className={`text-sm font-medium ${
+                              row.margin >= 20 ? "text-success" : row.margin < 10 ? "text-error" : "text-foreground"
+                            }`}
+                          >
+                            {formatPercent(row.margin)}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* 17. ROI */}
+                      <td className="px-3 py-3 text-right">
+                        {row.roi !== null ? (
+                          <span
+                            className={`text-sm font-medium ${
+                              row.roi >= 50 ? "text-success" : row.roi > 0 ? "text-accent" : "text-error"
+                            }`}
+                          >
+                            {formatPercent(row.roi, { digits: 0 })}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">—</span>
+                        )}
+                      </td>
+
+                      {/* 18. Saúde Financeira */}
+                      <td className="px-3 py-3 text-center">
+                        <StatusBadge status={healthBadge.status} label={healthBadge.label} />
+                      </td>
+                    </motion.tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </Card>
+    </motion.div>
+  );
+}

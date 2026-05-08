@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveSyncWindowState } from "./sync-window";
+import { resolveSyncWindowState, resolveSyncWindowStateAtNextOpenHour } from "./sync-window";
 
 describe("resolveSyncWindowState", () => {
   it("blocks sync before the morning window starts", () => {
@@ -24,5 +24,14 @@ describe("resolveSyncWindowState", () => {
     expect(state.syncOpen).toBe(true);
     expect(state.currentWindowKey).toBe("2026-05-01:evening");
     expect(state.nextAvailableAt).toBe("2026-05-02T09:00:00.000Z");
+  });
+});
+
+describe("resolveSyncWindowStateAtNextOpenHour", () => {
+  it("advances from overnight closure to the next open window", () => {
+    const state = resolveSyncWindowStateAtNextOpenHour(new Date("2026-05-01T08:30:00.000Z"));
+
+    expect(state.syncOpen).toBe(true);
+    expect(state.currentWindowKey).not.toBeNull();
   });
 });

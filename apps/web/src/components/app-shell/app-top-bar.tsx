@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 
 type AppTopBarProps = {
@@ -16,7 +16,6 @@ const pageTitles: Record<string, string> = {
 
 export function AppTopBar({ onMenuToggle }: AppTopBarProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const title = pageTitles[pathname] || "Painel";
 
   return (
@@ -39,13 +38,6 @@ export function AppTopBar({ onMenuToggle }: AppTopBarProps) {
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            className="hidden text-sm font-medium text-muted-foreground hover:text-foreground transition-colors sm:block"
-            onClick={() => router.push("/")}
-            type="button"
-          >
-            Site institucional
-          </button>
           <SignOutButton />
         </div>
       </div>

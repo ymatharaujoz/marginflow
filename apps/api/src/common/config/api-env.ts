@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+function parseEnvBool(value: unknown): boolean {
+  if (value === undefined || value === null || value === "") {
+    return false;
+  }
+
+  const normalized = String(value).trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
 const apiEnvSchema = z.object({
   API_HOST: z.string().min(1).default("0.0.0.0"),
   API_PORT: z.coerce.number().int().positive().default(4000),
@@ -19,6 +28,11 @@ const apiEnvSchema = z.object({
   STRIPE_PRICE_MONTHLY: z.string().min(1),
   STRIPE_PRICE_ANNUAL: z.string().min(1),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  /**
+   * When true (never honored when `NODE_ENV` is `production`), sync skips overnight closure and
+   * “window already used” blocks so integrations can be exercised without waiting on São Paulo windows.
+   */
+  SYNC_RELAX_GUARDS: z.preprocess(parseEnvBool, z.boolean()).default(false),
 });
 
 export type ApiRuntimeEnv = z.infer<typeof apiEnvSchema>;
@@ -45,6 +59,7 @@ export function readApiEnv(
     STRIPE_PRICE_MONTHLY: source.STRIPE_PRICE_MONTHLY,
     STRIPE_PRICE_ANNUAL: source.STRIPE_PRICE_ANNUAL,
     NODE_ENV: source.NODE_ENV,
+    SYNC_RELAX_GUARDS: source.SYNC_RELAX_GUARDS,
   });
 }
 

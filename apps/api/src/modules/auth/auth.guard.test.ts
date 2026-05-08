@@ -28,6 +28,7 @@ describe("auth guard", () => {
       STRIPE_PRICE_MONTHLY: "price_monthly",
       STRIPE_PRICE_ANNUAL: "price_annual",
       NODE_ENV: "test",
+      SYNC_RELAX_GUARDS: false,
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
     authService = app.get(AuthService);

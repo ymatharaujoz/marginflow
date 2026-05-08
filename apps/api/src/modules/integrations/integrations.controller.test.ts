@@ -28,6 +28,7 @@ describe("integrations controller", () => {
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
       MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
       NODE_ENV: "test",
+      SYNC_RELAX_GUARDS: false,
       STRIPE_PRICE_ANNUAL: "price_annual",
       STRIPE_PRICE_MONTHLY: "price_monthly",
       STRIPE_SECRET_KEY: "stripe",
@@ -74,7 +75,7 @@ describe("integrations controller", () => {
     vi.spyOn(integrationsService, "listConnections").mockResolvedValueOnce([
       {
         connectAvailable: true,
-        connectLabel: "Connect account",
+        connectLabel: "Conectar conta",
         connectedAccountId: null,
         connectedAccountLabel: null,
         disconnectAvailable: false,
@@ -83,7 +84,7 @@ describe("integrations controller", () => {
         lastSyncedAt: null,
         provider: "mercadolivre",
         status: "disconnected",
-        statusMessage: "No marketplace account is connected yet.",
+        statusMessage: "Nenhuma conta do marketplace está conectada ainda.",
         tokenExpiresAt: null,
       },
     ]);

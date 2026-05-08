@@ -26,6 +26,7 @@ function createService() {
         findMany: vi.fn(),
       },
     },
+    select: vi.fn(),
     update: vi.fn(),
   };
   const env = {
@@ -44,6 +45,7 @@ function createService() {
     STRIPE_PRICE_MONTHLY: "price_monthly",
     STRIPE_SECRET_KEY: "stripe",
     STRIPE_WEBHOOK_SECRET: "webhook",
+    SYNC_RELAX_GUARDS: false,
     WEB_APP_ORIGIN: "http://localhost:3000",
   };
   const productsService = {
@@ -81,7 +83,7 @@ describe("IntegrationsService", () => {
         provider: "mercadolivre",
         refreshToken: "refresh",
         status: "connected",
-        tokenExpiresAt: new Date("2026-05-01T10:00:00.000Z"),
+        tokenExpiresAt: new Date("2030-05-01T10:00:00.000Z"),
         updatedAt: new Date("2026-04-29T10:00:00.000Z"),
       },
     ]);
@@ -118,39 +120,53 @@ describe("IntegrationsService", () => {
   it("lists synced products with review metrics and SKU suggestions", async () => {
     const { db, service } = createService();
 
-    db.query.externalProducts.findMany.mockResolvedValue([
-      {
-        createdAt: new Date("2026-05-01T10:00:00.000Z"),
-        externalProductId: "MLB-1",
-        id: "external_1",
-        linkedProduct: null,
-        linkedProductId: null,
-        marketplaceConnectionId: "conn_1",
-        metadata: {},
-        orderItems: [
-          {
-            createdAt: new Date("2026-05-01T11:00:00.000Z"),
-            externalOrder: {
-              orderedAt: new Date("2026-05-01T11:00:00.000Z"),
-            },
-            externalOrderId: "order_1",
-            externalProductId: "external_1",
-            id: "item_1",
-            organizationId: "org_1",
-            quantity: 2,
-            totalPrice: "42.00",
-            unitPrice: "21.00",
-            updatedAt: new Date("2026-05-01T11:00:00.000Z"),
-          },
-        ],
-        organizationId: "org_1",
-        provider: "mercadolivre",
-        reviewStatus: "unreviewed",
-        sku: "SKU-42",
-        title: "Kit Mercado Livre",
-        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
-      },
-    ]);
+    db.select
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValue([
+              {
+                createdAt: new Date("2026-05-01T10:00:00.000Z"),
+                externalProductId: "MLB-1",
+                id: "external_1",
+                linkedProductId: null,
+                marketplaceConnectionId: "conn_1",
+                metadata: {},
+                organizationId: "org_1",
+                provider: "mercadolivre",
+                reviewStatus: "unreviewed",
+                sku: "SKU-42",
+                title: "Kit Mercado Livre",
+                updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+              },
+            ]),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([
+              {
+                externalOrder: {
+                  orderedAt: new Date("2026-05-01T11:00:00.000Z"),
+                },
+                orderItem: {
+                  createdAt: new Date("2026-05-01T11:00:00.000Z"),
+                  externalOrderId: "order_1",
+                  externalProductId: "external_1",
+                  id: "item_1",
+                  organizationId: "org_1",
+                  quantity: 2,
+                  totalPrice: "42.00",
+                  unitPrice: "21.00",
+                  updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+                },
+              },
+            ]),
+          }),
+        }),
+      });
     db.query.products.findMany.mockResolvedValue([
       {
         createdAt: new Date("2026-04-29T10:00:00.000Z"),
@@ -231,7 +247,7 @@ describe("IntegrationsService", () => {
       provider: "mercadolivre",
       refreshToken: "refresh",
       status: "connected",
-      tokenExpiresAt: new Date("2026-05-01T10:00:00.000Z"),
+      tokenExpiresAt: new Date("2030-05-01T10:00:00.000Z"),
       updatedAt: new Date("2026-04-29T10:00:00.000Z"),
     });
     db.update = vi

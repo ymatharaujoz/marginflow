@@ -42,6 +42,9 @@ function createFinanceServiceFixture() {
       externalOrders: {
         findMany: vi.fn(),
       },
+      externalProducts: {
+        findMany: vi.fn(),
+      },
       manualExpenses: {
         findMany: vi.fn(),
       },
@@ -52,6 +55,7 @@ function createFinanceServiceFixture() {
         findMany: vi.fn(),
       },
     },
+    select: vi.fn(),
     transaction: vi.fn(async (callback: (transaction: TransactionMock) => Promise<void>) =>
       callback(tx),
     ),
@@ -102,6 +106,29 @@ describe("finance service helpers", () => {
 describe("FinanceService", () => {
   it("builds dashboard read models with SKU mapping, rollups, and daily bucketing", async () => {
     const { db, service } = createFinanceServiceFixture();
+    const externalProductsSelectWhere = vi.fn().mockResolvedValue([
+      {
+        id: "external_product_1",
+        linkedProductId: null,
+        sku: "abc-1",
+      },
+      {
+        id: "external_product_2",
+        linkedProductId: null,
+        sku: "MISSING",
+      },
+      {
+        id: "external_product_3",
+        linkedProductId: null,
+        sku: "XYZ-1",
+      },
+    ]);
+    const externalProductsSelectFrom = vi.fn(() => ({
+      where: externalProductsSelectWhere,
+    }));
+    db.select.mockReturnValue({
+      from: externalProductsSelectFrom,
+    });
     db.query.products.findMany.mockResolvedValue([
       {
         createdAt: new Date("2026-04-28T10:00:00.000Z"),
@@ -142,20 +169,14 @@ describe("FinanceService", () => {
         id: "order_1",
         items: [
           {
-            externalProduct: {
-              id: "external_product_1",
-              sku: "abc-1",
-            },
+            externalProductId: "external_product_1",
             id: "item_1",
             quantity: 2,
             totalPrice: "200.00",
             unitPrice: "100.00",
           },
           {
-            externalProduct: {
-              id: "external_product_2",
-              sku: "MISSING",
-            },
+            externalProductId: "external_product_2",
             id: "item_2",
             quantity: 1,
             totalPrice: "100.00",
@@ -172,10 +193,7 @@ describe("FinanceService", () => {
         id: "order_2",
         items: [
           {
-            externalProduct: {
-              id: "external_product_3",
-              sku: "XYZ-1",
-            },
+            externalProductId: "external_product_3",
             id: "item_3",
             quantity: 1,
             totalPrice: "50.00",
@@ -237,7 +255,6 @@ describe("FinanceService", () => {
         updatedAt: new Date("2026-04-29T10:00:00.000Z"),
       },
     ]);
-
     const readModel = await service.buildDashboardReadModel("org_123");
 
     expect(readModel.summary).toEqual(
@@ -301,6 +318,75 @@ describe("FinanceService", () => {
         }),
       }),
     ]);
+    expect(db.select).toHaveBeenCalledTimes(1);
+    expect(externalProductsSelectFrom).toHaveBeenCalledTimes(1);
+    expect(externalProductsSelectWhere).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to legacy external product columns when review-link fields are missing", async () => {
+    const { db, service } = createFinanceServiceFixture();
+    const legacyExternalProductsWhere = vi.fn().mockResolvedValue([
+      {
+        id: "external_product_1",
+        sku: "ABC-1",
+      },
+    ]);
+    const legacyExternalProductsFrom = vi.fn(() => ({
+      where: legacyExternalProductsWhere,
+    }));
+    const modernExternalProductsFrom = vi.fn(() => {
+      const error = new Error('column "linked_product_id" does not exist') as Error & {
+        code?: string;
+      };
+      error.code = "42703";
+      throw error;
+    });
+    db.select
+      .mockImplementationOnce(() => ({
+        from: modernExternalProductsFrom,
+      }))
+      .mockImplementationOnce(() => ({
+        from: legacyExternalProductsFrom,
+      }));
+    db.query.products.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-28T10:00:00.000Z"),
+        id: "product_1",
+        isActive: true,
+        name: "Product One",
+        organizationId: "org_123",
+        productCosts: [],
+        sellingPrice: "100.00",
+        sku: "ABC-1",
+      },
+    ]);
+    db.query.externalOrders.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-28T10:00:00.000Z"),
+        fees: [],
+        id: "order_1",
+        items: [
+          {
+            externalProductId: "external_product_1",
+            id: "item_1",
+            quantity: 1,
+            totalPrice: "100.00",
+            unitPrice: "100.00",
+          },
+        ],
+        orderedAt: new Date("2026-04-28T10:00:00.000Z"),
+        provider: "mercadolivre",
+        totalAmount: "100.00",
+      },
+    ]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+
+    const readModel = await service.buildDashboardReadModel("org_123");
+
+    expect(readModel.summary.grossRevenue).toBe("100.00");
+    expect(db.select).toHaveBeenCalledTimes(2);
+    expect(legacyExternalProductsWhere).toHaveBeenCalledTimes(1);
   });
 
   it("re-materializes daily and product metrics deterministically for the organization", async () => {

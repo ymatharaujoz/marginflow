@@ -19,6 +19,12 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: vi.fn(),
+  }),
+}));
+
 describe("IntegrationsHub", () => {
   function mockQueryByKey() {
     reactQueryMocks.useQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
@@ -101,6 +107,7 @@ describe("IntegrationsHub", () => {
     expect(markup).toContain("Mercado Livre conectado com sucesso.");
     expect(markup).toContain("Sincronização manual");
     expect(markup).toContain("Sincronizar agora");
+    expect(markup).toContain("Limpar histórico");
   });
 
   it("renders the API failure state", () => {

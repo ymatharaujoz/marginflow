@@ -24,6 +24,7 @@ describe("MercadoLivreProvider", () => {
       STRIPE_PRICE_MONTHLY: "price_monthly",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
 
@@ -61,6 +62,7 @@ describe("MercadoLivreProvider", () => {
       STRIPE_PRICE_MONTHLY: "price_monthly",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
 

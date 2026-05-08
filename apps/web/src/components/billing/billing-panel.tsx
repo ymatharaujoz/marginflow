@@ -171,8 +171,7 @@ export function BillingPanel({
           </Badge>
           <div className="space-y-3">
             <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-foreground md:text-[2rem] md:leading-tight">
-              Ative o {PUBLIC_BRAND.name} para{" "}
-              <span className="text-accent-strong">{organizationName}</span>
+              Ative o {PUBLIC_BRAND.name}
             </h1>
             <p className="text-base leading-relaxed text-muted-foreground">
               Escolha mensal ou anual. Após o pagamento, seu time acessa o app completo — produtos, integrações,

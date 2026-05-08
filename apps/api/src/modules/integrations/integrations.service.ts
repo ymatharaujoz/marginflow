@@ -7,6 +7,8 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import {
+  externalOrderItems,
+  externalOrders,
   externalProducts,
   marketplaceConnections,
   type DatabaseClient,
@@ -26,7 +28,7 @@ import type {
   SyncedProductReviewStatus,
   SyncedProductSuggestedMatch,
 } from "@marginflow/types";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
 import { ProductsService } from "@/modules/products/products.service";
@@ -54,6 +56,11 @@ type ExternalProductOrderItemRow = ExternalOrderItem & {
 type SyncedExternalProductRow = ExternalProduct & {
   linkedProduct: Product | null;
   orderItems: ExternalProductOrderItemRow[];
+};
+
+type LegacySyncedExternalProductRow = Omit<ExternalProduct, "linkedProductId" | "reviewStatus"> & {
+  linkedProductId: string | null;
+  reviewStatus: "unreviewed";
 };
 
 function toIsoString(value: Date | string | null | undefined) {
@@ -93,6 +100,25 @@ function normalizeSku(value: string | null | undefined) {
 
   const normalized = value.trim().toUpperCase();
   return normalized.length > 0 ? normalized : null;
+}
+
+function isMissingExternalProductReviewColumns(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const code = "code" in error && typeof error.code === "string" ? error.code : null;
+  const message =
+    "message" in error && typeof error.message === "string" ? error.message : null;
+
+  if (code === "42703") {
+    return true;
+  }
+
+  return Boolean(
+    message &&
+      (message.includes("linked_product_id") || message.includes("review_status")),
+  );
 }
 
 @Injectable()
@@ -155,14 +181,15 @@ export class IntegrationsService {
     try {
       if (query.error) {
         throw new IntegrationProviderError(
-          query.error_description?.trim() || "Mercado Livre rejected the connection request.",
+          query.error_description?.trim() ||
+            "O Mercado Livre recusou a solicitação de conexão.",
           "callback_rejected",
         );
       }
 
       if (!query.code || !query.state) {
         throw new IntegrationProviderError(
-          "Mercado Livre callback did not include the required state and code.",
+          "A resposta do Mercado Livre não incluiu o state e o code obrigatórios.",
           "callback_invalid",
         );
       }
@@ -171,7 +198,7 @@ export class IntegrationsService {
 
       if (state.provider !== "mercadolivre") {
         throw new IntegrationProviderError(
-          "Mercado Livre callback state does not match the expected provider.",
+          "O state retornado não corresponde ao provedor esperado (Mercado Livre).",
           "callback_invalid",
         );
       }
@@ -215,7 +242,7 @@ export class IntegrationsService {
         });
 
       return this.buildRedirectUrl(baseRedirect, {
-        message: "Mercado Livre connected successfully.",
+        message: "Mercado Livre conectado com sucesso.",
         provider: "mercadolivre",
         status: "success",
       });
@@ -225,7 +252,7 @@ export class IntegrationsService {
           ? error.message
           : error instanceof Error
             ? error.message
-            : "Mercado Livre connection failed.";
+            : "Falha ao conectar o Mercado Livre.";
 
       return this.buildRedirectUrl(baseRedirect, {
         message,
@@ -287,26 +314,60 @@ export class IntegrationsService {
     this.assertSyncProductProvider(providerSlug);
 
     const [externalProductRows, productRows] = await Promise.all([
-      this.db.query.externalProducts.findMany({
-        orderBy: (table) => [desc(table.updatedAt), desc(table.createdAt)],
-        where: (table) =>
-          and(eq(table.organizationId, organizationId), eq(table.provider, providerSlug)),
-        with: {
-          linkedProduct: true,
-          orderItems: {
-            with: {
-              externalOrder: true,
-            },
-          },
-        },
-      }),
+      this.readSyncedExternalProducts(organizationId, providerSlug),
       this.db.query.products.findMany({
         orderBy: (table) => [desc(table.createdAt)],
         where: (table) => eq(table.organizationId, organizationId),
       }),
     ]);
 
-    return externalProductRows.map((row) => this.toSyncedProductRecord(row, productRows));
+    if (externalProductRows.length === 0) {
+      return [];
+    }
+
+    const productRowsById = new Map(productRows.map((row) => [row.id, row] as const));
+    const externalProductIds = externalProductRows.map((row) => row.id);
+    const orderItemRows = await this.db
+      .select({
+        externalOrder: externalOrders,
+        orderItem: externalOrderItems,
+      })
+      .from(externalOrderItems)
+      .leftJoin(externalOrders, eq(externalOrderItems.externalOrderId, externalOrders.id))
+      .where(
+        and(
+          eq(externalOrderItems.organizationId, organizationId),
+          inArray(externalOrderItems.externalProductId, externalProductIds),
+        ),
+      );
+
+    const orderItemsByExternalProductId = new Map<string, ExternalProductOrderItemRow[]>();
+
+    for (const row of orderItemRows) {
+      const externalProductId = row.orderItem.externalProductId;
+
+      if (!externalProductId) {
+        continue;
+      }
+
+      const currentItems = orderItemsByExternalProductId.get(externalProductId) ?? [];
+      currentItems.push({
+        ...row.orderItem,
+        externalOrder: row.externalOrder,
+      });
+      orderItemsByExternalProductId.set(externalProductId, currentItems);
+    }
+
+    return externalProductRows.map((row) =>
+      this.toSyncedProductRecord(
+        {
+          ...row,
+          linkedProduct: row.linkedProductId ? productRowsById.get(row.linkedProductId) ?? null : null,
+          orderItems: orderItemsByExternalProductId.get(row.id) ?? [],
+        },
+        productRows,
+      ),
+    );
   }
 
   async importSyncedProduct(
@@ -327,7 +388,7 @@ export class IntegrationsService {
       externalProduct.reviewStatus === "linked_to_existing_product"
     ) {
       throw new ConflictException(
-        "This synced product is already linked to an existing catalog product.",
+        "Este produto sincronizado já está vinculado a um produto do catálogo.",
       );
     }
 
@@ -339,7 +400,7 @@ export class IntegrationsService {
         organizationId,
         providerSlug,
         externalProductId,
-        "This synced product was already imported into the catalog.",
+        "Este produto sincronizado já foi importado para o catálogo.",
       );
     }
 
@@ -389,7 +450,7 @@ export class IntegrationsService {
       externalProduct.linkedProductId !== product.id
     ) {
       throw new ConflictException(
-        "This synced product was already imported as an internal catalog product.",
+        "Este produto sincronizado já foi importado como produto interno do catálogo.",
       );
     }
 
@@ -473,7 +534,7 @@ export class IntegrationsService {
     const provider = this.providers.find((entry) => entry.provider === providerSlug);
 
     if (!provider) {
-      throw new NotFoundException(`Unsupported integration provider "${providerSlug}".`);
+      throw new NotFoundException(`Provedor de integração não suportado: "${providerSlug}".`);
     }
 
     return provider;
@@ -482,7 +543,7 @@ export class IntegrationsService {
   private assertSyncProductProvider(providerSlug: IntegrationProviderSlug) {
     if (providerSlug !== "mercadolivre") {
       throw new BadRequestException(
-        "Only Mercado Livre synced products are available in this workspace right now.",
+        "Por enquanto, só há produtos sincronizados do Mercado Livre neste workspace.",
       );
     }
   }
@@ -499,7 +560,7 @@ export class IntegrationsService {
     );
 
     if (!syncedProduct) {
-      throw new NotFoundException("Synced product not found.");
+      throw new NotFoundException("Produto sincronizado não encontrado.");
     }
 
     return {
@@ -542,7 +603,7 @@ export class IntegrationsService {
       if (!provider.isConfigured()) {
         return {
           connectAvailable: false,
-          connectLabel: "Unavailable",
+          connectLabel: "Indisponível",
           connectedAccountId: null,
           connectedAccountLabel: null,
           disconnectAvailable: false,
@@ -551,14 +612,15 @@ export class IntegrationsService {
           lastSyncedAt: null,
           provider: provider.provider,
           status: "unavailable",
-          statusMessage: "Provider credentials are not configured in the API environment yet.",
+          statusMessage:
+            "As credenciais do provedor ainda não estão configuradas no ambiente da API.",
           tokenExpiresAt: null,
         };
       }
 
       return {
         connectAvailable: true,
-        connectLabel: "Connect account",
+        connectLabel: "Conectar conta",
         connectedAccountId: null,
         connectedAccountLabel: null,
         disconnectAvailable: false,
@@ -567,7 +629,7 @@ export class IntegrationsService {
         lastSyncedAt: null,
         provider: provider.provider,
         status: "disconnected",
-        statusMessage: "No marketplace account is connected yet.",
+        statusMessage: "Nenhuma conta do marketplace está conectada ainda.",
         tokenExpiresAt: null,
       };
     }
@@ -580,16 +642,16 @@ export class IntegrationsService {
       connectAvailable: provider.isConfigured(),
       connectLabel:
         connected && provider.isConfigured()
-          ? "Reconnect account"
+          ? "Renovar autorização"
           : needsReconnect && provider.isConfigured()
-            ? "Reconnect account"
+            ? "Reconectar conta"
             : provider.isConfigured()
-              ? "Connect account"
-              : "Unavailable",
+              ? "Conectar conta"
+              : "Indisponível",
       connectedAccountId: row.externalAccountId ?? null,
       connectedAccountLabel: accountLabel,
       disconnectAvailable: row.status !== "disconnected",
-      disconnectLabel: row.status !== "disconnected" ? "Disconnect" : null,
+      disconnectLabel: row.status !== "disconnected" ? "Desconectar" : null,
       displayName: provider.displayName,
       lastSyncedAt: toIsoString(row.lastSyncedAt),
       provider: provider.provider,
@@ -601,12 +663,12 @@ export class IntegrationsService {
             ? "disconnected"
             : "unavailable",
       statusMessage: connected
-        ? "Account connected and ready for sync."
+        ? "Conta conectada e pronta para sincronizar."
         : needsReconnect
-          ? "Stored token expired. Reconnect this provider before the next sync."
+          ? "O token armazenado expirou. Reconecte este provedor antes da próxima sincronização."
           : provider.isConfigured()
-            ? "Account disconnected."
-            : "Provider credentials are missing, so reconnect is unavailable right now.",
+            ? "Conta desconectada."
+            : "Faltam credenciais do provedor; não é possível reconectar neste momento.",
       tokenExpiresAt: toIsoString(row.tokenExpiresAt),
     };
   }
@@ -635,7 +697,7 @@ export class IntegrationsService {
       })) ?? null;
 
     if (!row) {
-      throw new NotFoundException("Synced product not found.");
+      throw new NotFoundException("Produto sincronizado não encontrado.");
     }
 
     return row;
@@ -736,5 +798,49 @@ export class IntegrationsService {
       title: row.title,
       unitsSold,
     };
+  }
+
+  private async readSyncedExternalProducts(
+    organizationId: string,
+    providerSlug: IntegrationProviderSlug,
+  ): Promise<Array<ExternalProduct | LegacySyncedExternalProductRow>> {
+    try {
+      return await this.db
+        .select()
+        .from(externalProducts)
+        .where(
+          and(eq(externalProducts.organizationId, organizationId), eq(externalProducts.provider, providerSlug)),
+        )
+        .orderBy(desc(externalProducts.updatedAt), desc(externalProducts.createdAt));
+    } catch (error) {
+      if (!isMissingExternalProductReviewColumns(error)) {
+        throw error;
+      }
+
+      const legacyRows = await this.db
+        .select({
+          createdAt: externalProducts.createdAt,
+          externalProductId: externalProducts.externalProductId,
+          id: externalProducts.id,
+          marketplaceConnectionId: externalProducts.marketplaceConnectionId,
+          metadata: externalProducts.metadata,
+          organizationId: externalProducts.organizationId,
+          provider: externalProducts.provider,
+          sku: externalProducts.sku,
+          title: externalProducts.title,
+          updatedAt: externalProducts.updatedAt,
+        })
+        .from(externalProducts)
+        .where(
+          and(eq(externalProducts.organizationId, organizationId), eq(externalProducts.provider, providerSlug)),
+        )
+        .orderBy(desc(externalProducts.updatedAt), desc(externalProducts.createdAt));
+
+      return legacyRows.map((row) => ({
+        ...row,
+        linkedProductId: null,
+        reviewStatus: "unreviewed" as const,
+      }));
+    }
   }
 }

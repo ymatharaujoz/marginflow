@@ -20,14 +20,7 @@ describe("DashboardHome", () => {
       if (queryKey[0] === "dashboard-summary") {
         return {
           data: {
-            cards: [
-              {
-                helperText: "4 orders across 7 sold units",
-                label: "Gross revenue",
-                tone: "positive",
-                value: "1200.50",
-              },
-            ],
+            cards: [],
             summary: {
               breakEvenRevenue: "800.00",
               breakEvenUnits: "4.00",
@@ -46,6 +39,7 @@ describe("DashboardHome", () => {
           },
           error: null,
           isLoading: false,
+          refetch: vi.fn(),
         };
       }
 
@@ -72,6 +66,7 @@ describe("DashboardHome", () => {
           },
           error: null,
           isLoading: false,
+          refetch: vi.fn(),
         };
       }
 
@@ -111,6 +106,7 @@ describe("DashboardHome", () => {
           },
           error: null,
           isLoading: false,
+          refetch: vi.fn(),
         };
       }
 
@@ -161,6 +157,7 @@ describe("DashboardHome", () => {
         },
         error: null,
         isLoading: false,
+        refetch: vi.fn(),
       };
     });
   }
@@ -170,10 +167,10 @@ describe("DashboardHome", () => {
 
     const markup = renderToStaticMarkup(<DashboardHome organizationName="MarginFlow" />);
 
-    expect(markup).toContain("Bem-vindo de volta, MarginFlow");
-    expect(markup).toContain("Receita bruta");
-    expect(markup).toContain("Status da sincronização");
-    expect(markup).toContain("Principais produtos");
+    expect(markup).toContain("MarginFlow");
+    expect(markup).toContain("Faturamento");
+    expect(markup).toContain("Performance por canal");
+    expect(markup).toContain("Produtos em destaque");
     expect(markup).toContain("Premium Notebook");
   });
 
@@ -201,6 +198,7 @@ describe("DashboardHome", () => {
           },
           error: null,
           isLoading: false,
+          refetch: vi.fn(),
         };
       }
 
@@ -212,6 +210,7 @@ describe("DashboardHome", () => {
           },
           error: null,
           isLoading: false,
+          refetch: vi.fn(),
         };
       }
 
@@ -234,6 +233,7 @@ describe("DashboardHome", () => {
           },
           error: null,
           isLoading: false,
+          refetch: vi.fn(),
         };
       }
 
@@ -244,6 +244,7 @@ describe("DashboardHome", () => {
         },
         error: null,
         isLoading: false,
+        refetch: vi.fn(),
       };
     });
 
@@ -251,5 +252,119 @@ describe("DashboardHome", () => {
 
     expect(markup).toContain("Ainda sem dados de sincronização");
     expect(markup).toContain("Conecte o Mercado Livre e execute a primeira importação em Integrações para liberar tendências aqui.");
+  });
+
+  it("renders the catalog empty state when sync exists but costs are missing", () => {
+    reactQueryMocks.useQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
+      if (queryKey[0] === "dashboard-summary") {
+        return {
+          data: {
+            cards: [],
+            summary: {
+              breakEvenRevenue: "0.00",
+              breakEvenUnits: "0.00",
+              contributionMargin: "0.00",
+              grossMarginPercent: "0.00",
+              grossRevenue: "900.00",
+              netProfit: "0.00",
+              netRevenue: "900.00",
+              ordersCount: 2,
+              totalAdCosts: "0.00",
+              totalCogs: "0.00",
+              totalFees: "30.00",
+              totalManualExpenses: "0.00",
+              unitsSold: 2,
+            },
+          },
+          error: null,
+          isLoading: false,
+          refetch: vi.fn(),
+        };
+      }
+
+      if (queryKey[0] === "dashboard-charts") {
+        return {
+          data: {
+            channels: [
+              {
+                channel: "mercadolivre",
+                grossRevenue: 900,
+                netProfit: 0,
+                unitsSold: 2,
+              },
+            ],
+            daily: [
+              {
+                grossRevenue: 900,
+                metricDate: "2026-05-01",
+                netProfit: 0,
+                ordersCount: 2,
+                unitsSold: 2,
+              },
+            ],
+          },
+          error: null,
+          isLoading: false,
+          refetch: vi.fn(),
+        };
+      }
+
+      if (queryKey[0] === "dashboard-recent-sync") {
+        return {
+          data: {
+            activeRun: null,
+            availability: {
+              canRun: true,
+              currentWindowKey: "2026-05-01:morning",
+              currentWindowLabel: "Morning",
+              currentWindowSlot: "morning",
+              lastSuccessfulSyncAt: "2026-05-01T08:00:00.000Z",
+              message: "Sync is available for the current daily window.",
+              nextAvailableAt: "2026-05-01T15:00:00.000Z",
+              provider: "mercadolivre",
+              reason: "available",
+            },
+            lastCompletedRun: null,
+          },
+          error: null,
+          isLoading: false,
+          refetch: vi.fn(),
+        };
+      }
+
+      return {
+        data: {
+          channels: [
+            {
+              channel: "mercadolivre",
+              summary: {
+                breakEvenRevenue: "0.00",
+                breakEvenUnits: "0.00",
+                contributionMargin: "0.00",
+                grossMarginPercent: "0.00",
+                grossRevenue: "900.00",
+                netProfit: "0.00",
+                netRevenue: "900.00",
+                ordersCount: 2,
+                totalAdCosts: "0.00",
+                totalCogs: "0.00",
+                totalFees: "30.00",
+                totalManualExpenses: "0.00",
+                unitsSold: 2,
+              },
+            },
+          ],
+          products: [],
+        },
+        error: null,
+        isLoading: false,
+        refetch: vi.fn(),
+      };
+    });
+
+    const markup = renderToStaticMarkup(<DashboardHome organizationName="MarginFlow" />);
+
+    expect(markup).toContain("Cadastre custos de produto");
+    expect(markup).toContain("Adicionar custos");
   });
 });

@@ -945,15 +945,17 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 
 ```md
 ## Current Focus
-- Active milestone: M10
-- Active task: use the expanded `TEST.md` runbook to validate the live Mercado Livre connection flow, then continue with the real sync verification path for M11
-- Next task: complete Mercado Livre browser callback verification in `/app/integrations`, then run the first real sync, confirm same-window blocking, and verify refreshed metrics on `/app`
-- Blockers: M5 and M6 were cleared by live local verification; honest closure is still pending on M10 Mercado Livre callback validation and M11 real sync validation
+- Active milestone: M11
+- Active task: run the first real sync, confirm same-window blocking, and verify refreshed metrics on `/app`
+- Next task: Dashboard metrics validation and layout (M12)
+- Blockers: Real sync validation had a Drizzle nested lateral join limit bug when fetching `externalProducts` within `externalOrders` in `finance.service.ts`. This was fixed by separating the query. Waiting for user confirmation on M11 completion.
 - Note: Long Postgres FK names were replaced with explicit short constraint names in `packages/database` (schema + `0000_small_dazzler.sql` + snapshot) to avoid 63-byte identifier truncation notices during `db:migrate`. If `0000` already ran against a database, reset that DB or add a manual `RENAME CONSTRAINT` migration from the truncated names Postgres created.
 - Note: `pnpm ngrok:mercadolivre:callback` normalizes `NGROK_DOMAIN` (strip `https://` / `http://`, trailing `/`) before `ngrok http --domain`, avoiding ERR_NGROK_9038 when the env value was copied with a trailing slash.
 - Note: `db:seed` and `db:migrate` call `sql.end()` on the postgres-js client so CLI processes exit cleanly (previously the open pool kept Node alive indefinitely).
 - Note: Stripe subscription reads exclude seed placeholder rows (`subscriptions.billing_customer_id` must be present). Entitlements treat `trialing` and `active` as paid access; `GET /billing/subscription` and `EntitlementGuard` reconcile rows still marked `active`/`trialing` against Stripe immediately so cancelling in the Dashboard retracts access even when webhooks lag (`POST /billing/checkout/confirm` still covers the success redirect gap before webhooks). **`/products` and `/costs/`* use `EntitlementGuard` with `AuthGuard`.**
 - Note: User-facing strings in `apps/web` default to Brazilian Portuguese (`pt-BR`), including localized labels for KPIs/dashboard copy and mappings for backend English phrases often shown next to integrations and sync controls.
+- Note: `apps/api/src/modules/integrations/integrations.service.ts` now emits user-facing copy in pt-BR (connection cards, OAuth redirect messages, synced-product actions, HTTP errors) aligned with `apps/web/src/lib/pt-br/api-ui.ts` where applicable.
+- Note: `apps/web/src/lib/pt-br/api-ui.ts` adds pt-BR identity keys for API messages already in Portuguese, prefix translation for dynamic Mercado Livre errors, and Portuguese fallbacks for unknown connection/sync statuses instead of echoing raw English slugs.
 - Last completed checkpoint: M6
 
 ## UI Redesign (cross-cutting)
@@ -966,8 +968,43 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] Phase 7: Verification (lint ✓, typecheck ✓, build ✓, tests ✓)
 - Note: Page chrome uses warmer off-white tokens (`globals.css`), a softer marketing backdrop gradient, and aligned marketing nav glass. Shared `Container` gutters scale `px-6` → `xl:px-14`; the app shell main column and top bar share `max-w-[min(100%,1440px)]` with the same padding scale so wide viewports stay centered without hurting small screens.
 - Note: `/sign-in` uses a SaaS-style layout (brand header, eyebrow + title hierarchy, Google-standard OAuth button styling, trust copy, back link, pricing cross-link) in `sign-in/page.tsx` and `sign-in-panel.tsx`.
+- Note: `apps/web/src/lib/auth-client.ts` resolves the Better Auth client `baseURL` via `getWebEnv().NEXT_PUBLIC_API_BASE_URL` (same `pickNonEmpty` + dev localhost defaults as `readPublicEnv`). Reading `process.env` directly with `??` let an **empty** `NEXT_PUBLIC_API_BASE_URL` become relative `/auth`, which Better Auth rejects (“Invalid base URL”).
+- Note: `packages/ui` `Avatar` uses default `referrerPolicy="no-referrer"` on the `<img>` (common fix for Google `googleusercontent.com` avatars when the app origin would otherwise be sent as `Referer`) and falls back to initials on `onError` so a bad URL never shows a broken image icon in the app shell.
+- Note: `/app/integrations` (`IntegrationsHub`) uses a hero band (grid texture, soft gradients, chips), elevated provider cards in a full-width `lg:grid-cols-2` layout with equal-height / shared stat-tile rhythm (not a centered max-width column), status-colored top accent, and a split “sync command” panel; motion respects `useReducedMotion`.
+- Note: “Sincronizar agora” stays enabled when the API reports `canRun: false` (janela já usada, fora da janela, etc.); the click surfaces `availability.message` in the banner instead of a dead disabled control. Still disabled only while status is loading, during a run, or when Mercado Livre is structurally unavailable (`syncUnavailable`).
+- Note: API `SYNC_RELAX_GUARDS=true` (see `.env.example`) skips overnight + “window already used” checks when `NODE_ENV !== "production"`; uses `resolveSyncWindowStateAtNextOpenHour` if the real clock is in the closed window so `windowKey` stays valid for inserts.
 - Note: `/app/billing` uses a two-column hero + plan cards layout (`billing-panel.tsx`): feature checklist, Stripe trust line, emphasized annual tier; removed inline “Status atual” / “Liberado” copy; page no longer wraps `Container` so width follows the app shell content column.
 - Note: Public branding and displayed plan prices come from `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_ICON`, `NEXT_PUBLIC_PRICE_MONTHLY_LABEL`, and `NEXT_PUBLIC_PRICE_ANNUAL_LABEL` (see `.env.example`; defaults applied in `readPublicEnv` / `public-branding.ts`).
+- Note: Public landing (`apps/web/src/components/marketing/landing-page.tsx`) uses a Vercel-inspired dark hero, gradient headline utility (`mf-marketing-gradient-text`), marketplace marquee, bento feature layout, integration band with explicit availability labels (Mercado Livre disponível; Shopee em breve; Amazon roadmap), annual/monthly pricing toggle with equivalent monthly plus annual billing copy, and expanded motion plus optional border glow; backdrop/particles/header updated in the same marketing folder for cohesion.
+
+## Dashboard Premium Refactor (2026-05-08)
+- [x] Created 10+ reusable UI premium components in `apps/web/src/components/ui-premium/`
+- [x] Implemented DashboardHeader with dynamic greeting, business summary, period selector, global search, marketplace filters
+- [x] Refactored KpiCards with 8 premium stat cards, trend indicators, micro-interactions, stagger animations
+- [x] Created ChartsSection with refined Recharts (gradient area fills, custom tooltips, rounded bars)
+- [x] Built MarketplacesSection with elegant compact cards for ML and Shopee
+- [x] Implemented InsightsSection with AI-powered insight cards (growth, alert, tip, info types)
+- [x] Refactored ProductsTable with sticky glass header, sortable columns, smooth hover states, minimal pagination
+- [x] Refined AppSidebar with Linear/Vercel-style active states (left border accent), refined icons, smooth transitions
+- [x] Added comprehensive Framer Motion animations (container variants, stagger children, hover effects)
+- [x] Integrated all components in DashboardHome with responsive layouts, loading/error/empty states
+- [x] Audited /app dashboard route, data flow, reusable seams, and replacement targets for milestone-safe refactor
+- [x] Created apps/web/src/modules/dashboard feature boundary with extracted types, formatters, calculations, and hooks
+- [x] Rewired /app dashboard composition to the new module while preserving route/auth/billing behavior
+- [x] Added tests for financial state derivation, formatter helpers, KPI mapping, product health, and catalog empty state rendering
+- Note: Legacy files in apps/web/src/components/dashboard now act as compatibility re-exports while active ownership lives in apps/web/src/modules/dashboard.
+- Key files created/modified:
+  - `apps/web/src/components/ui-premium/*` - 10 new reusable premium components
+  - `apps/web/src/components/dashboard/dashboard-header.tsx` - new
+  - `apps/web/src/components/dashboard/kpi-cards.tsx` - new
+  - `apps/web/src/components/dashboard/charts-section.tsx` - new
+  - `apps/web/src/components/dashboard/marketplaces-section.tsx` - new
+  - `apps/web/src/components/dashboard/insights-section.tsx` - new
+  - `apps/web/src/components/dashboard/products-table.tsx` - new
+  - apps/web/src/components/dashboard/dashboard-home.tsx - refactored
+  - apps/web/src/modules/dashboard/* - new feature-scoped dashboard foundation for milestones 1 and 2
+  - `apps/web/src/components/app-shell/app-sidebar.tsx` - refined
+  - `apps/web/src/lib/animations.ts` - new shared animation variants
 
 ## Completed Checkpoints
 - [ ] M0 completed
@@ -1698,6 +1735,10 @@ Implement the manual sync button, daily window rules, sync status tracking, and 
 - Successful Mercado Livre sync imports now feed a review-first catalog workflow in `/app/products`, where external products stay read-only until the user imports or links them to the internal catalog, and finance matching now prefers explicit links before SKU fallback
 - Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
 - Final milestone closure is still blocked on live Mercado Livre credential setup plus browser verification for account callback, first import, same-window blocking, and real metrics refresh
+- 2026-05-05: sync completion on `/app/integrations` now refreshes the page after a successful run, and finance re-materialization tolerates legacy `external_products` rows that do not yet have the review-link columns applied
+- 2026-05-05: `/app/integrations` now exposes `Limpar logs` for sync history, backed by protected org-scoped history clearing that keeps active `processing` runs intact
+- 2026-05-05: sync-history cleanup UX on `/app/integrations` now uses clean pt-BR copy plus a softer inline review state that explains scope before clearing, instead of a noisy destructive alert block
+- 2026-05-05: history cleanup on `/app/integrations` now runs in one click without extra confirmation, while keeping the improved copy and lighter button styling
 
 ---
 
@@ -1900,3 +1941,5 @@ For V1, the recommended stack and deployment model are:
 - **Sync model**: manual only, three daily windows
 - **Background jobs**: deferred to a later phase
 - **Architecture goal**: clean separation now, scalable extraction later
+
+
