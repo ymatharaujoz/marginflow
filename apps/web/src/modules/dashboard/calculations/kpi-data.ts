@@ -1,6 +1,6 @@
 import type { DashboardSummaryResponse } from "@marginflow/types";
 import type { DashboardKpiItem } from "../types/dashboard";
-import { formatMoney, formatNumber, formatPercent, normalizeNumber } from "../utils/formatters";
+import { formatMoney, formatPercent, normalizeNumber } from "../utils/formatters";
 
 function buildHelperText(summary: DashboardSummaryResponse["summary"]) {
   return `${summary.ordersCount} pedidos · ${summary.unitsSold} unidades`;
@@ -10,23 +10,14 @@ export function buildDashboardKpis(summaryResponse: DashboardSummaryResponse): D
   const { summary } = summaryResponse;
   const grossRevenue = normalizeNumber(summary.grossRevenue) ?? 0;
   const netProfit = normalizeNumber(summary.netProfit) ?? 0;
-  const grossProfit = normalizeNumber(summary.grossProfit) ?? netProfit * 1.15; // Fallback
+  const grossProfit = normalizeNumber(summary.grossProfit) ?? 0;
   const grossMargin = normalizeNumber(summary.grossMarginPercent) ?? 0;
-  const avgRoi = normalizeNumber(summary.avgRoi);
-  const avgRoas = normalizeNumber(summary.avgRoas);
+  const avgRoi = normalizeNumber(summary.avgRoi) ?? 0;
+  const avgRoas = normalizeNumber(summary.avgRoas) ?? 0;
   const totalFees = normalizeNumber(summary.totalFees) ?? 0;
   const totalCogs = normalizeNumber(summary.totalCogs) ?? 0;
   const totalAdCosts = normalizeNumber(summary.totalAdCosts) ?? 0;
-  const unitsSold = summary.unitsSold;
-  const averageTicket = unitsSold > 0 ? grossRevenue / unitsSold : null;
-
-  // 6 KPIs solicitados:
-  // 1. Faturamento
-  // 2. Lucro bruto
-  // 3. Lucro líquido
-  // 4. Margem média
-  // 5. ROI médio
-  // 6. ROAS médio
+  const totalManualExpenses = normalizeNumber(summary.totalManualExpenses) ?? 0;
 
   return [
     {
@@ -43,7 +34,7 @@ export function buildDashboardKpis(summaryResponse: DashboardSummaryResponse): D
       value: formatMoney(grossProfit),
       icon: "profit",
       variant: grossProfit >= 0 ? "success" : "warning",
-      helperText: "Antes de impostos e taxas finais",
+      helperText: "Antes de ads e despesas manuais",
     },
     {
       key: "netProfit",
@@ -51,7 +42,7 @@ export function buildDashboardKpis(summaryResponse: DashboardSummaryResponse): D
       value: formatMoney(netProfit),
       icon: "profit",
       variant: netProfit >= 0 ? "success" : "warning",
-      helperText: `Taxas + custos: ${formatMoney(totalFees + totalCogs + totalAdCosts)}`,
+      helperText: `COGS + taxas + ads + despesas: ${formatMoney(totalFees + totalCogs + totalAdCosts + totalManualExpenses)}`,
     },
     {
       key: "margin",
@@ -64,24 +55,23 @@ export function buildDashboardKpis(summaryResponse: DashboardSummaryResponse): D
     {
       key: "roi",
       label: "ROI médio",
-      value: avgRoi !== null ? formatPercent(avgRoi, { digits: 0 }) : "—",
+      value: formatPercent(avgRoi, { digits: 0 }),
       icon: "margin",
-      variant: avgRoi !== null && avgRoi >= 50 ? "success" : avgRoi !== null && avgRoi > 0 ? "accent" : "warning",
-      helperText: avgRoi !== null ? `Retorno sobre investimento` : "Sem dados de ROI",
+      variant: avgRoi >= 50 ? "success" : avgRoi > 0 ? "accent" : "warning",
+      helperText: "Retorno sobre investimento",
     },
     {
       key: "roas",
       label: "ROAS médio",
-      value: avgRoas !== null ? `${avgRoas.toFixed(1)}x` : "—",
+      value: `${avgRoas.toFixed(1)}x`,
       icon: "ads",
-      variant: avgRoas !== null && avgRoas >= 3 ? "success" : avgRoas !== null && avgRoas >= 1 ? "accent" : "warning",
-      helperText: avgRoas !== null
-        ? avgRoas >= 3
+      variant: avgRoas >= 3 ? "success" : avgRoas >= 1 ? "accent" : "warning",
+      helperText:
+        avgRoas >= 3
           ? "ROAS excelente"
           : avgRoas >= 1
             ? "ROAS positivo"
-            : "ROAS abaixo do ideal"
-        : "Sem investimento em ads",
+            : "Sem retorno relevante em ads",
     },
   ];
 }

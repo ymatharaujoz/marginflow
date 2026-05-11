@@ -16,7 +16,7 @@ function createService({
       {
         id: "org_created",
         name: "Mateus Workspace",
-        slug: "mateus",
+        slug: "mateus-workspace",
       },
     ]),
   });
@@ -101,7 +101,7 @@ describe("OrganizationProvisioningService", () => {
     expect(db.transaction).toHaveBeenCalledTimes(1);
     expect(insertOrganizationValues).toHaveBeenCalledWith({
       name: "Mateus Workspace",
-      slug: "mateus",
+      slug: "mateus-workspace",
     });
     expect(insertMembershipValues).toHaveBeenCalledWith({
       isDefault: true,
@@ -113,7 +113,7 @@ describe("OrganizationProvisioningService", () => {
       id: "org_created",
       name: "Mateus Workspace",
       role: "owner",
-      slug: "mateus",
+      slug: "mateus-workspace",
     });
   });
 });

@@ -47,7 +47,7 @@ The repository currently contains:
 
 1. Enable Corepack if needed: `corepack enable`
 2. Install dependencies: `corepack pnpm install`
-3. Copy `.env.example` to `.env.local` and fill in the values you need
+3. Copy `.env.example` to root `.env` and fill in Supabase dev runtime + migration values
 4. Run the workspace pipeline as needed:
    - `corepack pnpm dev` for workspace development commands
    - `corepack pnpm dev:api` to run the NestJS API scaffold
@@ -71,12 +71,15 @@ The frontend usually runs at `http://localhost:3000`, but Next.js will move to a
 
 ## Environment strategy
 
-Runtime environment parsing is owned by `packages/validation`, with `apps/web` consuming the shared public env validator and the root validation tests re-exporting through `src/lib/validation/env.ts`.
+Runtime environment parsing is owned by `packages/validation`, with `apps/web` consuming the shared public env validator.
 
 - `NEXT_PUBLIC_*` variables are treated as client-visible
 - `NEXT_PUBLIC_API_BASE_URL` configures the frontend API base for NestJS communication
 - `WEB_APP_ORIGIN`, `API_HOST`, `API_PORT`, `API_DB_POOL_MAX`, `BETTER_AUTH_URL`, and `AUTH_TRUSTED_ORIGINS` configure the backend bootstrap and auth/browser origin trust
+- `DATABASE_URL` is the runtime DB URL for app processes
+- `DATABASE_MIGRATION_URL` is the preferred DB URL for Drizzle migrations, seed, and Studio
 - `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` are required for auth boot
+- `SUPABASE_*` values remain optional and reserved for later service-level integrations
 - secrets stay server-only
 - the repo ships `.env.example` as the canonical variable list for local setup
 

@@ -255,9 +255,16 @@ export function DashboardShowcase() {
   const isInView = useInView(ref, { once: true, margin: "-100px" });
 
   return (
-    <section ref={ref} className="relative overflow-hidden bg-[#fafafa] py-24 md:py-32">
-      {/* Section header */}
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <section ref={ref} className="relative overflow-hidden py-24 md:py-32">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          background:
+            "linear-gradient(to bottom, transparent 0%, var(--background) 8%, var(--background-soft) 24%, var(--background-elevated) 100%)",
+        }}
+      />
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

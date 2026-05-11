@@ -5,12 +5,12 @@ import { motion } from "framer-motion";
 export function MarketingBackdrop() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      {/* Base gradient - subtle white to soft teal */}
+      {/* Base: same canvas as body / app shell (globals.css) */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 100% 60% at 50% -10%, rgba(14, 122, 111, 0.04), transparent 60%), radial-gradient(ellipse 60% 40% at 90% 15%, rgba(14, 122, 111, 0.03), transparent 50%), radial-gradient(ellipse 50% 30% at 10% 30%, rgba(14, 122, 111, 0.02), transparent 50%), linear-gradient(180deg, #ffffff 0%, #fafafa 50%, #f5f5f5 100%)",
+            "radial-gradient(ellipse 85% 55% at 50% -12%, rgba(14, 122, 111, 0.055), transparent 58%), radial-gradient(ellipse 55% 45% at 92% 18%, rgba(14, 122, 111, 0.035), transparent 52%), linear-gradient(180deg, var(--background) 0%, var(--background-soft) 100%)",
         }}
       />
 

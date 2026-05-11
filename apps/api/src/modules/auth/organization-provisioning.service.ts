@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Inject, Injectable } from "@nestjs/common";
+import { ConflictException, Inject, Injectable } from "@nestjs/common";
 import {
   type DatabaseClient,
   organizationMembers,
@@ -29,9 +29,9 @@ export class OrganizationProvisioningService {
     private readonly db: DatabaseClient,
   ) {}
 
-  async ensureDefaultOrganization(user: AuthUser): Promise<OrganizationMembership> {
+  async findDefaultOrganization(userId: string): Promise<OrganizationMembership | null> {
     const existingDefaultMembership = await this.db.query.organizationMembers.findFirst({
-      where: (table, { and, eq }) => and(eq(table.userId, user.id), eq(table.isDefault, true)),
+      where: (table, { and, eq }) => and(eq(table.userId, userId), eq(table.isDefault, true)),
       with: {
         organization: true,
       },
@@ -47,7 +47,7 @@ export class OrganizationProvisioningService {
     }
 
     const existingMembership = await this.db.query.organizationMembers.findFirst({
-      where: (table, { eq }) => eq(table.userId, user.id),
+      where: (table, { eq }) => eq(table.userId, userId),
       with: {
         organization: true,
       },
@@ -63,48 +63,81 @@ export class OrganizationProvisioningService {
       };
     }
 
-    const organizationName = this.buildOrganizationName(user);
-    const organizationSlug = await this.buildUniqueOrganizationSlug(user);
+    return null;
+  }
+
+  async createOrganizationForUser(
+    user: AuthUser,
+    input: { name: string; slug?: string | null },
+  ): Promise<OrganizationMembership> {
+    const existingMembership = await this.findDefaultOrganization(user.id);
+
+    if (existingMembership) {
+      throw new ConflictException("This user already has a default organization.");
+    }
+
+    const organizationName = input.name.trim();
+    const organizationSlug = await this.buildUniqueOrganizationSlug(input.slug ?? organizationName);
 
     const createdOrganization = await this.db.transaction(async (tx) => {
-      const [organization] = await tx
-        .insert(organizations)
-        .values({
-          name: organizationName,
-          slug: organizationSlug,
-        })
-        .returning({
-          id: organizations.id,
-          name: organizations.name,
-          slug: organizations.slug,
-        });
-
-      await tx.insert(organizationMembers).values({
-        isDefault: true,
-        organizationId: organization.id,
-        role: "owner",
-        userId: user.id,
+      return this.createOrganizationMembershipTx(tx as DatabaseClient, user, {
+        name: organizationName,
+        slug: organizationSlug,
       });
-
-      return organization;
     });
 
     return {
-      id: createdOrganization.id,
-      name: createdOrganization.name,
+      id: createdOrganization.organization.id,
+      name: createdOrganization.organization.name,
       role: "owner",
-      slug: createdOrganization.slug,
+      slug: createdOrganization.organization.slug,
     };
   }
 
-  private buildOrganizationName(user: AuthUser) {
-    const baseName = user.name?.trim() || user.email.split("@")[0];
+  async ensureDefaultOrganization(user: AuthUser): Promise<OrganizationMembership> {
+    const existingMembership = await this.findDefaultOrganization(user.id);
 
-    return `${baseName} Workspace`;
+    if (existingMembership) {
+      return existingMembership;
+    }
+
+    return this.createOrganizationForUser(user, {
+      name: `${user.name?.trim() || user.email.split("@")[0]} Workspace`,
+    });
   }
 
-  private async buildUniqueOrganizationSlug(user: AuthUser) {
-    const baseSlug = this.slugify(user.name?.trim() || user.email.split("@")[0] || "workspace");
+  async createOrganizationMembershipTx(
+    tx: DatabaseClient,
+    user: AuthUser,
+    input: { name: string; slug: string },
+  ) {
+    const [organization] = await tx
+      .insert(organizations)
+      .values({
+        name: input.name,
+        slug: input.slug,
+      })
+      .returning({
+        id: organizations.id,
+        name: organizations.name,
+        slug: organizations.slug,
+      });
+
+    await tx.insert(organizationMembers).values({
+      isDefault: true,
+      organizationId: organization.id,
+      role: "owner",
+      userId: user.id,
+    });
+
+    return {
+      organization,
+      role: "owner" as const,
+    };
+  }
+
+  async buildUniqueOrganizationSlug(value: string) {
+    const baseSlug = this.slugify(value);
     let candidate = baseSlug;
 
     while (true) {
@@ -127,6 +160,6 @@ export class OrganizationProvisioningService {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 100) || "workspace";
+      .slice(0, 100) || `workspace-${randomUUID().slice(0, 8)}`;
   }
 }

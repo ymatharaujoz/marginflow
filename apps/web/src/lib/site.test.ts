@@ -11,10 +11,10 @@ describe("site helpers", () => {
     expect(siteUrl.toString()).toBe("https://app.marginflow.test/");
   });
 
-  it("falls back to default domain when env missing", () => {
+  it("falls back to localhost when env missing outside production", () => {
     const siteUrl = getSiteUrl({});
 
-    expect(siteUrl.toString()).toBe("https://marginflow.vercel.app/");
+    expect(siteUrl.toString()).toBe("http://localhost:3000/");
   });
 
   it("builds canonical metadata", () => {
@@ -24,17 +24,17 @@ describe("site helpers", () => {
       title: "Pricing | MarginFlow",
     });
 
-    expect(metadata.alternates?.canonical).toBe("https://marginflow.vercel.app/pricing");
+    expect(metadata.alternates?.canonical).toBe("http://localhost:3000/pricing");
     expect(metadata.openGraph).toEqual(
       expect.objectContaining({
         siteName: "MarginFlow",
         title: "Pricing | MarginFlow",
-        url: "https://marginflow.vercel.app/pricing",
+        url: "http://localhost:3000/pricing",
       }),
     );
   });
 
   it("builds absolute urls from route paths", () => {
-    expect(buildAbsoluteUrl("/integrations")).toBe("https://marginflow.vercel.app/integrations");
+    expect(buildAbsoluteUrl("/integrations")).toBe("http://localhost:3000/integrations");
   });
 });

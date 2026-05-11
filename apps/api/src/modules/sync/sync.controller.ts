@@ -19,7 +19,7 @@ export class SyncController {
     @Query() query: SyncProviderDto,
   ) {
     return {
-      data: await this.syncService.getStatus(authContext.organization.id, query.provider),
+      data: await this.syncService.getStatus(authContext.organization!.id, query.provider),
       error: null,
     };
   }
@@ -30,7 +30,7 @@ export class SyncController {
     @Query() query: SyncProviderDto,
   ) {
     return {
-      data: await this.syncService.getHistory(authContext.organization.id, query.provider),
+      data: await this.syncService.getHistory(authContext.organization!.id, query.provider),
       error: null,
     };
   }
@@ -41,7 +41,7 @@ export class SyncController {
     @Body() body: SyncProviderDto,
   ) {
     return {
-      data: await this.syncService.clearHistory(authContext.organization.id, body.provider),
+      data: await this.syncService.clearHistory(authContext.organization!.id, body.provider),
       error: null,
     };
   }
@@ -52,7 +52,7 @@ export class SyncController {
     @Body() body: RunSyncDto,
   ) {
     return {
-      data: await this.syncService.runSync(authContext.organization.id, body.provider),
+      data: await this.syncService.runSync(authContext.organization!.id, body.provider),
       error: null,
     };
   }

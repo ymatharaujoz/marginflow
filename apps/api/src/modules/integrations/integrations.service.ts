@@ -36,6 +36,7 @@ import {
   createSignedIntegrationState,
   readSignedIntegrationState,
 } from "./integration-state";
+import { listSyncedProductsReadModel } from "./synced-products.read-model";
 import { createIntegrationProviders } from "./provider-registry";
 import {
   IntegrationProviderError,
@@ -313,61 +314,17 @@ export class IntegrationsService {
   ): Promise<SyncedProductRecord[]> {
     this.assertSyncProductProvider(providerSlug);
 
-    const [externalProductRows, productRows] = await Promise.all([
-      this.readSyncedExternalProducts(organizationId, providerSlug),
-      this.db.query.products.findMany({
-        orderBy: (table) => [desc(table.createdAt)],
-        where: (table) => eq(table.organizationId, organizationId),
-      }),
-    ]);
+    const productRows = await this.db.query.products.findMany({
+      orderBy: (table) => [desc(table.createdAt)],
+      where: (table) => eq(table.organizationId, organizationId),
+    });
 
-    if (externalProductRows.length === 0) {
-      return [];
-    }
-
-    const productRowsById = new Map(productRows.map((row) => [row.id, row] as const));
-    const externalProductIds = externalProductRows.map((row) => row.id);
-    const orderItemRows = await this.db
-      .select({
-        externalOrder: externalOrders,
-        orderItem: externalOrderItems,
-      })
-      .from(externalOrderItems)
-      .leftJoin(externalOrders, eq(externalOrderItems.externalOrderId, externalOrders.id))
-      .where(
-        and(
-          eq(externalOrderItems.organizationId, organizationId),
-          inArray(externalOrderItems.externalProductId, externalProductIds),
-        ),
-      );
-
-    const orderItemsByExternalProductId = new Map<string, ExternalProductOrderItemRow[]>();
-
-    for (const row of orderItemRows) {
-      const externalProductId = row.orderItem.externalProductId;
-
-      if (!externalProductId) {
-        continue;
-      }
-
-      const currentItems = orderItemsByExternalProductId.get(externalProductId) ?? [];
-      currentItems.push({
-        ...row.orderItem,
-        externalOrder: row.externalOrder,
-      });
-      orderItemsByExternalProductId.set(externalProductId, currentItems);
-    }
-
-    return externalProductRows.map((row) =>
-      this.toSyncedProductRecord(
-        {
-          ...row,
-          linkedProduct: row.linkedProductId ? productRowsById.get(row.linkedProductId) ?? null : null,
-          orderItems: orderItemsByExternalProductId.get(row.id) ?? [],
-        },
-        productRows,
-      ),
-    );
+    return listSyncedProductsReadModel({
+      db: this.db,
+      organizationId,
+      productsList: productRows,
+      providerSlug,
+    });
   }
 
   async importSyncedProduct(

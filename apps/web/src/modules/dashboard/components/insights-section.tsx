@@ -18,8 +18,8 @@ export function InsightsSection({ data, className = "" }: InsightsSectionProps) 
   const insights = buildDashboardInsights(data);
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className={className}>
-      <Card padding="md">
+    <motion.div variants={containerVariants} initial="hidden" animate="visible" className={`h-full ${className}`}>
+      <Card padding="md" className="h-full flex flex-col">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10">
@@ -32,7 +32,7 @@ export function InsightsSection({ data, className = "" }: InsightsSectionProps) 
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 flex-1 flex flex-col justify-center">
           {insights.length > 0 ? (
             insights.slice(0, 3).map((insight) => (
               <InsightCard

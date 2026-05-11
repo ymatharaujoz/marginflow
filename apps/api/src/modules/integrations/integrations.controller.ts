@@ -34,7 +34,7 @@ export class IntegrationsController {
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,
   ) {
     return {
-      data: await this.integrationsService.listConnections(authContext.organization.id),
+      data: await this.integrationsService.listConnections(authContext.organization!.id),
       error: null,
     };
   }
@@ -46,7 +46,7 @@ export class IntegrationsController {
   ) {
     return {
       data: await this.integrationsService.createConnectUrl(
-        authContext.organization.id,
+        authContext.organization!.id,
         "mercadolivre",
       ),
       error: null,
@@ -75,7 +75,7 @@ export class IntegrationsController {
   ) {
     return {
       data: await this.integrationsService.listSyncedProducts(
-        authContext.organization.id,
+        authContext.organization!.id,
         params.provider,
       ),
       error: null,
@@ -90,7 +90,7 @@ export class IntegrationsController {
   ) {
     return {
       data: await this.integrationsService.importSyncedProduct(
-        authContext.organization.id,
+        authContext.organization!.id,
         params.provider,
         params.externalProductId,
       ),
@@ -107,7 +107,7 @@ export class IntegrationsController {
   ) {
     return {
       data: await this.integrationsService.linkSyncedProduct(
-        authContext.organization.id,
+        authContext.organization!.id,
         params.provider,
         params.externalProductId,
         body.productId,
@@ -124,7 +124,7 @@ export class IntegrationsController {
   ) {
     return {
       data: await this.integrationsService.ignoreSyncedProduct(
-        authContext.organization.id,
+        authContext.organization!.id,
         params.provider,
         params.externalProductId,
       ),
@@ -140,7 +140,7 @@ export class IntegrationsController {
   ) {
     return {
       data: await this.integrationsService.disconnectProvider(
-        authContext.organization.id,
+        authContext.organization!.id,
         params.provider,
       ),
       error: null,

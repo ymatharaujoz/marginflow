@@ -10,7 +10,14 @@ export class AuthStateController {
   @UseGuards(AuthGuard)
   getCurrentAuthState(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: authContext,
+      data: {
+        ...authContext,
+        onboardingStatus: authContext.organization ? "complete" : "organization_missing",
+        session: {
+          ...authContext.session,
+          expiresAt: authContext.session.expiresAt.toISOString(),
+        },
+      },
       error: null,
     };
   }
@@ -20,7 +27,7 @@ export class AuthStateController {
   getProtectedContext(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
       data: {
-        organizationId: authContext.organization.id,
+        organizationId: authContext.organization!.id,
         userId: authContext.user.id,
       },
       error: null,

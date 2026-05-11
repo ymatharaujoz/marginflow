@@ -26,12 +26,27 @@ describe("ProductsHub", () => {
     reactQueryMocks.useQuery.mockReset();
   });
 
-  it("renders an empty-state management workspace", () => {
+  it("renders an empty catalog workspace", () => {
     reactQueryMocks.useQuery.mockReturnValue({
       data: {
         adCosts: [],
+        catalogStats: {
+          activeProducts: 0,
+          archivedProducts: 0,
+          pendingSyncProducts: 0,
+          productsWithCost: 0,
+          productsWithoutCost: 0,
+          syncedProductsTotal: 0,
+          totalAdCosts: 0,
+          totalManualExpenses: 0,
+          totalProductCosts: 0,
+          totalProducts: 0,
+        },
+        dataGaps: [],
+        financialState: "empty",
         manualExpenses: [],
         productCosts: [],
+        productRows: [],
         products: [],
         syncedProducts: [],
       },
@@ -41,10 +56,8 @@ describe("ProductsHub", () => {
 
     const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
 
-    expect(markup).toContain("Gestao de produtos e custos");
-    expect(markup).toContain("Ainda nao ha dados no catalogo.");
-    expect(markup).toContain("Criar produto");
-    expect(markup).toContain("Produtos sincronizados para revisao");
+    expect(markup).toContain("Catálogo vazio");
+    expect(markup).toContain("Criar primeiro produto");
   });
 
   it("renders API failure state", () => {
@@ -56,7 +69,7 @@ describe("ProductsHub", () => {
 
     const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
 
-    expect(markup).toContain("Nao conseguimos carregar seu catalogo");
-    expect(markup).toContain("Boom");
+    expect(markup).toContain("Erro ao carregar dados");
+    expect(markup).toContain("Não foi possível carregar o catálogo de produtos.");
   });
 });

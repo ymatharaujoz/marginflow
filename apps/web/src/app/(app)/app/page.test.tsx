@@ -36,6 +36,7 @@ describe("AppHomePage", () => {
     });
     readServerBillingStateMock.mockResolvedValueOnce({
       entitled: true,
+      status: "active",
     });
 
     const result = await AppHomePage();
@@ -57,6 +58,7 @@ describe("AppHomePage", () => {
     });
     readServerBillingStateMock.mockResolvedValueOnce({
       entitled: false,
+      status: "inactive",
     });
 
     await AppHomePage();

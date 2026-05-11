@@ -47,6 +47,8 @@ describe("readServerBillingState", () => {
               },
               entitled: false,
               organizationId: "org_123",
+              pendingCheckout: null,
+              status: "inactive",
               subscription: {
                 cancelAtPeriodEnd: false,
                 currentPeriodEnd: null,
@@ -58,6 +60,7 @@ describe("readServerBillingState", () => {
                 status: "inactive",
               },
             },
+            error: null,
           }),
           {
             headers: {
@@ -75,6 +78,8 @@ describe("readServerBillingState", () => {
       },
       entitled: false,
       organizationId: "org_123",
+      pendingCheckout: null,
+      status: "inactive",
       subscription: {
         cancelAtPeriodEnd: false,
         currentPeriodEnd: null,

@@ -174,7 +174,7 @@ export function SyncHistorySection({
                       </td>
                       <td className="align-top px-5 py-4">
                         <span className="inline-flex rounded-md border border-border/70 bg-muted/20 px-2 py-1 font-mono text-[11px] font-medium text-foreground">
-                          {run.provider === "mercadolivre" ? "MELI" : run.provider === "shopee" ? "SHPE" : run.provider.toUpperCase().slice(0, 4)}
+                          {run.provider === "mercadolivre" ? "MELI" : "SHPE"}
                         </span>
                       </td>
                       <td className="align-top px-5 py-4">

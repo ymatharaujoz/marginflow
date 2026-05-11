@@ -29,11 +29,16 @@ export class BillingController {
   async getSubscription(
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,
   ) {
-    await this.billingService.reconcileOrganizationSubscriptionWithStripe(
-      authContext.organization.id,
-    );
+    if (authContext.organization?.id) {
+      await this.billingService.reconcileOrganizationSubscriptionWithStripe(
+        authContext.organization.id,
+      );
+    }
     return {
-      data: await this.entitlementsService.getBillingSnapshot(authContext.organization.id),
+      data: await this.entitlementsService.getBillingSnapshot({
+        organizationId: authContext.organization?.id ?? null,
+        userId: authContext.user.id,
+      }),
       error: null,
     };
   }
@@ -59,7 +64,21 @@ export class BillingController {
     await this.billingService.confirmCheckoutSession(authContext, body.sessionId);
 
     return {
-      data: await this.entitlementsService.getBillingSnapshot(authContext.organization.id),
+      data: await this.entitlementsService.getBillingSnapshot({
+        organizationId: authContext.organization?.id ?? null,
+        userId: authContext.user.id,
+      }),
+      error: null,
+    };
+  }
+
+  @Post("portal")
+  @UseGuards(AuthGuard)
+  async createPortalSession(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+  ) {
+    return {
+      data: await this.billingService.createCustomerPortalSession(authContext),
       error: null,
     };
   }

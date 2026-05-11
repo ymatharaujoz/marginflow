@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { RefreshCw, Plus, AlertCircle, Beaker } from "lucide-react";
-import { Card, EmptyState, Skeleton, Button, Badge } from "@marginflow/ui";
+import { RefreshCw, Plus, AlertCircle } from "lucide-react";
+import { Card, EmptyState, Skeleton, Button } from "@marginflow/ui";
 import { ApiClientError } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonChart, SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
@@ -42,12 +42,12 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
           <AlertCircle className="h-6 w-6 text-error" />
         </div>
         <h3 className="mb-2 text-lg font-semibold text-foreground">
-          {isUnauthorized ? "Sessão expirada" : "Erro ao carregar dados"}
+          {isUnauthorized ? "Sessao expirada" : "Erro ao carregar dados"}
         </h3>
         <p className="mb-6 text-sm text-muted-foreground">
           {isUnauthorized
-            ? "Sua sessão expirou. Por favor, faça login novamente para continuar."
-            : "Não foi possível carregar os dados do dashboard. Tente novamente."}
+            ? "Sua sessao expirou. Por favor, faca login novamente para continuar."
+            : "Nao foi possivel carregar os dados do dashboard. Tente novamente."}
         </p>
         {isUnauthorized ? (
           <Button asChild>
@@ -68,8 +68,8 @@ function EmptySyncState() {
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <EmptyState
-        title="Ainda sem dados de sincronização"
-        description="Conecte o Mercado Livre e execute a primeira importação em Integrações para liberar tendências aqui."
+        title="Ainda sem dados de sincronizacao"
+        description="Conecte o Mercado Livre e execute a primeira importacao em Integracoes para liberar tendencias aqui."
         icon={<span className="text-4xl">📊</span>}
         action={
           <Button asChild size="lg" className="gap-2">
@@ -95,7 +95,6 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
     financialState,
     businessStatus,
     lastSyncDate,
-    isUsingMockData,
     refetchAll,
   } = useDashboardData();
 
@@ -113,27 +112,11 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
-      {isUsingMockData && (
-        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Beaker className="h-4 w-4 text-warning" />
-              <span className="text-sm font-medium text-foreground">Modo de demonstração ativo</span>
-              <Badge variant="warning" className="text-[10px]">
-                Dados de teste
-              </Badge>
-            </div>
-            <p className="hidden text-xs text-muted-foreground sm:block">
-              Remova NEXT_PUBLIC_USE_MOCK_DATA do .env.local para dados reais
-            </p>
-          </div>
-        </motion.div>
-      )}
-
       <DashboardHeader
         organizationName={organizationName}
         businessStatus={businessStatus}
         lastSyncDate={lastSyncDate}
+        recentSync={recentSyncQuery.data}
       />
 
       {summaryQuery.data && (
@@ -143,11 +126,11 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
       )}
 
       {chartsQuery.data && (
-        <section className="grid items-start gap-4 lg:grid-cols-[1fr_300px]">
+        <section className="grid items-stretch gap-4 lg:grid-cols-[1fr_300px]">
           <ChartsSection data={chartsQuery.data} />
-          <div className="space-y-3">
-            <MarketplacesSection data={chartsQuery.data} />
-            {summaryQuery.data && <InsightsSection data={summaryQuery.data} />}
+          <div className="flex flex-col gap-3">
+            <MarketplacesSection data={chartsQuery.data} recentSync={recentSyncQuery.data} />
+            {summaryQuery.data && <InsightsSection data={summaryQuery.data} className="flex-1" />}
           </div>
         </section>
       )}
@@ -165,7 +148,7 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Cadastre custos de produto</h3>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Há dados de marketplace, mas faltam custos para enxergar lucratividade completa.
+                  Ha dados de marketplace, mas faltam custos para enxergar lucratividade completa.
                 </p>
               </div>
               <Button asChild variant="secondary" className="gap-2">
@@ -182,11 +165,11 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
       {financialState === "insufficient" && (
         <motion.div variants={fadeInVariants} initial="hidden" animate="visible">
           <EmptyState
-            title="Dados insuficientes para análise completa"
-            description="Sua sincronização já trouxe base inicial, mas ainda faltam sinais suficientes para montar rentabilidade por produto."
+            title="Dados insuficientes para analise completa"
+            description="Sua sincronizacao ja trouxe base inicial, mas ainda faltam sinais suficientes para montar rentabilidade por produto."
             action={
               <Button asChild variant="secondary">
-                <Link href="/app/products">Revisar catálogo</Link>
+                <Link href="/app/products">Revisar catalogo</Link>
               </Button>
             }
           />

@@ -2,6 +2,7 @@ import { and } from "drizzle-orm";
 import { eq } from "drizzle-orm";
 import { createDatabaseClient } from "./client";
 import { createPostgresConnection } from "./connection";
+import { readMigrationDatabaseUrl } from "./database-url";
 import { loadRepoEnv } from "./load-repo-env";
 import {
   accounts,
@@ -17,11 +18,7 @@ import {
 loadRepoEnv(import.meta.url);
 
 async function run() {
-  const connectionString = process.env.DATABASE_URL;
-
-  if (!connectionString) {
-    throw new Error("DATABASE_URL is required to seed the database.");
-  }
+  const connectionString = readMigrationDatabaseUrl();
 
   const sql = createPostgresConnection(connectionString);
 

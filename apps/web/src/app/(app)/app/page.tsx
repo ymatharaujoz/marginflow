@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { DashboardHome } from "@/modules/dashboard";
+import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
 
@@ -9,13 +10,13 @@ export default async function AppHomePage() {
     readServerBillingState(),
   ]);
 
-  if (!authState) {
-    redirect("/sign-in");
+  const redirectTarget = resolveProtectedAppRedirect(authState, billingState);
+
+  if (redirectTarget) {
+    redirect(redirectTarget);
   }
 
-  if (!billingState?.entitled) {
-    redirect("/app/billing");
-  }
-
-  return <DashboardHome organizationName={authState.organization.name} />;
+  return (
+    <DashboardHome organizationName={authState.organization?.name ?? authState.user.name} />
+  );
 }

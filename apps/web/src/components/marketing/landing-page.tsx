@@ -553,8 +553,18 @@ export function LandingPage() {
       <IntegrationsSection />
 
       {/* Social Proof Section */}
-      <div className="bg-[#fafafa]">
-        <SocialProof />
+      <div className="relative">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent 0%, var(--background-elevated) 10%, var(--surface-strong) 50%, var(--background-soft) 100%)",
+          }}
+        />
+        <div className="relative z-10">
+          <SocialProof />
+        </div>
       </div>
 
       {/* Pricing Section */}
@@ -645,10 +655,16 @@ export function LandingPage() {
 
       {/* Final CTA Section */}
       <section id="demo" className="relative py-24 md:py-32">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-white via-accent/[0.02] to-white" />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, var(--background-soft) 0%, rgba(14, 122, 111, 0.05) 45%, var(--background) 100%)",
+          }}
+        />
 
-        <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+        <div className="relative z-10 mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}

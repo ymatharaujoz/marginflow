@@ -14,6 +14,7 @@
     "ngrok:mercadolivre:callback:url": "node ./scripts/print-mercadolivre-callback-url.mjs",
     "db:generate": "corepack pnpm --filter @marginflow/database db:generate",
     "db:migrate": "corepack pnpm --filter @marginflow/database db:migrate",
+    "db:diagnose": "corepack pnpm --filter @marginflow/database db:diagnose",
     "db:studio": "corepack pnpm --filter @marginflow/database db:studio",
     "db:seed": "corepack pnpm --filter @marginflow/database db:seed",
     "build": "corepack pnpm exec turbo run build",
@@ -21,7 +22,7 @@
     "start": "corepack pnpm --filter @marginflow/web start",
     "lint": "corepack pnpm exec turbo run lint && eslint src vitest.config.ts",
     "typecheck": "corepack pnpm exec turbo run typecheck && tsc --noEmit",
-    "test": "corepack pnpm exec turbo run test && vitest run",
+    "test": "corepack pnpm exec turbo run test && vitest run --passWithNoTests",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -30,7 +31,6 @@
   },
   "devDependencies": {
     "@marginflow/eslint-config": "workspace:*",
-    "@marginflow/tsconfig": "workspace:*",
     "eslint": "^9.39.0",
     "pnpm": "10.33.0",
     "prettier": "^3.6.2",

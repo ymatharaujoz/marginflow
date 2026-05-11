@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const serverEnvSchema = z.object({
   DATABASE_URL: z.string().url(),
+  DATABASE_MIGRATION_URL: z.string().url().optional(),
   BETTER_AUTH_SECRET: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string().min(1),
   GOOGLE_CLIENT_SECRET: z.string().min(1),
@@ -9,9 +10,9 @@ export const serverEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
   STRIPE_PRICE_MONTHLY: z.string().min(1),
   STRIPE_PRICE_ANNUAL: z.string().min(1),
-  SUPABASE_URL: z.string().url(),
-  SUPABASE_ANON_KEY: z.string().min(1),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_ANON_KEY: z.string().min(1).optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
 });
 
 export const clientEnvSchema = z.object({

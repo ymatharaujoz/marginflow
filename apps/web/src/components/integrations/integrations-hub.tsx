@@ -214,7 +214,7 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
         onSync={handleSyncClick}
         isSyncing={syncMutation.isPending}
         canSync={syncStatusQuery.data?.availability.canRun ?? false}
-        lastSyncDate={mercadoLivreConnection?.lastSyncedAt}
+        lastSyncDate={mercadoLivreConnection?.lastSyncedAt ?? undefined}
       />
 
       {/* Divider */}
@@ -252,7 +252,7 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
         </div>
         <SyncStatusGrid
           syncStatus={syncStatusQuery.data}
-          lastRun={lastCompletedRun}
+          lastRun={lastCompletedRun ?? undefined}
           isLoading={syncStatusQuery.isLoading}
         />
       </section>

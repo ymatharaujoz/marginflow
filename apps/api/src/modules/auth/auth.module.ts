@@ -25,7 +25,7 @@ export class AuthModule {
         AuthService,
         AuthGuard,
       ],
-      exports: [AUTH_INSTANCE, AuthGuard, AuthService],
+      exports: [AUTH_INSTANCE, AuthGuard, AuthService, OrganizationProvisioningService],
     };
   }
 }

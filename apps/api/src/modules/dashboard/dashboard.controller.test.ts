@@ -73,10 +73,14 @@ describe("dashboard controller", () => {
     vi.spyOn(dashboardService, "readSummary").mockResolvedValueOnce({
       cards: [],
       summary: {
+        avgRoi: "0.00",
+        avgRoas: "0.00",
+        avgTicket: "0.00",
         breakEvenRevenue: "0.00",
         breakEvenUnits: "0.00",
         contributionMargin: "0.00",
         grossMarginPercent: "0.00",
+        grossProfit: "0.00",
         grossRevenue: "0.00",
         netProfit: "0.00",
         netRevenue: "0.00",
@@ -85,6 +89,7 @@ describe("dashboard controller", () => {
         totalCogs: "0.00",
         totalFees: "0.00",
         totalManualExpenses: "0.00",
+        totalReturns: 0,
         unitsSold: 0,
       },
     });

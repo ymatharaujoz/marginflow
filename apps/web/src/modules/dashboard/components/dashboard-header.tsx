@@ -8,12 +8,14 @@ import { Button } from "@marginflow/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { fadeInVariants } from "@/lib/animations";
 import type { DashboardBusinessStatus } from "../types/dashboard";
+import type { DashboardRecentSyncResponse } from "@marginflow/types";
 import { formatRelativeTime, getGreeting } from "../utils/formatters";
 
 interface DashboardHeaderProps {
   organizationName: string;
   businessStatus?: DashboardBusinessStatus;
   lastSyncDate?: string;
+  recentSync?: DashboardRecentSyncResponse;
 }
 
 const statusConfig = {
@@ -31,14 +33,56 @@ const statusConfig = {
   },
 };
 
+function getIntegrationStatus(recentSync?: DashboardRecentSyncResponse) {
+  if (!recentSync) {
+    return { color: "bg-muted", label: "Não verificado", status: "disconnected" as const };
+  }
+
+  const reason = recentSync.availability.reason;
+  const lastRun = recentSync.lastCompletedRun;
+
+  // Provedor desconectado ou indisponível
+  if (reason === "provider_disconnected" || reason === "provider_needs_reconnect" || reason === "provider_unavailable") {
+    return { color: "bg-error", label: "Desconectado", status: "disconnected" as const };
+  }
+
+  // Sync em progresso
+  if (reason === "sync_in_progress" || recentSync.activeRun) {
+    return { color: "bg-info", label: "Sincronizando", status: "syncing" as const };
+  }
+
+  // Verificar última sincronização bem-sucedida
+  if (lastRun && lastRun.finishedAt) {
+    const lastSync = new Date(lastRun.finishedAt);
+    const now = new Date();
+    const hoursSinceSync = (now.getTime() - lastSync.getTime()) / (1000 * 60 * 60);
+
+    // Mais de 24h sem sync = atenção
+    if (hoursSinceSync > 24) {
+      return { color: "bg-warning", label: "Sincronização atrasada", status: "stale" as const };
+    }
+
+    return { color: "bg-success", label: "Conectado", status: "connected" as const };
+  }
+
+  // Disponível mas nunca sincronizado
+  if (reason === "available") {
+    return { color: "bg-warning", label: "Nunca sincronizado", status: "never" as const };
+  }
+
+  return { color: "bg-muted", label: "Não verificado", status: "unknown" as const };
+}
+
 export function DashboardHeader({
   organizationName,
   businessStatus = "healthy",
   lastSyncDate,
+  recentSync,
 }: DashboardHeaderProps) {
   const greeting = useMemo(() => getGreeting(), []);
   const relativeTime = useMemo(() => formatRelativeTime(lastSyncDate), [lastSyncDate]);
   const currentStatus = statusConfig[businessStatus];
+  const integrationStatus = useMemo(() => getIntegrationStatus(recentSync), [recentSync]);
 
   return (
     <motion.div variants={fadeInVariants} initial="hidden" animate="visible" className="space-y-4">
@@ -74,7 +118,7 @@ export function DashboardHeader({
 
         <div className="ml-auto hidden items-center gap-3 text-sm text-muted-foreground sm:flex">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-success" />
+            <span className={`h-2 w-2 rounded-full ${integrationStatus.color}`} />
             Mercado Livre
           </span>
         </div>

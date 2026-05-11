@@ -29,10 +29,11 @@ export class EntitlementGuard implements CanActivate {
       (await this.authService.requireRequestContext(request.raw ? request.raw : request));
 
     request.authContext = authContext;
+    const organization = this.authService.requireOrganizationMembership(authContext);
     await this.billingService.reconcileOrganizationSubscriptionWithStripe(
-      authContext.organization.id,
+      organization.id,
     );
-    await this.entitlementsService.requireActiveEntitlement(authContext.organization.id);
+    await this.entitlementsService.requireActiveEntitlement(organization.id);
 
     return true;
   }

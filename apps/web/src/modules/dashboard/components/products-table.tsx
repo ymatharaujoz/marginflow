@@ -29,7 +29,7 @@ const channelLabels: Record<string, string> = {
 
 function getChannelBadge(channel: string) {
   const label = channelLabels[channel] ?? "MELI";
-  return <Badge variant="default">{label}</Badge>;
+  return <Badge>{label}</Badge>;
 }
 
 function formatTrendValue(value: number, isPositiveGood = true) {
@@ -107,81 +107,42 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
 
         {/* Scroll horizontal para a tabela expandida */}
         <div className="overflow-x-auto -mx-2 px-2">
-          <div className="min-w-[1400px]">
+          <div className="min-w-[960px]">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-strong/95">
-                  {/* 1. Nome */}
                   <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Produto
                   </th>
-                  {/* 2. SKU */}
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    SKU
-                  </th>
-                  {/* 3. Marketplace */}
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Marketplace
                   </th>
-                  {/* 4. Vendas */}
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Saúde
+                  </th>
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Vendas
                   </th>
-                  {/* 5. Devoluções */}
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Devol.
                   </th>
-                  {/* 6. Vendas Líquidas */}
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Líquida
                   </th>
-                  {/* 7. Receita */}
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Receita
                   </th>
-                  {/* 8. Ticket Médio */}
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Ticket
-                  </th>
-                  {/* 9. Comissão */}
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Comissão
-                  </th>
-                  {/* 10. Frete */}
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Frete
-                  </th>
-                  {/* 11. Imposto */}
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Imposto
-                  </th>
-                  {/* 12. Custo */}
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Custo
-                  </th>
-                  {/* 13. ADS (Investimento) */}
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Ads $
-                  </th>
-                  {/* 14. ADS (ROAS) */}
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     ROAS
                   </th>
-                  {/* 15. Lucro */}
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Lucro
                   </th>
-                  {/* 16. Margem */}
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Margem
                   </th>
-                  {/* 17. ROI */}
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     ROI
-                  </th>
-                  {/* 18. Saúde Financeira */}
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Saúde
                   </th>
                 </tr>
               </thead>
@@ -198,32 +159,28 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                       transition={{ delay: index * 0.03, duration: 0.3 }}
                       className="transition-colors duration-150 hover:bg-foreground/[0.015]"
                     >
-                      {/* 1. Nome */}
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
                             <Package className="h-4 w-4 text-accent" />
                           </div>
                           <div className="min-w-0 max-w-[180px]">
                             <p className="truncate text-sm font-medium text-foreground">{row.name}</p>
+                            <p className="truncate font-mono text-xs text-muted-foreground">{row.sku || "—"}</p>
                           </div>
                         </div>
                       </td>
 
-                      {/* 2. SKU */}
-                      <td className="px-3 py-3">
-                        <span className="text-xs font-mono text-muted-foreground">{row.sku || "—"}</span>
-                      </td>
-
-                      {/* 3. Marketplace */}
                       <td className="px-3 py-3 text-center">{getChannelBadge(row.channelLabel)}</td>
 
-                      {/* 4. Vendas */}
+                      <td className="px-3 py-3 text-center">
+                        <StatusBadge status={healthBadge.status} label={healthBadge.label} />
+                      </td>
+
                       <td className="px-3 py-3 text-right">
                         <span className="text-sm text-foreground">{formatNumber(row.sales)}</span>
                       </td>
 
-                      {/* 5. Devoluções */}
                       <td className="px-3 py-3 text-right">
                         <div className="flex flex-col items-end">
                           <span className={`text-sm ${returnRate > 0.15 ? "text-error" : "text-foreground"}`}>
@@ -237,49 +194,14 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                         </div>
                       </td>
 
-                      {/* 6. Vendas Líquidas */}
                       <td className="px-3 py-3 text-right">
                         <span className="text-sm font-medium text-foreground">{formatNumber(row.netSales)}</span>
                       </td>
 
-                      {/* 7. Receita */}
                       <td className="px-3 py-3 text-right">
                         <span className="text-sm font-medium text-foreground">{formatMoney(row.revenue)}</span>
                       </td>
 
-                      {/* 8. Ticket Médio */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">{formatMoney(row.averageTicket)}</span>
-                      </td>
-
-                      {/* 9. Comissão */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">{formatMoney(row.commission)}</span>
-                      </td>
-
-                      {/* 10. Frete */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">{formatMoney(row.shipping)}</span>
-                      </td>
-
-                      {/* 11. Imposto */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">{formatMoney(row.tax)}</span>
-                      </td>
-
-                      {/* 12. Custo */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">{formatMoney(row.totalCost)}</span>
-                      </td>
-
-                      {/* 13. ADS (Investimento) */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          {row.adSpend > 0 ? formatMoney(row.adSpend) : "—"}
-                        </span>
-                      </td>
-
-                      {/* 14. ADS (ROAS) */}
                       <td className="px-3 py-3 text-right">
                         {row.roas !== null && row.roas > 0 ? (
                           <div className="flex items-center justify-end gap-1">
@@ -305,14 +227,12 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                         )}
                       </td>
 
-                      {/* 15. Lucro */}
                       <td className="px-3 py-3 text-right">
                         <span className={`text-sm font-semibold ${row.profit >= 0 ? "text-success" : "text-error"}`}>
                           {formatMoney(row.profit)}
                         </span>
                       </td>
 
-                      {/* 16. Margem */}
                       <td className="px-3 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
                           {row.margin >= 20 ? (
@@ -330,7 +250,6 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                         </div>
                       </td>
 
-                      {/* 17. ROI */}
                       <td className="px-3 py-3 text-right">
                         {row.roi !== null ? (
                           <span
@@ -345,10 +264,6 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                         )}
                       </td>
 
-                      {/* 18. Saúde Financeira */}
-                      <td className="px-3 py-3 text-center">
-                        <StatusBadge status={healthBadge.status} label={healthBadge.label} />
-                      </td>
                     </motion.tr>
                   );
                 })}

@@ -7,88 +7,60 @@ import type {
   DashboardRecentSyncResponse,
   DashboardSummaryResponse,
 } from "@marginflow/types";
-import { ApiClientError, apiClient } from "@/lib/api/client";
 import {
-  mockDashboardCharts,
-  mockDashboardProfitability,
-  mockDashboardRecentSync,
-  mockDashboardSummary,
-} from "@/lib/mock-dashboard-data";
+  dashboardChartsApiResponseSchema,
+  dashboardProfitabilityApiResponseSchema,
+  dashboardRecentSyncApiResponseSchema,
+  dashboardSummaryApiResponseSchema,
+} from "@marginflow/validation";
+import { ApiClientError, apiClient } from "@/lib/api/client";
 import { deriveBusinessStatus, determineDashboardFinancialState } from "../calculations/financial-state";
 
 const dashboardSummaryQueryKey = ["dashboard-summary"] as const;
 const dashboardChartsQueryKey = ["dashboard-charts"] as const;
 const dashboardRecentSyncQueryKey = ["dashboard-recent-sync"] as const;
 const dashboardProfitabilityQueryKey = ["dashboard-profitability"] as const;
-const USE_MOCK_DATA = process.env.NEXT_PUBLIC_USE_MOCK_DATA === "true";
 
-async function resolveDashboardData<T>(
-  mockData: T,
-  request: () => Promise<{ data: T; error: null }>,
-  delayMs: number,
-) {
-  if (USE_MOCK_DATA) {
-    await new Promise((resolve) => setTimeout(resolve, delayMs));
-    return mockData;
-  }
-
-  const response = await request();
-  return response.data;
+export async function fetchDashboardSummary(_legacyUseMockData?: boolean): Promise<DashboardSummaryResponse> {
+  return apiClient.getValidatedData("/dashboard/summary", dashboardSummaryApiResponseSchema);
 }
 
-async function fetchDashboardSummary(): Promise<DashboardSummaryResponse> {
-  return resolveDashboardData(
-    mockDashboardSummary,
-    () => apiClient.get<{ data: DashboardSummaryResponse; error: null }>("/dashboard/summary"),
-    500,
-  );
+export async function fetchDashboardCharts(_legacyUseMockData?: boolean): Promise<DashboardChartsResponse> {
+  return apiClient.getValidatedData("/dashboard/charts", dashboardChartsApiResponseSchema);
 }
 
-async function fetchDashboardCharts(): Promise<DashboardChartsResponse> {
-  return resolveDashboardData(
-    mockDashboardCharts,
-    () => apiClient.get<{ data: DashboardChartsResponse; error: null }>("/dashboard/charts"),
-    600,
-  );
+export async function fetchDashboardRecentSync(_legacyUseMockData?: boolean): Promise<DashboardRecentSyncResponse> {
+  return apiClient.getValidatedData("/dashboard/recent-sync", dashboardRecentSyncApiResponseSchema);
 }
 
-async function fetchDashboardRecentSync(): Promise<DashboardRecentSyncResponse> {
-  return resolveDashboardData(
-    mockDashboardRecentSync,
-    () => apiClient.get<{ data: DashboardRecentSyncResponse; error: null }>("/dashboard/recent-sync"),
-    300,
-  );
-}
-
-async function fetchDashboardProfitability(): Promise<DashboardProfitabilityResponse> {
-  return resolveDashboardData(
-    mockDashboardProfitability,
-    () => apiClient.get<{ data: DashboardProfitabilityResponse; error: null }>("/dashboard/profitability"),
-    700,
+export async function fetchDashboardProfitability(_legacyUseMockData?: boolean): Promise<DashboardProfitabilityResponse> {
+  return apiClient.getValidatedData(
+    "/dashboard/profitability",
+    dashboardProfitabilityApiResponseSchema,
   );
 }
 
 export function useDashboardData() {
   const summaryQuery = useQuery({
-    queryFn: fetchDashboardSummary,
+    queryFn: () => fetchDashboardSummary(),
     queryKey: dashboardSummaryQueryKey,
     retry: 2,
   });
 
   const chartsQuery = useQuery({
-    queryFn: fetchDashboardCharts,
+    queryFn: () => fetchDashboardCharts(),
     queryKey: dashboardChartsQueryKey,
     retry: 2,
   });
 
   const recentSyncQuery = useQuery({
-    queryFn: fetchDashboardRecentSync,
+    queryFn: () => fetchDashboardRecentSync(),
     queryKey: dashboardRecentSyncQueryKey,
     retry: 1,
   });
 
   const profitabilityQuery = useQuery({
-    queryFn: fetchDashboardProfitability,
+    queryFn: () => fetchDashboardProfitability(),
     queryKey: dashboardProfitabilityQueryKey,
     retry: 2,
   });
@@ -112,7 +84,6 @@ export function useDashboardData() {
     financialState,
     businessStatus,
     lastSyncDate: recentSyncQuery.data?.lastCompletedRun?.finishedAt ?? undefined,
-    isUsingMockData: USE_MOCK_DATA,
     refetchAll() {
       summaryQuery.refetch();
       chartsQuery.refetch();

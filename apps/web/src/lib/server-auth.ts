@@ -1,25 +1,10 @@
 import { headers } from "next/headers";
+import type { AuthState } from "@marginflow/types";
+import { authStateApiResponseSchema } from "@marginflow/validation";
 import { getWebEnv } from "@/lib/env";
+import { parseApiContract } from "@/lib/api/contract";
 
-export type ServerAuthState = {
-  session: {
-    id: string;
-    expiresAt: string;
-  };
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    image: string | null;
-    emailVerified: boolean;
-  };
-  organization: {
-    id: string;
-    name: string;
-    slug: string;
-    role: string;
-  };
-};
+export type ServerAuthState = AuthState;
 
 export async function readServerAuthState(): Promise<ServerAuthState | null> {
   const headerStore = await headers();
@@ -46,9 +31,7 @@ export async function readServerAuthState(): Promise<ServerAuthState | null> {
     );
   }
 
-  const payload = (await response.json()) as {
-    data: ServerAuthState;
-  };
+  const payload = await response.json();
 
-  return payload.data;
+  return parseApiContract("/auth-state/me", payload, authStateApiResponseSchema).data;
 }
