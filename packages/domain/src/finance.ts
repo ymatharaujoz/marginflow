@@ -75,6 +75,11 @@ export type FinancialSummaryMetrics = {
   breakEvenUnits: DecimalString;
   ordersCount: number;
   unitsSold: number;
+  grossProfit: DecimalString;
+  avgRoi: DecimalString;
+  avgRoas: DecimalString;
+  totalReturns: number;
+  avgTicket: DecimalString;
 };
 
 export type DailyFinancialMetric = {
@@ -95,7 +100,59 @@ export type ProductProfitabilityMetric = {
   productId: string;
   productName: string;
   sku: string | null;
+  channel: string;
+  sales: number;
+  returns: number;
+  netSales: number;
+  salePrice: DecimalString;
+  revenue: DecimalString;
+  marketplaceCommission: DecimalString;
+  shippingCost: DecimalString;
+  taxAmount: DecimalString;
+  packagingCost: DecimalString;
+  productCost: DecimalString;
+  adSpend: DecimalString;
+  grossProfit: DecimalString;
+  roi: DecimalString;
+  roas: DecimalString;
+  margin: DecimalString;
   summary: FinancialSummaryMetrics;
+};
+
+export type ProductAnalyticsInsufficientReason =
+  | "missing_cost"
+  | "missing_linked_marketplace_signal"
+  | "missing_sales_signal";
+
+export type ProductAnalyticsMetric = {
+  productId: string;
+  productName: string;
+  sku: string | null;
+  isActive: boolean;
+  channel: string;
+  sales: number;
+  returns: number;
+  netSales: number;
+  salePrice: DecimalString;
+  revenue: DecimalString;
+  marketplaceCommission: DecimalString;
+  shippingCost: DecimalString;
+  taxAmount: DecimalString;
+  packagingCost: DecimalString;
+  productCost: DecimalString;
+  adSpend: DecimalString;
+  grossProfit: DecimalString;
+  contributionMargin: DecimalString;
+  unitProfit: DecimalString;
+  totalProfit: DecimalString;
+  margin: DecimalString;
+  roi: DecimalString;
+  actualRoas: DecimalString;
+  minimumRoas: DecimalString;
+  hasCost: boolean;
+  hasSalesSignal: boolean;
+  hasLinkedMarketplaceSignal: boolean;
+  insufficientReasons: ProductAnalyticsInsufficientReason[];
 };
 
 export type ChannelProfitabilityMetric = {
@@ -124,6 +181,7 @@ type MutableAccumulator = {
 const MONEY_SCALE = 100n;
 const PERCENT_SCALE = 100n;
 const ZERO_MONEY = "0.00";
+const INFINITY_VALUE = "Infinity";
 
 function createAccumulator(): MutableAccumulator {
   return {
@@ -139,10 +197,23 @@ function createAccumulator(): MutableAccumulator {
 }
 
 function finalizeAccumulator(value: MutableAccumulator): FinancialSummaryMetrics {
+  const grossProfitCents = computeGrossProfitCents(value);
   const contributionMarginCents = computeContributionMarginCents(value);
   const netProfitCents = computeNetProfitCents(value);
 
   return {
+    avgRoi:
+      value.totalCogs > 0n
+        ? divideMoney(grossProfitCents, value.totalCogs, 2, PERCENT_SCALE)
+        : ZERO_MONEY,
+    avgRoas:
+      value.totalAdCosts > 0n
+        ? divideMoney(value.grossRevenue, value.totalAdCosts, 2)
+        : ZERO_MONEY,
+    avgTicket:
+      value.ordersCount > 0
+        ? divideMoneyAcrossCount(value.grossRevenue, value.ordersCount)
+        : ZERO_MONEY,
     breakEvenRevenue: calculateBreakEvenRevenue({
       contributionMargin: formatMoney(contributionMarginCents),
       fixedCosts: formatMoney(value.totalManualExpenses),
@@ -154,14 +225,16 @@ function finalizeAccumulator(value: MutableAccumulator): FinancialSummaryMetrics
       unitsSold: value.unitsSold,
     }),
     contributionMargin: formatMoney(contributionMarginCents),
-    grossMarginPercent: calculateGrossMarginPercent(
-      formatMoney(value.grossRevenue),
-      formatMoney(value.totalCogs),
-    ),
+    grossMarginPercent:
+      value.grossRevenue > 0n
+        ? divideMoney(grossProfitCents, value.grossRevenue, 2, PERCENT_SCALE)
+        : ZERO_MONEY,
+    grossProfit: formatMoney(grossProfitCents),
     grossRevenue: formatMoney(value.grossRevenue),
     netProfit: formatMoney(netProfitCents),
     netRevenue: formatMoney(value.netRevenue),
     ordersCount: value.ordersCount,
+    totalReturns: 0,
     totalAdCosts: formatMoney(value.totalAdCosts),
     totalCogs: formatMoney(value.totalCogs),
     totalFees: formatMoney(value.totalFees),
@@ -170,8 +243,12 @@ function finalizeAccumulator(value: MutableAccumulator): FinancialSummaryMetrics
   };
 }
 
+function computeGrossProfitCents(value: MutableAccumulator) {
+  return value.netRevenue - value.totalCogs - value.totalFees;
+}
+
 function computeContributionMarginCents(value: MutableAccumulator) {
-  return value.netRevenue - value.totalCogs - value.totalFees - value.totalAdCosts;
+  return computeGrossProfitCents(value) - value.totalAdCosts;
 }
 
 function computeNetProfitCents(value: MutableAccumulator) {
@@ -248,6 +325,19 @@ function sortProducts<T extends { summary: FinancialSummaryMetrics }>(values: T[
   );
 }
 
+function sortAnalyticsProducts(values: ProductAnalyticsMetric[]) {
+  return [...values].sort((left, right) => {
+    const profitDiff =
+      Number.parseFloat(right.totalProfit) - Number.parseFloat(left.totalProfit);
+
+    if (profitDiff !== 0) {
+      return profitDiff;
+    }
+
+    return left.productName.localeCompare(right.productName);
+  });
+}
+
 function divideRounded(dividend: bigint, divisor: bigint) {
   if (divisor === 0n) {
     return 0n;
@@ -257,6 +347,14 @@ function divideRounded(dividend: bigint, divisor: bigint) {
   const remainder = dividend % divisor;
 
   return remainder * 2n >= divisor ? quotient + 1n : quotient;
+}
+
+function divideMoneyAcrossCount(totalCents: bigint, count: number) {
+  if (count <= 0) {
+    return ZERO_MONEY;
+  }
+
+  return formatMoney(divideRounded(totalCents, BigInt(count)));
 }
 
 export function parseMoney(value: DecimalString | number | bigint): bigint {
@@ -562,38 +660,203 @@ export function buildFinanceOverview(snapshot: FinanceSnapshot): FinanceOverview
   };
 }
 
+type ProductAggregate = {
+  accumulator: MutableAccumulator;
+  channels: Set<string>;
+};
+
+function buildProductAggregateMap(snapshot: FinanceSnapshot) {
+  const productsById = new Map(snapshot.products.map((product) => [product.id, product]));
+  const aggregateMap = new Map<string, ProductAggregate>();
+
+  for (const order of snapshot.orders) {
+    const itemWeights = order.items.map((item) => parseMoney(item.totalPrice));
+    const totalFees = sumMoney(order.fees.map((fee) => fee.amount));
+    const feeAllocations = allocateProportionally(totalFees, itemWeights);
+
+    for (let index = 0; index < order.items.length; index += 1) {
+      const item = order.items[index];
+
+      if (!item.productId) {
+        continue;
+      }
+
+      const matchedProduct = productsById.get(item.productId);
+
+      if (!matchedProduct) {
+        continue;
+      }
+
+      const existing = aggregateMap.get(matchedProduct.id) ?? {
+        accumulator: createAccumulator(),
+        channels: new Set<string>(),
+      };
+      aggregateMap.set(matchedProduct.id, existing);
+
+      const itemRevenue = parseMoney(item.totalPrice);
+      const quantity = item.quantity;
+      const cogs = parseMoney(matchedProduct.unitCost) * BigInt(quantity);
+
+      existing.accumulator.grossRevenue += itemRevenue;
+      existing.accumulator.netRevenue += itemRevenue;
+      existing.accumulator.totalFees += feeAllocations[index] ?? 0n;
+      existing.accumulator.totalCogs += cogs;
+      existing.accumulator.unitsSold += quantity;
+      existing.accumulator.ordersCount += 1;
+      existing.channels.add(order.provider);
+    }
+  }
+
+  for (const adCost of snapshot.adCosts) {
+    if (!adCost.productId) {
+      continue;
+    }
+
+    const matchedProduct = productsById.get(adCost.productId);
+
+    if (!matchedProduct) {
+      continue;
+    }
+
+    const existing = aggregateMap.get(matchedProduct.id) ?? {
+      accumulator: createAccumulator(),
+      channels: new Set<string>(),
+    };
+    aggregateMap.set(matchedProduct.id, existing);
+    existing.accumulator.totalAdCosts += parseMoney(adCost.amount);
+    existing.channels.add(adCost.channel);
+  }
+
+  return aggregateMap;
+}
+
+export function buildProductAnalyticsMetrics(
+  snapshot: FinanceSnapshot,
+  options?: {
+    linkedMarketplaceSignalsByProductId?: Record<string, boolean>;
+  },
+): ProductAnalyticsMetric[] {
+  const aggregateMap = buildProductAggregateMap(snapshot);
+
+  return sortAnalyticsProducts(
+    snapshot.products.map((product) => {
+      const aggregate = aggregateMap.get(product.id) ?? {
+        accumulator: createAccumulator(),
+        channels: new Set<string>(),
+      };
+      const grossProfitCents = computeGrossProfitCents(aggregate.accumulator);
+      const contributionMarginCents = computeContributionMarginCents(aggregate.accumulator);
+      const netSales = aggregate.accumulator.unitsSold;
+      const hasCost = parseMoney(product.unitCost) > 0n;
+      const hasSalesSignal = netSales > 0;
+      const hasLinkedMarketplaceSignal = Boolean(
+        options?.linkedMarketplaceSignalsByProductId?.[product.id],
+      );
+      const insufficientReasons: ProductAnalyticsInsufficientReason[] = [];
+
+      if (!hasCost) {
+        insufficientReasons.push("missing_cost");
+      }
+
+      if (!hasSalesSignal) {
+        insufficientReasons.push("missing_sales_signal");
+      }
+
+      if (!hasLinkedMarketplaceSignal) {
+        insufficientReasons.push("missing_linked_marketplace_signal");
+      }
+
+      const channelValues = [...aggregate.channels];
+      const channel =
+        channelValues.length === 0 ? "unknown" : channelValues.length === 1 ? channelValues[0] : "mixed";
+
+      return {
+        actualRoas:
+          aggregate.accumulator.totalAdCosts > 0n
+            ? divideMoney(aggregate.accumulator.grossRevenue, aggregate.accumulator.totalAdCosts, 2)
+            : ZERO_MONEY,
+        adSpend: formatMoney(aggregate.accumulator.totalAdCosts),
+        channel,
+        contributionMargin: formatMoney(contributionMarginCents),
+        grossProfit: formatMoney(grossProfitCents),
+        hasCost,
+        hasLinkedMarketplaceSignal,
+        hasSalesSignal,
+        insufficientReasons,
+        isActive: product.isActive,
+        margin:
+          aggregate.accumulator.grossRevenue > 0n
+            ? divideMoney(grossProfitCents, aggregate.accumulator.grossRevenue, 2, PERCENT_SCALE)
+            : ZERO_MONEY,
+        marketplaceCommission: formatMoney(aggregate.accumulator.totalFees),
+        minimumRoas:
+          contributionMarginCents > 0n
+            ? divideMoney(aggregate.accumulator.grossRevenue, contributionMarginCents, 2)
+            : INFINITY_VALUE,
+        netSales,
+        packagingCost: ZERO_MONEY,
+        productCost: formatMoney(aggregate.accumulator.totalCogs),
+        productId: product.id,
+        productName: product.name,
+        returns: 0,
+        revenue: formatMoney(aggregate.accumulator.grossRevenue),
+        roi:
+          aggregate.accumulator.totalCogs > 0n
+            ? divideMoney(grossProfitCents, aggregate.accumulator.totalCogs, 2, PERCENT_SCALE)
+            : ZERO_MONEY,
+        salePrice:
+          netSales > 0
+            ? divideMoneyAcrossCount(aggregate.accumulator.grossRevenue, netSales)
+            : product.sellingPrice,
+        sales: aggregate.accumulator.unitsSold,
+        shippingCost: ZERO_MONEY,
+        sku: product.sku,
+        taxAmount: ZERO_MONEY,
+        totalProfit: formatMoney(contributionMarginCents),
+        unitProfit:
+          netSales > 0
+            ? divideMoneyAcrossCount(contributionMarginCents, netSales)
+            : ZERO_MONEY,
+      };
+    }),
+  );
+}
+
 export function buildProductProfitabilityMetrics(
   snapshot: FinanceSnapshot,
 ): ProductProfitabilityMetric[] {
-  const overview = buildFinanceOverview(snapshot);
-  const productsById = new Map(snapshot.products.map((product) => [product.id, product]));
-  const aggregateMap = new Map<string, MutableAccumulator>();
-
-  for (const metric of overview.products) {
-    const accumulator = ensureAccumulator(aggregateMap, metric.productId);
-    accumulator.grossRevenue += parseMoney(metric.summary.grossRevenue);
-    accumulator.netRevenue += parseMoney(metric.summary.netRevenue);
-    accumulator.totalAdCosts += parseMoney(metric.summary.totalAdCosts);
-    accumulator.totalCogs += parseMoney(metric.summary.totalCogs);
-    accumulator.totalFees += parseMoney(metric.summary.totalFees);
-    accumulator.totalManualExpenses += parseMoney(metric.summary.totalManualExpenses);
-    accumulator.ordersCount += metric.summary.ordersCount;
-    accumulator.unitsSold += metric.summary.unitsSold;
-  }
+  const analyticsRows = buildProductAnalyticsMetrics(snapshot).filter((row) => row.hasSalesSignal);
+  const aggregateMap = buildProductAggregateMap(snapshot);
 
   return sortProducts(
-    [...aggregateMap.entries()].map(([productId, accumulator]) => {
-      const product = productsById.get(productId);
+    analyticsRows.map((row) => {
+      const aggregate = aggregateMap.get(row.productId);
 
-      if (!product) {
-        throw new Error(`Unknown product id in profitability metrics: ${productId}`);
+      if (!aggregate) {
+        throw new Error(`Unknown product id in profitability metrics: ${row.productId}`);
       }
 
       return {
-        productId,
-        productName: product.name,
-        sku: product.sku,
-        summary: finalizeAccumulator(accumulator),
+        adSpend: row.adSpend,
+        channel: row.channel,
+        grossProfit: row.grossProfit,
+        margin: row.margin,
+        marketplaceCommission: row.marketplaceCommission,
+        netSales: row.netSales,
+        packagingCost: row.packagingCost,
+        productCost: row.productCost,
+        productId: row.productId,
+        productName: row.productName,
+        returns: row.returns,
+        revenue: row.revenue,
+        roi: row.roi,
+        roas: row.actualRoas,
+        salePrice: row.salePrice,
+        sales: row.sales,
+        shippingCost: row.shippingCost,
+        sku: row.sku,
+        summary: finalizeAccumulator(aggregate.accumulator),
+        taxAmount: row.taxAmount,
       };
     }),
   );

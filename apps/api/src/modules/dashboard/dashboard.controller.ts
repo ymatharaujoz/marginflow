@@ -15,7 +15,7 @@ export class DashboardController {
   @Get("summary")
   async getSummary(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.dashboardService.readSummary(authContext.organization.id),
+      data: await this.dashboardService.readSummary(authContext.organization!.id),
       error: null,
     };
   }
@@ -23,7 +23,7 @@ export class DashboardController {
   @Get("charts")
   async getCharts(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.dashboardService.readCharts(authContext.organization.id),
+      data: await this.dashboardService.readCharts(authContext.organization!.id),
       error: null,
     };
   }
@@ -31,7 +31,7 @@ export class DashboardController {
   @Get("recent-sync")
   async getRecentSync(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.dashboardService.readRecentSync(authContext.organization.id),
+      data: await this.dashboardService.readRecentSync(authContext.organization!.id),
       error: null,
     };
   }
@@ -39,7 +39,7 @@ export class DashboardController {
   @Get("profitability")
   async getProfitability(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.dashboardService.readProfitability(authContext.organization.id),
+      data: await this.dashboardService.readProfitability(authContext.organization!.id),
       error: null,
     };
   }

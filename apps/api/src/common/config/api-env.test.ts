@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readApiEnv } from "./api-env";
 
+const runtimeUrl =
+  "postgresql://postgres.project-ref:runtime-pass@aws-0-us-east-1.pooler.supabase.com:6543/postgres";
+
 describe("readApiEnv", () => {
   it("requires DATABASE_URL", () => {
     expect(() =>
@@ -28,7 +31,7 @@ describe("readApiEnv", () => {
         API_HOST: "127.0.0.1",
         API_PORT: "4000",
         API_DB_POOL_MAX: "5",
-        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+        DATABASE_URL: runtimeUrl,
         NODE_ENV: "test",
         WEB_APP_ORIGIN: "http://localhost:3000",
       }),
@@ -40,7 +43,7 @@ describe("readApiEnv", () => {
       API_HOST: "127.0.0.1",
       API_PORT: "4000",
       API_DB_POOL_MAX: "12",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: runtimeUrl,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",
@@ -53,7 +56,7 @@ describe("readApiEnv", () => {
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
 
-    expect(env.DATABASE_URL).toContain("marginflow");
+    expect(env.DATABASE_URL).toBe(runtimeUrl);
     expect(env.BETTER_AUTH_URL).toBe("http://localhost:4000");
     expect(env.API_DB_POOL_MAX).toBe(12);
     expect(env.STRIPE_PRICE_MONTHLY).toBe("price_monthly");
@@ -66,7 +69,7 @@ describe("readApiEnv", () => {
       API_HOST: "127.0.0.1",
       API_PORT: "4000",
       API_DB_POOL_MAX: "12",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: runtimeUrl,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",
@@ -93,7 +96,7 @@ describe("readApiEnv", () => {
       API_HOST: "127.0.0.1",
       API_PORT: "4000",
       API_DB_POOL_MAX: "5",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: runtimeUrl,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",
@@ -118,7 +121,7 @@ describe("readApiEnv", () => {
       API_HOST: "127.0.0.1",
       API_PORT: "4000",
       API_DB_POOL_MAX: "5",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: runtimeUrl,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",

@@ -160,6 +160,140 @@ describe("products controller", () => {
     });
   });
 
+  it("returns the protected analytics snapshot for authenticated requests", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(productsService, "getAnalyticsSnapshot").mockResolvedValueOnce({
+      adCosts: [],
+      catalogStats: {
+        activeProducts: 1,
+        archivedProducts: 0,
+        pendingSyncProducts: 1,
+        productsWithCost: 1,
+        productsWithoutCost: 0,
+        syncedProductsTotal: 1,
+        totalAdCosts: 1,
+        totalManualExpenses: 0,
+        totalProducts: 1,
+        totalProductCosts: 1,
+      },
+      dataGaps: ["shipping_cost_unavailable", "tax_amount_unavailable"],
+      financialState: "ready",
+      manualExpenses: [],
+      productCosts: [],
+      productRows: [
+        {
+          actualRoas: "12.00",
+          adSpend: "10.00",
+          channel: "mercadolivre",
+          contributionMargin: "90.00",
+          grossProfit: "100.00",
+          hasCost: true,
+          hasLinkedMarketplaceSignal: true,
+          hasSalesSignal: true,
+          insufficientReasons: [],
+          isActive: true,
+          margin: "50.00",
+          marketplaceCommission: "20.00",
+          minimumRoas: "2.22",
+          name: "Notebook",
+          netSales: 2,
+          packagingCost: "0.00",
+          productCost: "80.00",
+          productId: "product_1",
+          revenue: "200.00",
+          returns: 0,
+          roi: "125.00",
+          salePrice: "100.00",
+          sales: 2,
+          shippingCost: "0.00",
+          sku: "NB-1",
+          taxAmount: "0.00",
+          totalProfit: "90.00",
+          unitProfit: "45.00",
+        },
+      ],
+      products: [],
+      syncedProducts: [
+        {
+          externalProductId: "MLB-1",
+          grossRevenue: "200.00",
+          id: "external_1",
+          lastOrderedAt: "2026-05-01T11:00:00.000Z",
+          latestUnitPrice: "100.00",
+          linkedProduct: {
+            id: "product_1",
+            isActive: true,
+            name: "Notebook",
+            sku: "NB-1",
+          },
+          orderCount: 1,
+          provider: "mercadolivre",
+          reviewStatus: "linked_to_existing_product",
+          sku: "NB-1",
+          suggestedMatches: [],
+          title: "Notebook",
+          unitsSold: 2,
+        },
+      ],
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/products/analytics",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        catalogStats: expect.objectContaining({
+          pendingSyncProducts: 1,
+          totalProducts: 1,
+        }),
+        dataGaps: ["shipping_cost_unavailable", "tax_amount_unavailable"],
+        financialState: "ready",
+        productRows: [
+          expect.objectContaining({
+            actualRoas: "12.00",
+            insufficientReasons: [],
+            name: "Notebook",
+            productId: "product_1",
+          }),
+        ],
+        syncedProducts: [
+          expect.objectContaining({
+            externalProductId: "MLB-1",
+            reviewStatus: "linked_to_existing_product",
+          }),
+        ],
+      }),
+      error: null,
+    });
+  });
+
   it("rejects invalid product payloads", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
       organization: {

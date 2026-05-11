@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AppLayoutClient } from "@/components/app-shell";
 import { readServerAuthState } from "@/lib/server-auth";
+import { readServerBillingState } from "@/lib/server-billing";
+import { hasSubscriptionForProtectedApp } from "@/lib/protected-app-route";
 
 export const metadata: Metadata = {
   robots: {
@@ -15,11 +17,16 @@ export default async function ProtectedAppLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const authState = await readServerAuthState();
+  const [authState, billingState] = await Promise.all([
+    readServerAuthState(),
+    readServerBillingState(),
+  ]);
 
   if (!authState) {
     redirect("/sign-in");
   }
+
+  const hasSubscription = hasSubscriptionForProtectedApp(billingState);
 
   return (
     <AppLayoutClient
@@ -29,8 +36,9 @@ export default async function ProtectedAppLayout({
         name: authState.user.name,
       }}
       organization={{
-        name: authState.organization.name,
+        name: authState.organization?.name ?? "Novo workspace",
       }}
+      hasSubscription={hasSubscription}
     >
       {children}
     </AppLayoutClient>

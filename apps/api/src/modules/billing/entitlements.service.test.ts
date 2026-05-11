@@ -4,10 +4,21 @@ import { EntitlementsService } from "./entitlements.service";
 function createService({
   billingCustomer = null,
   subscription = null,
+  pendingCheckout = null,
+  pendingCheckoutError,
 }: {
   billingCustomer?: unknown;
   subscription?: unknown;
+  pendingCheckout?: unknown;
+  pendingCheckoutError?: unknown;
 } = {}) {
+  const pendingFindFirst = vi.fn();
+  if (pendingCheckoutError !== undefined) {
+    pendingFindFirst.mockRejectedValue(pendingCheckoutError);
+  } else {
+    pendingFindFirst.mockResolvedValue(pendingCheckout);
+  }
+
   const db = {
     query: {
       billingCustomers: {
@@ -15,6 +26,9 @@ function createService({
       },
       subscriptions: {
         findFirst: vi.fn().mockResolvedValue(subscription),
+      },
+      pendingCheckouts: {
+        findFirst: pendingFindFirst,
       },
     },
   };
@@ -77,6 +91,31 @@ describe("EntitlementsService", () => {
       },
       entitled: false,
       organizationId: "org_123",
+      pendingCheckout: null,
+      status: "inactive",
+      subscription: null,
+    });
+  });
+
+  it("treats a missing pending_checkouts table as no pending checkout", async () => {
+    const err = Object.assign(new Error('relation "pending_checkouts" does not exist'), {
+      code: "42P01",
+    });
+    const { service } = createService({
+      subscription: null,
+      pendingCheckoutError: err,
+    });
+
+    await expect(
+      service.getBillingSnapshot({
+        organizationId: null,
+        userId: "user_123",
+      }),
+    ).resolves.toMatchObject({
+      entitled: false,
+      organizationId: null,
+      pendingCheckout: null,
+      status: "no_checkout",
       subscription: null,
     });
   });

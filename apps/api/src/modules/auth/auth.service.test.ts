@@ -52,7 +52,7 @@ function createService({
     },
   };
   const organizationProvisioningService = {
-    ensureDefaultOrganization: vi.fn().mockResolvedValue(membership),
+    findDefaultOrganization: vi.fn().mockResolvedValue(membership),
   };
 
   return {
@@ -73,7 +73,7 @@ describe("AuthService", () => {
     expect(context).toBeNull();
   });
 
-  it("hydrates auth context with ensured organization scope", async () => {
+  it("hydrates auth context with nullable organization scope", async () => {
     const { organizationProvisioningService, service } = createService({
       authSession: {
         session: {
@@ -96,13 +96,9 @@ describe("AuthService", () => {
       }),
     });
 
-    expect(organizationProvisioningService.ensureDefaultOrganization).toHaveBeenCalledWith({
-      email: "owner@marginflow.local",
-      emailVerified: true,
-      id: "user_123",
-      image: null,
-      name: "Mateus",
-    });
+    expect(organizationProvisioningService.findDefaultOrganization).toHaveBeenCalledWith(
+      "user_123",
+    );
     expect(context).toEqual({
       organization: {
         id: "org_123",
@@ -110,6 +106,46 @@ describe("AuthService", () => {
         role: "owner",
         slug: "existing-org",
       },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+  });
+
+  it("keeps authenticated users without organization during onboarding gap", async () => {
+    const { service } = createService({
+      authSession: {
+        session: {
+          expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+          id: "session_123",
+        },
+        user: {
+          email: "owner@marginflow.local",
+          emailVerified: true,
+          id: "user_123",
+          image: null,
+          name: "Mateus",
+        },
+      },
+      membership: null as never,
+    });
+
+    const context = await service.resolveRequestContext({
+      headers: new Headers({
+        cookie: "better-auth.session_token=token",
+      }),
+    });
+
+    expect(context).toEqual({
+      organization: null,
       session: {
         expiresAt: new Date("2026-04-22T00:00:00.000Z"),
         id: "session_123",

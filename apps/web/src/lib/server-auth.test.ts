@@ -41,6 +41,7 @@ describe("readServerAuthState", () => {
         new Response(
           JSON.stringify({
             data: {
+              onboardingStatus: "complete",
               organization: {
                 id: "org_123",
                 name: "Org",
@@ -59,6 +60,7 @@ describe("readServerAuthState", () => {
                 name: "Mateus",
               },
             },
+            error: null,
           }),
           {
             headers: {
@@ -80,6 +82,7 @@ describe("readServerAuthState", () => {
         expiresAt: "2026-04-22T00:00:00.000Z",
         id: "session_123",
       },
+      onboardingStatus: "complete",
       user: {
         email: "owner@marginflow.local",
         emailVerified: true,

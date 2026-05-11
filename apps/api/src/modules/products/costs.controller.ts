@@ -24,7 +24,7 @@ export class CostsController {
   @Get("products")
   async listProductCosts(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.productsService.listProductCosts(authContext.organization.id),
+      data: await this.productsService.listProductCosts(authContext.organization!.id),
       error: null,
     };
   }
@@ -35,7 +35,7 @@ export class CostsController {
     @Body() body: CreateProductCostRequestDto,
   ) {
     return {
-      data: await this.productsService.createProductCost(authContext.organization.id, body),
+      data: await this.productsService.createProductCost(authContext.organization!.id, body),
       error: null,
     };
   }
@@ -47,7 +47,7 @@ export class CostsController {
     @Body() body: UpdateProductCostRequestDto,
   ) {
     return {
-      data: await this.productsService.updateProductCost(authContext.organization.id, costId, body),
+      data: await this.productsService.updateProductCost(authContext.organization!.id, costId, body),
       error: null,
     };
   }
@@ -55,7 +55,7 @@ export class CostsController {
   @Get("ads")
   async listAdCosts(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.productsService.listAdCosts(authContext.organization.id),
+      data: await this.productsService.listAdCosts(authContext.organization!.id),
       error: null,
     };
   }
@@ -66,7 +66,7 @@ export class CostsController {
     @Body() body: CreateAdCostRequestDto,
   ) {
     return {
-      data: await this.productsService.createAdCost(authContext.organization.id, body),
+      data: await this.productsService.createAdCost(authContext.organization!.id, body),
       error: null,
     };
   }
@@ -78,7 +78,7 @@ export class CostsController {
     @Body() body: UpdateAdCostRequestDto,
   ) {
     return {
-      data: await this.productsService.updateAdCost(authContext.organization.id, adCostId, body),
+      data: await this.productsService.updateAdCost(authContext.organization!.id, adCostId, body),
       error: null,
     };
   }
@@ -86,7 +86,7 @@ export class CostsController {
   @Get("expenses")
   async listManualExpenses(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.productsService.listManualExpenses(authContext.organization.id),
+      data: await this.productsService.listManualExpenses(authContext.organization!.id),
       error: null,
     };
   }
@@ -97,7 +97,7 @@ export class CostsController {
     @Body() body: CreateManualExpenseRequestDto,
   ) {
     return {
-      data: await this.productsService.createManualExpense(authContext.organization.id, body),
+      data: await this.productsService.createManualExpense(authContext.organization!.id, body),
       error: null,
     };
   }
@@ -110,7 +110,7 @@ export class CostsController {
   ) {
     return {
       data: await this.productsService.updateManualExpense(
-        authContext.organization.id,
+        authContext.organization!.id,
         expenseId,
         body,
       ),

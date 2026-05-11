@@ -1,4 +1,7 @@
 import { getWebEnv } from "@/lib/env";
+import type { ApiContractSchema } from "./contract";
+import { ApiContractError, parseApiContract } from "./contract";
+export { ApiContractError } from "./contract";
 
 type PrimitiveBody = BodyInit | null | undefined;
 
@@ -118,6 +121,14 @@ export function createApiClient({
     get<T>(path: string, options?: Omit<ApiRequestOptions, "body">) {
       return request<T>("GET", path, options);
     },
+    async getValidatedData<T>(
+      path: string,
+      schema: ApiContractSchema<{ data: T; error: null }>,
+      options?: Omit<ApiRequestOptions, "body">,
+    ) {
+      const payload = await request<unknown>("GET", path, options);
+      return parseApiContract(path, payload, schema).data;
+    },
     post<T>(path: string, options?: ApiRequestOptions) {
       return request<T>("POST", path, options);
     },
@@ -142,6 +153,13 @@ function getDefaultApiClient() {
 export const apiClient = {
   get<T>(path: string, options?: Omit<ApiRequestOptions, "body">) {
     return getDefaultApiClient().get<T>(path, options);
+  },
+  getValidatedData<T>(
+    path: string,
+    schema: ApiContractSchema<{ data: T; error: null }>,
+    options?: Omit<ApiRequestOptions, "body">,
+  ) {
+    return getDefaultApiClient().getValidatedData(path, schema, options);
   },
   post<T>(path: string, options?: ApiRequestOptions) {
     return getDefaultApiClient().post<T>(path, options);

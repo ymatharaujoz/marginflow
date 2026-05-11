@@ -1,8 +1,9 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
-import { eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, or } from "drizzle-orm";
 import type { DatabaseClient } from "@marginflow/database";
 import {
   billingCustomers,
+  pendingCheckouts,
   subscriptionEvents,
   subscriptions,
 } from "@marginflow/database";
@@ -33,7 +34,7 @@ export class BillingService {
     authContext: AuthenticatedRequestContext,
     interval: BillingInterval,
   ) {
-    const customer = await this.ensureOrganizationBillingCustomer(authContext);
+    const customerId = await this.ensureCheckoutCustomer(authContext);
     const successUrl = `${this.env.WEB_APP_ORIGIN}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${this.env.WEB_APP_ORIGIN}/app/billing?checkout=cancelled`;
     const priceId =
@@ -41,7 +42,7 @@ export class BillingService {
 
     const session = await this.stripe.checkout.sessions.create({
       cancel_url: cancelUrl,
-      customer: customer.externalCustomerId,
+      customer: customerId,
       line_items: [
         {
           price: priceId,
@@ -50,15 +51,17 @@ export class BillingService {
       ],
       metadata: {
         interval,
-        organizationId: authContext.organization.id,
+        organizationId: authContext.organization?.id ?? "",
         planCode: PLAN_CODE,
+        userId: authContext.user.id,
       },
       mode: "subscription",
       subscription_data: {
         metadata: {
           interval,
-          organizationId: authContext.organization.id,
+          organizationId: authContext.organization?.id ?? "",
           planCode: PLAN_CODE,
+          userId: authContext.user.id,
         },
       },
       success_url: successUrl,
@@ -68,16 +71,22 @@ export class BillingService {
       throw new BadRequestException("Stripe checkout session did not return a redirect URL.");
     }
 
+    await this.upsertPendingCheckoutRecord({
+      checkoutSessionId: session.id,
+      interval,
+      organizationId: authContext.organization?.id ?? null,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: null,
+      userId: authContext.user.id,
+      status: "created",
+    });
+
     return {
       checkoutUrl: session.url,
       sessionId: session.id,
     };
   }
 
-  /**
-   * After Checkout redirect, synchronizes the Stripe subscription into Postgres when webhooks
-   * are not yet delivered (common in local dev without Stripe CLI forwarding).
-   */
   async confirmCheckoutSession(
     authContext: AuthenticatedRequestContext,
     sessionId: string,
@@ -90,50 +99,39 @@ export class BillingService {
       throw new BadRequestException("Checkout session is not a subscription checkout.");
     }
 
-    const sessionOrganizationId = session.metadata?.organizationId;
-    if (
-      !sessionOrganizationId ||
-      sessionOrganizationId !== authContext.organization.id
-    ) {
-      throw new BadRequestException("Checkout session does not belong to this organization.");
+    const sessionUserId = session.metadata?.userId;
+    if (!sessionUserId || sessionUserId !== authContext.user.id) {
+      throw new BadRequestException("Checkout session does not belong to this user.");
     }
 
     if (session.status !== "complete") {
       throw new BadRequestException("Checkout session is not complete yet.");
     }
 
-    const customerId =
-      typeof session.customer === "string"
-        ? session.customer
-        : session.customer && "id" in session.customer
-          ? session.customer.id
-          : null;
+    const customerId = this.readStripeCustomerIdFromSession(session.customer);
+    const externalSubscriptionId = this.readStripeSubscriptionIdFromSession(session.subscription);
+    const sessionOrganizationId = this.normalizeNullableString(session.metadata?.organizationId);
+    const interval = this.resolveIntervalFromCheckoutSession(session);
 
-    const sub = session.subscription;
+    await this.upsertPendingCheckoutRecord({
+      checkoutSessionId: session.id,
+      interval,
+      organizationId: sessionOrganizationId,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: externalSubscriptionId,
+      userId: authContext.user.id,
+      status: sessionOrganizationId ? "completed" : "confirmed",
+    });
 
-    let externalSubscriptionId: string | null = null;
-
-    if (typeof sub === "string") {
-      externalSubscriptionId = sub;
-    } else if (sub && typeof sub === "object" && "id" in sub) {
-      externalSubscriptionId = sub.id;
+    if (sessionOrganizationId) {
+      await this.syncSubscriptionByExternalId(
+        externalSubscriptionId,
+        sessionOrganizationId,
+        customerId,
+      );
     }
-
-    if (!externalSubscriptionId) {
-      throw new BadRequestException("Checkout session did not attach a subscription.");
-    }
-
-    await this.syncSubscriptionByExternalId(
-      externalSubscriptionId,
-      authContext.organization.id,
-      customerId,
-    );
   }
 
-  /**
-   * When webhooks lag, Postgres may still record active/trialing while Stripe already canceled.
-   * Reconcile the latest Stripe-linked row before entitlement checks so UI and API converge.
-   */
   async reconcileOrganizationSubscriptionWithStripe(organizationId: string) {
     const subscription = await this.db.query.subscriptions.findFirst({
       where: (table, { and, eq }) =>
@@ -176,6 +174,54 @@ export class BillingService {
 
       throw error;
     }
+  }
+
+  async completePendingCheckoutForOrganization(input: {
+    organizationId: string;
+    userId: string;
+  }) {
+    return this.db.transaction((tx) =>
+      this.completePendingCheckoutForOrganizationTx(tx as DatabaseClient, input),
+    );
+  }
+
+  async completePendingCheckoutForOrganizationTx(
+    tx: DatabaseClient,
+    input: {
+      organizationId: string;
+      userId: string;
+    },
+  ) {
+    const pendingCheckout = await tx.query.pendingCheckouts.findFirst({
+      where: (table, { and, eq }) =>
+        and(eq(table.userId, input.userId), eq(table.status, "confirmed")),
+      orderBy: (table, { desc }) => [desc(table.updatedAt)],
+    });
+
+    if (!pendingCheckout?.stripeSubscriptionId) {
+      throw new BadRequestException("No confirmed checkout is waiting for onboarding.");
+    }
+
+    const subscription = await this.stripe.subscriptions.retrieve(
+      pendingCheckout.stripeSubscriptionId,
+    );
+    const subscriptionId = await this.syncSubscriptionObjectDb(
+      tx,
+      subscription,
+      input.organizationId,
+      pendingCheckout.stripeCustomerId,
+    );
+
+    await tx
+      .update(pendingCheckouts)
+      .set({
+        organizationId: input.organizationId,
+        status: "completed",
+        updatedAt: new Date(),
+      })
+      .where(eq(pendingCheckouts.id, pendingCheckout.id));
+
+    return subscriptionId;
   }
 
   async processWebhook(rawBody: Buffer | undefined, signature: string | string[] | undefined) {
@@ -221,31 +267,40 @@ export class BillingService {
 
   private async handleCheckoutSessionCompleted(event: Stripe.Event) {
     const session = event.data.object as Stripe.Checkout.Session;
-    const organizationId =
-      session.metadata?.organizationId ??
-      (typeof session.customer === "string"
-        ? await this.findOrganizationIdByCustomer(session.customer)
-        : null);
+    const userId = session.metadata?.userId;
 
-    if (!organizationId) {
-      throw new BadRequestException("Unable to resolve organization for checkout webhook.");
+    if (!userId) {
+      throw new BadRequestException("Unable to resolve user for checkout webhook.");
     }
 
-    let localSubscriptionId: string | null = null;
+    const externalSubscriptionId = this.readStripeSubscriptionIdFromSession(session.subscription);
+    const customerId = this.readStripeCustomerIdFromSession(session.customer);
+    const organizationId = this.normalizeNullableString(session.metadata?.organizationId);
+    const interval = this.resolveIntervalFromCheckoutSession(session);
 
-    if (typeof session.subscription === "string") {
-      localSubscriptionId = await this.syncSubscriptionByExternalId(
-        session.subscription,
-        organizationId,
-        typeof session.customer === "string" ? session.customer : null,
-      );
-    }
-
-    await this.recordSubscriptionEvent({
-      event,
+    await this.upsertPendingCheckoutRecord({
+      checkoutSessionId: session.id,
+      interval,
       organizationId,
-      subscriptionId: localSubscriptionId,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: externalSubscriptionId,
+      userId,
+      status: organizationId ? "completed" : "confirmed",
     });
+
+    if (organizationId) {
+      const localSubscriptionId = await this.syncSubscriptionByExternalId(
+        externalSubscriptionId,
+        organizationId,
+        customerId,
+      );
+
+      await this.recordSubscriptionEvent({
+        event,
+        organizationId,
+        subscriptionId: localSubscriptionId,
+      });
+    }
   }
 
   private async handleSubscriptionEvent(event: Stripe.Event) {
@@ -253,21 +308,58 @@ export class BillingService {
     const customerId = this.getStripeCustomerId(subscription.customer);
     const organizationId = await this.findOrganizationIdByCustomer(customerId);
 
-    if (!organizationId) {
-      throw new BadRequestException("Unable to resolve organization for subscription webhook.");
+    if (organizationId) {
+      const localSubscriptionId = await this.syncSubscriptionObject(
+        subscription,
+        organizationId,
+        customerId,
+      );
+
+      await this.recordSubscriptionEvent({
+        event,
+        organizationId,
+        subscriptionId: localSubscriptionId,
+      });
+      return;
     }
 
-    const localSubscriptionId = await this.syncSubscriptionObject(
-      subscription,
-      organizationId,
-      customerId,
-    );
+    await this.syncPendingCheckoutSubscriptionStatus(subscription, customerId);
+  }
 
-    await this.recordSubscriptionEvent({
-      event,
-      organizationId,
-      subscriptionId: localSubscriptionId,
+  private async syncPendingCheckoutSubscriptionStatus(
+    subscription: Stripe.Subscription,
+    externalCustomerId: string,
+  ) {
+    const pendingCheckout = await this.db.query.pendingCheckouts.findFirst({
+      where: (table, { and, eq, or }) =>
+        and(
+          eq(table.stripeCustomerId, externalCustomerId),
+          or(
+            eq(table.stripeSubscriptionId, subscription.id),
+            eq(table.checkoutSessionId, subscription.metadata?.checkoutSessionId ?? ""),
+          ),
+        ),
+      orderBy: (table, { desc }) => [desc(table.updatedAt)],
     });
+
+    if (!pendingCheckout) {
+      return;
+    }
+
+    await this.db
+      .update(pendingCheckouts)
+      .set({
+        stripeCustomerId: externalCustomerId,
+        stripeSubscriptionId: subscription.id,
+        status:
+          subscription.status === "active" || subscription.status === "trialing"
+            ? pendingCheckout.organizationId
+              ? "completed"
+              : "confirmed"
+            : pendingCheckout.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(pendingCheckouts.id, pendingCheckout.id));
   }
 
   private async syncSubscriptionByExternalId(
@@ -277,10 +369,29 @@ export class BillingService {
   ) {
     const subscription = await this.stripe.subscriptions.retrieve(externalSubscriptionId);
 
-    return this.syncSubscriptionObject(subscription, organizationId, externalCustomerId);
+    return this.syncSubscriptionObjectDb(
+      this.db,
+      subscription,
+      organizationId,
+      externalCustomerId,
+    );
   }
 
   private async syncSubscriptionObject(
+    subscription: Stripe.Subscription,
+    organizationId: string,
+    externalCustomerId: string | null,
+  ) {
+    return this.syncSubscriptionObjectDb(
+      this.db,
+      subscription,
+      organizationId,
+      externalCustomerId,
+    );
+  }
+
+  private async syncSubscriptionObjectDb(
+    db: DatabaseClient,
     subscription: Stripe.Subscription,
     organizationId: string,
     externalCustomerId: string | null,
@@ -290,14 +401,14 @@ export class BillingService {
       current_period_start?: number;
     };
     const customerId = externalCustomerId ?? this.getStripeCustomerId(subscription.customer);
-    const billingCustomer = await this.upsertOrganizationBillingCustomer({
+    const billingCustomer = await this.upsertOrganizationBillingCustomerDb(db, {
       externalCustomerId: customerId,
       organizationId,
     });
     const interval = this.resolveInterval(subscription);
     const currentPeriodStart = this.toDate(subscriptionPeriod.current_period_start);
     const currentPeriodEnd = this.toDate(subscriptionPeriod.current_period_end);
-    const existingSubscription = await this.db.query.subscriptions.findFirst({
+    const existingSubscription = await db.query.subscriptions.findFirst({
       where: (table, { eq }) => eq(table.externalSubscriptionId, subscription.id),
     });
 
@@ -315,7 +426,7 @@ export class BillingService {
     };
 
     if (existingSubscription) {
-      const [updated] = await this.db
+      const [updated] = await db
         .update(subscriptions)
         .set(values)
         .where(eq(subscriptions.id, existingSubscription.id))
@@ -324,7 +435,7 @@ export class BillingService {
       return updated.id;
     }
 
-    const [created] = await this.db
+    const [created] = await db
       .insert(subscriptions)
       .values(values)
       .returning({ id: subscriptions.id });
@@ -332,83 +443,76 @@ export class BillingService {
     return created.id;
   }
 
-  private async ensureOrganizationBillingCustomer(authContext: AuthenticatedRequestContext) {
-    const existingCustomer = await this.db.query.billingCustomers.findFirst({
+  private async ensureCheckoutCustomer(authContext: AuthenticatedRequestContext) {
+    if (authContext.organization?.id) {
+      const existingOrganizationCustomer = await this.db.query.billingCustomers.findFirst({
+        where: (table, { and, eq }) =>
+          and(eq(table.organizationId, authContext.organization!.id), eq(table.provider, "stripe")),
+      });
+
+      if (existingOrganizationCustomer) {
+        try {
+          await this.stripe.customers.retrieve(existingOrganizationCustomer.externalCustomerId);
+          return existingOrganizationCustomer.externalCustomerId;
+        } catch (error: unknown) {
+          if (
+            !(error instanceof Stripe.errors.StripeInvalidRequestError) ||
+            error.code !== "resource_missing"
+          ) {
+            throw error;
+          }
+        }
+      }
+    }
+
+    const existingPendingCheckout = await this.db.query.pendingCheckouts.findFirst({
       where: (table, { and, eq }) =>
-        and(eq(table.organizationId, authContext.organization.id), eq(table.provider, "stripe")),
+        and(eq(table.userId, authContext.user.id), isNotNull(table.stripeCustomerId)),
+      orderBy: (table, { desc }) => [desc(table.updatedAt)],
     });
 
-    if (existingCustomer) {
-      /**
-       * DB rows seeded with placeholders (ex. {@code cus_demo_org}) or stale IDs fail Stripe checkout.
-       * Verify the customer exists; if Stripe returns resource_missing, create a fresh customer.
-       */
+    if (existingPendingCheckout?.stripeCustomerId) {
       try {
-        await this.stripe.customers.retrieve(existingCustomer.externalCustomerId);
-        return existingCustomer;
+        await this.stripe.customers.retrieve(existingPendingCheckout.stripeCustomerId);
+        return existingPendingCheckout.stripeCustomerId;
       } catch (error: unknown) {
         if (
-          error instanceof Stripe.errors.StripeInvalidRequestError &&
-          error.code === "resource_missing"
+          !(error instanceof Stripe.errors.StripeInvalidRequestError) ||
+          error.code !== "resource_missing"
         ) {
-          const customer = await this.stripe.customers.create({
-            email: authContext.user.email,
-            metadata: {
-              organizationId: authContext.organization.id,
-              planCode: PLAN_CODE,
-              replacedStaleCustomerId: existingCustomer.externalCustomerId,
-            },
-            name: authContext.organization.name,
-          });
-
-          const [updated] = await this.db
-            .update(billingCustomers)
-            .set({ externalCustomerId: customer.id })
-            .where(eq(billingCustomers.id, existingCustomer.id))
-            .returning({
-              externalCustomerId: billingCustomers.externalCustomerId,
-              id: billingCustomers.id,
-              organizationId: billingCustomers.organizationId,
-              provider: billingCustomers.provider,
-            });
-
-          if (!updated) {
-            throw new BadRequestException("Unable to reconcile Stripe billing customer.");
-          }
-
-          return updated;
+          throw error;
         }
-
-        throw error;
       }
     }
 
     const customer = await this.stripe.customers.create({
       email: authContext.user.email,
       metadata: {
-        organizationId: authContext.organization.id,
+        organizationId: authContext.organization?.id ?? "",
         planCode: PLAN_CODE,
+        userId: authContext.user.id,
       },
-      name: authContext.organization.name,
+      name: authContext.organization?.name ?? authContext.user.name,
     });
 
-    const [createdCustomer] = await this.db
-      .insert(billingCustomers)
-      .values({
-        externalCustomerId: customer.id,
-        organizationId: authContext.organization.id,
-        provider: "stripe",
-      })
-      .returning();
-
-    return createdCustomer;
+    return customer.id;
   }
 
   private async upsertOrganizationBillingCustomer(input: {
     externalCustomerId: string;
     organizationId: string;
   }) {
-    const byOrganization = await this.db.query.billingCustomers.findFirst({
+    return this.upsertOrganizationBillingCustomerDb(this.db, input);
+  }
+
+  private async upsertOrganizationBillingCustomerDb(
+    db: DatabaseClient,
+    input: {
+      externalCustomerId: string;
+      organizationId: string;
+    },
+  ) {
+    const byOrganization = await db.query.billingCustomers.findFirst({
       where: (table, { and, eq }) =>
         and(eq(table.organizationId, input.organizationId), eq(table.provider, "stripe")),
     });
@@ -418,7 +522,7 @@ export class BillingService {
         return byOrganization;
       }
 
-      const [updated] = await this.db
+      const [updated] = await db
         .update(billingCustomers)
         .set({
           externalCustomerId: input.externalCustomerId,
@@ -429,12 +533,60 @@ export class BillingService {
       return updated;
     }
 
-    const [created] = await this.db
+    const [created] = await db
       .insert(billingCustomers)
       .values({
         externalCustomerId: input.externalCustomerId,
         organizationId: input.organizationId,
         provider: "stripe",
+      })
+      .returning();
+
+    return created;
+  }
+
+  private async upsertPendingCheckoutRecord(input: {
+    checkoutSessionId: string;
+    interval: string;
+    organizationId: string | null;
+    stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
+    userId: string;
+    status: string;
+  }) {
+    const existingPendingCheckout = await this.db.query.pendingCheckouts.findFirst({
+      where: (table, { eq }) => eq(table.checkoutSessionId, input.checkoutSessionId),
+    });
+
+    const values = {
+      interval: input.interval,
+      metadata: {},
+      organizationId: input.organizationId,
+      planCode: PLAN_CODE,
+      status: input.status,
+      stripeCustomerId: input.stripeCustomerId,
+      stripeSubscriptionId: input.stripeSubscriptionId,
+      userId: input.userId,
+    };
+
+    if (existingPendingCheckout) {
+      const [updated] = await this.db
+        .update(pendingCheckouts)
+        .set({
+          ...values,
+          updatedAt: new Date(),
+        })
+        .where(eq(pendingCheckouts.id, existingPendingCheckout.id))
+        .returning();
+
+      return updated;
+    }
+
+    const [created] = await this.db
+      .insert(pendingCheckouts)
+      .values({
+        ...values,
+        checkoutSessionId: input.checkoutSessionId,
       })
       .returning();
 
@@ -484,6 +636,12 @@ export class BillingService {
     return "monthly";
   }
 
+  private resolveIntervalFromCheckoutSession(session: Stripe.Checkout.Session) {
+    const interval = session.metadata?.interval;
+
+    return interval === "annual" ? "annual" : "monthly";
+  }
+
   private getStripeCustomerId(customer: string | Stripe.Customer | Stripe.DeletedCustomer | null) {
     if (!customer) {
       throw new BadRequestException("Stripe customer reference is missing.");
@@ -492,7 +650,88 @@ export class BillingService {
     return typeof customer === "string" ? customer : customer.id;
   }
 
+  private readStripeCustomerIdFromSession(
+    customer: string | Stripe.Customer | Stripe.DeletedCustomer | null,
+  ) {
+    return this.getStripeCustomerId(customer);
+  }
+
+  private readStripeSubscriptionIdFromSession(
+    subscription: string | Stripe.Subscription | null,
+  ) {
+    if (typeof subscription === "string") {
+      return subscription;
+    }
+
+    if (subscription && typeof subscription === "object" && "id" in subscription) {
+      return subscription.id;
+    }
+
+    throw new BadRequestException("Checkout session did not attach a subscription.");
+  }
+
+  private normalizeNullableString(value: string | null | undefined) {
+    if (!value) {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
   private toDate(value: number | null | undefined) {
     return typeof value === "number" ? new Date(value * 1000) : null;
+  }
+
+  async createCustomerPortalSession(authContext: AuthenticatedRequestContext) {
+    // Buscar o customer ID da organização ou do pending checkout
+    let customerId: string | null = null;
+
+    if (authContext.organization?.id) {
+      const billingCustomer = await this.db.query.billingCustomers.findFirst({
+        where: (table, { and, eq }) =>
+          and(
+            eq(table.organizationId, authContext.organization!.id),
+            eq(table.provider, "stripe"),
+          ),
+      });
+
+      if (billingCustomer) {
+        customerId = billingCustomer.externalCustomerId;
+      }
+    }
+
+    // Se não encontrou na organização, busca no pending checkout
+    if (!customerId) {
+      const pendingCheckout = await this.db.query.pendingCheckouts.findFirst({
+        where: (table, { and, eq, or }) =>
+          and(
+            eq(table.userId, authContext.user.id),
+            or(eq(table.status, "confirmed"), eq(table.status, "completed")),
+          ),
+        orderBy: (table, { desc }) => [desc(table.updatedAt)],
+      });
+
+      if (pendingCheckout?.stripeCustomerId) {
+        customerId = pendingCheckout.stripeCustomerId;
+      }
+    }
+
+    if (!customerId) {
+      throw new BadRequestException("No Stripe customer found for this user.");
+    }
+
+    const session = await this.stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${this.env.WEB_APP_ORIGIN}/app/billing/manage`,
+    });
+
+    if (!session.url) {
+      throw new BadRequestException("Stripe portal session did not return a redirect URL.");
+    }
+
+    return {
+      portalUrl: session.url,
+    };
   }
 }

@@ -4,7 +4,8 @@ Shared Drizzle schema and database access layer for MarginFlow.
 
 ## Local workflow
 
-- Set `DATABASE_URL` to local Postgres for development.
+- Point `DATABASE_URL` at Supabase dev pooled/runtime Postgres.
+- Point `DATABASE_MIGRATION_URL` at Supabase dev direct or migration-safe Postgres.
 - Generate SQL migrations with `corepack pnpm db:generate`.
 - Apply migrations with `corepack pnpm db:migrate`.
 - Seed local fixture data with `corepack pnpm db:seed`.
@@ -12,9 +13,11 @@ Shared Drizzle schema and database access layer for MarginFlow.
 
 ## Production workflow
 
-- Point `DATABASE_URL` at Supabase Postgres.
+- Point `DATABASE_URL` at Supabase prod pooled/runtime Postgres.
+- Point `DATABASE_MIGRATION_URL` at Supabase prod direct or migration-safe Postgres.
 - Reuse same migration flow used in development.
-- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` stay reserved for later app/service integration work. M4 uses `DATABASE_URL` as primary Drizzle connection.
+- Runtime code uses `DATABASE_URL`; Drizzle tooling prefers `DATABASE_MIGRATION_URL` and falls back to `DATABASE_URL` when the migration URL is omitted.
+- `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` stay optional and reserved for later app/service integration work.
 
 ## Rollback guidance
 

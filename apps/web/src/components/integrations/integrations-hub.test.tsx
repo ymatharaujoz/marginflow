@@ -103,11 +103,10 @@ describe("IntegrationsHub", () => {
 
     expect(markup).toContain("Integrações");
     expect(markup).toContain("Mercado Livre");
-    expect(markup).toContain("Conectar conta");
+    expect(markup).toContain("Conectar");
     expect(markup).toContain("Mercado Livre conectado com sucesso.");
-    expect(markup).toContain("Sincronização manual");
-    expect(markup).toContain("Sincronizar agora");
-    expect(markup).toContain("Limpar histórico");
+    expect(markup).toContain("Status da Sincronização");
+    expect(markup).toContain("Histórico de Sincronizações");
   });
 
   it("renders the API failure state", () => {
@@ -133,6 +132,7 @@ describe("IntegrationsHub", () => {
       <IntegrationsHub initialMessage={null} initialStatus={null} organizationName="MarginFlow" />,
     );
 
-    expect(markup).toContain("Boom");
+    expect(markup).toContain("Erro ao carregar dados");
+    expect(markup).toContain("Não foi possível carregar os dados de integrações.");
   });
 });

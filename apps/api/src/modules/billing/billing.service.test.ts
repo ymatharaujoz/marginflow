@@ -1,5 +1,6 @@
 import {
   billingCustomers,
+  pendingCheckouts,
   subscriptionEvents,
   subscriptions,
 } from "@marginflow/database";
@@ -31,6 +32,9 @@ function createInsertMock() {
     returning: vi.fn().mockResolvedValue([{ id: "subscription_local_123" }]),
   });
   const insertEventValues = vi.fn().mockResolvedValue(undefined);
+  const insertPendingCheckoutValues = vi.fn().mockReturnValue({
+    returning: vi.fn().mockResolvedValue([{ id: "pending_checkout_123" }]),
+  });
   const insertCustomerValues = vi.fn().mockReturnValue({
     returning: vi.fn().mockResolvedValue([
       {
@@ -54,6 +58,12 @@ function createInsertMock() {
       };
     }
 
+    if (table === pendingCheckouts) {
+      return {
+        values: insertPendingCheckoutValues,
+      };
+    }
+
     if (table === billingCustomers) {
       return {
         values: insertCustomerValues,
@@ -67,17 +77,27 @@ function createInsertMock() {
     insert,
     insertCustomerValues,
     insertEventValues,
+    insertPendingCheckoutValues,
     insertSubscriptionValues,
   };
 }
 
 function createService() {
-  const { insert, insertCustomerValues, insertEventValues, insertSubscriptionValues } =
+  const {
+    insert,
+    insertCustomerValues,
+    insertEventValues,
+    insertPendingCheckoutValues,
+    insertSubscriptionValues,
+  } =
     createInsertMock();
   const db = {
     insert,
     query: {
       billingCustomers: {
+        findFirst: vi.fn(),
+      },
+      pendingCheckouts: {
         findFirst: vi.fn(),
       },
       subscriptions: {
@@ -109,6 +129,7 @@ function createService() {
     db,
     insertCustomerValues,
     insertEventValues,
+    insertPendingCheckoutValues,
     insertSubscriptionValues,
     service: new BillingService(db as never, stripe as never, env),
     stripe,
@@ -262,6 +283,7 @@ describe("BillingService", () => {
       id: "cs_456",
       metadata: {
         organizationId: "org_888",
+        userId: "user_888",
       },
       mode: "subscription",
       status: "complete",
@@ -343,7 +365,7 @@ describe("BillingService", () => {
       code: "resource_missing",
       message: "No such subscription",
       type: "invalid_request_error",
-    } as any);
+    } as Stripe.StripeRawError);
     stripe.subscriptions.retrieve.mockRejectedValue(missing);
 
     const where = vi.fn().mockResolvedValue(undefined);

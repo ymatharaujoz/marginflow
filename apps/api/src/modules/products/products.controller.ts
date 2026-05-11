@@ -17,7 +17,15 @@ export class ProductsController {
   @Get()
   async listProducts(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
     return {
-      data: await this.productsService.listProducts(authContext.organization.id),
+      data: await this.productsService.listProducts(authContext.organization!.id),
+      error: null,
+    };
+  }
+
+  @Get("analytics")
+  async getAnalyticsSnapshot(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
+    return {
+      data: await this.productsService.getAnalyticsSnapshot(authContext.organization!.id),
       error: null,
     };
   }
@@ -28,7 +36,7 @@ export class ProductsController {
     @Body() body: CreateProductRequestDto,
   ) {
     return {
-      data: await this.productsService.createProduct(authContext.organization.id, body),
+      data: await this.productsService.createProduct(authContext.organization!.id, body),
       error: null,
     };
   }
@@ -40,7 +48,7 @@ export class ProductsController {
     @Body() body: UpdateProductRequestDto,
   ) {
     return {
-      data: await this.productsService.updateProduct(authContext.organization.id, productId, body),
+      data: await this.productsService.updateProduct(authContext.organization!.id, productId, body),
       error: null,
     };
   }

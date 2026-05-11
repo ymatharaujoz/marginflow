@@ -15,5 +15,5 @@ export type AuthenticatedRequestContext = {
     name: string;
     slug: string;
     role: string;
-  };
+  } | null;
 };

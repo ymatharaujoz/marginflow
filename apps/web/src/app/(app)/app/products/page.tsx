@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ProductsHub } from "@/components/products/products-hub";
+import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
 
@@ -9,13 +10,13 @@ export default async function ProductsPage() {
     readServerBillingState(),
   ]);
 
-  if (!authState) {
-    redirect("/sign-in");
+  const redirectTarget = resolveProtectedAppRedirect(authState, billingState);
+
+  if (redirectTarget) {
+    redirect(redirectTarget);
   }
 
-  if (!billingState?.entitled) {
-    redirect("/app/billing");
-  }
-
-  return <ProductsHub organizationName={authState.organization.name} />;
+  return (
+    <ProductsHub organizationName={authState.organization?.name ?? authState.user.name} />
+  );
 }

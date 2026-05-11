@@ -1,4 +1,5 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { buildProductAnalyticsMetrics } from "@marginflow/domain";
 import { and, desc, eq } from "drizzle-orm";
 import type {
   AdCost,
@@ -13,6 +14,9 @@ import type {
   AdCostRecord,
   ManualExpenseFormValues,
   ManualExpenseRecord,
+  ProductAnalyticsCatalogStats,
+  ProductAnalyticsDataGap,
+  ProductAnalyticsSnapshot,
   ProductCatalogSnapshot,
   ProductCostFormValues,
   ProductCostRecord,
@@ -21,6 +25,8 @@ import type {
   ProductRecord,
 } from "@marginflow/types";
 import { DATABASE_CLIENT } from "@/common/tokens";
+import { FinanceService } from "@/modules/finance/finance.service";
+import { listSyncedProductsReadModel } from "@/modules/integrations/synced-products.read-model";
 
 type ProductUpdateInput = Partial<ProductFormValues>;
 type ProductCostUpdateInput = Partial<ProductCostFormValues>;
@@ -32,6 +38,8 @@ export class ProductsService {
   constructor(
     @Inject(DATABASE_CLIENT)
     private readonly db: DatabaseClient,
+    @Inject(FinanceService)
+    private readonly financeService: FinanceService,
   ) {}
 
   async listProducts(organizationId: string): Promise<ProductListItem[]> {
@@ -277,8 +285,150 @@ export class ProductsService {
     };
   }
 
+  async getAnalyticsSnapshot(organizationId: string): Promise<ProductAnalyticsSnapshot> {
+    const [productsList, costRows, adCostRows, expenseRows, rawProductRows, financeSnapshot] =
+      await Promise.all([
+        this.listProducts(organizationId),
+        this.listProductCosts(organizationId),
+        this.listAdCosts(organizationId),
+        this.listManualExpenses(organizationId),
+        this.db.query.products.findMany({
+          orderBy: (table) => [desc(table.createdAt)],
+          where: (table) => eq(table.organizationId, organizationId),
+        }),
+        this.financeService.buildFinanceSnapshot(organizationId),
+      ]);
+
+    const syncedProducts = await listSyncedProductsReadModel({
+      db: this.db,
+      organizationId,
+      productsList: rawProductRows,
+      providerSlug: "mercadolivre",
+    });
+    const linkedMarketplaceSignalsByProductId = Object.fromEntries(
+      syncedProducts
+        .filter((product) => product.linkedProduct?.id)
+        .map((product) => [product.linkedProduct!.id, true] as const),
+    );
+    const productRows = buildProductAnalyticsMetrics(financeSnapshot, {
+      linkedMarketplaceSignalsByProductId,
+    }).map((row) => ({
+      actualRoas: row.actualRoas,
+      adSpend: row.adSpend,
+      channel: row.channel,
+      contributionMargin: row.contributionMargin,
+      grossProfit: row.grossProfit,
+      hasCost: row.hasCost,
+      hasLinkedMarketplaceSignal: row.hasLinkedMarketplaceSignal,
+      hasSalesSignal: row.hasSalesSignal,
+      insufficientReasons: row.insufficientReasons,
+      isActive: row.isActive,
+      margin: row.margin,
+      marketplaceCommission: row.marketplaceCommission,
+      minimumRoas: row.minimumRoas,
+      name: row.productName,
+      netSales: row.netSales,
+      packagingCost: row.packagingCost,
+      productCost: row.productCost,
+      productId: row.productId,
+      revenue: row.revenue,
+      returns: row.returns,
+      roi: row.roi,
+      salePrice: row.salePrice,
+      sales: row.sales,
+      shippingCost: row.shippingCost,
+      sku: row.sku,
+      taxAmount: row.taxAmount,
+      totalProfit: row.totalProfit,
+      unitProfit: row.unitProfit,
+    }));
+    const catalogStats = this.buildAnalyticsCatalogStats({
+      adCostRows,
+      expenseRows,
+      productRows: productsList,
+      syncedProducts,
+      costRows,
+    });
+    const financialState = this.determineAnalyticsFinancialState(productRows, productsList);
+
+    return {
+      adCosts: adCostRows,
+      catalogStats,
+      dataGaps: this.buildAnalyticsDataGaps(),
+      financialState,
+      manualExpenses: expenseRows,
+      productCosts: costRows,
+      productRows,
+      products: productsList,
+      syncedProducts,
+    };
+  }
+
   async requireProductAccess(organizationId: string, productId: string) {
     return this.ensureProductAccess(organizationId, productId);
+  }
+
+  private buildAnalyticsCatalogStats(input: {
+    productRows: ProductListItem[];
+    costRows: ProductCostRecord[];
+    adCostRows: AdCostRecord[];
+    expenseRows: ManualExpenseRecord[];
+    syncedProducts: ProductAnalyticsSnapshot["syncedProducts"];
+  }): ProductAnalyticsCatalogStats {
+    const activeProducts = input.productRows.filter((product) => product.isActive).length;
+    const productsWithCost = input.productRows.filter(
+      (product) => product.isActive && product.latestCost !== null,
+    ).length;
+    const pendingSyncProducts = input.syncedProducts.filter(
+      (product) => product.reviewStatus === "unreviewed",
+    ).length;
+
+    return {
+      activeProducts,
+      archivedProducts: input.productRows.length - activeProducts,
+      pendingSyncProducts,
+      productsWithCost,
+      productsWithoutCost: activeProducts - productsWithCost,
+      syncedProductsTotal: input.syncedProducts.length,
+      totalAdCosts: input.adCostRows.length,
+      totalManualExpenses: input.expenseRows.length,
+      totalProductCosts: input.costRows.length,
+      totalProducts: input.productRows.length,
+    };
+  }
+
+  private determineAnalyticsFinancialState(
+    productRows: ProductAnalyticsSnapshot["productRows"],
+    productsList: ProductListItem[],
+  ): ProductAnalyticsSnapshot["financialState"] {
+    if (productsList.length === 0) {
+      return "empty";
+    }
+
+    const activeProducts = productsList.filter((product) => product.isActive);
+
+    if (activeProducts.length === 0) {
+      return "insufficient";
+    }
+
+    const hasCost = activeProducts.some((product) => product.latestCost !== null);
+
+    if (!hasCost) {
+      return "no-costs";
+    }
+
+    const hasSalesSignal = productRows.some((row) => row.hasSalesSignal);
+
+    return hasSalesSignal ? "ready" : "insufficient";
+  }
+
+  private buildAnalyticsDataGaps(): ProductAnalyticsDataGap[] {
+    return [
+      "returns_unavailable",
+      "shipping_cost_unavailable",
+      "tax_amount_unavailable",
+      "packaging_cost_unavailable",
+    ];
   }
 
   private async ensureProductAccess(organizationId: string, productId: string) {

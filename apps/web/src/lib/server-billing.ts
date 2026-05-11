@@ -1,25 +1,16 @@
 import { headers } from "next/headers";
+import type { BillingState } from "@marginflow/types";
+import { billingStateApiResponseSchema } from "@marginflow/validation";
 import { getWebEnv } from "@/lib/env";
+import { parseApiContract } from "@/lib/api/contract";
 
-export type ServerBillingState = {
-  organizationId: string;
-  entitled: boolean;
-  customer: {
-    externalCustomerId: string;
-    id: string;
-  } | null;
-  subscription: {
-    cancelAtPeriodEnd: boolean;
-    currentPeriodEnd: string | null;
-    currentPeriodStart: string | null;
-    externalSubscriptionId: string | null;
-    id: string;
-    interval: string;
-    planCode: string;
-    status: string;
-  } | null;
-};
+export type ServerBillingState = BillingState;
 
+/**
+ * Sempre consulta a API: redirecionamentos (billing vs onboarding vs app) precisam refletir
+ * a assinatura real. `NEXT_PUBLIC_USE_MOCK_DATA` vale só para dados de UI (ex.: dashboard),
+ * não para este estado.
+ */
 export async function readServerBillingState(): Promise<ServerBillingState | null> {
   const headerStore = await headers();
   const cookie = headerStore.get("cookie");
@@ -44,9 +35,7 @@ export async function readServerBillingState(): Promise<ServerBillingState | nul
     );
   }
 
-  const payload = (await response.json()) as {
-    data: ServerBillingState;
-  };
+  const payload = await response.json();
 
-  return payload.data;
+  return parseApiContract("/billing/subscription", payload, billingStateApiResponseSchema).data;
 }

@@ -56,8 +56,8 @@ export class AuthService {
       return null;
     }
 
-    const membership = await this.organizationProvisioningService.ensureDefaultOrganization(
-      authSession.user,
+    const membership = await this.organizationProvisioningService.findDefaultOrganization(
+      authSession.user.id,
     );
 
     return {
@@ -91,11 +91,15 @@ export class AuthService {
       throw new UnauthorizedException("Authentication required.");
     }
 
+    return context;
+  }
+
+  requireOrganizationMembership(context: AuthenticatedRequestContext) {
     if (!context.organization?.id) {
       throw new ForbiddenException("Organization membership required.");
     }
 
-    return context;
+    return context.organization;
   }
   private toWebHeaders(source: IncomingHttpHeaders) {
     const headers = new Headers();

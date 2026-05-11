@@ -7,7 +7,9 @@ import { AuthModule } from "@/modules/auth/auth.module";
 import { BillingModule } from "@/modules/billing/billing.module";
 import { DashboardModule } from "@/modules/dashboard/dashboard.module";
 import { FinanceModule } from "@/modules/finance/finance.module";
+import { FinanceInputsModule } from "@/modules/finance-inputs/finance-inputs.module";
 import { IntegrationsModule } from "@/modules/integrations/integrations.module";
+import { OnboardingModule } from "@/modules/onboarding/onboarding.module";
 import { ProductsModule } from "@/modules/products/products.module";
 import { SyncModule } from "@/modules/sync/sync.module";
 
@@ -23,7 +25,9 @@ export class AppModule {
         BillingModule.register(env),
         DashboardModule,
         FinanceModule,
+        FinanceInputsModule,
         IntegrationsModule,
+        OnboardingModule,
         ProductsModule,
         SyncModule,
         HealthModule,

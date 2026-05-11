@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { IntegrationsHub } from "@/components/integrations/integrations-hub";
+import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
 
@@ -18,19 +19,17 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
     searchParams,
   ]);
 
-  if (!authState) {
-    redirect("/sign-in");
-  }
+  const redirectTarget = resolveProtectedAppRedirect(authState, billingState);
 
-  if (!billingState?.entitled) {
-    redirect("/app/billing");
+  if (redirectTarget) {
+    redirect(redirectTarget);
   }
 
   return (
     <IntegrationsHub
       initialMessage={params.message ?? null}
       initialStatus={params.status === "error" || params.status === "success" ? params.status : null}
-      organizationName={authState.organization.name}
+      organizationName={authState.organization?.name ?? authState.user.name}
     />
   );
 }

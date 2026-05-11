@@ -46,7 +46,12 @@ function createService() {
 
   return {
     db,
-    service: new ProductsService(db as never),
+    service: new ProductsService(
+      db as never,
+      {
+        buildFinanceSnapshot: vi.fn(),
+      } as never,
+    ),
   };
 }
 

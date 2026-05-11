@@ -8,6 +8,34 @@
       "when": 1776726507782,
       "tag": "0000_small_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777050000000,
+      "tag": "0001_m11_synced_product_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777056000000,
+      "tag": "0002_m1_finance_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778379000000,
+      "tag": "0003_m2_finance_rls_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1778409600000,
+      "tag": "0004_m3_real_app_onboarding_template",
+      "breakpoints": true
     }
   ]
 }

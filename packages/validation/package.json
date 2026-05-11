@@ -14,10 +14,11 @@
     "build": "tsc --noEmit -p tsconfig.json",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node -e \"console.log('No tests in @marginflow/validation yet.')\""
+    "test": "vitest run"
   },
   "devDependencies": {
     "eslint": "^9.39.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.7"
   }
 }

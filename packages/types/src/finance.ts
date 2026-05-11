@@ -5,21 +5,20 @@ export type DashboardSummaryMetrics = {
   totalCogs: DecimalString;
   totalFees: DecimalString;
   totalManualExpenses: DecimalString;
-  grossMarginPercent: DecimalString;
-  grossRevenue: DecimalString;
-  netProfit: DecimalString;
-  netRevenue: DecimalString;
-  contributionMargin: DecimalString;
-  breakEvenRevenue: DecimalString;
-  breakEvenUnits: DecimalString;
+  grossMarginPercent: DecimalString; // Margem media oficial do dashboard, ponderada por receita
+  grossRevenue: DecimalString; // Receita bruta total
+  netProfit: DecimalString; // Lucro liquido apos ads e despesas manuais
+  netRevenue: DecimalString; // Receita liquida apos descontos/refundos conhecidos
+  contributionMargin: DecimalString; // Lucro apos fees, COGS e ads, antes de despesas manuais
+  breakEvenRevenue: DecimalString; // Receita de equilibrio com a contribuicao atual
+  breakEvenUnits: DecimalString; // Unidades de equilibrio com a contribuicao atual
   ordersCount: number;
   unitsSold: number;
-  // Extended metrics for dashboard KPIs
-  grossProfit: DecimalString; // Lucro bruto total
-  avgRoi: DecimalString | null; // ROI médio ponderado
-  avgRoas: DecimalString | null; // ROAS médio ponderado
-  totalReturns: number; // Total de devoluções
-  avgTicket: DecimalString | null; // Ticket médio
+  grossProfit: DecimalString; // Lucro bruto antes de ads e despesas manuais
+  avgRoi: DecimalString; // ROI medio agregado do catalogo
+  avgRoas: DecimalString; // ROAS medio agregado do catalogo
+  totalReturns: number; // Total de devolucoes conhecidas no periodo
+  avgTicket: DecimalString; // Ticket medio por pedido no periodo
 };
 
 export type DashboardDailyMetricPoint = {
@@ -34,22 +33,21 @@ export type DashboardProductProfitabilityRow = {
   sku: string | null;
   channel: string;
   summary: DashboardSummaryMetrics;
-  // Detailed metrics for expanded table
   sales: number; // Vendas brutas (unidades)
-  returns: number; // Devoluções (unidades)
-  netSales: number; // Vendas líquidas (sales - returns)
-  salePrice: DecimalString; // Preço de venda unitário
-  revenue: DecimalString; // Receita (salePrice * netSales)
-  marketplaceCommission: DecimalString; // Comissão do marketplace
-  shippingCost: DecimalString; // Frete
-  taxAmount: DecimalString; // Imposto
-  packagingCost: DecimalString; // Custo de embalagem
-  productCost: DecimalString; // Custo do produto
-  adSpend: DecimalString; // Investimento em ADS
-  grossProfit: DecimalString; // Lucro bruto
-  roi: DecimalString | null; // ROI (grossProfit / productCost)
-  roas: DecimalString | null; // ROAS (revenue / adSpend)
-  margin: DecimalString; // Margem percentual (grossProfit / revenue)
+  returns: number; // Devolucoes (unidades)
+  netSales: number; // Vendas liquidas (sales - returns)
+  salePrice: DecimalString; // Preco medio unitario efetivo
+  revenue: DecimalString; // Receita do produto no periodo
+  marketplaceCommission: DecimalString; // Fees de marketplace alocadas ao produto
+  shippingCost: DecimalString; // Frete explicitamente conhecido
+  taxAmount: DecimalString; // Imposto explicitamente conhecido
+  packagingCost: DecimalString; // Custo de embalagem explicitamente conhecido
+  productCost: DecimalString; // Custo total do produto vendido
+  adSpend: DecimalString; // Investimento em ads alocado ao produto
+  grossProfit: DecimalString; // Lucro bruto do produto
+  roi: DecimalString; // ROI do produto
+  roas: DecimalString; // ROAS do produto
+  margin: DecimalString; // Margem percentual do produto
 };
 
 export type DashboardChannelProfitabilityRow = {

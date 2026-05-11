@@ -1,4 +1,5 @@
 import type { DashboardSummaryResponse } from "@marginflow/types";
+import { parseProtectedNumber } from "@/lib/protected-numbers";
 import type { DashboardInsight } from "../types/dashboard";
 import { formatMoney } from "../utils/formatters";
 
@@ -7,26 +8,26 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
 
   const insights: DashboardInsight[] = [];
   const { summary } = data;
-  const netProfit = Number(summary.netProfit);
-  const grossRevenue = Number(summary.grossRevenue);
-  const breakEvenRevenue = Number(summary.breakEvenRevenue);
-  const totalAdCosts = Number(summary.totalAdCosts);
-  const grossMarginPercent = Number(summary.grossMarginPercent);
+  const netProfit = parseProtectedNumber(summary.netProfit) ?? 0;
+  const grossRevenue = parseProtectedNumber(summary.grossRevenue) ?? 0;
+  const breakEvenRevenue = parseProtectedNumber(summary.breakEvenRevenue) ?? 0;
+  const totalAdCosts = parseProtectedNumber(summary.totalAdCosts) ?? 0;
+  const grossMarginPercent = parseProtectedNumber(summary.grossMarginPercent) ?? 0;
 
   if (netProfit > 0) {
     insights.push({
       id: "profit-positive",
       type: "growth",
-      title: "Lucratividade positiva",
-      description: `Seu negócio gerou ${formatMoney(netProfit)} de lucro líquido no período.`,
+      title: "Lucratividade Positiva",
+      description: `Seu negócio gerou ${formatMoney(netProfit)} de lucro líquido no período`,
       priority: "medium",
     });
   } else if (netProfit < 0) {
     insights.push({
       id: "profit-negative",
       type: "alert",
-      title: "Margem negativa detectada",
-      description: "Seus custos estão superando a receita. Revise os produtos com menor margem.",
+      title: "Margem Negativa Detectada",
+      description: "Seus custos estão superando a receita. Revise os produtos com menor margem",
       priority: "high",
       href: "/app/products",
       actionLabel: "Ver produtos",
@@ -38,30 +39,95 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
     insights.push({
       id: "breakeven",
       type: "info",
-      title: "Progresso até breakeven",
-      description: `Você atingiu ${progress.toFixed(0)}% do ponto de equilíbrio financeiro.`,
+      title: "Progresso até Ponto de Equilíbrio",
+      description: `Você atingiu ${progress.toFixed(0)}% do ponto de equilíbrio financeiro`,
     });
   }
 
-  if (netProfit > 0 && totalAdCosts > netProfit * 0.3) {
+  const avgRoas = parseProtectedNumber(summary.avgRoas) ?? 0;
+  const contributionMargin = parseProtectedNumber(summary.contributionMargin) ?? 0;
+  const totalReturns = summary.totalReturns ?? 0;
+  const unitsSold = summary.unitsSold ?? 0;
+  const ordersCount = summary.ordersCount ?? 0;
+
+  if (avgRoas > 0) {
+    const roasStatus = avgRoas >= 4 ? "Excelente" : avgRoas >= 2.5 ? "Positivo" : "Atenção";
+    const roasTone = avgRoas >= 2.5 ? "growth" : "alert";
+    const roasMultiple = avgRoas.toFixed(1);
+    const recommendation = avgRoas >= 4
+      ? "Possível escalar investimento"
+      : avgRoas >= 2.5
+        ? "Campanhas rentáveis, monitorar margem"
+        : "Revisar segmentação e criativos";
+
     insights.push({
-      id: "ads-high",
-      type: "tip",
-      title: "Otimização de anúncios",
-      description: "Custos em anúncios representam mais de 30% do lucro. Considere otimizar campanhas.",
+      id: "roas-performance",
+      type: roasTone,
+      title: `ROAS ${roasStatus}`,
+      description: `Retorno de ${roasMultiple}x sobre ADS ${recommendation}`,
+      priority: avgRoas < 2.5 ? "high" : "medium",
+    });
+  }
+
+  if (contributionMargin > 0 && grossRevenue > 0) {
+    const contributionRate = (contributionMargin / grossRevenue) * 100;
+    if (contributionRate > 30) {
+      insights.push({
+        id: "contribution-strong",
+        type: "growth",
+        title: "Margem de Contribuição Forte",
+        description: `Seu negócio mantém ${contributionRate.toFixed(1)}% de margem de contribuição, cobrindo bem os custos operacionais antes das despesas fixas.`,
+        priority: "medium",
+      });
+    }
+  }
+
+  if (totalReturns > 0 && unitsSold > 0) {
+    const returnRate = (totalReturns / unitsSold) * 100;
+    if (returnRate > 10) {
+      insights.push({
+        id: "high-returns",
+        type: "alert",
+        title: "Taxa de devolucao elevada",
+        description: `${totalReturns} devolucoes em ${unitsSold} vendas (${returnRate.toFixed(1)}%). Revise qualidade ou descricao dos produtos.`,
+        priority: "high",
+        href: "/app/products",
+        actionLabel: "Ver produtos",
+      });
+    } else if (unitsSold >= 10) {
+      insights.push({
+        id: "returns-healthy",
+        type: "growth",
+        title: "Taxa de devolucao saudavel",
+        description: `Apenas ${returnRate.toFixed(1)}% de devolucoes. ${totalReturns === 0 ? "Nenhuma devolucao registrada no periodo." : "Bom controle de qualidade e expectativas."}`,
+        priority: "low",
+      });
+    }
+  }
+
+  if (totalAdCosts > 0 && ordersCount > 0) {
+    const cac = totalAdCosts / ordersCount;
+    if (cac > 0) {
+      insights.push({
+        id: "cac-insight",
+        type: "info",
+        title: "Custo de aquisicao (CAC)",
+        description: `Voce investe ${formatMoney(cac)} em media para adquirir cada cliente atraves de anuncios.`,
+        priority: "low",
+      });
+    }
+  }
+
+  if (totalAdCosts > 0 && grossMarginPercent === 0) {
+    insights.push({
+      id: "margin-unavailable",
+      type: "info",
+      title: "Cobertura financeira parcial",
+      description:
+        "Alguns custos operacionais ainda dependem da cobertura atual do snapshot. O dashboard mostra zeros explicitos em vez de estimativas.",
       priority: "medium",
-    });
-  }
-
-  if (grossMarginPercent <= 10) {
-    insights.push({
-      id: "margin-low",
-      type: "alert",
-      title: "Margem comprimida",
-      description: "A margem média está baixa. Priorize revisão de custos e taxas do catálogo.",
-      priority: "high",
       href: "/app/products",
-      actionLabel: "Revisar custos",
+      actionLabel: "Revisar catalogo",
     });
   }
 
@@ -69,8 +135,8 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
     insights.push({
       id: "ai-tip",
       type: "ai",
-      title: "Sugestão de IA",
-      description: "Continue sincronizando e cadastrando custos para liberar análises mais profundas do catálogo.",
+      title: "Sugestao de IA",
+      description: "Continue sincronizando e cadastrando custos para liberar analises mais profundas do catalogo.",
     });
   }
 

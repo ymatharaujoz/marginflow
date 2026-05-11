@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   foreignKey,
   index,
@@ -127,6 +128,144 @@ export const organizationMembers = pgTable(
   ],
 );
 
+export const companies = pgTable(
+  "companies",
+  {
+    id: id(),
+    organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    code: varchar("code", { length: 12 }).notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check("companies_name_length", sql`char_length(trim(${table.name})) >= 2`),
+    check("companies_code_length", sql`char_length(trim(${table.code})) between 2 and 12`),
+    check("companies_code_uppercase", sql`${table.code} = upper(${table.code})`),
+    index("companies_organization_id_idx").on(table.organizationId),
+    index("companies_user_id_idx").on(table.userId),
+    index("companies_org_is_active_idx").on(table.organizationId, table.isActive),
+    uniqueIndex("companies_org_code_key").on(table.organizationId, table.code),
+  ],
+);
+
+export const productMonthlyPerformance = pgTable(
+  "product_monthly_performance",
+  {
+    id: id(),
+    organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    referenceMonth: date("reference_month").notNull(),
+    channel: varchar("channel", { length: 120 }).notNull(),
+    productName: varchar("product_name", { length: 255 }).notNull(),
+    sku: varchar("sku", { length: 128 }).notNull(),
+    salesQuantity: integer("sales_quantity").default(0).notNull(),
+    returnsQuantity: integer("returns_quantity").default(0).notNull(),
+    unitCost: numeric("unit_cost", { precision: 12, scale: 2 }).default("0").notNull(),
+    salePrice: numeric("sale_price", { precision: 12, scale: 2 }).notNull(),
+    commissionRate: numeric("commission_rate", { precision: 8, scale: 6 }).default("0").notNull(),
+    shippingFee: numeric("shipping_fee", { precision: 12, scale: 2 }).default("0").notNull(),
+    taxRate: numeric("tax_rate", { precision: 8, scale: 6 }).default("0").notNull(),
+    packagingCost: numeric("packaging_cost", { precision: 12, scale: 2 }).default("0").notNull(),
+    advertisingCost: numeric("advertising_cost", { precision: 12, scale: 2 }).default("0").notNull(),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check(
+      "product_monthly_performance_reference_month_first_day",
+      sql`${table.referenceMonth} = date_trunc('month', ${table.referenceMonth})::date`,
+    ),
+    check(
+      "product_monthly_performance_channel_not_empty",
+      sql`char_length(trim(${table.channel})) >= 2`,
+    ),
+    check(
+      "product_monthly_performance_product_name_not_empty",
+      sql`char_length(trim(${table.productName})) >= 2`,
+    ),
+    check("product_monthly_performance_sku_not_empty", sql`char_length(trim(${table.sku})) >= 1`),
+    check("product_monthly_performance_sales_non_negative", sql`${table.salesQuantity} >= 0`),
+    check("product_monthly_performance_returns_non_negative", sql`${table.returnsQuantity} >= 0`),
+    check(
+      "product_monthly_performance_returns_lte_sales",
+      sql`${table.returnsQuantity} <= ${table.salesQuantity}`,
+    ),
+    check("product_monthly_performance_unit_cost_non_negative", sql`${table.unitCost} >= 0`),
+    check("product_monthly_performance_sale_price_positive", sql`${table.salePrice} > 0`),
+    check(
+      "product_monthly_performance_commission_rate_range",
+      sql`${table.commissionRate} >= 0 and ${table.commissionRate} <= 1`,
+    ),
+    check(
+      "product_monthly_performance_shipping_fee_non_negative",
+      sql`${table.shippingFee} >= 0`,
+    ),
+    check("product_monthly_performance_tax_rate_range", sql`${table.taxRate} >= 0 and ${table.taxRate} <= 1`),
+    check(
+      "product_monthly_performance_packaging_cost_non_negative",
+      sql`${table.packagingCost} >= 0`,
+    ),
+    check(
+      "product_monthly_performance_advertising_cost_non_negative",
+      sql`${table.advertisingCost} >= 0`,
+    ),
+    index("product_monthly_performance_organization_id_idx").on(table.organizationId),
+    index("product_monthly_performance_user_id_idx").on(table.userId),
+    index("product_monthly_performance_company_month_idx").on(table.companyId, table.referenceMonth),
+    index("product_monthly_performance_org_month_idx").on(table.organizationId, table.referenceMonth),
+    index("product_monthly_performance_channel_month_idx").on(table.channel, table.referenceMonth),
+    index("product_monthly_performance_sku_idx").on(table.sku),
+    uniqueIndex("product_monthly_performance_org_company_month_channel_sku_key").on(
+      table.organizationId,
+      table.companyId,
+      table.referenceMonth,
+      table.channel,
+      table.sku,
+    ),
+  ],
+);
+
+export const fixedCosts = pgTable(
+  "fixed_costs",
+  {
+    id: id(),
+    organizationId: organizationId().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    referenceMonth: date("reference_month").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    category: varchar("category", { length: 120 }).default("general").notNull(),
+    amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+    isRecurring: boolean("is_recurring").default(true).notNull(),
+    notes: text("notes"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    check(
+      "fixed_costs_reference_month_first_day",
+      sql`${table.referenceMonth} = date_trunc('month', ${table.referenceMonth})::date`,
+    ),
+    check("fixed_costs_name_not_empty", sql`char_length(trim(${table.name})) >= 2`),
+    check("fixed_costs_category_not_empty", sql`char_length(trim(${table.category})) >= 2`),
+    check("fixed_costs_amount_non_negative", sql`${table.amount} >= 0`),
+    index("fixed_costs_organization_id_idx").on(table.organizationId),
+    index("fixed_costs_user_id_idx").on(table.userId),
+    index("fixed_costs_company_month_idx").on(table.companyId, table.referenceMonth),
+    index("fixed_costs_org_month_idx").on(table.organizationId, table.referenceMonth),
+    index("fixed_costs_category_idx").on(table.category),
+  ],
+);
+
 export const billingCustomers = pgTable(
   "billing_customers",
   {
@@ -184,6 +323,34 @@ export const subscriptionEvents = pgTable(
     createdAt: createdAt(),
   },
   (table) => [index("subscription_events_organization_id_idx").on(table.organizationId)],
+);
+
+export const pendingCheckouts = pgTable(
+  "pending_checkouts",
+  {
+    id: id(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    checkoutSessionId: varchar("checkout_session_id", { length: 255 }).notNull(),
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+    stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+    planCode: varchar("plan_code", { length: 64 }).notNull(),
+    interval: varchar("interval", { length: 32 }).default("monthly").notNull(),
+    status: varchar("status", { length: 32 }).default("created").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("pending_checkouts_user_id_idx").on(table.userId),
+    index("pending_checkouts_org_id_idx").on(table.organizationId),
+    index("pending_checkouts_user_status_idx").on(table.userId, table.status),
+    uniqueIndex("pending_checkouts_checkout_session_id_key").on(table.checkoutSessionId),
+  ],
 );
 
 export const marketplaceConnections = pgTable(
@@ -456,6 +623,9 @@ export const productMetrics = pgTable(
 
 export const usersRelations = relations(users, ({ many }) => ({
   organizationMembers: many(organizationMembers),
+  companies: many(companies),
+  fixedCosts: many(fixedCosts),
+  productMonthlyPerformance: many(productMonthlyPerformance),
   sessions: many(sessions),
   accounts: many(accounts),
 }));
@@ -476,8 +646,10 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   members: many(organizationMembers),
+  companies: many(companies),
   billingCustomers: many(billingCustomers),
   subscriptions: many(subscriptions),
+  pendingCheckouts: many(pendingCheckouts),
   subscriptionEvents: many(subscriptionEvents),
   marketplaceConnections: many(marketplaceConnections),
   syncRuns: many(syncRuns),
@@ -485,12 +657,27 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   externalOrders: many(externalOrders),
   externalOrderItems: many(externalOrderItems),
   externalFees: many(externalFees),
+  fixedCosts: many(fixedCosts),
   products: many(products),
   productCosts: many(productCosts),
+  productMonthlyPerformance: many(productMonthlyPerformance),
   adCosts: many(adCosts),
   manualExpenses: many(manualExpenses),
   dailyMetrics: many(dailyMetrics),
   productMetrics: many(productMetrics),
+}));
+
+export const companiesRelations = relations(companies, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [companies.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [companies.userId],
+    references: [users.id],
+  }),
+  fixedCosts: many(fixedCosts),
+  performanceRows: many(productMonthlyPerformance),
 }));
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
@@ -532,6 +719,17 @@ export const subscriptionEventsRelations = relations(subscriptionEvents, ({ one 
   subscription: one(subscriptions, {
     fields: [subscriptionEvents.subscriptionId],
     references: [subscriptions.id],
+  }),
+}));
+
+export const pendingCheckoutsRelations = relations(pendingCheckouts, ({ one }) => ({
+  user: one(users, {
+    fields: [pendingCheckouts.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [pendingCheckouts.organizationId],
+    references: [organizations.id],
   }),
 }));
 
@@ -656,6 +854,39 @@ export const manualExpensesRelations = relations(manualExpenses, ({ one }) => ({
   organization: one(organizations, {
     fields: [manualExpenses.organizationId],
     references: [organizations.id],
+  }),
+}));
+
+export const productMonthlyPerformanceRelations = relations(
+  productMonthlyPerformance,
+  ({ one }) => ({
+    organization: one(organizations, {
+      fields: [productMonthlyPerformance.organizationId],
+      references: [organizations.id],
+    }),
+    user: one(users, {
+      fields: [productMonthlyPerformance.userId],
+      references: [users.id],
+    }),
+    company: one(companies, {
+      fields: [productMonthlyPerformance.companyId],
+      references: [companies.id],
+    }),
+  }),
+);
+
+export const fixedCostsRelations = relations(fixedCosts, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [fixedCosts.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [fixedCosts.userId],
+    references: [users.id],
+  }),
+  company: one(companies, {
+    fields: [fixedCosts.companyId],
+    references: [companies.id],
   }),
 }));
 

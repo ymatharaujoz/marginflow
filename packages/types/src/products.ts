@@ -137,10 +137,78 @@ export type SyncedProductActionResult = {
   syncedProduct: SyncedProductRecord;
 };
 
+export type ProductFinancialState =
+  | "ready"
+  | "empty"
+  | "no-costs"
+  | "insufficient";
+
+export type ProductAnalyticsInsufficientReason =
+  | "missing_cost"
+  | "missing_linked_marketplace_signal"
+  | "missing_sales_signal";
+
+export type ProductAnalyticsDataGap =
+  | "packaging_cost_unavailable"
+  | "returns_unavailable"
+  | "shipping_cost_unavailable"
+  | "tax_amount_unavailable";
+
+export type ProductAnalyticsRow = {
+  productId: string;
+  name: string;
+  sku: string | null;
+  isActive: boolean;
+  channel: string;
+  sales: number;
+  returns: number;
+  netSales: number;
+  salePrice: DecimalString;
+  revenue: DecimalString;
+  marketplaceCommission: DecimalString;
+  shippingCost: DecimalString;
+  taxAmount: DecimalString;
+  packagingCost: DecimalString;
+  productCost: DecimalString;
+  adSpend: DecimalString;
+  grossProfit: DecimalString;
+  contributionMargin: DecimalString;
+  unitProfit: DecimalString;
+  totalProfit: DecimalString;
+  margin: DecimalString;
+  roi: DecimalString;
+  actualRoas: DecimalString;
+  minimumRoas: DecimalString;
+  hasCost: boolean;
+  hasSalesSignal: boolean;
+  hasLinkedMarketplaceSignal: boolean;
+  insufficientReasons: ProductAnalyticsInsufficientReason[];
+};
+
+export type ProductAnalyticsCatalogStats = {
+  totalProducts: number;
+  activeProducts: number;
+  archivedProducts: number;
+  productsWithCost: number;
+  productsWithoutCost: number;
+  pendingSyncProducts: number;
+  syncedProductsTotal: number;
+  totalProductCosts: number;
+  totalAdCosts: number;
+  totalManualExpenses: number;
+};
+
 export type ProductCatalogSnapshot = {
   adCosts: AdCostRecord[];
   manualExpenses: ManualExpenseRecord[];
   productCosts: ProductCostRecord[];
   products: ProductListItem[];
   syncedProducts: SyncedProductRecord[];
+};
+
+export type ProductAnalyticsSnapshot = ProductCatalogSnapshot & {
+  productRows: ProductAnalyticsRow[];
+  catalogStats: ProductAnalyticsCatalogStats;
+  financialState: ProductFinancialState;
+  dataGaps: ProductAnalyticsDataGap[];
 };

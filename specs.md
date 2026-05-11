@@ -952,6 +952,7 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - Note: Long Postgres FK names were replaced with explicit short constraint names in `packages/database` (schema + `0000_small_dazzler.sql` + snapshot) to avoid 63-byte identifier truncation notices during `db:migrate`. If `0000` already ran against a database, reset that DB or add a manual `RENAME CONSTRAINT` migration from the truncated names Postgres created.
 - Note: `pnpm ngrok:mercadolivre:callback` normalizes `NGROK_DOMAIN` (strip `https://` / `http://`, trailing `/`) before `ngrok http --domain`, avoiding ERR_NGROK_9038 when the env value was copied with a trailing slash.
 - Note: `db:seed` and `db:migrate` call `sql.end()` on the postgres-js client so CLI processes exit cleanly (previously the open pool kept Node alive indefinitely).
+- Note: Supabase-first DB setup uses `DATABASE_URL` for runtime and prefers `DATABASE_MIGRATION_URL` for Drizzle tooling (`db:generate`, `db:migrate`, `db:seed`, `db:studio`), falling back to `DATABASE_URL` only when the migration-specific URL is omitted.
 - Note: Stripe subscription reads exclude seed placeholder rows (`subscriptions.billing_customer_id` must be present). Entitlements treat `trialing` and `active` as paid access; `GET /billing/subscription` and `EntitlementGuard` reconcile rows still marked `active`/`trialing` against Stripe immediately so cancelling in the Dashboard retracts access even when webhooks lag (`POST /billing/checkout/confirm` still covers the success redirect gap before webhooks). **`/products` and `/costs/`* use `EntitlementGuard` with `AuthGuard`.**
 - Note: User-facing strings in `apps/web` default to Brazilian Portuguese (`pt-BR`), including localized labels for KPIs/dashboard copy and mappings for backend English phrases often shown next to integrations and sync controls.
 - Note: `apps/api/src/modules/integrations/integrations.service.ts` now emits user-facing copy in pt-BR (connection cards, OAuth redirect messages, synced-product actions, HTTP errors) aligned with `apps/web/src/lib/pt-br/api-ui.ts` where applicable.
@@ -966,7 +967,9 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] Phase 5: Animations (Framer Motion + CSS transitions)
 - [x] Phase 6: Responsive + cleanup
 - [x] Phase 7: Verification (lint ✓, typecheck ✓, build ✓, tests ✓)
-- Note: Page chrome uses warmer off-white tokens (`globals.css`), a softer marketing backdrop gradient, and aligned marketing nav glass. Shared `Container` gutters scale `px-6` → `xl:px-14`; the app shell main column and top bar share `max-w-[min(100%,1440px)]` with the same padding scale so wide viewports stay centered without hurting small screens.
+- Note: Page chrome uses warmer off-white tokens (`globals.css`), a softer marketing backdrop gradient, and aligned marketing nav glass.
+- Note: Marketing backdrop base layer (`marketing-backdrop.tsx`) uses the same canvas as `body` and `/app` (`var(--background)` → `var(--background-soft)` plus matching radial highlights from `globals.css`), replacing the previous near-white gradient.
+- Note: Landing sections (Dashboard showcase, Depoimentos, CTA final) no longer use flat `#fafafa` / pure white bands; they use vertical `linear-gradient` overlays on design tokens (`transparent` → `background` → `background-elevated` / `surface-strong`) so the tone shift stays visible without a hard horizontal color break. Shared `Container` gutters scale `px-6` → `xl:px-14`; the app shell main column and top bar share `max-w-[min(100%,1440px)]` with the same padding scale so wide viewports stay centered without hurting small screens.
 - Note: `/sign-in` uses a SaaS-style layout (brand header, eyebrow + title hierarchy, Google-standard OAuth button styling, trust copy, back link, pricing cross-link) in `sign-in/page.tsx` and `sign-in-panel.tsx`.
 - Note: `apps/web/src/lib/auth-client.ts` resolves the Better Auth client `baseURL` via `getWebEnv().NEXT_PUBLIC_API_BASE_URL` (same `pickNonEmpty` + dev localhost defaults as `readPublicEnv`). Reading `process.env` directly with `??` let an **empty** `NEXT_PUBLIC_API_BASE_URL` become relative `/auth`, which Better Auth rejects (“Invalid base URL”).
 - Note: `packages/ui` `Avatar` uses default `referrerPolicy="no-referrer"` on the `<img>` (common fix for Google `googleusercontent.com` avatars when the app origin would otherwise be sent as `Referer`) and falls back to initials on `onError` so a bad URL never shows a broken image icon in the app shell.
@@ -985,6 +988,15 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] Built MarketplacesSection with elegant compact cards for ML and Shopee
 - [x] Implemented InsightsSection with AI-powered insight cards (growth, alert, tip, info types)
 - [x] Refactored ProductsTable with sticky glass header, sortable columns, smooth hover states, minimal pagination
+- [x] `/app` ProductsTable: colunas PRODUTO (nome + SKU abaixo), MARKETPLACE, SAÚDE, Vendas, Devol., Líquida, Receita, ROAS, Lucro, Margem, ROI; removidas Ticket, Comissão, Frete, Imposto, Custo, Ads $; Saúde imediatamente após Marketplace
+- [x] ProductsTable scroll fix: added proper overflow-x-auto container with min-width to prevent layout breaking
+- [x] `/app/products` ProductTable: flex/grid `min-w-0` + `minmax(0,1fr)` column + `overflow-x-hidden` on app `main` so wide tables scroll inside the card (no page-level horizontal scrollbar)
+- [x] `/app/products` ProductTable: células das colunas fixas (corpo) usam `bg-surface-strong` em vez de `bg-background`, alinhadas ao `Card`, para remover o “bloco” cinza ao rolar horizontalmente
+- [x] `/app/products` ProductTable: barra de filtros em card com layout em grid – labels claros com ícones, input de busca com foco visual, botões de marketplace e saúde com estados ativos destacados, seção de "Filtros ativos" com chips removíveis individuais
+- [x] `/app/products` ProductTable: correção de build (template literal sem fechar em chip de saúde; `motion.tr` → `MotionTableRow`; `className` com `>`/`<` via `cn()` para SWC/Turbopack)
+- [x] `/app/products` ProductTable: removido contador (bolinha + total) ao lado do título "Produtos"
+- [x] `/app/products` ProductHeader: removido botão "Adicionar produto" do topo (fluxos vazio/sem custo mantêm CTAs nos cards/EmptyState)
+- [x] `/app/products` UI trim: removed ProductTable “Ações” column (edit/archive); removed secondary header chips (Produto / Custo / Anúncio) above the table; primary “Adicionar produto” CTA kept; removed sidebar “Ações rápidas” card; removed header “Margem média” strip above catalog insights
 - [x] Refined AppSidebar with Linear/Vercel-style active states (left border accent), refined icons, smooth transitions
 - [x] Added comprehensive Framer Motion animations (container variants, stagger children, hover effects)
 - [x] Integrated all components in DashboardHome with responsive layouts, loading/error/empty states
@@ -992,9 +1004,11 @@ This PRD is checkbox-driven. The sections below are the operational source of tr
 - [x] Created apps/web/src/modules/dashboard feature boundary with extracted types, formatters, calculations, and hooks
 - [x] Rewired /app dashboard composition to the new module while preserving route/auth/billing behavior
 - [x] Added tests for financial state derivation, formatter helpers, KPI mapping, product health, and catalog empty state rendering
+- [x] Hardened protected dashboard/products contracts with shared runtime validation in `@marginflow/validation`, blocking client-side parse errors on invalid payloads instead of falling back to heuristics
+- [x] Added M7 refactor guardrail coverage for protected fetchers, analytics snapshot contracts, weighted margin behavior, zero-safe ROI/ROAS handling, and root `pnpm test` verification without phantom root tests
 - Note: Legacy files in apps/web/src/components/dashboard now act as compatibility re-exports while active ownership lives in apps/web/src/modules/dashboard.
 - Key files created/modified:
-  - `apps/web/src/components/ui-premium/*` - 10 new reusable premium components
+  - `apps/web/src/components/ui-premium/`* - 10 new reusable premium components
   - `apps/web/src/components/dashboard/dashboard-header.tsx` - new
   - `apps/web/src/components/dashboard/kpi-cards.tsx` - new
   - `apps/web/src/components/dashboard/charts-section.tsx` - new
@@ -1501,6 +1515,13 @@ Build the public website and SEO baseline in Next.js.
 - No blockers currently logged
 - 2026-04: Landing principal redesenhada em PT-BR com partículas (`@tsparticles`), animações (`framer-motion`), hero com mock do dashboard, grade de recursos, integrações, preços (mensal/anual) e CTA alinhados ao layout de marketing.
 - M7 landing and SEO implementation shipped in `apps/web` with dedicated `features`, `pricing`, and `integrations` pages, reusable marketing components, metadata helpers, `robots.txt`, and `sitemap.xml`
+- 2026-05-08: Marketing Mercado Livre icons (`MercadoLivreIcon`, `MercadoLivreMiniIcon`) passam a usar o SVG em `apps/web/public/icons/mercado-livre-logo.svg` (cópia do asset em `src/public/icons` para servir via Next.js `public/`).
+- 2026-05-08 (follow-up): `viewBox` do wordmark ajustado para o logo preencher o canvas; símbolo (aperto de mãos) em `mercado-livre-symbol.svg` para mini/hero; rótulo textual removido ao lado do mini ícone nas linhas de integração do marketing.
+- 2026-05-08: Símbolo ML com `viewBox` quadrado centrado no desenho + `Image` 243×243 e badge “Compatível com” em `grid place-items-center` para evitar ícone torto/comprimido no círculo.
+- 2026-05-08: Barra “Compatível com” no marketing sem card circular — só texto + ícone ML alinhados em `flex`.
+- 2026-05-08: Barra “Compatível com” inclui ícone Shopee (`public/icons/shopee-icon.svg`); `ShopeeIcon` / `ShopeeMiniIcon` passam a usar esse SVG em vez do placeholder.
+- 2026-05-08: Mini marcas ML/Shopee com mesma **altura** (`h-7`/`sm:h-8` + `w-auto`) e símbolo ML com `viewBox` colado ao clip (243×139) para não parecer menor que a Shopee.
+- 2026-05-08: Na barra “Compatível com”, ML com `scale` ~0,92/0,94 em relação à Shopee para equilibrar visualmente.
 - Repo verification passed after implementation: `lint`, `typecheck`, `test`, and `build`
 - Milestone is ready for final completion tick once user confirms it should be considered done
 
@@ -1941,5 +1962,3 @@ For V1, the recommended stack and deployment model are:
 - **Sync model**: manual only, three daily windows
 - **Background jobs**: deferred to a later phase
 - **Architecture goal**: clean separation now, scalable extraction later
-
-

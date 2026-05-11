@@ -45,7 +45,8 @@ The dev server loads `.env`, `.env.local`, and (when `NODE_ENV` is `development`
 - `API_DB_POOL_MAX`: Postgres pool size cap for API runtime, default `10`
 - `NGROK_AUTHTOKEN`: optional local ngrok auth token used by the helper tunnel script
 - `NGROK_DOMAIN`: optional reserved ngrok domain used by the helper tunnel script
-- `DATABASE_URL`: Postgres connection string used by Drizzle for local development and Supabase production
+- `DATABASE_URL`: Supabase pooled/runtime Postgres connection string used by the API at boot
+- `DATABASE_MIGRATION_URL`: optional Supabase direct or migration-safe Postgres connection string used by Drizzle tooling
 - `BETTER_AUTH_SECRET`: Better Auth signing secret
 - `BETTER_AUTH_URL`: absolute API base URL used by Better Auth callbacks and cookies
 - `GOOGLE_CLIENT_ID`: Google OAuth client ID
@@ -61,7 +62,7 @@ The dev server loads `.env`, `.env.local`, and (when `NODE_ENV` is `development`
 - `STRIPE_PRICE_ANNUAL`: Stripe recurring price ID for the annual plan
 - `SYNC_RELAX_GUARDS`: when `true` / `1` / `yes`, skips overnight and “window already used” sync availability checks for local testing; **ignored when `NODE_ENV` is `production`**
 
-`DATABASE_URL` now matters for runtime boot. For local development, point it at plain Postgres. For production, point it at Supabase Postgres. `SUPABASE_*` values remain reserved for later service integrations.
+`DATABASE_URL` is required for runtime boot in every environment and should target Supabase runtime/pooler credentials. `DATABASE_MIGRATION_URL` is optional for the API itself, but database tooling should use it when present so migrations, seeds, and Studio can use a safer direct connection path. `SUPABASE_*` values remain optional and reserved for later service integrations.
 
 ## Ngrok for Mercado Livre local callbacks
 
