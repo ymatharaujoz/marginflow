@@ -8,9 +8,13 @@ import { ApiClientError } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
 import { ProductHeader } from "./product-header";
+import { ProductFinancialIndicators } from "./product-financial-indicators";
 import { ProductInsights } from "./product-insights";
 import { ProductTable } from "./product-table";
-import { useProductData } from "../hooks/use-product-data";
+import {
+  formatReferenceMonthPtBr,
+  useProductData,
+} from "../hooks/use-product-data";
 import { buildProductCoverageNote } from "../calculations/product-insights";
 import type { CatalogStats, ProductInsight } from "../types/products";
 
@@ -25,10 +29,8 @@ function LoadingState() {
     <div className="space-y-8">
       <Skeleton className="h-24 w-full" />
       <SkeletonGrid rows={2} columns={4} height={80} />
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-        <Skeleton className="h-[400px] w-full" />
-        <Skeleton className="h-[300px] w-full" />
-      </div>
+      <Skeleton className="h-[170px] w-full rounded-[var(--radius-lg)]" />
+      <Skeleton className="h-[440px] w-full rounded-[var(--radius-lg)]" />
     </div>
   );
 }
@@ -118,6 +120,33 @@ function NoCostsState({ stats, onAdd }: { stats: CatalogStats } & { onAdd?: () =
   );
 }
 
+function ReferenceMonthToolbar({
+  options,
+  referenceMonth,
+  onReferenceMonthChange,
+}: {
+  options: readonly string[];
+  referenceMonth: string;
+  onReferenceMonthChange: (isoDay: string) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-2 shadow-sm">
+      <span className="text-xs font-semibold uppercase tracking-wider text-accent">Mês</span>
+      <select
+        className="h-7 rounded-md border-0 bg-transparent px-2 text-sm font-semibold text-foreground hover:bg-accent/5 focus:outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer"
+        onChange={(event) => onReferenceMonthChange(event.target.value)}
+        value={referenceMonth}
+      >
+        {options.map((iso) => (
+          <option key={iso} value={iso}>
+            {formatReferenceMonthPtBr(iso)}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export function ProductsHome({
   organizationName,
   onAddProduct,
@@ -125,6 +154,8 @@ export function ProductsHome({
 }: ProductsHomeProps) {
   const {
     data,
+    referenceMonth,
+    referenceMonthSelectOptions,
     stats,
     insights,
     rows,
@@ -133,6 +164,7 @@ export function ProductsHome({
     isLoading,
     error,
     isUnauthorized,
+    setReferenceMonth,
     refetch,
     goToPage,
   } = useProductData();
@@ -146,17 +178,46 @@ export function ProductsHome({
     return <ErrorState error={error} onRetry={refetch} />;
   }
 
+  const monthToolbar = (
+    <ReferenceMonthToolbar
+      onReferenceMonthChange={setReferenceMonth}
+      options={referenceMonthSelectOptions}
+      referenceMonth={referenceMonth}
+    />
+  );
+
   if (financialState === "empty") {
-    return <EmptyCatalogState onAdd={onAddProduct} />;
+    return (
+      <motion.div variants={fadeInVariants} initial="hidden" animate="visible" className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <ProductHeader organizationName={organizationName} stats={stats} />
+          {monthToolbar}
+        </div>
+        <EmptyCatalogState onAdd={onAddProduct} />
+      </motion.div>
+    );
   }
 
   if (financialState === "no-costs" && stats) {
-    return <NoCostsState stats={stats} onAdd={onAddProduct} />;
+    return (
+      <motion.div variants={fadeInVariants} initial="hidden" animate="visible" className="space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <ProductHeader organizationName={organizationName} stats={stats} />
+          {monthToolbar}
+        </div>
+        <NoCostsState stats={stats} onAdd={onAddProduct} />
+      </motion.div>
+    );
   }
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
-      <ProductHeader organizationName={organizationName} stats={stats} />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <ProductHeader organizationName={organizationName} stats={stats} />
+        {monthToolbar}
+      </div>
+
+      <ProductFinancialIndicators rows={rows} />
 
       {coverageNote ? (
         <Card variant="outlined" className="border-info/20 bg-info/5 p-4">
@@ -164,12 +225,10 @@ export function ProductsHome({
         </Card>
       ) : null}
 
-      <section className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0">
-          <ProductTable rows={rows} pagination={pagination} onPageChange={goToPage} />
-        </div>
+      <ProductInsights insights={insights} onInsightAction={onInsightAction} />
 
-        <ProductInsights insights={insights} onInsightAction={onInsightAction} />
+      <section className="min-w-0 w-full">
+        <ProductTable rows={rows} pagination={pagination} onPageChange={goToPage} />
       </section>
     </motion.div>
   );

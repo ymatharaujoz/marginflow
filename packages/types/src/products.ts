@@ -183,6 +183,29 @@ export type ProductAnalyticsRow = {
   hasSalesSignal: boolean;
   hasLinkedMarketplaceSignal: boolean;
   insufficientReasons: ProductAnalyticsInsufficientReason[];
+  dataSource: "monthly_performance" | "sync";
+};
+
+export type ProductAnalyticsScope = {
+  companyId: string | null;
+  companyRequired: boolean;
+  referenceMonth: string;
+};
+
+export type ProductMonthlyPerformanceDisplayRow = {
+  referenceMonth: string;
+  channel: string;
+  productName: string;
+  sku: string;
+  salesQuantity: number;
+  returnsQuantity: number;
+  unitCost: DecimalString;
+  salePrice: DecimalString;
+  commissionRate: DecimalString;
+  shippingFee: DecimalString;
+  taxRate: DecimalString;
+  packagingCost: DecimalString;
+  advertisingCost: DecimalString;
 };
 
 export type ProductAnalyticsCatalogStats = {
@@ -208,7 +231,9 @@ export type ProductCatalogSnapshot = {
 
 export type ProductAnalyticsSnapshot = ProductCatalogSnapshot & {
   productRows: ProductAnalyticsRow[];
+  monthlyPerformanceRows: ProductMonthlyPerformanceDisplayRow[];
   catalogStats: ProductAnalyticsCatalogStats;
   financialState: ProductFinancialState;
   dataGaps: ProductAnalyticsDataGap[];
+  scope: ProductAnalyticsScope;
 };

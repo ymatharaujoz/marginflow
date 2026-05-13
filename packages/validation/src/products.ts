@@ -6,6 +6,11 @@ const optionalDateField = z
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a YYYY-MM-DD date.")
   .nullable();
+const optionalReferenceMonthField = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-01$/, "Expected the first day of a month.")
+  .optional();
 
 function decimalField(label: string) {
   return z
@@ -87,6 +92,16 @@ export const syncedProductLinkSchema = z.object({
   productId: z.string().uuid(),
 });
 
+export const productAnalyticsQuerySchema = z.object({
+  companyId: z
+    .string()
+    .trim()
+    .transform((value) => (value.length > 0 ? value : undefined))
+    .optional()
+    .refine((value) => value === undefined || z.uuid().safeParse(value).success, "Invalid company id."),
+  referenceMonth: optionalReferenceMonthField,
+});
+
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type ProductCostFormInput = z.infer<typeof productCostFormSchema>;
@@ -96,3 +111,4 @@ export type AdCostUpdateInput = z.infer<typeof adCostUpdateSchema>;
 export type ManualExpenseFormInput = z.infer<typeof manualExpenseFormSchema>;
 export type ManualExpenseUpdateInput = z.infer<typeof manualExpenseUpdateSchema>;
 export type SyncedProductLinkInput = z.infer<typeof syncedProductLinkSchema>;
+export type ProductAnalyticsQueryInput = z.infer<typeof productAnalyticsQuerySchema>;

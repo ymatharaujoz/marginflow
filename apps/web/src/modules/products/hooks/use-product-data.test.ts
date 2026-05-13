@@ -38,16 +38,24 @@ describe("products protected fetchers", () => {
       dataGaps: [],
       financialState: "empty",
       manualExpenses: [],
+      monthlyPerformanceRows: [],
       productCosts: [],
       productRows: [],
       products: [],
+      scope: {
+        companyId: "11111111-1111-4111-8111-111111111111",
+        companyRequired: false,
+        referenceMonth: "2026-05-01",
+      },
       syncedProducts: [],
     });
 
-    await fetchProductCatalog(false);
+    await fetchProductCatalog({
+      referenceMonth: "2026-05-01",
+    });
 
     expect(apiClientMock.getValidatedData).toHaveBeenCalledWith(
-      "/products/analytics",
+      "/products/analytics?referenceMonth=2026-05-01",
       expect.any(Object),
     );
   });

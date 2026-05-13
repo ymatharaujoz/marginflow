@@ -200,9 +200,26 @@ describe("products controller", () => {
         totalProducts: 1,
         totalProductCosts: 1,
       },
-      dataGaps: ["shipping_cost_unavailable", "tax_amount_unavailable"],
+      dataGaps: [],
       financialState: "ready",
       manualExpenses: [],
+      monthlyPerformanceRows: [
+        {
+          advertisingCost: "10.00",
+          channel: "mercadolivre",
+          commissionRate: "0.100000",
+          packagingCost: "0.00",
+          productName: "Notebook",
+          referenceMonth: "2026-05-01",
+          returnsQuantity: 0,
+          salePrice: "100.00",
+          salesQuantity: 2,
+          shippingFee: "0.00",
+          sku: "NB-1",
+          taxRate: "0.000000",
+          unitCost: "80.00",
+        },
+      ],
       productCosts: [],
       productRows: [
         {
@@ -210,6 +227,7 @@ describe("products controller", () => {
           adSpend: "10.00",
           channel: "mercadolivre",
           contributionMargin: "90.00",
+          dataSource: "monthly_performance",
           grossProfit: "100.00",
           hasCost: true,
           hasLinkedMarketplaceSignal: true,
@@ -237,6 +255,11 @@ describe("products controller", () => {
         },
       ],
       products: [],
+      scope: {
+        companyId: "11111111-1111-4111-8111-111111111111",
+        companyRequired: false,
+        referenceMonth: "2026-05-01",
+      },
       syncedProducts: [
         {
           externalProductId: "MLB-1",
@@ -273,8 +296,16 @@ describe("products controller", () => {
           pendingSyncProducts: 1,
           totalProducts: 1,
         }),
-        dataGaps: ["shipping_cost_unavailable", "tax_amount_unavailable"],
+        dataGaps: [],
         financialState: "ready",
+        monthlyPerformanceRows: [
+          expect.objectContaining({
+            channel: "mercadolivre",
+            productName: "Notebook",
+            referenceMonth: "2026-05-01",
+            sku: "NB-1",
+          }),
+        ],
         productRows: [
           expect.objectContaining({
             actualRoas: "12.00",

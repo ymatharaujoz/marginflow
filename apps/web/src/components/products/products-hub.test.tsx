@@ -27,7 +27,7 @@ describe("ProductsHub", () => {
   });
 
   it("renders an empty catalog workspace", () => {
-    reactQueryMocks.useQuery.mockReturnValue({
+    reactQueryMocks.useQuery.mockReturnValueOnce({
       data: {
         adCosts: [],
         catalogStats: {
@@ -45,9 +45,15 @@ describe("ProductsHub", () => {
         dataGaps: [],
         financialState: "empty",
         manualExpenses: [],
+        monthlyPerformanceRows: [],
         productCosts: [],
         productRows: [],
         products: [],
+        scope: {
+          companyId: null,
+          companyRequired: false,
+          referenceMonth: "2026-05-01",
+        },
         syncedProducts: [],
       },
       error: null,
@@ -61,7 +67,7 @@ describe("ProductsHub", () => {
   });
 
   it("renders API failure state", () => {
-    reactQueryMocks.useQuery.mockReturnValue({
+    reactQueryMocks.useQuery.mockReturnValueOnce({
       data: null,
       error: new Error("Boom"),
       isLoading: false,

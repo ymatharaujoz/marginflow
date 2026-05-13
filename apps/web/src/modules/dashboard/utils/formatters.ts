@@ -21,6 +21,10 @@ export function formatPercent(
   const numeric = normalizeNumber(value);
   if (numeric === null) return "â€”";
 
+  if (numeric === 0 || Object.is(numeric, -0)) {
+    return "0.0%";
+  }
+
   return `${numeric.toFixed(options?.digits ?? 1)}%`;
 }
 

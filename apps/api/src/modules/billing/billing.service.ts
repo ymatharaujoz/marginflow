@@ -147,7 +147,9 @@ export class BillingService {
       return;
     }
 
-    if (subscription.status !== "active" && subscription.status !== "trialing") {
+    // Sincronizar também para subscriptions inativas/canceladas para manter dados atualizados
+    const syncableStatuses = new Set(["active", "trialing", "past_due", "unpaid", "paused"]);
+    if (!syncableStatuses.has(subscription.status)) {
       return;
     }
 
@@ -396,18 +398,15 @@ export class BillingService {
     organizationId: string,
     externalCustomerId: string | null,
   ) {
-    const subscriptionPeriod = subscription as Stripe.Subscription & {
-      current_period_end?: number;
-      current_period_start?: number;
-    };
     const customerId = externalCustomerId ?? this.getStripeCustomerId(subscription.customer);
     const billingCustomer = await this.upsertOrganizationBillingCustomerDb(db, {
       externalCustomerId: customerId,
       organizationId,
     });
     const interval = this.resolveInterval(subscription);
-    const currentPeriodStart = this.toDate(subscriptionPeriod.current_period_start);
-    const currentPeriodEnd = this.toDate(subscriptionPeriod.current_period_end);
+    // Stripe.Subscription já inclui current_period_start e current_period_end como timestamps
+    const currentPeriodStart = this.toDate(subscription.current_period_start);
+    const currentPeriodEnd = this.toDate(subscription.current_period_end);
     const existingSubscription = await db.query.subscriptions.findFirst({
       where: (table, { eq }) => eq(table.externalSubscriptionId, subscription.id),
     });

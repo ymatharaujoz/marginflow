@@ -1,30 +1,23 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  Package,
-  ArrowUpRight,
-  ArrowDownRight,
-  TrendingUp,
-  TrendingDown,
-  ChevronUp,
-  ChevronDown,
   ArrowUpDown,
-  Search,
+  ChevronDown,
+  ChevronUp,
   Filter,
-  X,
+  Package,
+  Search,
   Store,
-  HeartPulse,
+  X,
 } from "lucide-react";
-import { Card, EmptyState, Badge, Button, cn } from "@marginflow/ui";
-import { StatusBadge } from "@/components/ui-premium/status-badge";
+import { Badge, Card, EmptyState } from "@marginflow/ui";
 import { Pagination } from "@/components/ui-premium/pagination";
 import { slideInUpVariants } from "@/lib/animations";
-import type { ProductTableRow, PaginationState } from "../types/products";
-import { formatMoney, formatPercent, formatNumber } from "../utils/formatters";
+import type { PaginationState, ProductTableRow } from "../types/products";
+import { formatMoney, formatMultiplier, formatNumber, formatPercent } from "../utils/formatters";
 
-/** SWC/Turbopack parses `<motion.tr` poorly in some setups; use a capitalized alias. */
 const MotionTableRow = motion.tr;
 
 interface ProductTableProps {
@@ -35,49 +28,62 @@ interface ProductTableProps {
 }
 
 type SortKey =
+  | "channelLabel"
   | "name"
   | "sales"
   | "returns"
-  | "netSales"
-  | "revenue"
-  | "averageTicket"
-  | "commission"
+  | "unitCost"
+  | "sellingPrice"
+  | "commissionPct"
   | "shipping"
-  | "tax"
-  | "totalCost"
+  | "taxPct"
+  | "packagingCost"
   | "adSpend"
-  | "roas"
-  | "profit"
-  | "margin"
-  | "roi"
-  | "health";
+  | "revenue"
+  | "totalProfit"
+  | "unitProfit"
+  | "contributionMarginRatio"
+  | "roiRatio"
+  | "minimumRoas"
+  | "actualRoas";
+
+function compareSortValues(
+  a: ProductTableRow[SortKey],
+  b: ProductTableRow[SortKey],
+  direction: "asc" | "desc",
+): number {
+  const aNull = a === null || a === undefined || (typeof a === "number" && !Number.isFinite(a));
+  const bNull = b === null || b === undefined || (typeof b === "number" && !Number.isFinite(b));
+  if (aNull && bNull) {
+    return 0;
+  }
+  if (aNull) {
+    return 1;
+  }
+  if (bNull) {
+    return -1;
+  }
+  if (typeof a === "string" && typeof b === "string") {
+    return direction === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+  }
+
+  const an = Number(a);
+  const bn = Number(b);
+  return direction === "asc" ? an - bn : bn - an;
+}
+
 type SortDirection = "asc" | "desc" | null;
-
-const healthBadgeConfig = {
-  critical: { status: "error" as const, label: "Crítico" },
-  attention: { status: "warning" as const, label: "Atenção" },
-  neutral: { status: "inactive" as const, label: "Neutro" },
-  healthy: { status: "success" as const, label: "Saudável" },
-  scalable: { status: "active" as const, label: "Escalável" },
-};
-
-const channelLabels: Record<string, string> = {
-  mercadolivre: "MELI",
-};
 
 const marketplaceOptions = [{ value: "mercadolivre", label: "Mercado Livre" }];
 
-const healthOptions = [
-  { value: "critical", label: "Crítico", color: "bg-error" },
-  { value: "attention", label: "Atenção", color: "bg-warning" },
-  { value: "neutral", label: "Neutro", color: "bg-muted" },
-  { value: "healthy", label: "Saudável", color: "bg-success" },
-  { value: "scalable", label: "Escalável", color: "bg-accent" },
-];
-
 function getChannelBadge(channel: string) {
-  const label = channelLabels[channel] ?? "MELI";
-  return <Badge>{label}</Badge>;
+  const normalized = channel.trim().toLowerCase();
+
+  if (normalized === "mercadolivre") {
+    return <Badge>MELI</Badge>;
+  }
+
+  return <Badge>{channel}</Badge>;
 }
 
 export function ProductTable({
@@ -90,11 +96,8 @@ export function ProductTable({
     key: SortKey;
     direction: SortDirection;
   } | null>(null);
-
-  // Filter states
-  const [skuFilter, setSkuFilter] = useState("");
+  const [searchFilter, setSearchFilter] = useState("");
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>([]);
-  const [selectedHealth, setSelectedHealth] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
 
   const handleSort = (key: SortKey) => {
@@ -109,75 +112,50 @@ export function ProductTable({
     setSortConfig(direction ? { key, direction } : null);
   };
 
-  // Apply filters and sorting
   const filteredRows = useMemo(() => {
     let result = [...rows];
 
-    // SKU filter (case-insensitive, matches name or SKU)
-    if (skuFilter.trim()) {
-      const search = skuFilter.toLowerCase().trim();
+    if (searchFilter.trim()) {
+      const search = searchFilter.toLowerCase().trim();
       result = result.filter(
         (row) =>
-          row.name.toLowerCase().includes(search) ||
-          (row.sku && row.sku.toLowerCase().includes(search))
+          row.name.toLowerCase().includes(search) || row.sku.toLowerCase().includes(search),
       );
     }
 
-    // Marketplace filter
     if (selectedMarketplaces.length > 0) {
-      result = result.filter((row) =>
-        selectedMarketplaces.includes(row.channelLabel)
-      );
+      result = result.filter((row) => selectedMarketplaces.includes(row.channelLabel));
     }
 
-    // Health filter
-    if (selectedHealth.length > 0) {
-      result = result.filter((row) => selectedHealth.includes(row.health));
-    }
-
-    // Sorting
     if (sortConfig) {
-      const { key, direction } = sortConfig;
-      result.sort((a, b) => {
-        const aValue = a[key];
-        const bValue = b[key];
-
-        if (aValue === null || aValue === undefined) return 1;
-        if (bValue === null || bValue === undefined) return -1;
-
-        if (typeof aValue === "string" && typeof bValue === "string") {
-          return direction === "asc"
-            ? aValue.localeCompare(bValue)
-            : bValue.localeCompare(aValue);
-        }
-
-        if (typeof aValue === "number" && typeof bValue === "number") {
-          return direction === "asc" ? aValue - bValue : bValue - aValue;
-        }
-
-        return 0;
-      });
+      const { direction, key } = sortConfig;
+      result.sort((a, b) => compareSortValues(a[key], b[key], direction ?? "asc"));
     }
 
     return result;
-  }, [rows, skuFilter, selectedMarketplaces, selectedHealth, sortConfig]);
+  }, [rows, searchFilter, selectedMarketplaces, sortConfig]);
 
-  // Clear all filters
+  const filteredTotalPages = Math.max(1, Math.ceil(filteredRows.length / pagination.pageSize));
+  const safeCurrentPage = Math.min(pagination.currentPage, filteredTotalPages);
+
+  const visibleRows = useMemo(() => {
+    const start = (safeCurrentPage - 1) * pagination.pageSize;
+    const end = start + pagination.pageSize;
+    return filteredRows.slice(start, end);
+  }, [filteredRows, pagination.pageSize, safeCurrentPage]);
+
+  const hasActiveFilters = searchFilter.trim() || selectedMarketplaces.length > 0;
+
   const clearAllFilters = () => {
-    setSkuFilter("");
+    setSearchFilter("");
     setSelectedMarketplaces([]);
-    setSelectedHealth([]);
   };
-
-  const hasActiveFilters =
-    skuFilter.trim() ||
-    selectedMarketplaces.length > 0 ||
-    selectedHealth.length > 0;
 
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortConfig?.key !== column) {
       return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
     }
+
     return sortConfig.direction === "asc" ? (
       <ChevronUp className="h-3.5 w-3.5 text-accent" />
     ) : (
@@ -190,11 +168,11 @@ export function ProductTable({
       <Card padding="lg" className={className}>
         <div className="mb-4">
           <h3 className="text-sm font-semibold text-foreground">Produtos</h3>
-          <p className="text-xs text-muted-foreground">Performance por SKU</p>
+          <p className="text-xs text-muted-foreground">Grade mensal por SKU e canal</p>
         </div>
         <EmptyState
-          title="Nenhum produto cadastrado"
-          description="Comece criando seu primeiro produto para gerenciar custos e margens."
+          title="Nenhum dado mensal neste mês"
+          description="Selecione outra competência ou carregue registros em product_monthly_performance para exibir a grade operacional."
           icon={<Package className="h-6 w-6" />}
         />
       </Card>
@@ -204,43 +182,32 @@ export function ProductTable({
   return (
     <motion.div variants={slideInUpVariants} className={className}>
       <Card padding="lg" className="min-w-0 overflow-hidden">
-        {/* Header minimalista */}
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Produtos</h3>
-            <p className="text-xs text-muted-foreground/70">Performance por SKU</p>
+            <p className="text-xs text-muted-foreground/70">Grade mensal por SKU e canal</p>
           </div>
 
           <button
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => setShowFilters((value) => !value)}
             className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium transition-all duration-[var(--transition-fast)] ${
               showFilters || hasActiveFilters
                 ? "bg-accent text-white shadow-sm"
-                : "bg-surface-strong text-muted-foreground hover:text-foreground border border-border hover:border-border-strong"
+                : "border border-border bg-surface-strong text-muted-foreground hover:border-border-strong hover:text-foreground"
             }`}
           >
             <Filter className="h-3.5 w-3.5" />
             Filtros
-            {hasActiveFilters && (
-              <span className="ml-0.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white/25 px-1 text-[10px] font-semibold">
-                {selectedMarketplaces.length + selectedHealth.length + (skuFilter ? 1 : 0)}
-              </span>
-            )}
           </button>
         </div>
 
-        {/* Filter Bar - Experiência otimizada */}
-        {showFilters && (
+        {showFilters ? (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
             className="mb-5 rounded-[var(--radius-lg)] border border-border bg-surface-strong/50 p-4"
           >
-            {/* Grid de filtros */}
-            <div className="grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-start">
-              {/* Busca */}
+            <div className="grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                   <Search className="h-3.5 w-3.5 text-accent" />
@@ -249,14 +216,14 @@ export function ProductTable({
                 <div className="relative">
                   <input
                     type="text"
-                    value={skuFilter}
-                    onChange={(e) => setSkuFilter(e.target.value)}
+                    value={searchFilter}
+                    onChange={(event) => setSearchFilter(event.target.value)}
                     placeholder="Nome ou SKU do produto..."
                     className="h-9 w-full rounded-[var(--radius-md)] border border-border bg-background px-3 pr-8 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                   />
-                  {skuFilter ? (
+                  {searchFilter ? (
                     <button
-                      onClick={() => setSkuFilter("")}
+                      onClick={() => setSearchFilter("")}
                       className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -267,7 +234,6 @@ export function ProductTable({
                 </div>
               </div>
 
-              {/* Marketplace */}
               <div className="space-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                   <Store className="h-3.5 w-3.5 text-accent" />
@@ -276,91 +242,24 @@ export function ProductTable({
                 <div className="flex flex-wrap gap-1.5">
                   {marketplaceOptions.map((option) => {
                     const isSelected = selectedMarketplaces.includes(option.value);
+
                     return (
                       <button
                         key={option.value}
-                        onClick={() => {
-                          setSelectedMarketplaces((prev) =>
+                        onClick={() =>
+                          setSelectedMarketplaces((previous) =>
                             isSelected
-                              ? prev.filter((v) => v !== option.value)
-                              : [...prev, option.value]
-                          );
-                        }}
+                              ? previous.filter((value) => value !== option.value)
+                              : [...previous, option.value],
+                          )
+                        }
                         className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium transition-all duration-[var(--transition-fast)] ${
                           isSelected
                             ? "bg-accent text-white shadow-sm"
                             : "border border-border bg-background text-muted-foreground hover:border-border-strong hover:text-foreground"
                         }`}
                       >
-                        {isSelected && (
-                          <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white/20"
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </motion.span>
-                        )}
                         {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Status de Saúde */}
-              <div className="space-y-1.5">
-                <label className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                  <HeartPulse className="h-3.5 w-3.5 text-accent" />
-                  Status de saúde
-                </label>
-                <div className="flex flex-wrap gap-1.5">
-                  {healthOptions.map((option) => {
-                    const isSelected = selectedHealth.includes(option.value);
-                    const isActive = isSelected;
-                    return (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setSelectedHealth((prev) =>
-                            isSelected
-                              ? prev.filter((v) => v !== option.value)
-                              : [...prev, option.value]
-                          );
-                        }}
-                        className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-2.5 py-1.5 text-xs font-medium transition-all duration-[var(--transition-fast)] ${
-                          isActive
-                            ? option.value === "critical"
-                              ? "bg-error/15 text-error ring-1 ring-error/30"
-                              : option.value === "attention"
-                                ? "bg-warning/15 text-warning ring-1 ring-warning/30"
-                                : option.value === "healthy"
-                                  ? "bg-success/15 text-success ring-1 ring-success/30"
-                                  : option.value === "scalable"
-                                    ? "bg-accent/15 text-accent ring-1 ring-accent/30"
-                                    : "bg-muted/30 text-muted-foreground ring-1 ring-border"
-                            : "border border-border bg-background text-muted-foreground hover:border-border-strong hover:text-foreground"
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            option.value === "critical"
-                              ? "bg-error"
-                              : option.value === "attention"
-                                ? "bg-warning"
-                                : option.value === "healthy"
-                                  ? "bg-success"
-                                  : option.value === "scalable"
-                                    ? "bg-accent"
-                                    : "bg-muted-foreground"
-                          }`}
-                        />
-                        {option.label}
-                        {isActive && (
-                          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                            <X className="h-3 w-3" />
-                          </motion.span>
-                        )}
                       </button>
                     );
                   })}
@@ -368,141 +267,46 @@ export function ProductTable({
               </div>
             </div>
 
-            {/* Filtros ativos e limpar */}
-            {hasActiveFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                className="mt-4 flex items-center gap-2 border-t border-border/50 pt-3"
-              >
-                <span className="text-xs font-medium text-muted-foreground">Filtros ativos:</span>
-                <div className="flex flex-1 flex-wrap items-center gap-1.5">
-                  {skuFilter && (
-                    <span className="inline-flex items-center gap-1 rounded-[var(--radius-md)] bg-accent/10 px-2 py-1 text-xs font-medium text-accent">
-                      <Search className="h-3 w-3" />
-                      "{skuFilter}"
-                      <button
-                        onClick={() => setSkuFilter("")}
-                        className="ml-0.5 rounded p-0.5 hover:bg-accent/20"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  )}
-                  {selectedMarketplaces.map((m) => (
-                    <span
-                      key={m}
-                      className="inline-flex items-center gap-1 rounded-[var(--radius-md)] bg-accent/10 px-2 py-1 text-xs font-medium text-accent"
-                    >
-                      <Store className="h-3 w-3" />
-                      {marketplaceOptions.find((o) => o.value === m)?.label}
-                      <button
-                        onClick={() =>
-                          setSelectedMarketplaces((prev) => prev.filter((v) => v !== m))
-                        }
-                        className="ml-0.5 rounded p-0.5 hover:bg-accent/20"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </span>
-                  ))}
-                  {selectedHealth.map((h) => {
-                    const opt = healthOptions.find((o) => o.value === h);
-                    return (
-                      <span
-                        key={h}
-                        className={`inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2 py-1 text-xs font-medium ${
-                          h === "critical"
-                            ? "bg-error/10 text-error"
-                            : h === "attention"
-                              ? "bg-warning/10 text-warning"
-                              : h === "healthy"
-                                ? "bg-success/10 text-success"
-                                : h === "scalable"
-                                  ? "bg-accent/10 text-accent"
-                                  : "bg-muted/30 text-muted-foreground"
-                        }`}
-                      >
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${
-                            h === "critical"
-                              ? "bg-error"
-                              : h === "attention"
-                                ? "bg-warning"
-                                : h === "healthy"
-                                  ? "bg-success"
-                                  : h === "scalable"
-                                    ? "bg-accent"
-                                    : "bg-muted-foreground"
-                          }`}
-                        />
-                        {opt?.label}
-                        <button
-                          onClick={() => setSelectedHealth((prev) => prev.filter((v) => v !== h))}
-                          className="ml-0.5 rounded p-0.5 hover:bg-foreground/10"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
+            {hasActiveFilters ? (
+              <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+                <p className="text-xs text-muted-foreground">
+                  {filteredRows.length} resultado{filteredRows.length === 1 ? "" : "s"} encontrado
+                  {filteredRows.length === 1 ? "" : "s"}.
+                </p>
                 <button
                   onClick={clearAllFilters}
-                  className="inline-flex items-center gap-1 rounded-[var(--radius-md)] px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+                  className="text-xs font-medium text-accent transition-colors hover:text-accent/80"
                 >
-                  <X className="h-3.5 w-3.5" />
-                  Limpar tudo
+                  Limpar filtros
                 </button>
-              </motion.div>
-            )}
+              </div>
+            ) : null}
           </motion.div>
-        )}
+        ) : null}
 
-        {/* Scroll horizontal com colunas fixas */}
         <div className="relative -mx-6 min-w-0">
-          <div
-            className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain"
-            style={{
-              scrollbarWidth: 'thin',
-              scrollbarColor: 'var(--border-strong) transparent',
-            }}
-          >
-            <div className="min-w-[1200px] px-6">
-              <table className="w-full border-collapse text-sm">
-                <thead>
+          <div className="overflow-x-auto px-6">
+            <table className="w-full min-w-[1580px] border-separate border-spacing-0">
+              <thead>
                 <tr className="border-b border-border bg-surface-strong/95">
-                  {/* 1. Produto (com SKU) - STICKY LEFT */}
+                  <th
+                    onClick={() => handleSort("channelLabel")}
+                    className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center gap-1">
+                      Canal
+                      <SortIcon column="channelLabel" />
+                    </div>
+                  </th>
                   <th
                     onClick={() => handleSort("name")}
-                    className="sticky left-0 z-20 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
+                    className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[200px]"
                   >
                     <div className="flex items-center gap-1">
                       Produto
                       <SortIcon column="name" />
                     </div>
                   </th>
-
-                  {/* 2. Marketplace - STICKY LEFT */}
-                  <th className="sticky left-[240px] z-20 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-surface-strong/95 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                    Marketplace
-                  </th>
-
-                  {/* 3. Saúde - STICKY LEFT */}
-                  <th
-                    onClick={() => handleSort("health")}
-                    className="sticky left-[320px] z-20 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]"
-                  >
-                    <div className="flex items-center justify-center gap-1">
-                      Saúde
-                      <SortIcon column="health" />
-                    </div>
-                  </th>
-
-                  {/* COLUNAS SCROLLABLE */}
-                  <th className="w-4 bg-surface-strong/95"></th>
-
-                  {/* 4. Vendas */}
                   <th
                     onClick={() => handleSort("sales")}
                     className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
@@ -512,387 +316,245 @@ export function ProductTable({
                       <SortIcon column="sales" />
                     </div>
                   </th>
-                  {/* 5. Devoluções */}
                   <th
                     onClick={() => handleSort("returns")}
                     className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
                   >
                     <div className="flex items-center justify-end gap-1">
-                      Devol.
+                      Devoluções
                       <SortIcon column="returns" />
                     </div>
                   </th>
-                  {/* 6. Vendas Líquidas */}
                   <th
-                    onClick={() => handleSort("netSales")}
+                    onClick={() => handleSort("unitCost")}
                     className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
                   >
                     <div className="flex items-center justify-end gap-1">
-                      Líquida
-                      <SortIcon column="netSales" />
+                      Custo
+                      <SortIcon column="unitCost" />
                     </div>
                   </th>
-                  {/* 7. Receita */}
+                  <th
+                    onClick={() => handleSort("sellingPrice")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      PDV
+                      <SortIcon column="sellingPrice" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("commissionPct")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Comissão
+                      <SortIcon column="commissionPct" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("shipping")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Taxa/Frete
+                      <SortIcon column="shipping" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("taxPct")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Alíquota
+                      <SortIcon column="taxPct" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("packagingCost")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Embalagem
+                      <SortIcon column="packagingCost" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("adSpend")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Publicidade
+                      <SortIcon column="adSpend" />
+                    </div>
+                  </th>
                   <th
                     onClick={() => handleSort("revenue")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 border-l border-l-border-strong min-w-[100px]"
                   >
                     <div className="flex items-center justify-end gap-1">
                       Receita
                       <SortIcon column="revenue" />
                     </div>
                   </th>
-                  {/* 8. Ticket Médio */}
                   <th
-                    onClick={() => handleSort("averageTicket")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                    onClick={() => handleSort("totalProfit")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[110px]"
                   >
                     <div className="flex items-center justify-end gap-1">
-                      Ticket
-                      <SortIcon column="averageTicket" />
+                      Lucro Total
+                      <SortIcon column="totalProfit" />
                     </div>
                   </th>
-                  {/* 9. Comissão */}
                   <th
-                    onClick={() => handleSort("commission")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                    onClick={() => handleSort("unitProfit")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[120px]"
                   >
                     <div className="flex items-center justify-end gap-1">
-                      Comissão
-                      <SortIcon column="commission" />
+                      Lucro Unitário
+                      <SortIcon column="unitProfit" />
                     </div>
                   </th>
-                  {/* 10. Frete */}
                   <th
-                    onClick={() => handleSort("shipping")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                    onClick={() => handleSort("contributionMarginRatio")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[160px]"
                   >
                     <div className="flex items-center justify-end gap-1">
-                      Frete
-                      <SortIcon column="shipping" />
+                      Margem Contribuição
+                      <SortIcon column="contributionMarginRatio" />
                     </div>
                   </th>
-                  {/* 11. Imposto */}
                   <th
-                    onClick={() => handleSort("tax")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Imposto
-                      <SortIcon column="tax" />
-                    </div>
-                  </th>
-                  {/* 12. Custo */}
-                  <th
-                    onClick={() => handleSort("totalCost")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Custo
-                      <SortIcon column="totalCost" />
-                    </div>
-                  </th>
-                  {/* 13. ADS (Investimento) */}
-                  <th
-                    onClick={() => handleSort("adSpend")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Ads $
-                      <SortIcon column="adSpend" />
-                    </div>
-                  </th>
-                  {/* 14. ADS (ROAS) */}
-                  <th
-                    onClick={() => handleSort("roas")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      ROAS
-                      <SortIcon column="roas" />
-                    </div>
-                  </th>
-                  {/* 15. Lucro */}
-                  <th
-                    onClick={() => handleSort("profit")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Lucro
-                      <SortIcon column="profit" />
-                    </div>
-                  </th>
-                  {/* 16. Margem */}
-                  <th
-                    onClick={() => handleSort("margin")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Margem
-                      <SortIcon column="margin" />
-                    </div>
-                  </th>
-                  {/* 17. ROI */}
-                  <th
-                    onClick={() => handleSort("roi")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                    onClick={() => handleSort("roiRatio")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[90px]"
                   >
                     <div className="flex items-center justify-end gap-1">
                       ROI
-                      <SortIcon column="roi" />
+                      <SortIcon column="roiRatio" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("minimumRoas")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[110px]"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      ROAS Mínimo
+                      <SortIcon column="minimumRoas" />
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort("actualRoas")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[100px]"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      ROAS Real
+                      <SortIcon column="actualRoas" />
                     </div>
                   </th>
                 </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                {filteredRows.map((row, index) => {
-                  const returnRate = row.sales > 0 ? row.returns / row.sales : 0;
-                  const healthBadge = healthBadgeConfig[row.health];
+              </thead>
 
-                  return (
-                    <MotionTableRow
-                      key={row.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.03, duration: 0.3 }}
-                      className={cn(
-                        "transition-colors duration-150 hover:bg-foreground/5",
-                        !row.isActive && "opacity-60",
-                      )}
-                    >
-                      {/* 1. Produto (com SKU abaixo) - STICKY LEFT */}
-                      <td className="sticky left-0 z-10 px-3 py-3 bg-surface-strong shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
-                            <Package className="h-4 w-4 text-accent" />
-                          </div>
-                          <div className="min-w-0 max-w-[180px]">
-                            <p className="truncate text-sm font-medium text-foreground">
-                              {row.name}
-                            </p>
-                            <p className="truncate text-xs font-mono text-muted-foreground">
-                              {row.sku || "—"}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 2. Marketplace - STICKY LEFT */}
-                      <td className="sticky left-[240px] z-10 px-3 py-3 text-center bg-surface-strong shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                        {getChannelBadge(row.channelLabel)}
-                      </td>
-
-                      {/* 3. Saúde - STICKY LEFT */}
-                      <td className="sticky left-[320px] z-10 px-3 py-3 text-center bg-surface-strong shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
-                        <StatusBadge status={healthBadge.status} label={healthBadge.label} />
-                      </td>
-
-                      {/* ESPAÇADOR */}
-                      <td className="w-4 bg-surface-strong"></td>
-
-                      {/* 4. Vendas */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-foreground">{formatNumber(row.sales)}</span>
-                      </td>
-
-                      {/* 5. Devoluções */}
-                      <td className="px-3 py-3 text-right">
-                        <div className="flex flex-col items-end">
-                          <span
-                            className={cn(
-                              "text-sm",
-                              returnRate > 0.15 ? "text-error" : "text-foreground",
-                            )}
-                          >
-                            {formatNumber(row.returns)}
-                          </span>
-                          {returnRate > 0.05 && (
-                            <span className="text-[10px] text-muted-foreground">
-                              ({formatPercent(returnRate * 100, { digits: 0 })})</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 6. Vendas Líquidas */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm font-medium text-foreground">
-                          {formatNumber(row.netSales)}
-                        </span>
-                      </td>
-
-                      {/* 7. Receita */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm font-medium text-foreground">
-                          {formatMoney(row.revenue)}
-                        </span>
-                      </td>
-
-                      {/* 8. Ticket Médio */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          {formatMoney(row.averageTicket)}
-                        </span>
-                      </td>
-
-                      {/* 9. Comissão */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          {formatMoney(row.commission)}
-                        </span>
-                      </td>
-
-                      {/* 10. Frete */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          {formatMoney(row.shipping)}
-                        </span>
-                      </td>
-
-                      {/* 11. Imposto */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">{formatMoney(row.tax)}</span>
-                      </td>
-
-                      {/* 12. Custo */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          {formatMoney(row.totalCost)}
-                        </span>
-                      </td>
-
-                      {/* 13. ADS (Investimento) */}
-                      <td className="px-3 py-3 text-right">
-                        <span className="text-sm text-muted-foreground">
-                          {row.adSpend > 0 ? formatMoney(row.adSpend) : "—"}
-                        </span>
-                      </td>
-
-                      {/* 14. ADS (ROAS) */}
-                      <td className="px-3 py-3 text-right">
-                        {row.roas !== null && row.roas > 0 ? (
-                          <div className="flex items-center justify-end gap-1">
-                            {row.roas >= 3 ? (
-                              <TrendingUp className="h-3 w-3 text-success" />
-                            ) : row.roas < 1 ? (
-                              <TrendingDown className="h-3 w-3 text-error" />
-                            ) : null}
-                            <span
-                              className={cn(
-                                "text-sm font-medium",
-                                row.roas >= 3
-                                  ? "text-success"
-                                  : row.roas >= 1
-                                    ? "text-accent"
-                                    : "text-error",
-                              )}
-                            >
-                              {row.roas.toFixed(1)}x
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
-                      </td>
-
-                      {/* 15. Lucro */}
-                      <td className="px-3 py-3 text-right">
-                        <span
-                          className={cn(
-                            "text-sm font-semibold",
-                            row.profit >= 0 ? "text-success" : "text-error",
-                          )}
-                        >
-                          {formatMoney(row.profit)}
-                        </span>
-                      </td>
-
-                      {/* 16. Margem */}
-                      <td className="px-3 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {row.margin >= 20 ? (
-                            <ArrowUpRight className="h-3.5 w-3.5 text-success" />
-                          ) : row.margin < 10 ? (
-                            <ArrowDownRight className="h-3.5 w-3.5 text-error" />
-                          ) : null}
-                          <span
-                            className={cn(
-                              "text-sm font-medium",
-                              row.margin >= 20
-                                ? "text-success"
-                                : row.margin < 10
-                                  ? "text-error"
-                                  : "text-foreground",
-                            )}
-                          >
-                            {formatPercent(row.margin)}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* 17. ROI */}
-                      <td className="px-3 py-3 text-right">
-                        {row.roi !== null ? (
-                          <span
-                            className={cn(
-                              "text-sm font-medium",
-                              row.roi >= 50
-                                ? "text-success"
-                                : row.roi > 0
-                                  ? "text-accent"
-                                  : "text-error",
-                            )}
-                          >
-                            {formatPercent(row.roi, { digits: 0 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </MotionTableRow>
-                  );
-                })}
-                </tbody>
-              </table>
-
-              {/* Empty state for filtered results */}
-              {filteredRows.length === 0 && rows.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="flex flex-col items-center justify-center py-12 text-center"
-                >
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-strong">
-                    <Search className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">
-                    Nenhum produto encontrado
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Tente ajustar os filtros para ver mais resultados.
-                  </p>
-                  <button
-                    onClick={clearAllFilters}
-                    className="mt-3 inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent-soft transition-colors"
+              <tbody>
+                {visibleRows.map((row, index) => (
+                  <MotionTableRow
+                    key={row.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.03 }}
+                    className="border-b border-border/50 hover:bg-surface-strong/30"
                   >
-                    <X className="h-3.5 w-3.5" />
-                    Limpar filtros
-                  </button>
-                </motion.div>
-              )}
-            </div>
+                    <td className="px-3 py-3 text-left">{getChannelBadge(row.channelLabel)}</td>
+                    <td className="px-3 py-3 text-left">
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-sm font-medium text-foreground">{row.name}</span>
+                        <span className="text-xs text-muted-foreground">{row.sku}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatNumber(row.sales)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatNumber(row.returns)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatMoney(row.unitCost)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatMoney(row.sellingPrice)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatPercent(row.commissionPct)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatMoney(row.shipping)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatPercent(row.taxPct)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatMoney(row.packagingCost)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatMoney(row.adSpend)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right border-l border-l-border-strong">
+                      <span className="text-sm font-semibold text-foreground">{formatMoney(row.revenue)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm font-semibold text-foreground">{formatMoney(row.totalProfit)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm font-semibold text-foreground">{formatMoney(row.unitProfit)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatPercent(
+                          row.contributionMarginRatio !== null && row.contributionMarginRatio !== undefined
+                            ? row.contributionMarginRatio * 100
+                            : null,
+                          { digits: 2 },
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatPercent(
+                          row.roiRatio !== null && row.roiRatio !== undefined ? row.roiRatio * 100 : null,
+                          { digits: 2 },
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm font-semibold text-foreground">{formatMultiplier(row.minimumRoas)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm font-semibold text-foreground">{formatMultiplier(row.actualRoas)}</span>
+                    </td>
+                  </MotionTableRow>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Paginação */}
-        {pagination.totalPages > 1 && (
-          <div className="mt-4 pt-4 border-t border-border">
+        {filteredRows.length === 0 ? (
+          <div className="rounded-[var(--radius-lg)] border border-dashed border-border/70 bg-background-soft/60 px-6 py-10 text-center">
+            <p className="text-sm font-medium text-foreground">Nenhum produto encontrado</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Ajuste os filtros para visualizar outros SKUs ou canais.
+            </p>
+          </div>
+        ) : null}
+
+        {filteredRows.length > 0 ? (
+          <div className="mt-6">
             <Pagination
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
+              currentPage={safeCurrentPage}
               onPageChange={onPageChange}
+              totalPages={filteredTotalPages}
             />
           </div>
-        )}
+        ) : null}
       </Card>
     </motion.div>
   );

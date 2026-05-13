@@ -114,7 +114,7 @@ export function InsightCard({
             )}
           </div>
           
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground line-clamp-2">
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground whitespace-pre-line line-clamp-3">
             {description}
           </p>
           

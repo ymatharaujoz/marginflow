@@ -2,6 +2,10 @@ import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProductsService } from "./products.service";
 
+vi.mock("@/modules/integrations/synced-products.read-model", () => ({
+  listSyncedProductsReadModel: vi.fn().mockResolvedValue([]),
+}));
+
 function createInsertMock(returnValue: unknown) {
   return vi.fn().mockReturnValue({
     values: vi.fn().mockReturnValue({
@@ -40,17 +44,27 @@ function createService() {
         findFirst: vi.fn(),
         findMany: vi.fn(),
       },
+      companies: {
+        findFirst: vi.fn(),
+        findMany: vi.fn(),
+      },
+      productMonthlyPerformance: {
+        findMany: vi.fn(),
+      },
     },
     update: vi.fn(),
   };
 
+  const financeService = {
+    buildFinanceSnapshot: vi.fn(),
+  };
+
   return {
     db,
+    financeService,
     service: new ProductsService(
       db as never,
-      {
-        buildFinanceSnapshot: vi.fn(),
-      } as never,
+      financeService as never,
     ),
   };
 }
@@ -61,7 +75,7 @@ describe("ProductsService", () => {
   });
 
   it("returns products with latest cost snapshots", async () => {
-    const { db, service } = createService();
+    const { db, financeService, service } = createService();
 
     db.query.products.findMany.mockResolvedValue([
       {
@@ -278,5 +292,129 @@ describe("ProductsService", () => {
         productId: "missing",
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("uses company-scoped monthly performance in analytics snapshots", async () => {
+    const { db, financeService, service } = createService();
+
+    const product = {
+      createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      id: "11111111-1111-4111-8111-111111111111",
+      isActive: true,
+      name: "Notebook",
+      organizationId: "org_1",
+      sellingPrice: "100.00",
+      sku: "NB-1",
+      updatedAt: new Date("2026-05-01T10:00:00.000Z"),
+    };
+
+    db.query.companies.findFirst.mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      organizationId: "org_1",
+      userId: "user_1",
+    });
+    db.query.products.findMany.mockResolvedValue([product]);
+    db.query.productCosts.findMany.mockResolvedValue([
+      {
+        amount: "25.00",
+        costType: "base",
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        currency: "BRL",
+        effectiveFrom: "2026-05-01",
+        id: "cost_1",
+        notes: null,
+        organizationId: "org_1",
+        productId: product.id,
+        updatedAt: new Date("2026-05-01T10:00:00.000Z"),
+      },
+    ]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+    db.query.productMonthlyPerformance.findMany.mockResolvedValue([
+      {
+        advertisingCost: "10.00",
+        channel: "mercadolivre",
+        commissionRate: "0.100000",
+        companyId: "22222222-2222-4222-8222-222222222222",
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        id: "perf_1",
+        notes: null,
+        organizationId: "org_1",
+        packagingCost: "2.00",
+        productName: "Notebook",
+        referenceMonth: "2026-05-01",
+        returnsQuantity: 1,
+        salePrice: "100.00",
+        salesQuantity: 3,
+        shippingFee: "6.00",
+        sku: "NB-1",
+        taxRate: "0.090000",
+        unitCost: "25.00",
+        updatedAt: new Date("2026-05-01T10:00:00.000Z"),
+        userId: "user_1",
+      },
+    ]);
+
+    financeService.buildFinanceSnapshot.mockResolvedValue({
+      adCosts: [],
+      manualExpenses: [],
+      orders: [],
+      products: [
+        {
+          id: product.id,
+          isActive: true,
+          name: "Notebook",
+          sellingPrice: "100.00",
+          sku: "NB-1",
+          unitCost: "25.00",
+        },
+      ],
+    });
+
+    const snapshot = await service.getAnalyticsSnapshot(
+      {
+        organizationId: "org_1",
+        userId: "user_1",
+      },
+      {
+        companyId: "22222222-2222-4222-8222-222222222222",
+        referenceMonth: "2026-05-01",
+      },
+    );
+
+    expect(snapshot.dataGaps).toEqual([]);
+    expect(snapshot.scope).toEqual({
+      companyId: "22222222-2222-4222-8222-222222222222",
+      companyRequired: false,
+      referenceMonth: "2026-05-01",
+    });
+    expect(snapshot.productRows).toEqual([
+      expect.objectContaining({
+        dataSource: "monthly_performance",
+        netSales: 2,
+        packagingCost: "4.00",
+        returns: 1,
+        sales: 3,
+        shippingCost: "12.00",
+        taxAmount: "18.00",
+      }),
+    ]);
+    expect(snapshot.monthlyPerformanceRows).toEqual([
+      {
+        advertisingCost: "10.00",
+        channel: "mercadolivre",
+        commissionRate: "0.100000",
+        packagingCost: "2.00",
+        productName: "Notebook",
+        referenceMonth: "2026-05-01",
+        returnsQuantity: 1,
+        salePrice: "100.00",
+        salesQuantity: 3,
+        shippingFee: "6.00",
+        sku: "NB-1",
+        taxRate: "0.090000",
+        unitCost: "25.00",
+      },
+    ]);
   });
 });

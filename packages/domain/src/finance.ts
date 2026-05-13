@@ -47,9 +47,26 @@ export type FinancialManualExpenseInput = {
   incurredAt: string | null;
 };
 
+export type FinancialMonthlyPerformanceInput = {
+  id: string;
+  channel: string;
+  productId: string | null;
+  sku: string | null;
+  salesQuantity: number;
+  returnsQuantity: number;
+  unitCost: DecimalString;
+  salePrice: DecimalString;
+  commissionRate: DecimalString;
+  shippingFee: DecimalString;
+  taxRate: DecimalString;
+  packagingCost: DecimalString;
+  advertisingCost: DecimalString;
+};
+
 export type FinanceSnapshot = {
   adCosts: readonly FinancialAdCostInput[];
   manualExpenses: readonly FinancialManualExpenseInput[];
+  monthlyPerformance?: readonly FinancialMonthlyPerformanceInput[];
   orders: readonly FinancialOrderInput[];
   products: readonly FinancialProductInput[];
 };
@@ -153,6 +170,7 @@ export type ProductAnalyticsMetric = {
   hasSalesSignal: boolean;
   hasLinkedMarketplaceSignal: boolean;
   insufficientReasons: ProductAnalyticsInsufficientReason[];
+  dataSource: "monthly_performance" | "sync";
 };
 
 export type ChannelProfitabilityMetric = {
@@ -663,10 +681,22 @@ export function buildFinanceOverview(snapshot: FinanceSnapshot): FinanceOverview
 type ProductAggregate = {
   accumulator: MutableAccumulator;
   channels: Set<string>;
+  dataSource: "monthly_performance" | "sync";
+  packagingCost: bigint;
+  productCost: bigint;
+  returns: number;
+  sales: number;
+  shippingCost: bigint;
+  taxAmount: bigint;
 };
 
 function buildProductAggregateMap(snapshot: FinanceSnapshot) {
   const productsById = new Map(snapshot.products.map((product) => [product.id, product]));
+  const productIdsBySku = new Map(
+    snapshot.products
+      .map((product) => [normalizeComparableSku(product.sku), product.id] as const)
+      .filter((entry): entry is readonly [string, string] => entry[0] !== null),
+  );
   const aggregateMap = new Map<string, ProductAggregate>();
 
   for (const order of snapshot.orders) {
@@ -689,7 +719,14 @@ function buildProductAggregateMap(snapshot: FinanceSnapshot) {
 
       const existing = aggregateMap.get(matchedProduct.id) ?? {
         accumulator: createAccumulator(),
+        dataSource: "sync" as const,
         channels: new Set<string>(),
+        packagingCost: 0n,
+        productCost: 0n,
+        returns: 0,
+        sales: 0,
+        shippingCost: 0n,
+        taxAmount: 0n,
       };
       aggregateMap.set(matchedProduct.id, existing);
 
@@ -701,8 +738,10 @@ function buildProductAggregateMap(snapshot: FinanceSnapshot) {
       existing.accumulator.netRevenue += itemRevenue;
       existing.accumulator.totalFees += feeAllocations[index] ?? 0n;
       existing.accumulator.totalCogs += cogs;
+      existing.productCost += cogs;
       existing.accumulator.unitsSold += quantity;
       existing.accumulator.ordersCount += 1;
+      existing.sales += quantity;
       existing.channels.add(order.provider);
     }
   }
@@ -720,20 +759,123 @@ function buildProductAggregateMap(snapshot: FinanceSnapshot) {
 
     const existing = aggregateMap.get(matchedProduct.id) ?? {
       accumulator: createAccumulator(),
+      dataSource: "sync" as const,
       channels: new Set<string>(),
+      packagingCost: 0n,
+      productCost: 0n,
+      returns: 0,
+      sales: 0,
+      shippingCost: 0n,
+      taxAmount: 0n,
     };
     aggregateMap.set(matchedProduct.id, existing);
     existing.accumulator.totalAdCosts += parseMoney(adCost.amount);
     existing.channels.add(adCost.channel);
   }
 
+  const monthlyRowsByProductId = new Map<string, FinancialMonthlyPerformanceInput[]>();
+
+  for (const row of snapshot.monthlyPerformance ?? []) {
+    const productId =
+      row.productId ??
+      (normalizeComparableSku(row.sku) ? productIdsBySku.get(normalizeComparableSku(row.sku)!) ?? null : null);
+
+    if (!productId || !productsById.has(productId)) {
+      continue;
+    }
+
+    const rows = monthlyRowsByProductId.get(productId) ?? [];
+    rows.push(row);
+    monthlyRowsByProductId.set(productId, rows);
+  }
+
+  for (const [productId, rows] of monthlyRowsByProductId) {
+    const accumulator = createAccumulator();
+    const channels = new Set<string>();
+    let returns = 0;
+    let shippingCost = 0n;
+    let taxAmount = 0n;
+    let packagingCost = 0n;
+    let productCost = 0n;
+    let salesQuantity = 0;
+
+    for (const row of rows) {
+      const sales = Math.max(0, row.salesQuantity);
+      const rowReturns = Math.max(0, Math.min(row.returnsQuantity, sales));
+      const netSales = Math.max(0, sales - rowReturns);
+      const revenue = parseMoney(row.salePrice) * BigInt(netSales);
+      const rowProductCost = parseMoney(row.unitCost) * BigInt(netSales);
+      const commission = multiplyMoneyByRate(revenue, row.commissionRate);
+      const rowShipping = parseMoney(row.shippingFee) * BigInt(netSales);
+      const rowTax = multiplyMoneyByRate(revenue, row.taxRate);
+      const rowPackaging = parseMoney(row.packagingCost) * BigInt(netSales);
+      const advertising = parseMoney(row.advertisingCost);
+
+      accumulator.grossRevenue += revenue;
+      accumulator.netRevenue += revenue;
+      accumulator.totalCogs += rowProductCost + rowShipping + rowTax + rowPackaging;
+      accumulator.totalFees += commission;
+      accumulator.totalAdCosts += advertising;
+      accumulator.unitsSold += netSales;
+      accumulator.ordersCount += sales > 0 ? 1 : 0;
+      productCost += rowProductCost;
+      salesQuantity += sales;
+      returns += rowReturns;
+      shippingCost += rowShipping;
+      taxAmount += rowTax;
+      packagingCost += rowPackaging;
+      channels.add(row.channel.trim().toLowerCase());
+    }
+
+    aggregateMap.set(productId, {
+      accumulator,
+      channels,
+      dataSource: "monthly_performance",
+      packagingCost,
+      productCost,
+      returns,
+      sales: salesQuantity,
+      shippingCost,
+      taxAmount,
+    });
+  }
+
   return aggregateMap;
+}
+
+function normalizeComparableSku(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  return normalized.length > 0 ? normalized : null;
+}
+
+function multiplyMoneyByRate(amount: bigint, rate: DecimalString) {
+  const normalized = rate.trim();
+
+  if (!/^\d+(?:\.\d{1,6})?$/.test(normalized)) {
+    throw new Error(`Invalid decimal rate: ${rate}`);
+  }
+
+  const [wholePart, fractionPart = ""] = normalized.split(".");
+  const RATE_SCALE = 1_000_000n;
+  const scaledRate = BigInt(wholePart) * RATE_SCALE + BigInt((fractionPart + "000000").slice(0, 6));
+
+  return divideRounded(amount * scaledRate, RATE_SCALE);
 }
 
 export function buildProductAnalyticsMetrics(
   snapshot: FinanceSnapshot,
   options?: {
     linkedMarketplaceSignalsByProductId?: Record<string, boolean>;
+    /**
+     * When aggregates yield `unknown` (no order/ad/monthly channel), set channel from this map.
+     * Lets API attach ML (or other) catalog hints for zero-data rows without changing
+     * `hasLinkedMarketplaceSignal` semantics.
+     */
+    channelWhenUnknownByProductId?: Record<string, string>;
   },
 ): ProductAnalyticsMetric[] {
   const aggregateMap = buildProductAggregateMap(snapshot);
@@ -743,11 +885,18 @@ export function buildProductAnalyticsMetrics(
       const aggregate = aggregateMap.get(product.id) ?? {
         accumulator: createAccumulator(),
         channels: new Set<string>(),
+        dataSource: "sync" as const,
+        packagingCost: 0n,
+        productCost: 0n,
+        returns: 0,
+        sales: 0,
+        shippingCost: 0n,
+        taxAmount: 0n,
       };
       const grossProfitCents = computeGrossProfitCents(aggregate.accumulator);
       const contributionMarginCents = computeContributionMarginCents(aggregate.accumulator);
       const netSales = aggregate.accumulator.unitsSold;
-      const hasCost = parseMoney(product.unitCost) > 0n;
+      const hasCost = parseMoney(product.unitCost) > 0n || aggregate.productCost > 0n;
       const hasSalesSignal = netSales > 0;
       const hasLinkedMarketplaceSignal = Boolean(
         options?.linkedMarketplaceSignalsByProductId?.[product.id],
@@ -767,8 +916,13 @@ export function buildProductAnalyticsMetrics(
       }
 
       const channelValues = [...aggregate.channels];
-      const channel =
+      let channel: string =
         channelValues.length === 0 ? "unknown" : channelValues.length === 1 ? channelValues[0] : "mixed";
+
+      const channelHint = options?.channelWhenUnknownByProductId?.[product.id];
+      if (channel === "unknown" && channelHint) {
+        channel = channelHint;
+      }
 
       return {
         actualRoas:
@@ -778,6 +932,7 @@ export function buildProductAnalyticsMetrics(
         adSpend: formatMoney(aggregate.accumulator.totalAdCosts),
         channel,
         contributionMargin: formatMoney(contributionMarginCents),
+        dataSource: aggregate.dataSource,
         grossProfit: formatMoney(grossProfitCents),
         hasCost,
         hasLinkedMarketplaceSignal,
@@ -794,11 +949,11 @@ export function buildProductAnalyticsMetrics(
             ? divideMoney(aggregate.accumulator.grossRevenue, contributionMarginCents, 2)
             : INFINITY_VALUE,
         netSales,
-        packagingCost: ZERO_MONEY,
-        productCost: formatMoney(aggregate.accumulator.totalCogs),
+        packagingCost: formatMoney(aggregate.packagingCost),
+        productCost: formatMoney(aggregate.productCost),
         productId: product.id,
         productName: product.name,
-        returns: 0,
+        returns: aggregate.returns,
         revenue: formatMoney(aggregate.accumulator.grossRevenue),
         roi:
           aggregate.accumulator.totalCogs > 0n
@@ -808,10 +963,10 @@ export function buildProductAnalyticsMetrics(
           netSales > 0
             ? divideMoneyAcrossCount(aggregate.accumulator.grossRevenue, netSales)
             : product.sellingPrice,
-        sales: aggregate.accumulator.unitsSold,
-        shippingCost: ZERO_MONEY,
+        sales: aggregate.sales,
+        shippingCost: formatMoney(aggregate.shippingCost),
         sku: product.sku,
-        taxAmount: ZERO_MONEY,
+        taxAmount: formatMoney(aggregate.taxAmount),
         totalProfit: formatMoney(contributionMarginCents),
         unitProfit:
           netSales > 0

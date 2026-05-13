@@ -1,6 +1,7 @@
 import type {
   ProductAnalyticsRow,
   ProductFinancialState,
+  ProductMonthlyPerformanceDisplayRow,
 } from "@marginflow/types";
 import { parseProtectedNumber } from "@/lib/protected-numbers";
 import type {
@@ -14,33 +15,74 @@ function toNumber(value: string) {
   return parseProtectedNumber(value, { allowInfinity: true }) ?? 0;
 }
 
-function calculateHealth(row: ProductAnalyticsRow): ProductTableRow["health"] {
-  const margin = toNumber(row.margin);
-  const roi = toNumber(row.roi);
-  const roas = toNumber(row.actualRoas);
-  const profit = toNumber(row.totalProfit);
+function resolveNetLiquidSales(salesQuantity: number, returnsQuantity: number): number {
+  const sales = Math.max(0, salesQuantity);
+  const cappedReturns = Math.max(0, Math.min(returnsQuantity, sales));
+  return Math.max(0, sales - cappedReturns);
+}
 
-  if (!row.hasSalesSignal) {
-    return "attention";
-  }
+function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow): {
+  netLiquidSales: number;
+  revenue: number;
+  totalProfit: number;
+  unitProfit: number | null;
+  contributionMarginRatio: number | null;
+  roiRatio: number | null;
+  minimumRoas: number | null;
+  actualRoas: number | null;
+} {
+  const netLiquidSales = resolveNetLiquidSales(row.salesQuantity, row.returnsQuantity);
 
-  if (profit < 0 || margin < 0) {
-    return "critical";
-  }
+  const sellingPrice = toNumber(row.salePrice);
+  const commissionRate = toNumber(row.commissionRate);
+  const shippingFee = toNumber(row.shippingFee);
+  const taxRate = toNumber(row.taxRate);
+  const packagingCost = toNumber(row.packagingCost);
+  const unitCost = toNumber(row.unitCost);
+  const advertising = toNumber(row.advertisingCost);
 
-  if (margin >= 40 && roi >= 100 && roas >= 3) {
-    return "scalable";
-  }
+  const revenue = sellingPrice * netLiquidSales;
 
-  if (margin >= 25 && roi >= 50) {
-    return "healthy";
-  }
+  const totalProfit =
+    revenue
+    - revenue * commissionRate
+    - shippingFee * netLiquidSales
+    - revenue * taxRate
+    - packagingCost * netLiquidSales
+    - unitCost * netLiquidSales;
 
-  if (margin >= 15) {
-    return "neutral";
-  }
+  const unitProfit = netLiquidSales > 0 ? totalProfit / netLiquidSales : null;
+  const contributionMarginRatio =
+    unitProfit !== null && sellingPrice > 0 ? unitProfit / sellingPrice : null;
+  const roiRatio = unitProfit !== null && unitCost > 0 ? unitProfit / unitCost : null;
+  const minimumRoas =
+    contributionMarginRatio !== null && contributionMarginRatio > 0
+      ? 1 / contributionMarginRatio
+      : null;
+  const actualRoas = advertising > 0 ? revenue / advertising : null;
 
-  return "attention";
+  return {
+    actualRoas,
+    contributionMarginRatio,
+    minimumRoas,
+    netLiquidSales,
+    revenue,
+    roiRatio,
+    totalProfit,
+    unitProfit,
+  };
+}
+
+function getProductId(row: { name: string; sku: string | null }): string {
+  return row.sku?.trim() ? row.sku : row.name;
+}
+
+function resolveMinimumRoas(row: ProductAnalyticsRow): number | null {
+  const contribution = parseProtectedNumber(row.contributionMargin) ?? 0;
+  if (contribution <= 0) return null;
+  const raw = parseProtectedNumber(row.minimumRoas, { allowInfinity: true });
+  if (raw === null || raw === Number.POSITIVE_INFINITY || !Number.isFinite(raw)) return null;
+  return raw;
 }
 
 export function buildCatalogStats(data: ProductCatalogData): CatalogStats {
@@ -50,125 +92,181 @@ export function buildCatalogStats(data: ProductCatalogData): CatalogStats {
 export function buildProductInsights(
   data: ProductCatalogData,
   stats: CatalogStats,
+  rows: ProductTableRow[],
 ): ProductInsight[] {
   const insights: ProductInsight[] = [];
 
-  if (stats.productsWithoutCost > 0) {
-    insights.push({
-      actionLabel: "Cadastrar custos",
-      description:
-        "Produtos ativos sem custo cadastrado nao geram metricas de lucratividade precisas.",
-      href: "/app/products",
-      id: "products-without-cost",
-      priority: "high",
-      title: `${stats.productsWithoutCost} produto${stats.productsWithoutCost > 1 ? "s" : ""} sem custo`,
-      type: "alert",
+  // Agregar métricas
+  let totalRevenue = 0;
+  let totalAdSpend = 0;
+
+  const productMetrics: Array<{
+    id: string;
+    name: string;
+    sku: string;
+    profit: number;
+    shipping: number;
+    adSpend: number;
+    roas: number | null;
+  }> = [];
+
+  for (const row of rows) {
+    totalRevenue += row.revenue;
+    totalAdSpend += row.adSpend;
+
+    productMetrics.push({
+      id: row.id,
+      name: row.name,
+      sku: row.sku,
+      profit: row.totalProfit,
+      shipping: row.shipping,
+      adSpend: row.adSpend,
+      roas: row.actualRoas,
     });
   }
 
-  if (stats.pendingSyncProducts > 0) {
+  const overallRoas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : null;
+
+  // Ordenar por lucro (crescente e decrescente)
+  const byProfitDesc = [...productMetrics].sort((a, b) => b.profit - a.profit);
+  const byProfitAsc = [...productMetrics].sort((a, b) => a.profit - b.profit);
+
+  // Ordenar por ROAS (apenas produtos com investimento significativo em ads e ROAS válido)
+  const byRoasDesc = [...productMetrics]
+    .filter((p) => p.adSpend > 10 && p.roas !== null && p.roas > 0 && p.roas < 50 && Number.isFinite(p.roas))
+    .sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0));
+
+  // ===== INSIGHT 1: Produto com maior lucro =====
+  if (byProfitDesc.length > 0) {
+    const bestProduct = byProfitDesc[0];
+    if (bestProduct.profit > 0) {
+      insights.push({
+        description: `${bestProduct.name} (${bestProduct.sku}) gerou ${formatMoney(bestProduct.profit)} de lucro. Maior lucro do catálogo.`,
+        href: "/app/products",
+        id: "best-profit-product",
+        priority: "medium",
+        title: "Maior lucro",
+        type: "growth",
+      });
+    }
+  }
+
+  // ===== INSIGHT 2: Produto com frete mais caro =====
+  const byShippingDesc = [...productMetrics]
+    .filter((p) => p.shipping > 0)
+    .sort((a, b) => b.shipping - a.shipping);
+
+  if (byShippingDesc.length > 0) {
+    const highestShippingProduct = byShippingDesc[0];
+
     insights.push({
-      actionLabel: "Revisar",
-      actionKey: "open-synced-review",
-      description:
-        "Revise os produtos sincronizados do Mercado Livre para importar ou vincular ao catalogo.",
+      description: `${highestShippingProduct.name} (${highestShippingProduct.sku}) tem o frete mais caro.`,
       href: "/app/products",
-      id: "pending-sync",
+      id: "highest-shipping-product",
       priority: "medium",
-      title: `${stats.pendingSyncProducts} pendente${stats.pendingSyncProducts > 1 ? "s" : ""} de revisao`,
-      type: "tip",
-    });
-  }
-
-  const negativeProfitProducts = data.productRows.filter((row) => toNumber(row.totalProfit) < 0);
-
-  if (negativeProfitProducts.length > 0) {
-    insights.push({
-      actionLabel: "Revisar rentabilidade",
-      description: "Alguns produtos ja possuem sinal real de prejuizo e precisam de atencao.",
-      href: "/app/products",
-      id: "negative-profit",
-      priority: "high",
-      title: `${negativeProfitProducts.length} produto${negativeProfitProducts.length > 1 ? "s" : ""} com prejuizo`,
+      title: "Frete mais caro",
       type: "alert",
     });
   }
 
-  const healthyRows = data.productRows.filter(
-    (row) => row.hasSalesSignal && row.insufficientReasons.length === 0,
-  );
+  // ===== INSIGHT 3: Produto com publicidade mais eficiente =====
+  if (byRoasDesc.length > 0) {
+    const bestRoasProduct = byRoasDesc[0];
+    const roasValue = bestRoasProduct.roas ?? 0;
+    const revenueFromAds = bestRoasProduct.adSpend * roasValue;
 
-  if (
-    healthyRows.length > 0 &&
-    stats.productsWithoutCost === 0 &&
-    stats.pendingSyncProducts === 0 &&
-    negativeProfitProducts.length === 0
-  ) {
+    let roasLabel = "";
+    if (roasValue >= 5) roasLabel = "excelente";
+    else if (roasValue >= 3) roasLabel = "muito boa";
+    else if (roasValue >= 2) roasLabel = "boa";
+    else roasLabel = "baixa";
+
     insights.push({
-      description: "Os principais produtos com sinal real estao com custo, vinculo e margem saudavel.",
-      id: "healthy-catalog",
-      priority: "low",
-      title: "Catalogo saudavel",
+      description: `${bestRoasProduct.name} (${bestRoasProduct.sku}): ROAS de ${roasValue.toFixed(1)}x (${roasLabel}). Investiu ${formatMoney(bestRoasProduct.adSpend)} e retornou ${formatMoney(revenueFromAds)}.`,
+      href: "/app/products",
+      id: "best-roas-product",
+      priority: "medium",
+      title: "Publicidade mais eficiente",
       type: "growth",
     });
   }
 
-  if (stats.syncedProductsTotal === 0 && stats.totalProducts > 0) {
+  // ===== INSIGHT 4: Publicidade eficiente (geral) =====
+  if (totalAdSpend > 0 && overallRoas !== null) {
+    if (overallRoas >= 4) {
+      insights.push({
+        description: `ROAS geral de ${overallRoas.toFixed(1)}x. Performance excelente, considere aumentar investimento.`,
+        href: "/app/products",
+        id: "high-overall-roas",
+        priority: "medium",
+        title: "Publicidade eficiente",
+        type: "growth",
+      });
+    } else if (overallRoas >= 2) {
+      insights.push({
+        description: `ROAS geral de ${overallRoas.toFixed(1)}x. Performance boa, dentro da meta.`,
+        href: "/app/products",
+        id: "medium-overall-roas",
+        priority: "low",
+        title: "Publicidade eficiente",
+        type: "growth",
+      });
+    } else {
+      insights.push({
+        description: `ROAS geral de ${overallRoas.toFixed(1)}x. Investimento em ads está com baixo retorno.`,
+        href: "/app/products",
+        id: "low-overall-roas",
+        priority: "high",
+        title: "Publicidade ineficiente",
+        type: "alert",
+      });
+    }
+  }
+
+  // Se não tiver publicidade, mostra insight sobre isso
+  if (totalAdSpend === 0 && byProfitDesc.length > 0) {
     insights.push({
-      actionLabel: "Conectar",
-      description:
-        "Conecte sua conta do Mercado Livre para enriquecer a lucratividade com sinal operacional real.",
-      href: "/app/integrations",
-      id: "no-sync",
-      priority: "medium",
-      title: "Conecte o Mercado Livre",
-      type: "tip",
+      description: "Nenhum investimento em publicidade registrado. Considere investir nos produtos de maior margem.",
+      href: "/app/products",
+      id: "no-ad-spend",
+      priority: "low",
+      title: "Sem investimento em Ads",
+      type: "info",
     });
   }
 
   return insights.slice(0, 4);
 }
 
-export function buildProductTableRows(data: ProductCatalogData): ProductTableRow[] {
-  const productById = new Map(data.products.map((product) => [product.id, product] as const));
+function formatMoney(value: number): string {
+  return value.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
 
-  return data.productRows.map((row) => {
-    const product = productById.get(row.productId);
-    const revenue = toNumber(row.revenue);
-    const commission = toNumber(row.marketplaceCommission);
-    const shipping = toNumber(row.shippingCost);
-    const tax = toNumber(row.taxAmount);
-    const productCost = toNumber(row.productCost);
-    const packagingCost = toNumber(row.packagingCost);
-    const adSpend = toNumber(row.adSpend);
-    const profit = toNumber(row.totalProfit);
-    const netSales = row.netSales;
+export function buildProductTableRows(data: ProductCatalogData): ProductTableRow[] {
+  return data.monthlyPerformanceRows.map((row) => {
+    const financials = deriveRowFinancials(row);
 
     return {
-      adSpend,
-      averageTicket: netSales > 0 ? revenue / netSales : toNumber(row.salePrice),
+      ...financials,
+      adSpend: toNumber(row.advertisingCost),
       channelLabel: row.channel,
-      commission,
-      health: calculateHealth(row),
-      id: row.productId,
-      isActive: row.isActive,
-      latestCost: product?.latestCost ? Number(product.latestCost.amount) : null,
-      margin: toNumber(row.margin),
-      name: row.name,
-      netSales,
-      packagingCost,
-      productCost,
-      profit,
-      returns: row.returns,
-      revenue,
-      roi: toNumber(row.roi),
-      roas: toNumber(row.actualRoas),
-      sales: row.sales,
+      commissionPct: toNumber(row.commissionRate) * 100,
+      id: `${row.referenceMonth}:${row.channel}:${row.sku}`,
+      name: row.productName,
+      packagingCost: toNumber(row.packagingCost),
+      referenceMonth: row.referenceMonth,
+      returns: row.returnsQuantity,
+      sales: row.salesQuantity,
       sellingPrice: toNumber(row.salePrice),
-      shipping,
+      shipping: toNumber(row.shippingFee),
       sku: row.sku,
-      tax,
-      totalCost: productCost + packagingCost + commission + shipping + tax + adSpend,
+      taxPct: toNumber(row.taxRate) * 100,
+      unitCost: toNumber(row.unitCost),
     };
   });
 }
@@ -199,5 +297,5 @@ export function buildProductCoverageNote(data: ProductCatalogData | null | undef
     return null;
   }
 
-  return `Cobertura parcial do snapshot atual: ${labels.join(", ")} ainda aparecem como zero explicito quando a fonte operacional nao existe.`;
+  return `Este mês ainda não tem performance mensal suficiente: ${labels.join(", ")}.`;
 }

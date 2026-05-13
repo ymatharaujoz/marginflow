@@ -153,7 +153,7 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-display), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
   letter-spacing: -0.02em;
 }
 
@@ -258,13 +258,13 @@ h4 {
 /* ─── Marketing site fonts ─── */
 
 .marketing-site {
-  font-family: var(--font-marketing-sans), var(--font-body), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
 }
 
 .marketing-site h1,
 .marketing-site h2,
 .marketing-site h3 {
-  font-family: var(--font-marketing-display), var(--font-display), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-body), system-ui, -apple-system, sans-serif;
   letter-spacing: -0.03em;
 }
 

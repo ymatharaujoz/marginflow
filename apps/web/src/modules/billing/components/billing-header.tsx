@@ -75,34 +75,9 @@ export function BillingHeader({
             </h1>
             {getStatusBadge()}
           </div>
-          <p className="text-sm text-muted-foreground">
-            Gerencie o plano de <span className="font-medium text-foreground">{organizationName}</span>
-            {!isPendingOnboarding && interval && (
-              <>
-                {" — "}
-                <span className="inline-flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5" />
-                  Próxima cobrança: {" "}
-                  <span className="font-medium text-foreground">{formatDate(currentPeriodEnd)}</span>
-                </span>
-              </>
-            )}
-          </p>
         </div>
       </div>
 
-      {/* Barra de info com badges */}
-      {!isPendingOnboarding && isActive && (
-        <div className="flex flex-wrap items-center gap-2 border-y border-border py-4">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
-            <CreditCard className="h-3.5 w-3.5" />
-            Plano {formatInterval(interval || "monthly")}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            Pagamento processado via Stripe
-          </span>
-        </div>
-      )}
     </motion.div>
   );
 }

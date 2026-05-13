@@ -1,19 +1,22 @@
-import { and } from "drizzle-orm";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
+import { readFile } from "node:fs/promises";
 import { createDatabaseClient } from "./client";
 import { createPostgresConnection } from "./connection";
 import { readMigrationDatabaseUrl } from "./database-url";
 import { loadRepoEnv } from "./load-repo-env";
 import {
-  accounts,
+  companies,
   marketplaceConnections,
   organizationMembers,
   organizations,
   products,
+  productMonthlyPerformance,
   subscriptions,
   syncRuns,
   users,
 } from "./schema";
+import { buildGestaoSeedRows, type GestaoSeedSource } from "./seed-data";
+import { readSeedUserId } from "./seed-config";
 
 loadRepoEnv(import.meta.url);
 
@@ -35,10 +38,8 @@ async function run() {
 async function seedDatabase(
   db: ReturnType<typeof createDatabaseClient>,
 ) {
-  const seededAccountId = "account_demo_owner_google";
   const organizationSlug = "demo-org";
-  const userEmail = "owner@marginflow.local";
-  const seededUserId = "user_demo_owner";
+  const seededUserId = readSeedUserId();
 
   await db
     .insert(organizations)
@@ -56,61 +57,48 @@ async function seedDatabase(
     throw new Error("Failed to load seeded organization.");
   }
 
-  await db
-    .insert(users)
-    .values({
-      id: seededUserId,
-      email: userEmail,
-      name: "Demo Owner",
-      emailVerified: true,
-    })
-    .onConflictDoNothing({ target: users.email });
-
   const user = await db.query.users.findFirst({
-    where: eq(users.email, userEmail),
+    where: eq(users.id, seededUserId),
   });
 
   if (!user) {
-    throw new Error("Failed to load seeded user.");
+    throw new Error(
+      `Seed user not found. Create the user first and set SEED_USER_ID=${seededUserId}.`,
+    );
+  }
+
+  await db
+    .insert(companies)
+    .values({
+      code: "GESTAO",
+      isActive: true,
+      name: "Gestao Abril e Maio",
+      organizationId: organization.id,
+      userId: user.id,
+    })
+    .onConflictDoNothing({
+      target: [companies.organizationId, companies.code],
+    });
+
+  const company = await db.query.companies.findFirst({
+    where: and(eq(companies.organizationId, organization.id), eq(companies.code, "GESTAO")),
+  });
+
+  if (!company) {
+    throw new Error("Failed to load seeded company.");
   }
 
   await db
     .insert(organizationMembers)
     .values({
       organizationId: organization.id,
-      userId: user.id,
+      userId: seededUserId,
       role: "owner",
       isDefault: true,
     })
     .onConflictDoNothing({
       target: [organizationMembers.userId, organizationMembers.organizationId],
     });
-
-  const existingAccount = await db.query.accounts.findFirst({
-    where: and(eq(accounts.providerId, "google"), eq(accounts.accountId, userEmail)),
-  });
-
-  if (!existingAccount) {
-    await db.insert(accounts).values({
-      id: seededAccountId,
-      userId: user.id,
-      providerId: "google",
-      accountId: userEmail,
-    });
-  }
-
-  const existingProduct = await db.query.products.findFirst({
-    where: and(eq(products.organizationId, organization.id), eq(products.sku, "DEMO-001")),
-  });
-
-  if (!existingProduct) {
-    await db.insert(products).values({
-      organizationId: organization.id,
-      name: "Produto Demo",
-      sku: "DEMO-001",
-      sellingPrice: "129.90",
-    });
-  }
 
   const existingSubscription = await db.query.subscriptions.findFirst({
     where: and(
@@ -120,6 +108,10 @@ async function seedDatabase(
   });
 
   if (!existingSubscription) {
+    const now = new Date();
+    const periodEnd = new Date(now);
+    periodEnd.setMonth(periodEnd.getMonth() + 1);
+
     await db.insert(subscriptions).values({
       organizationId: organization.id,
       billingCustomerId: null,
@@ -128,6 +120,76 @@ async function seedDatabase(
       planCode: "starter-monthly",
       status: "active",
       interval: "monthly",
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+    });
+  }
+
+  const gestaoSeed = buildGestaoSeedRows(
+    await readGestaoSeedSource(),
+    {
+      organizationId: organization.id,
+      userId: user.id,
+    },
+  );
+
+  const existingProducts = await db.query.products.findMany({
+    columns: {
+      sku: true,
+    },
+    where: and(
+      eq(products.organizationId, organization.id),
+      inArray(products.sku, gestaoSeed.productRows.map((row) => row.sku)),
+    ),
+  });
+  const existingProductSkus = new Set(existingProducts.map((row) => row.sku).filter(Boolean));
+
+  for (const row of gestaoSeed.productRows) {
+    if (existingProductSkus.has(row.sku)) {
+      continue;
+    }
+
+    await db.insert(products).values(row);
+  }
+
+  const existingPerformanceRows = await db.query.productMonthlyPerformance.findMany({
+    columns: {
+      channel: true,
+      companyId: true,
+      referenceMonth: true,
+      sku: true,
+    },
+    where: and(eq(productMonthlyPerformance.organizationId, organization.id), eq(productMonthlyPerformance.userId, user.id)),
+  });
+  const existingPerformanceKeys = new Set(
+    existingPerformanceRows.map((row) => `${row.companyId}:${row.referenceMonth}:${row.channel}:${row.sku}`),
+  );
+
+  for (const row of gestaoSeed.performanceRows) {
+    const performanceKey = `${company.id}:${row.referenceMonth}:${row.channel}:${row.sku}`;
+
+    if (existingPerformanceKeys.has(performanceKey)) {
+      continue;
+    }
+
+    await db.insert(productMonthlyPerformance).values({
+      advertisingCost: row.advertisingCost,
+      channel: row.channel,
+      commissionRate: row.commissionRate,
+      companyId: company.id,
+      notes: `Importado de dados_gestao_abril_maio.json (${row.companyCode})`,
+      organizationId: row.organizationId,
+      packagingCost: row.packagingCost,
+      productName: row.productName,
+      referenceMonth: row.referenceMonth,
+      returnsQuantity: row.returnsQuantity,
+      salePrice: row.salePrice,
+      salesQuantity: row.salesQuantity,
+      shippingFee: row.shippingFee,
+      sku: row.sku,
+      taxRate: row.taxRate,
+      unitCost: row.unitCost,
+      userId: row.userId,
     });
   }
 
@@ -161,6 +223,12 @@ async function seedDatabase(
       finishedAt: new Date("2026-04-20T09:01:00.000Z"),
     });
   }
+}
+
+async function readGestaoSeedSource() {
+  const seedFile = new URL("../../../dados_gestao_abril_maio.json", import.meta.url);
+  const raw = await readFile(seedFile, "utf8");
+  return JSON.parse(raw) as GestaoSeedSource;
 }
 
 run().catch((error) => {
