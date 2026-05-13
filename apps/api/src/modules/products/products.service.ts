@@ -1,19 +1,29 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { buildProductAnalyticsMetrics } from "@marginflow/domain";
+import { buildProductAnalyticsMetrics, type FinancialMonthlyPerformanceInput } from "@marginflow/domain";
 import { and, desc, eq } from "drizzle-orm";
 import type {
   AdCost,
+  Company,
   DatabaseClient,
   ManualExpense,
   Product,
   ProductCost,
+  ProductMonthlyPerformance,
 } from "@marginflow/database";
-import { adCosts, manualExpenses, productCosts, products } from "@marginflow/database";
+import {
+  adCosts,
+  companies,
+  manualExpenses,
+  productCosts,
+  productMonthlyPerformance,
+  products,
+} from "@marginflow/database";
 import type {
   AdCostFormValues,
   AdCostRecord,
   ManualExpenseFormValues,
   ManualExpenseRecord,
+  ProductAnalyticsScope,
   ProductAnalyticsCatalogStats,
   ProductAnalyticsDataGap,
   ProductAnalyticsSnapshot,
@@ -22,6 +32,7 @@ import type {
   ProductCostRecord,
   ProductFormValues,
   ProductListItem,
+  ProductMonthlyPerformanceDisplayRow,
   ProductRecord,
 } from "@marginflow/types";
 import { DATABASE_CLIENT } from "@/common/tokens";
@@ -32,6 +43,39 @@ type ProductUpdateInput = Partial<ProductFormValues>;
 type ProductCostUpdateInput = Partial<ProductCostFormValues>;
 type AdCostUpdateInput = Partial<AdCostFormValues>;
 type ManualExpenseUpdateInput = Partial<ManualExpenseFormValues>;
+type TenantContext = {
+  organizationId: string;
+  userId: string;
+};
+type AnalyticsQueryInput = {
+  companyId?: string;
+  referenceMonth?: string;
+};
+
+function getSaoPauloCurrentReferenceMonth(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+  }).formatToParts(now);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+
+  if (!year || !month) {
+    return now.toISOString().slice(0, 7) + "-01";
+  }
+
+  return `${year}-${month}-01`;
+}
+
+function normalizeComparableSku(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const normalized = value.trim().toUpperCase();
+  return normalized.length > 0 ? normalized : null;
+}
 
 @Injectable()
 export class ProductsService {
@@ -285,23 +329,37 @@ export class ProductsService {
     };
   }
 
-  async getAnalyticsSnapshot(organizationId: string): Promise<ProductAnalyticsSnapshot> {
+  async getAnalyticsSnapshot(
+    context: TenantContext,
+    query: AnalyticsQueryInput = {},
+  ): Promise<ProductAnalyticsSnapshot> {
+    const scope = await this.resolveAnalyticsScope(context, query);
     const [productsList, costRows, adCostRows, expenseRows, rawProductRows, financeSnapshot] =
       await Promise.all([
-        this.listProducts(organizationId),
-        this.listProductCosts(organizationId),
-        this.listAdCosts(organizationId),
-        this.listManualExpenses(organizationId),
+        this.listProducts(context.organizationId),
+        this.listProductCosts(context.organizationId),
+        this.listAdCosts(context.organizationId),
+        this.listManualExpenses(context.organizationId),
         this.db.query.products.findMany({
           orderBy: (table) => [desc(table.createdAt)],
-          where: (table) => eq(table.organizationId, organizationId),
+          where: (table) => eq(table.organizationId, context.organizationId),
         }),
-        this.financeService.buildFinanceSnapshot(organizationId),
+        this.financeService.buildFinanceSnapshot(context.organizationId),
       ]);
+    const monthlyPerformanceRows = await this.readMonthlyPerformanceForAnalytics(context, scope);
+    const monthlyPerformanceDisplayRows = monthlyPerformanceRows.map((row) =>
+      this.toMonthlyPerformanceDisplayRow(row),
+    );
+    const enrichedFinanceSnapshot = {
+      ...financeSnapshot,
+      monthlyPerformance: monthlyPerformanceRows.map((row) =>
+        this.toFinancialMonthlyPerformance(row, rawProductRows),
+      ),
+    };
 
     const syncedProducts = await listSyncedProductsReadModel({
       db: this.db,
-      organizationId,
+      organizationId: context.organizationId,
       productsList: rawProductRows,
       providerSlug: "mercadolivre",
     });
@@ -310,13 +368,25 @@ export class ProductsService {
         .filter((product) => product.linkedProduct?.id)
         .map((product) => [product.linkedProduct!.id, true] as const),
     );
-    const productRows = buildProductAnalyticsMetrics(financeSnapshot, {
+    const channelWhenUnknownByProductId: Record<string, string> = {};
+    for (const sp of syncedProducts) {
+      if (sp.linkedProduct?.id) {
+        channelWhenUnknownByProductId[sp.linkedProduct.id] = "mercadolivre";
+        continue;
+      }
+      for (const match of sp.suggestedMatches) {
+        channelWhenUnknownByProductId[match.productId] = "mercadolivre";
+      }
+    }
+    const productRows = buildProductAnalyticsMetrics(enrichedFinanceSnapshot, {
+      channelWhenUnknownByProductId,
       linkedMarketplaceSignalsByProductId,
     }).map((row) => ({
       actualRoas: row.actualRoas,
       adSpend: row.adSpend,
       channel: row.channel,
       contributionMargin: row.contributionMargin,
+      dataSource: row.dataSource,
       grossProfit: row.grossProfit,
       hasCost: row.hasCost,
       hasLinkedMarketplaceSignal: row.hasLinkedMarketplaceSignal,
@@ -357,9 +427,11 @@ export class ProductsService {
       dataGaps: this.buildAnalyticsDataGaps(),
       financialState,
       manualExpenses: expenseRows,
+      monthlyPerformanceRows: monthlyPerformanceDisplayRows,
       productCosts: costRows,
       productRows,
       products: productsList,
+      scope,
       syncedProducts,
     };
   }
@@ -411,7 +483,9 @@ export class ProductsService {
       return "insufficient";
     }
 
-    const hasCost = activeProducts.some((product) => product.latestCost !== null);
+    const hasCost =
+      activeProducts.some((product) => product.latestCost !== null) ||
+      productRows.some((row) => row.hasCost);
 
     if (!hasCost) {
       return "no-costs";
@@ -423,12 +497,115 @@ export class ProductsService {
   }
 
   private buildAnalyticsDataGaps(): ProductAnalyticsDataGap[] {
-    return [
-      "returns_unavailable",
-      "shipping_cost_unavailable",
-      "tax_amount_unavailable",
-      "packaging_cost_unavailable",
-    ];
+    return [];
+  }
+
+  private async resolveAnalyticsScope(
+    context: TenantContext,
+    query: AnalyticsQueryInput,
+  ): Promise<ProductAnalyticsScope> {
+    const referenceMonth = query.referenceMonth ?? getSaoPauloCurrentReferenceMonth();
+
+    if (query.companyId) {
+      await this.ensureCompanyAccess(context, query.companyId);
+
+      return {
+        companyId: query.companyId,
+        companyRequired: false,
+        referenceMonth,
+      };
+    }
+
+    return {
+      companyId: null,
+      companyRequired: false,
+      referenceMonth,
+    };
+  }
+
+  private async ensureCompanyAccess(context: TenantContext, companyId: string): Promise<Company> {
+    const company = await this.db.query.companies.findFirst({
+      where: (table) =>
+        and(
+          eq(table.id, companyId),
+          eq(table.organizationId, context.organizationId),
+          eq(table.userId, context.userId),
+        ),
+    });
+
+    if (!company) {
+      throw new NotFoundException("Company not found.");
+    }
+
+    return company;
+  }
+
+  private async readMonthlyPerformanceForAnalytics(
+    context: TenantContext,
+    scope: ProductAnalyticsScope,
+  ): Promise<ProductMonthlyPerformance[]> {
+    return this.db.query.productMonthlyPerformance.findMany({
+      orderBy: (table) => [table.channel, table.productName, table.sku],
+      where: scope.companyId
+        ? (table) =>
+            and(
+              eq(table.organizationId, context.organizationId),
+              eq(table.userId, context.userId),
+              eq(table.companyId, scope.companyId!),
+              eq(table.referenceMonth, scope.referenceMonth),
+            )
+        : (table) =>
+            and(
+              eq(table.organizationId, context.organizationId),
+              eq(table.userId, context.userId),
+              eq(table.referenceMonth, scope.referenceMonth),
+            ),
+    });
+  }
+
+  private toFinancialMonthlyPerformance(
+    row: ProductMonthlyPerformance,
+    productRows: Product[],
+  ): FinancialMonthlyPerformanceInput {
+    const matchedProduct = productRows.find(
+      (product) => normalizeComparableSku(product.sku) === normalizeComparableSku(row.sku),
+    );
+
+    return {
+      advertisingCost: String(row.advertisingCost),
+      channel: row.channel,
+      commissionRate: String(row.commissionRate),
+      id: row.id,
+      packagingCost: String(row.packagingCost),
+      productId: matchedProduct?.id ?? null,
+      returnsQuantity: row.returnsQuantity,
+      salePrice: String(row.salePrice),
+      salesQuantity: row.salesQuantity,
+      shippingFee: String(row.shippingFee),
+      sku: row.sku,
+      taxRate: String(row.taxRate),
+      unitCost: String(row.unitCost),
+    };
+  }
+
+  private toMonthlyPerformanceDisplayRow(
+    row: ProductMonthlyPerformance,
+  ): ProductMonthlyPerformanceDisplayRow {
+    return {
+      advertisingCost: String(row.advertisingCost),
+      channel: row.channel,
+      commissionRate: String(row.commissionRate),
+      packagingCost: String(row.packagingCost),
+      productName: row.productName,
+      referenceMonth: row.referenceMonth,
+      returnsQuantity: row.returnsQuantity,
+      salePrice: String(row.salePrice),
+      salesQuantity: row.salesQuantity,
+      shippingFee: String(row.shippingFee),
+      sku: row.sku,
+      taxRate: String(row.taxRate),
+      unitCost: String(row.unitCost),
+    };
   }
 
   private async ensureProductAccess(organizationId: string, productId: string) {

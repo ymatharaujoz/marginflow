@@ -349,6 +349,57 @@ describe("@marginflow/domain finance overview", () => {
     ]);
   });
 
+  it("uses monthly performance rows for returns, shipping, tax, and packaging when available", () => {
+    expect(
+      buildProductAnalyticsMetrics(
+        {
+          ...snapshot,
+          monthlyPerformance: [
+            {
+              advertisingCost: "10.00",
+              channel: "mercadolivre",
+              commissionRate: "0.100000",
+              id: "perf_1",
+              packagingCost: "2.00",
+              productId: "product_1",
+              returnsQuantity: 1,
+              salePrice: "100.00",
+              salesQuantity: 3,
+              shippingFee: "6.00",
+              sku: "ABC-1",
+              taxRate: "0.090000",
+              unitCost: "25.00",
+            },
+          ],
+        },
+        {
+          linkedMarketplaceSignalsByProductId: {
+            product_1: true,
+          },
+        },
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          dataSource: "monthly_performance",
+          grossProfit: "96.00",
+          marketplaceCommission: "20.00",
+          netSales: 2,
+          packagingCost: "4.00",
+          productCost: "50.00",
+          productId: "product_1",
+          returns: 1,
+          revenue: "200.00",
+          sales: 3,
+          shippingCost: "12.00",
+          taxAmount: "18.00",
+          totalProfit: "86.00",
+          unitProfit: "43.00",
+        }),
+      ]),
+    );
+  });
+
   it("emits explicit insufficient reasons for products without sales signal", () => {
     expect(
       buildProductAnalyticsMetrics(
@@ -383,6 +434,42 @@ describe("@marginflow/domain finance overview", () => {
           productId: "product_3",
           revenue: "0.00",
           sales: 0,
+        }),
+      ]),
+    );
+  });
+
+  it("infers marketplace channel from hints when performance stack has no channel data", () => {
+    expect(
+      buildProductAnalyticsMetrics(
+        {
+          ...snapshot,
+          products: [
+            ...snapshot.products,
+            {
+              id: "product_linked_idle",
+              isActive: true,
+              name: "Linked No Sales",
+              sellingPrice: "10.00",
+              sku: "IDLE-1",
+              unitCost: "5.00",
+            },
+          ],
+        },
+        {
+          channelWhenUnknownByProductId: {
+            product_linked_idle: "mercadolivre",
+          },
+          linkedMarketplaceSignalsByProductId: {},
+        },
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          channel: "mercadolivre",
+          hasLinkedMarketplaceSignal: false,
+          hasSalesSignal: false,
+          productId: "product_linked_idle",
         }),
       ]),
     );

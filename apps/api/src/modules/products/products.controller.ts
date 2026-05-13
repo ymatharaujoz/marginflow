@@ -1,10 +1,10 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@/modules/auth/auth.guard";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
 import { ProductsService } from "./products.service";
-import { CreateProductRequestDto, UpdateProductRequestDto } from "./products.dto";
+import { CreateProductRequestDto, ProductAnalyticsQueryDto, UpdateProductRequestDto } from "./products.dto";
 
 @Controller("products")
 @UseGuards(AuthGuard, EntitlementGuard)
@@ -23,9 +23,18 @@ export class ProductsController {
   }
 
   @Get("analytics")
-  async getAnalyticsSnapshot(@CurrentAuthContext() authContext: AuthenticatedRequestContext) {
+  async getAnalyticsSnapshot(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Query() query: ProductAnalyticsQueryDto,
+  ) {
     return {
-      data: await this.productsService.getAnalyticsSnapshot(authContext.organization!.id),
+      data: await this.productsService.getAnalyticsSnapshot(
+        {
+          organizationId: authContext.organization!.id,
+          userId: authContext.user.id,
+        },
+        query,
+      ),
       error: null,
     };
   }

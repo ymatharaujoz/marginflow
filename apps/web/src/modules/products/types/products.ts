@@ -22,28 +22,34 @@ export type CatalogStats = ProductAnalyticsCatalogStats;
 export type ProductTableRow = {
   id: string;
   name: string;
-  sku: string | null;
+  sku: string;
   channelLabel: string;
   sales: number;
   returns: number;
-  netSales: number;
-  revenue: number;
-  averageTicket: number;
-  commission: number;
-  shipping: number;
-  tax: number;
-  productCost: number;
-  packagingCost: number;
-  totalCost: number;
-  adSpend: number;
-  roas: number | null;
-  profit: number;
-  margin: number;
-  roi: number | null;
-  health: "critical" | "attention" | "neutral" | "healthy" | "scalable";
-  isActive: boolean;
+  /** Venda líquida: vendas − devoluções (devoluções limitadas às vendas) */
+  netLiquidSales: number;
+  unitCost: number;
   sellingPrice: number;
-  latestCost: number | null;
+  commissionPct: number;
+  shipping: number;
+  taxPct: number;
+  packagingCost: number;
+  adSpend: number;
+  /** PDV × venda líquida */
+  revenue: number;
+  /** Contribution-style profit without advertising (formula from ops sheet) */
+  totalProfit: number;
+  /** totalProfit ÷ netLiquidSales (null if no units) */
+  unitProfit: number | null;
+  /** unitProfit ÷ PDV (null if PDV = 0 or no unit profit context) */
+  contributionMarginRatio: number | null;
+  /** unitProfit ÷ unitCost (null if cost = 0 or no unit profit context) */
+  roiRatio: number | null;
+  /** 1 ÷ contributionMarginRatio (null if ratio ≤ 0) */
+  minimumRoas: number | null;
+  /** revenue ÷ ad spend (null if no ad spend) */
+  actualRoas: number | null;
+  referenceMonth: string;
 };
 
 export type PaginationState = {

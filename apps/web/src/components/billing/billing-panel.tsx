@@ -252,7 +252,7 @@ export function BillingPanel({
           <span className="text-xs text-muted-foreground">Escolha seu plano</span>
         </div>
 
-        <h1 className="mb-4 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+        <h1 className="mb-4 font-[family-name:var(--font-body)] text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           Ative sua assinatura
         </h1>
 

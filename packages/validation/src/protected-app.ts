@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const decimalPattern = /^-?\d+(?:\.\d{1,2})?$/;
+const decimalRatePattern = /^-?\d+(?:\.\d{1,6})?$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 function decimalField(label: string) {
@@ -12,6 +13,13 @@ function decimalField(label: string) {
 
 function decimalOrInfinityField(label: string) {
   return z.union([decimalField(label), z.literal("Infinity")]);
+}
+
+function decimalRateField(label: string) {
+  return z
+    .string()
+    .trim()
+    .regex(decimalRatePattern, `${label} must be a decimal amount with up to 6 places.`);
 }
 
 function isoDateField(label: string) {
@@ -58,6 +66,7 @@ const productAnalyticsDataGapSchema = z.enum([
   "shipping_cost_unavailable",
   "tax_amount_unavailable",
 ]);
+const productAnalyticsDataSourceSchema = z.enum(["monthly_performance", "sync"]);
 
 export const dashboardSummaryMetricsSchema = z.object({
   totalAdCosts: decimalField("Total ad costs"),
@@ -362,6 +371,23 @@ export const productAnalyticsRowSchema = z.object({
   hasSalesSignal: z.boolean(),
   hasLinkedMarketplaceSignal: z.boolean(),
   insufficientReasons: z.array(productAnalyticsInsufficientReasonSchema),
+  dataSource: productAnalyticsDataSourceSchema,
+});
+
+export const productMonthlyPerformanceRowSchema = z.object({
+  referenceMonth: isoDateField("Reference month"),
+  channel: z.string().trim().min(1),
+  productName: z.string().trim().min(1),
+  sku: z.string().trim().min(1),
+  salesQuantity: z.number().int().min(0),
+  returnsQuantity: z.number().int().min(0),
+  unitCost: decimalField("Unit cost"),
+  salePrice: decimalField("Sale price"),
+  commissionRate: decimalRateField("Commission rate"),
+  shippingFee: decimalField("Shipping fee"),
+  taxRate: decimalRateField("Tax rate"),
+  packagingCost: decimalField("Packaging cost"),
+  advertisingCost: decimalField("Advertising cost"),
 });
 
 export const productAnalyticsCatalogStatsSchema = z.object({
@@ -384,9 +410,15 @@ export const productAnalyticsSnapshotSchema = z.object({
   products: z.array(productListItemSchema),
   syncedProducts: z.array(syncedProductRecordSchema),
   productRows: z.array(productAnalyticsRowSchema),
+  monthlyPerformanceRows: z.array(productMonthlyPerformanceRowSchema),
   catalogStats: productAnalyticsCatalogStatsSchema,
   financialState: productFinancialStateSchema,
   dataGaps: z.array(productAnalyticsDataGapSchema),
+  scope: z.object({
+    companyId: z.string().trim().min(1).nullable(),
+    companyRequired: z.boolean(),
+    referenceMonth: isoDateField("Reference month"),
+  }),
 });
 
 export function createApiSuccessResponseSchema<T extends z.ZodType>(dataSchema: T) {

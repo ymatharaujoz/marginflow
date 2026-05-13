@@ -105,6 +105,11 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
           </Link>
         </div>
 
+        <p className="mb-4 rounded-[var(--radius-md)] border border-info/20 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
+          Quando frete, imposto, embalagem ou devolucoes ainda nao tiverem fonte operacional dedicada,
+          o backend mantem esses campos explicitos em zero em vez de inferir valores.
+        </p>
+
         {/* Scroll horizontal para a tabela expandida */}
         <div className="overflow-x-auto -mx-2 px-2">
           <div className="min-w-[960px]">

@@ -102,6 +102,23 @@ describe("@marginflow/validation protected app schemas", () => {
         dataGaps: [],
         financialState: "ready",
         manualExpenses: [],
+        monthlyPerformanceRows: [
+          {
+            advertisingCost: "0.00",
+            channel: "mercadolivre",
+            commissionRate: "0.100000",
+            packagingCost: "0.00",
+            productName: "Produto um",
+            referenceMonth: "2026-05-01",
+            returnsQuantity: 0,
+            salePrice: "20.00",
+            salesQuantity: 1,
+            shippingFee: "0.00",
+            sku: "SKU-1",
+            taxRate: "0.000000",
+            unitCost: "10.00",
+          },
+        ],
         productCosts: [],
         productRows: [
           {
@@ -109,6 +126,7 @@ describe("@marginflow/validation protected app schemas", () => {
             adSpend: "0.00",
             channel: "mercadolivre",
             contributionMargin: "10.00",
+            dataSource: "sync",
             grossProfit: "10.00",
             hasCost: true,
             hasLinkedMarketplaceSignal: true,
@@ -135,6 +153,11 @@ describe("@marginflow/validation protected app schemas", () => {
           },
         ],
         products: [],
+        scope: {
+          companyId: null,
+          companyRequired: false,
+          referenceMonth: "2026-05-01",
+        },
         syncedProducts: [],
       },
       error: null,
@@ -159,9 +182,26 @@ describe("@marginflow/validation protected app schemas", () => {
           totalProductCosts: 0,
           totalProducts: 1,
         },
-        dataGaps: ["shipping_cost_unavailable"],
+        dataGaps: [],
         financialState: "insufficient",
         manualExpenses: [],
+        monthlyPerformanceRows: [
+          {
+            advertisingCost: "0.00",
+            channel: "unknown",
+            commissionRate: "0.000000",
+            packagingCost: "0.00",
+            productName: "Produto Dois",
+            referenceMonth: "2026-05-01",
+            returnsQuantity: 0,
+            salePrice: "80.00",
+            salesQuantity: 0,
+            shippingFee: "0.00",
+            sku: "XYZ-1",
+            taxRate: "0.000000",
+            unitCost: "0.00",
+          },
+        ],
         productCosts: [],
         productRows: [
           {
@@ -169,6 +209,7 @@ describe("@marginflow/validation protected app schemas", () => {
             adSpend: "0.00",
             channel: "unknown",
             contributionMargin: "0.00",
+            dataSource: "sync",
             grossProfit: "0.00",
             hasCost: false,
             hasLinkedMarketplaceSignal: false,
@@ -208,6 +249,11 @@ describe("@marginflow/validation protected app schemas", () => {
             updatedAt: "2026-05-01T10:00:00.000Z",
           },
         ],
+        scope: {
+          companyId: null,
+          companyRequired: false,
+          referenceMonth: "2026-05-01",
+        },
         syncedProducts: [
           {
             externalProductId: "MLB-1",

@@ -6,6 +6,7 @@ import {
   productCostFormSchema,
   productCostUpdateSchema,
   productFormSchema,
+  productAnalyticsQuerySchema,
   productUpdateSchema,
 } from "@marginflow/validation";
 import type {
@@ -15,6 +16,7 @@ import type {
   ManualExpenseUpdateInput,
   ProductCostFormInput,
   ProductCostUpdateInput,
+  ProductAnalyticsQueryInput,
   ProductFormInput,
   ProductUpdateInput,
 } from "@marginflow/validation";
@@ -35,6 +37,13 @@ export class UpdateProductRequestDto implements ProductUpdateInput {
   name?: string;
   sellingPrice?: string;
   sku?: string | null;
+}
+
+export class ProductAnalyticsQueryDto implements ProductAnalyticsQueryInput {
+  static schema = productAnalyticsQuerySchema;
+
+  companyId?: string;
+  referenceMonth?: string;
 }
 
 export class CreateProductCostRequestDto implements ProductCostFormInput {
