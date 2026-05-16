@@ -94,4 +94,27 @@ describe("@marginflow/database schema", () => {
       'CREATE POLICY "Members can insert own fixed costs"'
     );
   });
+
+  it("keeps company foreign keys aligned with finance migrations", () => {
+    const financeFoundationMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0002_m1_finance_foundation.sql"),
+      "utf8",
+    );
+    const analyticsScopeMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0005_product_monthly_performance_analytics_scope.sql"),
+      "utf8",
+    );
+
+    expect(financeFoundationMigration).toContain(
+      'ALTER TABLE "product_monthly_performance" ADD CONSTRAINT "product_monthly_performance_company_id_companies_id_fk"',
+    );
+    expect(financeFoundationMigration).toContain(
+      'ALTER TABLE "fixed_costs" ADD CONSTRAINT "fixed_costs_company_id_companies_id_fk"',
+    );
+    expect(financeFoundationMigration).toContain(
+      'CREATE UNIQUE INDEX "companies_org_code_key" ON "companies" USING btree ("organization_id","code")',
+    );
+    expect(analyticsScopeMigration).toContain("FROM public.companies c");
+    expect(analyticsScopeMigration).toContain("WHERE c.id = company_id");
+  });
 });

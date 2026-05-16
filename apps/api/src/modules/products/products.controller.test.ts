@@ -160,6 +160,116 @@ describe("products controller", () => {
     });
   });
 
+  it("creates manual products with initial finance inputs", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(productsService, "createManualProduct").mockResolvedValueOnce({
+      performance: {
+        advertisingCost: "15.00",
+        channel: "mercadolivre",
+        commissionRate: "0.000000",
+        companyId: "11111111-1111-4111-8111-111111111111",
+        createdAt: "2026-05-14T10:00:00.000Z",
+        id: "perf_1",
+        packagingCost: "3.00",
+        productName: "Kit Mercado Livre",
+        referenceMonth: "2026-05-01",
+        returnsQuantity: 0,
+        salePrice: "149.90",
+        salesQuantity: 0,
+        shippingFee: "0.00",
+        sku: "ML-001",
+        taxRate: "0.120000",
+        unitCost: "80.00",
+        updatedAt: "2026-05-14T10:00:00.000Z",
+      },
+      product: {
+        createdAt: "2026-05-14T10:00:00.000Z",
+        id: "product_1",
+        isActive: true,
+        name: "Kit Mercado Livre",
+        organizationId: "org_123",
+        sellingPrice: "149.90",
+        sku: "ML-001",
+        updatedAt: "2026-05-14T10:00:00.000Z",
+      },
+      productCost: {
+        amount: "80.00",
+        costType: "base",
+        createdAt: "2026-05-14T10:00:00.000Z",
+        currency: "BRL",
+        effectiveFrom: "2026-05-01",
+        id: "cost_1",
+        notes: "Cadastro manual inicial",
+        organizationId: "org_123",
+        productId: "product_1",
+        updatedAt: "2026-05-14T10:00:00.000Z",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        initialFinance: {
+          advertisingCost: "15.00",
+          packagingCost: "3.00",
+          taxRate: "0.120000",
+          unitCost: "80.00",
+        },
+        product: {
+          isActive: true,
+          name: "Kit Mercado Livre",
+          sellingPrice: "149.90",
+          sku: "ML-001",
+        },
+        scope: {
+          channel: "mercadolivre",
+          companyId: "11111111-1111-4111-8111-111111111111",
+          referenceMonth: "2026-05-01",
+        },
+      },
+      url: "/products/manual",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        performance: expect.objectContaining({
+          channel: "mercadolivre",
+          taxRate: "0.120000",
+        }),
+        product: expect.objectContaining({
+          id: "product_1",
+          sku: "ML-001",
+        }),
+      }),
+      error: null,
+    });
+  });
+
   it("returns the protected analytics snapshot for authenticated requests", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
       organization: {
@@ -203,6 +313,21 @@ describe("products controller", () => {
       dataGaps: [],
       financialState: "ready",
       manualExpenses: [],
+      mercadoLivreSyncStatus: {
+        activeRun: null,
+        availability: {
+          canRun: true,
+          currentWindowKey: "2026-05-13-morning",
+          currentWindowLabel: "Manha",
+          currentWindowSlot: "morning",
+          lastSuccessfulSyncAt: null,
+          message: "Sync is available for the current daily window.",
+          nextAvailableAt: "2026-05-13T09:00:00.000Z",
+          provider: "mercadolivre",
+          reason: "available",
+        },
+        lastCompletedRun: null,
+      },
       monthlyPerformanceRows: [
         {
           advertisingCost: "10.00",
@@ -263,6 +388,7 @@ describe("products controller", () => {
       syncedProducts: [
         {
           externalProductId: "MLB-1",
+          fixedFee: "0.00",
           grossRevenue: "200.00",
           id: "external_1",
           lastOrderedAt: "2026-05-01T11:00:00.000Z",
@@ -277,6 +403,9 @@ describe("products controller", () => {
           provider: "mercadolivre",
           reviewStatus: "linked_to_existing_product",
           sku: "NB-1",
+          marketplaceCommission: "20.00",
+          netMarketplaceTake: "32.00",
+          shippingCost: "12.00",
           suggestedMatches: [],
           title: "Notebook",
           unitsSold: 2,
@@ -298,6 +427,12 @@ describe("products controller", () => {
         }),
         dataGaps: [],
         financialState: "ready",
+        mercadoLivreSyncStatus: expect.objectContaining({
+          availability: expect.objectContaining({
+            provider: "mercadolivre",
+            reason: "available",
+          }),
+        }),
         monthlyPerformanceRows: [
           expect.objectContaining({
             channel: "mercadolivre",
@@ -317,7 +452,9 @@ describe("products controller", () => {
         syncedProducts: [
           expect.objectContaining({
             externalProductId: "MLB-1",
+            marketplaceCommission: "20.00",
             reviewStatus: "linked_to_existing_product",
+            shippingCost: "12.00",
           }),
         ],
       }),
@@ -361,6 +498,61 @@ describe("products controller", () => {
         sku: "NB-1",
       },
       url: "/products",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toBe("Request validation failed");
+  });
+
+  it("rejects invalid manual product company payloads", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        initialFinance: {
+          advertisingCost: "15.00",
+          packagingCost: "3.00",
+          taxRate: "0.120000",
+          unitCost: "80.00",
+        },
+        product: {
+          isActive: true,
+          name: "Kit Mercado Livre",
+          sellingPrice: "149.90",
+          sku: "ML-001",
+        },
+        scope: {
+          channel: "mercadolivre",
+          companyId: "",
+          referenceMonth: "2026-05-01",
+        },
+      },
+      url: "/products/manual",
     });
 
     expect(response.statusCode).toBe(400);

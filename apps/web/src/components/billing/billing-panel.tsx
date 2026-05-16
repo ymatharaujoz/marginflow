@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Badge, Button, Card } from "@marginflow/ui";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import type { ServerBillingState } from "@/lib/server-billing";
@@ -38,14 +38,6 @@ function CreditCardIcon({ className }: { className?: string }) {
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden>
       <rect x="2" y="5" width="20" height="14" rx="3" />
       <line x1="2" y1="10" x2="22" y2="10" />
-    </svg>
-  );
-}
-
-function StripeLogo({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 60 25" fill="currentColor" aria-hidden>
-      <path d="M59.64 14.28h-8.06c.19 1.93 1.6 2.55 3.2 2.55 1.64 0 2.96-.37 4.05-.95v3.32a10.09 10.09 0 0 1-4.56 1c-4.01 0-6.83-2.5-6.83-7.48 0-4.19 2.39-7.52 6.3-7.52 3.92 0 5.96 3.28 5.96 7.5 0 .4-.02.9-.06 1.58zm-6.5-5.63c-1.03 0-2.17.73-2.17 2.58h4.25c0-1.85-1.07-2.58-2.08-2.58zM48.04 4.56l.04.02-.1 3.62h-.08c-1.38-.6-2.87-.83-4.32-.83-1.28 0-2.23.29-2.23 1.18 0 2.2 6.36.65 6.36 5.74 0 3.22-2.8 4.39-5.77 4.39-1.85 0-3.68-.37-5.1-1.05l.08-3.54h.1c1.42.73 3.22 1.12 4.78 1.12 1.38 0 2.46-.33 2.46-1.37 0-2.39-6.36-.75-6.36-5.67 0-3.05 2.56-4.2 5.23-4.2 1.6 0 3.16.27 4.56.77l-.02.02-.03-.17zM37.3 4.44h4.2v14.2h-4.2V4.44zm0-4.44h4.2v3.32h-4.2V0zM32.16 4.44v1.2h.04c.92-1.03 2.27-1.54 3.84-1.54.42 0 .83.04 1.23.13v3.93c-.42-.1-.88-.15-1.37-.15-1.67 0-3.26.75-3.26 2.87v8.77h-4.2V4.44h3.82zm-7.76 7.83c0-2.39-1.15-3.22-2.8-3.22-1.42 0-2.56.9-2.56 2.62 0 2.25 1.52 3.02 3.45 3.02 1.25 0 2.28-.31 2.9-.8v-1.62zm.02-7.83v8.68h-.04c-.62.52-1.79 1.04-3.52 1.04-3.47 0-6.32-2.1-6.32-6.04 0-3.71 2.64-6.2 6.03-6.2 1.52 0 2.75.44 3.47 1.08h.08V4.44h3.72v13.48c0 4.15-3.05 6.35-7.32 6.35-1.85 0-3.47-.37-4.85-1.02l.1-3.43c1.14.66 2.73 1.1 4.29 1.1 2.64 0 4.36-1.23 4.36-3.73V9.27h-.01zM11.5.18l4.26.93v3.65l-4.26-.93V.18zm0 4.56h4.26v13.9H11.5V4.74zm-4.5 0v1.2h.04c.92-1.03 2.27-1.54 3.84-1.54.42 0 .83.04 1.23.13v3.93c-.42-.1-.88-.15-1.37-.15-1.67 0-3.26.75-3.26 2.87v8.77H3.3V4.74h3.7zM0 9.13c0-3.26 2.5-4.68 5.42-4.68.56 0 1.12.06 1.67.17v3.56a5.6 5.6 0 0 0-1.5-.2c-1.33 0-2.1.5-2.1 1.63v8.84H0V9.13z" />
     </svg>
   );
 }
@@ -87,8 +79,7 @@ function billingPlans() {
       title: "Mensal",
       features: [
         "Workspace completo",
-        "Integração Mercado Livre",
-        "Integração Shopee",
+        "Integração Mercado Livre, Shopee",
         "Dashboard financeiro",
         "Suporte por email",
       ],
@@ -135,28 +126,29 @@ export function BillingPanel({
     checkoutState === "success" &&
     checkoutSessionId !== null &&
     checkoutSessionId.length > 0;
-  const [isConfirmingCheckout, setIsConfirmingCheckout] = useState(() => needsClientConfirm);
+
+  type SuccessPhase = "hidden" | "expanding" | "shown" | "fading";
+  const [successPhase, setSuccessPhase] = useState<SuccessPhase>(() =>
+    needsClientConfirm ? "expanding" : "hidden",
+  );
 
   const [message, setMessage] = useState<string | null>(() => {
     if (checkoutState === "success") {
-      if (checkoutSessionId) {
-        return "Confirmando o pagamento com o servidor…";
-      }
-      return "Checkout do Stripe concluído. A atualização do plano pode levar alguns instantes até o webhook ser processado.";
+      return "Checkout do Stripe concluído. A atualização do plano pode levar alguns instantes.";
     }
     if (checkoutState === "cancelled") {
-      return "Checkout cancelado. Você pode tentar novamente nos planos abaixo.";
+      return "Checkout cancelado. Tente novamente.";
     }
     return null;
   });
 
   useEffect(() => {
     if (!needsClientConfirm) {
-      setIsConfirmingCheckout(false);
+      setSuccessPhase("hidden");
       return;
     }
 
-    setIsConfirmingCheckout(true);
+    setSuccessPhase("expanding");
 
     void (async () => {
       try {
@@ -164,18 +156,37 @@ export function BillingPanel({
           "/billing/checkout/confirm",
           { body: { sessionId: checkoutSessionId } },
         );
-        setMessage("Pagamento confirmado. Redirecionando para a configuração...");
-        router.replace("/app/onboarding");
-        router.refresh();
+
+        // Marca fase como "shown" quando a tela já está toda verde (~1.2s)
+        const shownTimer = setTimeout(() => {
+          setSuccessPhase("shown");
+        }, 1200);
+
+        // Aguarda 3s na tela verde antes de iniciar fade-out
+        const fadeTimer = setTimeout(() => {
+          setSuccessPhase("fading");
+
+          const navTimer = setTimeout(() => {
+            router.replace("/app/onboarding");
+            router.refresh();
+          }, 1000); // fade-out suave de 1s
+
+          return () => clearTimeout(navTimer);
+        }, 3000);
+
+        return () => {
+          clearTimeout(shownTimer);
+          clearTimeout(fadeTimer);
+        };
       } catch (error) {
         const nextMessage =
           error instanceof ApiClientError
             ? error.message
             : error instanceof Error
               ? error.message
-              : "Não foi possível confirmar o checkout. Se o webhook ainda não rodou, aguarde um instante ou use o Stripe CLI em desenvolvimento.";
+              : "Não foi possível confirmar o checkout. Tente novamente.";
         setMessage(nextMessage);
-        setIsConfirmingCheckout(false);
+        setSuccessPhase("hidden");
       }
     })();
   }, [checkoutSessionId, needsClientConfirm, router]);
@@ -203,7 +214,7 @@ export function BillingPanel({
   }
 
   const plans = billingPlans();
-  const isBusy = isSubmitting !== null || isConfirmingCheckout;
+  const isBusy = isSubmitting !== null || successPhase !== "hidden";
 
   return (
     <motion.div
@@ -212,24 +223,69 @@ export function BillingPanel({
       animate="visible"
       className="w-full"
     >
-      {/* Status Messages */}
-      {message && (
+      {/* Success Overlay — Expanding Circle */}
+      <AnimatePresence>
+        {successPhase !== "hidden" && (
+          <motion.div
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-background"
+          >
+            {/* Expanding green circle — covers entire screen in 1.2s */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{
+                duration: 1.2,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="absolute aspect-square w-[250vmax] rounded-full bg-success"
+            />
+
+            {/* White checkmark — fades in after screen is green */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{
+                opacity: successPhase === "shown" || successPhase === "fading" ? 1 : 0,
+                scale: successPhase === "shown" || successPhase === "fading" ? 1 : 0.6,
+              }}
+              transition={{
+                duration: 0.5,
+                delay: successPhase === "expanding" ? 1.0 : 0,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+              className="relative z-10"
+            >
+              <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/15 shadow-2xl shadow-black/10 ring-1 ring-white/30 backdrop-blur-md">
+                <svg
+                  className="h-14 w-14 text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={3}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Status Messages - Error/Cancel only */}
+      {message && checkoutState !== "success" && (
         <motion.div
           variants={itemVariants}
           className={`mx-auto mb-8 flex max-w-3xl gap-3 rounded-xl border px-4 py-3.5 text-sm shadow-sm ${
-            checkoutState === "success"
-              ? "border-success/25 bg-success/10 text-foreground"
-              : checkoutState === "cancelled"
-                ? "border-warning/25 bg-warning/10 text-foreground"
-                : "border-error/25 bg-error/10 text-foreground"
+            checkoutState === "cancelled"
+              ? "border-warning/25 bg-warning/10 text-foreground"
+              : "border-error/25 bg-error/10 text-foreground"
           }`}
           role="status"
         >
-          {checkoutState === "success" ? (
-            <svg className="mt-0.5 h-5 w-5 shrink-0 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          ) : checkoutState === "cancelled" ? (
+          {checkoutState === "cancelled" ? (
             <svg className="mt-0.5 h-5 w-5 shrink-0 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
@@ -279,22 +335,208 @@ export function BillingPanel({
         ))}
       </motion.div>
 
+      {/* Separator */}
+      <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-4xl">
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+      </motion.div>
+
+      {/* Features Comparison */}
+      <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-5xl">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+          className="mb-10 text-center"
+        >
+          <h2 className="text-3xl font-semibold tracking-tight text-foreground">
+            O que está incluído
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-base text-muted-foreground">
+            Todos os recursos para escalar sua operação, sem limitações.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.08,
+              },
+            },
+          }}
+          className="grid gap-4 sm:grid-cols-2"
+        >
+          {[
+            {
+              name: "Workspace completo",
+              description: "Gerencie todos os seus dados em um só lugar",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+              ),
+            },
+            {
+              name: "Integração Mercado Livre, Shopee",
+              description: "Sincronize pedidos e métricas automaticamente",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                </svg>
+              ),
+            },
+            {
+              name: "Dashboard financeiro",
+              description: "Acompanhe receita, lucro e margem em tempo real",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                </svg>
+              ),
+            },
+            {
+              name: "Suporte por email",
+              description: "Respostas em até 24 horas úteis",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+              ),
+            },
+            {
+              name: "Prioridade no suporte",
+              description: "Atendimento prioritário com resposta rápida",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                </svg>
+              ),
+            },
+            {
+              name: "Exportação de relatórios",
+              description: "Baixe relatórios detalhados em PDF",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+              ),
+            },
+            {
+              name: "Webhooks avançados",
+              description: "Receba notificações em tempo real nos seus sistemas",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+                </svg>
+              ),
+            },
+            {
+              name: "API dedicada",
+              description: "Integre diretamente com nossa API REST",
+              icon: (
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                </svg>
+              ),
+            },
+          ].map((feature, index) => (
+            <motion.div
+              key={feature.name}
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  transition: {
+                    duration: 0.5,
+                    ease: [0.25, 0.1, 0.25, 1],
+                  },
+                },
+              }}
+              className="group flex items-start gap-4 rounded-2xl border border-border/60 bg-white p-5 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-md"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent transition-colors group-hover:bg-accent/15">
+                {feature.icon}
+              </span>
+              <div className="flex-1">
+                <span className="block text-sm font-semibold text-foreground">{feature.name}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{feature.description}</span>
+              </div>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+                <CheckIcon className="h-3.5 w-3.5" />
+              </span>
+            </motion.div>
+          ))}
+        </motion.div>
+      </motion.div>
+
+      {/* Separator */}
+      <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-4xl">
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+      </motion.div>
+
       {/* Pricing Cards */}
       <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-4xl">
-        <div className="grid gap-6 md:grid-cols-2 md:items-stretch">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-50px" }}
+          transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+          className="mb-8 text-center"
+        >
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+            Escolha seu plano
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Preços transparentes, sem taxas ocultas
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-50px" }}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.15,
+              },
+            },
+          }}
+          className="grid gap-6 md:grid-cols-2"
+        >
           {plans.map((plan) => (
             <motion.div
               key={plan.interval}
-              className="flex h-full min-h-0"
-              whileHover={{ y: -4 }}
-              transition={{ duration: 0.2 }}
+              variants={{
+                hidden: { opacity: 0, y: 30, scale: 0.95 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  transition: {
+                    duration: 0.5,
+                    ease: [0.25, 0.1, 0.25, 1],
+                  },
+                },
+              }}
+              whileHover={{ y: -6, transition: { duration: 0.25 } }}
+              className="flex h-full"
             >
               <Card
                 padding="none"
                 variant="default"
-                className="relative flex h-full w-full min-h-0 flex-col overflow-hidden border border-border/60 transition-colors hover:border-border md:min-h-[26rem]"
+                className="relative flex h-full w-full flex-col overflow-hidden border border-border/60 transition-colors hover:border-border"
               >
-                {/* Popular Badge - Refatorado */}
+                {/* Popular Badge */}
                 {plan.emphasized && (
                   <div className="absolute left-0 right-0 top-0 z-10 flex justify-center">
                     <div className="flex items-center gap-1.5 rounded-b-lg bg-accent px-4 py-1.5 text-xs font-medium text-white shadow-md shadow-accent/20">
@@ -307,8 +549,8 @@ export function BillingPanel({
                 )}
 
                 <div className="flex h-full flex-1 flex-col p-6 pt-8">
-                  {/* Plan Header — altura mínima alinhada entre os dois cards */}
-                  <div className="mb-6 min-h-[4.5rem]">
+                  {/* Plan Header */}
+                  <div className="mb-6">
                     <div className="flex items-center gap-2">
                       <h3 className="text-lg font-semibold text-foreground">{plan.title}</h3>
                       {plan.emphasized && (
@@ -317,13 +559,13 @@ export function BillingPanel({
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 min-h-[3.25rem] text-sm leading-snug text-muted-foreground md:min-h-[2.75rem]">
+                    <p className="mt-1 text-sm leading-snug text-muted-foreground">
                       {plan.description}
                     </p>
                   </div>
 
-                  {/* Price + linha reservada para “Economize” (alinha botões) */}
-                  <div className="mb-6 min-h-[5.5rem]">
+                  {/* Price */}
+                  <div className="mb-6">
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-bold tracking-tight text-foreground">
                         {plan.priceLine}
@@ -331,70 +573,51 @@ export function BillingPanel({
                       <span className="text-muted-foreground">/mês</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">{plan.priceDetail}</p>
-                    <div className="mt-2 flex min-h-[1.25rem] items-center">
-                      {plan.emphasized ? (
-                        <p className="text-xs text-success">Economize 20% no plano anual</p>
-                      ) : (
-                        <span className="text-xs text-transparent">-</span>
-                      )}
-                    </div>
                   </div>
 
-                  {/* CTA */}
+                  {/* Spacer to push CTA to bottom */}
+                  <div className="flex-1" />
+
+                  {/* CTA - Aligned at bottom */}
                   <Button
-                    className="w-full shrink-0"
+                    className="w-full"
                     disabled={isBusy}
                     loading={isSubmitting === plan.interval}
                     onClick={() => void handleCheckout(plan.interval)}
                     size="lg"
-                    variant={plan.emphasized ? "primary" : "secondary"}
+                    variant="primary"
                   >
                     {plan.emphasized ? "Assinar Anual" : "Assinar Mensal"}
                   </Button>
-
-                  {/* Features — empurra para baixo quando o card estica */}
-                  <ul className="mt-auto space-y-3 border-t border-border/50 pt-6">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-3 text-sm">
-                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
-                          <CheckIcon className="h-3 w-3" />
-                        </span>
-                        <span className="text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
                 </div>
               </Card>
             </motion.div>
           ))}
+        </motion.div>
+      </motion.div>
+
+      {/* Stripe Trust Pass */}
+      <motion.div variants={itemVariants} className="mx-auto mt-10 flex justify-center">
+        <div className="inline-flex items-center gap-3 rounded-xl border border-border/50 bg-surface-strong/20 px-4 py-3 shadow-sm">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+            <LockIcon className="h-4 w-4" />
+          </div>
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <p className="text-sm text-muted-foreground">
+              Pagamento seguro pela
+            </p>
+            <img src="/icons/stripe-icon.svg" alt="Stripe" className="h-10 w-auto" />
+          </div>
         </div>
       </motion.div>
 
-      {/* Stripe Trust Footer */}
-      <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-2xl">
-        <Card
-          padding="md"
-          variant="default"
-          className="flex flex-col items-center gap-4 border border-border/60 bg-surface-strong/30 text-center sm:flex-row sm:gap-5 sm:text-left"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#635BFF] text-white shadow-lg shadow-[#635BFF]/20">
-            <StripeLogo className="h-6 w-6" />
-          </div>
-          <div className="flex-1">
-            <h4 className="font-medium text-foreground">Cobrança via Stripe</h4>
-            <p className="text-sm text-muted-foreground">
-              Seus dados de pagamento são processados pelo Stripe. Não armazenamos dados de cartão.
-            </p>
-          </div>
-        </Card>
-
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Aceitamos cartões de crédito, débito e métodos de pagamento locais
-        </p>
+      {/* Separator */}
+      <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-4xl">
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
       </motion.div>
 
       {/* FAQ / Help */}
-      <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-2xl text-center">
+      <motion.div variants={itemVariants} className="mx-auto mt-12 max-w-2xl pb-12 text-center">
         <p className="text-sm text-muted-foreground">
           Dúvidas sobre planos?{" "}
           <a href="mailto:suporte@marginflow.com" className="font-medium text-accent hover:underline">

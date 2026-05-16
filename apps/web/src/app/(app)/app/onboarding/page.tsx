@@ -3,9 +3,10 @@ import { OnboardingPanel } from "@/components/onboarding/onboarding-panel";
 import { hasSubscriptionForProtectedApp } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
+import { hasActiveCompany, readServerCompanies } from "@/lib/server-companies";
 
 export const metadata = {
-  title: "Configuração Inicial",
+  title: "Configuração",
 };
 
 export default async function OnboardingPage() {
@@ -22,9 +23,21 @@ export default async function OnboardingPage() {
     redirect("/app/billing");
   }
 
-  if (authState.organization) {
+  if (!authState.organization) {
+    return <OnboardingPanel stage="organization" userName={authState.user.name} />;
+  }
+
+  const companies = await readServerCompanies();
+
+  if (hasActiveCompany(companies)) {
     redirect("/app");
   }
 
-  return <OnboardingPanel userName={authState.user.name} />;
+  return (
+    <OnboardingPanel
+      organizationName={authState.organization.name}
+      stage="company"
+      userName={authState.user.name}
+    />
+  );
 }

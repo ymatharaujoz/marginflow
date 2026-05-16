@@ -2,28 +2,55 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useCallback } from "react";
-import { Button, Card } from "@marginflow/ui";
+import Link from "next/link";
+import { DollarSign, Building2, Package, TrendingUp, Calculator, Check, X, Loader2 } from "lucide-react";
+import { Button, Card, Modal } from "@marginflow/ui";
+import { companiesApiResponseSchema } from "@marginflow/validation";
 import type {
   AdCostFormValues,
   AdCostRecord,
+  Company,
   ManualExpenseFormValues,
   ManualExpenseRecord,
   ProductCostFormValues,
   ProductCostRecord,
   ProductFormValues,
   ProductListItem,
+  ProductManualCreateResult,
   SyncedProductActionResult,
   SyncedProductRecord,
 } from "@marginflow/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
-import { fetchProductCatalog, productCatalogQueryKey, ProductsHome } from "@/modules/products";
+import {
+  fetchProductCatalog,
+  formatReferenceMonthPtBr,
+  productCatalogQueryKey,
+  ProductsHome,
+} from "@/modules/products";
 import type { ProductInsight } from "@/modules/products";
+import {
+  getActiveCompanies,
+  getManualProductCompanyValidationMessage,
+  resolveManualProductCompanyState,
+} from "./manual-product-company-state";
 
 const initialProductForm: ProductFormValues = {
   isActive: true,
   name: "",
   sellingPrice: "0.00",
   sku: null,
+};
+
+const initialManualProductForm = {
+  advertisingCost: "0.00",
+  companyId: "",
+  isActive: true,
+  name: "",
+  packagingCost: "0.00",
+  sellingPrice: "0.00",
+  sku: "",
+  taxRate: "0.000000",
+  unitCost: "0.00",
 };
 
 const initialProductCostForm: ProductCostFormValues = {
@@ -105,6 +132,7 @@ function TextInput({
   required = false,
   type = "text",
   value,
+  icon,
 }: {
   label: string;
   onChange: (value: string) => void;
@@ -112,20 +140,107 @@ function TextInput({
   required?: boolean;
   type?: "date" | "number" | "text";
   value: string;
+  icon?: React.ReactNode;
 }) {
   return (
     <label className="grid gap-1.5 text-sm">
       <span className="font-medium text-foreground">{label}</span>
-      <input
-        className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        required={required}
-        step={type === "number" ? "0.01" : undefined}
-        type={type}
-        value={value}
-      />
+      <div className="relative">
+        {icon && (
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            {icon}
+          </span>
+        )}
+        <input
+          className={`h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20 ${
+            icon ? "pl-10 pr-3.5" : "px-3.5"
+          }`}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required={required}
+          step={type === "number" ? "0.01" : undefined}
+          type={type}
+          value={value}
+        />
+      </div>
     </label>
+  );
+}
+
+function CurrencyInput({
+  label,
+  onChange,
+  placeholder,
+  required = false,
+  value,
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+  value: string;
+}) {
+  return (
+    <label className="grid gap-1.5 text-sm">
+      <span className="font-medium text-foreground">{label}</span>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+          R$
+        </span>
+        <input
+          className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-surface-strong pl-9 pr-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          required={required}
+          step="0.01"
+          type="number"
+          value={value}
+        />
+      </div>
+    </label>
+  );
+}
+
+function ToggleSwitch({
+  checked,
+  onChange,
+  label,
+  description,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  description?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-surface-strong p-4">
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+            checked ? "bg-success/10" : "bg-muted"
+          }`}
+        >
+          <Package className={`h-5 w-5 ${checked ? "text-success" : "text-muted-foreground"}`} />
+        </div>
+        <div>
+          <p className="font-medium text-foreground">{label}</p>
+          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative h-6 w-11 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20 ${
+          checked ? "bg-accent" : "bg-muted-foreground/30"
+        }`}
+      >
+        <span
+          className={`absolute left-1 top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -253,8 +368,14 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
   const [showExpenseForm, setShowExpenseForm] = useState(false);
   const [showSyncedProducts, setShowSyncedProducts] = useState(false);
   const [showSyncedReviewPanel, setShowSyncedReviewPanel] = useState(false);
+  const [showManualProductModal, setShowManualProductModal] = useState(false);
+  const [manualProductContextLoading, setManualProductContextLoading] = useState(false);
+  const [manualProductReferenceMonth, setManualProductReferenceMonth] = useState("");
+  const [companyOptions, setCompanyOptions] = useState<Company[]>([]);
+  const activeCompanyOptions = getActiveCompanies(companyOptions);
 
   const [productForm, setProductForm] = useState(initialProductForm);
+  const [manualProductForm, setManualProductForm] = useState(initialManualProductForm);
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [productCostForm, setProductCostForm] = useState(initialProductCostForm);
   const [editingProductCostId, setEditingProductCostId] = useState<string | null>(null);
@@ -420,16 +541,93 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
     },
   });
 
-  const handleAddProduct = useCallback(() => {
-    setEditingProductId(null);
-    setProductForm(initialProductForm);
-    setShowProductForm(true);
-    setShowCostForm(false);
-    setShowAdCostForm(false);
-    setShowExpenseForm(false);
-    setShowSyncedProducts(false);
-    setShowSyncedReviewPanel(false);
+  const manualProductMutation = useMutation({
+    mutationFn: async () => {
+      const blockingMessage = getManualProductCompanyValidationMessage({
+        companies: companyOptions,
+        companyId: manualProductForm.companyId,
+      });
+
+      if (blockingMessage) {
+        throw new Error(blockingMessage);
+      }
+
+      return apiClient.post<{ data: ProductManualCreateResult; error: null }>("/products/manual", {
+        body: {
+          initialFinance: {
+            advertisingCost: manualProductForm.advertisingCost,
+            packagingCost: manualProductForm.packagingCost,
+            taxRate: manualProductForm.taxRate,
+            unitCost: manualProductForm.unitCost,
+          },
+          product: {
+            isActive: manualProductForm.isActive,
+            name: manualProductForm.name,
+            sellingPrice: manualProductForm.sellingPrice,
+            sku: manualProductForm.sku,
+          },
+          scope: {
+            channel: "mercadolivre",
+            companyId: manualProductForm.companyId,
+            referenceMonth: manualProductReferenceMonth,
+          },
+        },
+      });
+    },
+    onError: (error) => {
+      setCriticalFeedback(error, "Nao foi possivel cadastrar o produto manual.");
+    },
+    onSuccess: async () => {
+      setShowManualProductModal(false);
+      setManualProductForm(initialManualProductForm);
+      await refreshCatalog("Produto manual cadastrado com sucesso.");
+    },
+  });
+
+  const fetchCompaniesForSelect = useCallback(async () => {
+    return apiClient.getValidatedData("/companies", companiesApiResponseSchema);
   }, []);
+
+  const handleAddProduct = useCallback(
+    async (context: { companyId: string | null; referenceMonth: string }) => {
+      setFeedbackMessage(null);
+      setEditingProductId(null);
+      setProductForm(initialProductForm);
+      setShowProductForm(false);
+      setShowCostForm(false);
+      setShowAdCostForm(false);
+      setShowExpenseForm(false);
+      setShowSyncedProducts(false);
+      setShowSyncedReviewPanel(false);
+      setShowManualProductModal(true);
+      setManualProductContextLoading(true);
+
+      try {
+        const companies = await fetchCompaniesForSelect();
+        const companyState = resolveManualProductCompanyState({
+          companies,
+          preferredCompanyId: context.companyId,
+        });
+
+        setCompanyOptions(companies);
+        setManualProductReferenceMonth(context.referenceMonth);
+        setManualProductForm({
+          ...initialManualProductForm,
+          companyId: companyState.selectedCompanyId,
+        });
+
+        if (companyState.blockingMessage) {
+          setFeedbackMessage(companyState.blockingMessage);
+          setFeedbackTone("critical");
+        }
+      } catch (error) {
+        setCriticalFeedback(error, "Nao foi possivel carregar o contexto do cadastro manual.");
+      } finally {
+        setManualProductContextLoading(false);
+      }
+    },
+    [fetchCompaniesForSelect],
+  );
 
   const handleOpenSyncedProducts = useCallback(async () => {
     setShowProductForm(false);
@@ -936,6 +1134,249 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
         onInsightAction={handleInsightAction}
       />
 
+      <Modal
+        onClose={() => {
+          if (!manualProductMutation.isPending) {
+            setShowManualProductModal(false);
+          }
+        }}
+        open={showManualProductModal}
+        title="Novo produto"
+      >
+        <div className="space-y-5">
+          {/* Feedback */}
+          {feedbackMessage ? (
+            <div className={`rounded-lg border px-3 py-2.5 text-sm ${feedbackTone === "critical" ? "border-error/20 bg-error-soft text-error" : "border-warning/20 bg-warning-soft/30 text-foreground"}`}>
+              {feedbackMessage}
+            </div>
+          ) : null}
+
+          {manualProductContextLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-accent" />
+            </div>
+          ) : (
+            <form
+              className="space-y-6"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const blockingMessage = getManualProductCompanyValidationMessage({
+                  companies: companyOptions,
+                  companyId: manualProductForm.companyId,
+                });
+
+                if (blockingMessage) {
+                  setFeedbackMessage(blockingMessage);
+                  setFeedbackTone("critical");
+                  return;
+                }
+
+                setFeedbackMessage(null);
+                manualProductMutation.mutate();
+              }}
+            >
+              {/* Identificação */}
+              <div className="space-y-3 border-b border-border/50 pb-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Identificação</h3>
+                  <p className="text-xs text-muted-foreground">Informações básicas do produto no catálogo</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5 text-sm sm:col-span-2">
+                    <span className="font-medium text-foreground">Empresa</span>
+                    <select
+                      className="h-10 rounded-[var(--radius-md)] border border-border bg-background px-3.5 text-sm text-foreground transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={activeCompanyOptions.length === 0}
+                      onChange={(e) =>
+                        setManualProductForm((current) => ({
+                          ...current,
+                          companyId: e.target.value,
+                        }))
+                      }
+                      required
+                      value={manualProductForm.companyId}
+                    >
+                      <option value="">
+                        {activeCompanyOptions.length === 0
+                          ? "Cadastre uma empresa ativa primeiro"
+                          : "Selecione a empresa"}
+                      </option>
+                      {activeCompanyOptions.map((company) => (
+                        <option key={company.id} value={company.id}>
+                          {company.name} ({company.code})
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                      {activeCompanyOptions.length === 0 ? (
+                        <Link className="font-medium text-accent hover:underline" href="/app/onboarding">
+                          Criar primeira empresa
+                        </Link>
+                      ) : null}
+                    </div>
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Nome</span>
+                    <input
+                      className="h-10 rounded-[var(--radius-md)] border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      onChange={(e) => setManualProductForm((current) => ({ ...current, name: e.target.value }))}
+                      placeholder="Ex: Smartphone Galaxy A54"
+                      required
+                      value={manualProductForm.name}
+                    />
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">SKU</span>
+                    <input
+                      className="h-10 rounded-[var(--radius-md)] border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      onChange={(e) => setManualProductForm((current) => ({ ...current, sku: e.target.value.trim() }))}
+                      placeholder="Ex: CEL-SMG-A54-001"
+                      required
+                      value={manualProductForm.sku}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Preços e custos */}
+              <div className="space-y-3 border-b border-border/50 pb-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Preços e custos</h3>
+                  <p className="text-xs text-muted-foreground">Valores que compõem o custo total do produto</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Preço de venda</span>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                      <input
+                        className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-background pl-9 pr-3.5 text-sm text-foreground transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        onChange={(e) => setManualProductForm((current) => ({ ...current, sellingPrice: e.target.value }))}
+                        placeholder="0,00"
+                        required
+                        step="0.01"
+                        type="number"
+                        value={manualProductForm.sellingPrice}
+                      />
+                    </div>
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Custo unitário</span>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                      <input
+                        className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-background pl-9 pr-3.5 text-sm text-foreground transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        onChange={(e) => setManualProductForm((current) => ({ ...current, unitCost: e.target.value }))}
+                        placeholder="0,00"
+                        required
+                        step="0.01"
+                        type="number"
+                        value={manualProductForm.unitCost}
+                      />
+                    </div>
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Embalagem</span>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                      <input
+                        className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-background pl-9 pr-3.5 text-sm text-foreground transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        onChange={(e) => setManualProductForm((current) => ({ ...current, packagingCost: e.target.value }))}
+                        placeholder="0,00"
+                        required
+                        step="0.01"
+                        type="number"
+                        value={manualProductForm.packagingCost}
+                      />
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Taxas */}
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Marketing e impostos</h3>
+                  <p className="text-xs text-muted-foreground">Custos variáveis aplicados sobre o produto</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Publicidade</span>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                      <input
+                        className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-background pl-9 pr-3.5 text-sm text-foreground transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                        onChange={(e) => setManualProductForm((current) => ({ ...current, advertisingCost: e.target.value }))}
+                        placeholder="0,00"
+                        required
+                        step="0.01"
+                        type="number"
+                        value={manualProductForm.advertisingCost}
+                      />
+                    </div>
+                  </label>
+                  <label className="grid gap-1.5 text-sm">
+                    <span className="font-medium text-foreground">Imposto (%)</span>
+                    <input
+                      className="h-10 rounded-[var(--radius-md)] border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                      onChange={(e) => setManualProductForm((current) => ({ ...current, taxRate: e.target.value }))}
+                      placeholder="Ex: 0.12 para 12%"
+                      required
+                      value={manualProductForm.taxRate}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Configurações */}
+              <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-background px-3.5 py-2.5 border-b border-border/50">
+                <div className="flex items-center gap-2.5">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${manualProductForm.isActive ? "bg-success/10" : "bg-muted"}`}>
+                    <Package className={`h-4 w-4 ${manualProductForm.isActive ? "text-success" : "text-muted-foreground"}`} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Produto ativo</p>
+                    <p className="text-xs text-muted-foreground">Inativos não aparecem nos relatórios</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setManualProductForm((current) => ({ ...current, isActive: !current.isActive }))}
+                  className={`relative h-6 w-11 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20 ${manualProductForm.isActive ? "bg-accent" : "bg-muted-foreground/30"}`}
+                >
+                  <span className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${manualProductForm.isActive ? "left-1 translate-x-5" : "left-1"}`} />
+                </button>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/50">
+                <Button
+                  onClick={() => setShowManualProductModal(false)}
+                  type="button"
+                  variant="ghost"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="text-white"
+                  disabled={manualProductMutation.isPending || activeCompanyOptions.length === 0}
+                  type="submit"
+                >
+                  {manualProductMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    "Salvar produto"
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Modal>
+
       {showSyncedReviewPanel ? (
         <Card>
           <SectionHeader
@@ -970,6 +1411,12 @@ export function ProductsHub({ organizationName }: ProductsHubProps) {
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {item.unitsSold} unidades · {item.orderCount} pedido(s) · {formatMoney(item.grossRevenue)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Comissao: {formatMoney(item.marketplaceCommission)} · Taxa fixa: {formatMoney(item.fixedFee)} · Frete: {formatMoney(item.shippingCost)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Total que ficou para o Mercado Livre: {formatMoney(item.netMarketplaceTake)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Ultimo pedido: {formatDateTime(item.lastOrderedAt)}

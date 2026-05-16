@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { RefreshCw, Plus, TrendingUp, AlertCircle, Sparkles } from "lucide-react";
+import { RefreshCw, TrendingUp, AlertCircle, Sparkles } from "lucide-react";
 import { Button } from "@marginflow/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { fadeInVariants } from "@/lib/animations";
@@ -103,19 +103,16 @@ export function DashboardHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-y border-border py-4">
-        <Button asChild size="sm" className="gap-2">
+        <Button
+          asChild
+          size="md"
+          className="gap-2 bg-accent px-5 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-all duration-[var(--transition-fast)] hover:-translate-y-0.5 hover:bg-accent-strong hover:text-white hover:shadow-[var(--shadow-md)]"
+        >
           <Link href="/app/integrations">
-            <RefreshCw className="h-4 w-4" />
-            <span>Sincronizar dados</span>
+            <RefreshCw className="h-4 w-4 transition-transform duration-300 group-hover:rotate-180" />
+            <span className="text-white">Conectar marketplaces</span>
           </Link>
         </Button>
-        <Button asChild size="sm" variant="secondary" className="gap-2">
-          <Link href="/app/products">
-            <Plus className="h-4 w-4" />
-            <span>Adicionar custo</span>
-          </Link>
-        </Button>
-
         <div className="ml-auto hidden items-center gap-3 text-sm text-muted-foreground sm:flex">
           <span className="flex items-center gap-1.5">
             <span className={`h-2 w-2 rounded-full ${integrationStatus.color}`} />

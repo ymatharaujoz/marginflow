@@ -7,6 +7,7 @@ import {
   productCostUpdateSchema,
   productFormSchema,
   productAnalyticsQuerySchema,
+  productManualCreateSchema,
   productUpdateSchema,
 } from "@marginflow/validation";
 import type {
@@ -18,6 +19,7 @@ import type {
   ProductCostUpdateInput,
   ProductAnalyticsQueryInput,
   ProductFormInput,
+  ProductManualCreateInput,
   ProductUpdateInput,
 } from "@marginflow/validation";
 
@@ -37,6 +39,30 @@ export class UpdateProductRequestDto implements ProductUpdateInput {
   name?: string;
   sellingPrice?: string;
   sku?: string | null;
+}
+
+export class CreateManualProductRequestDto implements ProductManualCreateInput {
+  static schema = productManualCreateSchema;
+
+  initialFinance!: {
+    advertisingCost: string;
+    packagingCost: string;
+    taxRate: string;
+    unitCost: string;
+  };
+
+  product!: {
+    isActive: boolean;
+    name: string;
+    sellingPrice: string;
+    sku: string;
+  };
+
+  scope!: {
+    channel: "mercadolivre";
+    companyId: string;
+    referenceMonth: string;
+  };
 }
 
 export class ProductAnalyticsQueryDto implements ProductAnalyticsQueryInput {

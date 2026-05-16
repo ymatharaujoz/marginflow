@@ -53,7 +53,7 @@ export function IntegrationsHeader({
             />
           </div>
           <p className="text-sm text-muted-foreground">
-            Gerencie a conexão de <span className="font-medium text-foreground">{organizationName}</span> com seus marketplaces.
+            Gerencie a conexão de <span className="font-medium text-foreground">{organizationName}</span> com seus marketplaces
             {isConnected && (
               <> Última sincronização: <span className="font-medium text-foreground">{relativeTime}</span>.</>
             )}

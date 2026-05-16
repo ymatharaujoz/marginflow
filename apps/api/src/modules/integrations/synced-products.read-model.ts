@@ -1,8 +1,10 @@
 import {
+  externalFees,
   externalOrderItems,
   externalOrders,
   externalProducts,
   type DatabaseClient,
+  type ExternalFee,
   type ExternalOrder,
   type ExternalOrderItem,
   type ExternalProduct,
@@ -82,6 +84,123 @@ function selectLatestUnitPrice(orderItems: ExternalProductOrderItemRow[]) {
   return latestItem ? toDecimalString(latestItem.unitPrice) : null;
 }
 
+function toMoneyCents(value: number | string | null | undefined) {
+  if (typeof value === "number") {
+    return Math.round(value * 100);
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
+  }
+
+  return 0;
+}
+
+function formatMoneyCents(value: number) {
+  return (value / 100).toFixed(2);
+}
+
+function allocateFeeCentsToItem(input: {
+  fee: ExternalFee;
+  itemRevenueCents: number;
+  orderRevenueCents: number;
+}) {
+  if (input.orderRevenueCents <= 0) {
+    return 0;
+  }
+
+  return Math.round((toMoneyCents(input.fee.amount) * input.itemRevenueCents) / input.orderRevenueCents);
+}
+
+function buildFeeSummaryByExternalProductId(input: {
+  externalProductRows: Array<ExternalProduct | LegacySyncedExternalProductRow>;
+  orderItemRows: Array<{ externalOrder: ExternalOrder | null; orderItem: ExternalOrderItem }>;
+  feeRows: ExternalFee[];
+}) {
+  const orderRevenueByOrderId = new Map<string, number>();
+  const feesByOrderId = new Map<string, ExternalFee[]>();
+  const summaries = new Map<
+    string,
+    { fixedFeeCents: number; marketplaceCommissionCents: number; shippingCostCents: number }
+  >();
+
+  for (const row of input.orderItemRows) {
+    const current = orderRevenueByOrderId.get(row.orderItem.externalOrderId) ?? 0;
+    orderRevenueByOrderId.set(
+      row.orderItem.externalOrderId,
+      current + toMoneyCents(row.orderItem.totalPrice),
+    );
+  }
+
+  for (const fee of input.feeRows) {
+    if (!fee.externalOrderId) {
+      continue;
+    }
+
+    const currentFees = feesByOrderId.get(fee.externalOrderId) ?? [];
+    currentFees.push(fee);
+    feesByOrderId.set(fee.externalOrderId, currentFees);
+  }
+
+  for (const row of input.orderItemRows) {
+    const externalProductId = row.orderItem.externalProductId;
+
+    if (!externalProductId) {
+      continue;
+    }
+
+    const itemRevenueCents = toMoneyCents(row.orderItem.totalPrice);
+    const orderRevenueCents = orderRevenueByOrderId.get(row.orderItem.externalOrderId) ?? 0;
+    const feeRows = feesByOrderId.get(row.orderItem.externalOrderId) ?? [];
+    const summary = summaries.get(externalProductId) ?? {
+      fixedFeeCents: 0,
+      marketplaceCommissionCents: 0,
+      shippingCostCents: 0,
+    };
+
+    for (const fee of feeRows) {
+      const allocatedCents = allocateFeeCentsToItem({
+        fee,
+        itemRevenueCents,
+        orderRevenueCents,
+      });
+
+      if (fee.feeType === "shipping_cost") {
+        summary.shippingCostCents += allocatedCents;
+      } else if (fee.feeType === "fixed_fee") {
+        summary.fixedFeeCents += allocatedCents;
+      } else {
+        summary.marketplaceCommissionCents += allocatedCents;
+      }
+    }
+
+    summaries.set(externalProductId, summary);
+  }
+
+  return new Map(
+    input.externalProductRows.map((row) => {
+      const summary = summaries.get(row.id) ?? {
+        fixedFeeCents: 0,
+        marketplaceCommissionCents: 0,
+        shippingCostCents: 0,
+      };
+
+      return [
+        row.id,
+        {
+          fixedFee: formatMoneyCents(summary.fixedFeeCents),
+          marketplaceCommission: formatMoneyCents(summary.marketplaceCommissionCents),
+          netMarketplaceTake: formatMoneyCents(
+            summary.fixedFeeCents + summary.marketplaceCommissionCents + summary.shippingCostCents,
+          ),
+          shippingCost: formatMoneyCents(summary.shippingCostCents),
+        },
+      ] as const;
+    }),
+  );
+}
+
 function toLinkedProductSummary(product: Product | null): SyncedProductLinkedProduct | null {
   if (!product) {
     return null;
@@ -129,6 +248,12 @@ function toSuggestedMatches(
 function toSyncedProductRecord(
   row: SyncedExternalProductRow,
   productsList: Product[],
+  feeSummary: {
+    fixedFee: string;
+    marketplaceCommission: string;
+    netMarketplaceTake: string;
+    shippingCost: string;
+  },
 ): SyncedProductRecord {
   const uniqueOrderIds = new Set<string>();
   let unitsSold = 0;
@@ -150,15 +275,19 @@ function toSyncedProductRecord(
 
   return {
     externalProductId: row.externalProductId,
+    fixedFee: feeSummary.fixedFee,
     grossRevenue: toDecimalString(grossRevenue),
     id: row.id,
     lastOrderedAt,
     latestUnitPrice: selectLatestUnitPrice(row.orderItems),
     linkedProduct: toLinkedProductSummary(row.linkedProduct),
+    marketplaceCommission: feeSummary.marketplaceCommission,
+    netMarketplaceTake: feeSummary.netMarketplaceTake,
     orderCount: uniqueOrderIds.size,
     provider: row.provider as IntegrationProviderSlug,
     reviewStatus: row.reviewStatus as SyncedProductReviewStatus,
     sku: row.sku,
+    shippingCost: feeSummary.shippingCost,
     suggestedMatches: toSuggestedMatches(
       row,
       productsList,
@@ -245,6 +374,19 @@ export async function listSyncedProductsReadModel(input: {
         inArray(externalOrderItems.externalProductId, externalProductIds),
       ),
     );
+  const orderIds = [...new Set(orderItemRows.map((row) => row.orderItem.externalOrderId))];
+  const feeRows =
+    orderIds.length > 0
+      ? await input.db
+          .select()
+          .from(externalFees)
+          .where(
+            and(
+              eq(externalFees.organizationId, input.organizationId),
+              inArray(externalFees.externalOrderId, orderIds),
+            ),
+          )
+      : [];
 
   const orderItemsByExternalProductId = new Map<string, ExternalProductOrderItemRow[]>();
 
@@ -263,6 +405,12 @@ export async function listSyncedProductsReadModel(input: {
     orderItemsByExternalProductId.set(externalProductId, currentItems);
   }
 
+  const feeSummaryByExternalProductId = buildFeeSummaryByExternalProductId({
+    externalProductRows,
+    feeRows,
+    orderItemRows,
+  });
+
   return externalProductRows.map((row) =>
     toSyncedProductRecord(
       {
@@ -271,6 +419,12 @@ export async function listSyncedProductsReadModel(input: {
         orderItems: orderItemsByExternalProductId.get(row.id) ?? [],
       },
       input.productsList,
+      feeSummaryByExternalProductId.get(row.id) ?? {
+        fixedFee: "0.00",
+        marketplaceCommission: "0.00",
+        netMarketplaceTake: "0.00",
+        shippingCost: "0.00",
+      },
     ),
   );
 }

@@ -8,8 +8,7 @@ export type ServerBillingState = BillingState;
 
 /**
  * Sempre consulta a API: redirecionamentos (billing vs onboarding vs app) precisam refletir
- * a assinatura real. `NEXT_PUBLIC_USE_MOCK_DATA` vale só para dados de UI (ex.: dashboard),
- * não para este estado.
+ * a assinatura real, sem fallback local na área protegida.
  */
 export async function readServerBillingState(): Promise<ServerBillingState | null> {
   const headerStore = await headers();

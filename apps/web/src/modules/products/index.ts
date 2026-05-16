@@ -6,4 +6,3 @@ export * from "./hooks/use-product-data";
 export * from "./types/products";
 export * from "./utils/formatters";
 export * from "./calculations/product-insights";
-export { mockProductCatalogData, fetchMockProductData } from "./mock/mock-product-data";

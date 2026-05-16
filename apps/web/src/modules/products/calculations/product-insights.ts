@@ -7,6 +7,7 @@ import { parseProtectedNumber } from "@/lib/protected-numbers";
 import type {
   ProductCatalogData,
   ProductInsight,
+  ProductMarketplaceNotice,
   CatalogStats,
   ProductTableRow,
 } from "../types/products";
@@ -96,7 +97,7 @@ export function buildProductInsights(
 ): ProductInsight[] {
   const insights: ProductInsight[] = [];
 
-  // Agregar métricas
+  // Agregar métricas primeiro para calcular insight de devoluções
   let totalRevenue = 0;
   let totalAdSpend = 0;
 
@@ -108,6 +109,7 @@ export function buildProductInsights(
     shipping: number;
     adSpend: number;
     roas: number | null;
+    returns: number;
   }> = [];
 
   for (const row of rows) {
@@ -122,43 +124,69 @@ export function buildProductInsights(
       shipping: row.shipping,
       adSpend: row.adSpend,
       roas: row.actualRoas,
+      returns: row.returns,
     });
   }
 
-  const overallRoas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : null;
-
-  // Ordenar por lucro (crescente e decrescente)
+  // Ordenar métricas para os insights
   const byProfitDesc = [...productMetrics].sort((a, b) => b.profit - a.profit);
-  const byProfitAsc = [...productMetrics].sort((a, b) => a.profit - b.profit);
-
-  // Ordenar por ROAS (apenas produtos com investimento significativo em ads e ROAS válido)
+  const byReturnsDesc = [...productMetrics]
+    .filter((p) => p.returns > 0)
+    .sort((a, b) => b.returns - a.returns);
+  const byShippingDesc = [...productMetrics]
+    .filter((p) => p.shipping > 0)
+    .sort((a, b) => b.shipping - a.shipping);
   const byRoasDesc = [...productMetrics]
     .filter((p) => p.adSpend > 10 && p.roas !== null && p.roas > 0 && p.roas < 50 && Number.isFinite(p.roas))
     .sort((a, b) => (b.roas ?? 0) - (a.roas ?? 0));
 
-  // ===== INSIGHT 1: Produto com maior lucro =====
-  if (byProfitDesc.length > 0) {
+  // ===== INSIGHT 1: Produto com maior lucro líquido =====
+  if (byProfitDesc.length > 0 && byProfitDesc[0].profit > 0) {
     const bestProduct = byProfitDesc[0];
-    if (bestProduct.profit > 0) {
-      insights.push({
-        description: `${bestProduct.name} (${bestProduct.sku}) gerou ${formatMoney(bestProduct.profit)} de lucro. Maior lucro do catálogo.`,
-        href: "/app/products",
-        id: "best-profit-product",
-        priority: "medium",
-        title: "Maior lucro",
-        type: "growth",
-      });
-    }
+    insights.push({
+      description: `${bestProduct.name} (${bestProduct.sku}) gerou ${formatMoney(bestProduct.profit)} de lucro. Maior lucro do catálogo.`,
+      href: "/app/products",
+      id: "best-profit-product",
+      priority: "medium",
+      title: "Maior lucro",
+      type: "growth",
+    });
+  } else {
+    insights.push({
+      description: "Nenhum produto com lucro registrado no catálogo.",
+      href: "/app/products",
+      id: "no-profit",
+      priority: "low",
+      title: "Sem lucro",
+      type: "info",
+    });
   }
 
-  // ===== INSIGHT 2: Produto com frete mais caro =====
-  const byShippingDesc = [...productMetrics]
-    .filter((p) => p.shipping > 0)
-    .sort((a, b) => b.shipping - a.shipping);
+  // ===== INSIGHT 2: Produto com mais devoluções =====
+  if (byReturnsDesc.length > 0) {
+    const highestReturnsProduct = byReturnsDesc[0];
+    insights.push({
+      description: `${highestReturnsProduct.name} (${highestReturnsProduct.sku}) teve ${highestReturnsProduct.returns} devoluções. Produto com mais devoluções do catálogo.`,
+      href: "/app/products",
+      id: "highest-returns-product",
+      priority: "high",
+      title: "Mais devoluções",
+      type: "alert",
+    });
+  } else {
+    insights.push({
+      description: "Nenhuma devolução registrada nos produtos do catálogo.",
+      href: "/app/products",
+      id: "no-returns",
+      priority: "low",
+      title: "Sem devoluções",
+      type: "info",
+    });
+  }
 
+  // ===== INSIGHT 3: Produto com frete mais caro =====
   if (byShippingDesc.length > 0) {
     const highestShippingProduct = byShippingDesc[0];
-
     insights.push({
       description: `${highestShippingProduct.name} (${highestShippingProduct.sku}) tem o frete mais caro.`,
       href: "/app/products",
@@ -167,9 +195,18 @@ export function buildProductInsights(
       title: "Frete mais caro",
       type: "alert",
     });
+  } else {
+    insights.push({
+      description: "Nenhum produto com custo de frete registrado.",
+      href: "/app/products",
+      id: "no-shipping",
+      priority: "low",
+      title: "Sem frete",
+      type: "info",
+    });
   }
 
-  // ===== INSIGHT 3: Produto com publicidade mais eficiente =====
+  // ===== INSIGHT 4: Produto com publicidade mais eficiente =====
   if (byRoasDesc.length > 0) {
     const bestRoasProduct = byRoasDesc[0];
     const roasValue = bestRoasProduct.roas ?? 0;
@@ -189,53 +226,95 @@ export function buildProductInsights(
       title: "Publicidade mais eficiente",
       type: "growth",
     });
-  }
-
-  // ===== INSIGHT 4: Publicidade eficiente (geral) =====
-  if (totalAdSpend > 0 && overallRoas !== null) {
-    if (overallRoas >= 4) {
-      insights.push({
-        description: `ROAS geral de ${overallRoas.toFixed(1)}x. Performance excelente, considere aumentar investimento.`,
-        href: "/app/products",
-        id: "high-overall-roas",
-        priority: "medium",
-        title: "Publicidade eficiente",
-        type: "growth",
-      });
-    } else if (overallRoas >= 2) {
-      insights.push({
-        description: `ROAS geral de ${overallRoas.toFixed(1)}x. Performance boa, dentro da meta.`,
-        href: "/app/products",
-        id: "medium-overall-roas",
-        priority: "low",
-        title: "Publicidade eficiente",
-        type: "growth",
-      });
-    } else {
-      insights.push({
-        description: `ROAS geral de ${overallRoas.toFixed(1)}x. Investimento em ads está com baixo retorno.`,
-        href: "/app/products",
-        id: "low-overall-roas",
-        priority: "high",
-        title: "Publicidade ineficiente",
-        type: "alert",
-      });
-    }
-  }
-
-  // Se não tiver publicidade, mostra insight sobre isso
-  if (totalAdSpend === 0 && byProfitDesc.length > 0) {
+  } else {
     insights.push({
-      description: "Nenhum investimento em publicidade registrado. Considere investir nos produtos de maior margem.",
+      description: "Nenhum investimento em publicidade registrado nos produtos.",
       href: "/app/products",
-      id: "no-ad-spend",
+      id: "no-ads",
       priority: "low",
-      title: "Sem investimento em Ads",
+      title: "Sem publicidade",
       type: "info",
     });
   }
 
   return insights.slice(0, 4);
+}
+
+export function buildMarketplaceSyncNotice(data: ProductCatalogData): ProductMarketplaceNotice | null {
+  const { availability, activeRun, lastCompletedRun } = data.mercadoLivreSyncStatus;
+
+  if (availability.reason === "provider_unavailable") {
+    return {
+      actionLabel: "Ver integrações",
+      description:
+        "As credenciais do Mercado Livre ainda não estão configuradas na API local. Sem isso, não há OAuth nem sincronização real.",
+      href: "/app/integrations",
+      id: "mercadolivre-unavailable",
+      title: "Credenciais do Mercado Livre indisponíveis",
+      tone: "alert",
+    };
+  }
+
+  if (availability.reason === "provider_disconnected") {
+    return null;
+  }
+
+  if (availability.reason === "provider_needs_reconnect") {
+    return {
+      actionLabel: "Reconectar conta",
+      description:
+        "O token salvo do Mercado Livre expirou. Reconecte a conta em integrações antes de tentar sincronizar novamente.",
+      href: "/app/integrations",
+      id: "mercadolivre-needs-reconnect",
+      title: "Reconexão necessária",
+      tone: "alert",
+    };
+  }
+
+  if (activeRun) {
+    return {
+      actionLabel: "Ver integrações",
+      description:
+        "Há uma sincronização do Mercado Livre em andamento. Assim que ela terminar, os itens pendentes aparecerão aqui para revisão.",
+      href: "/app/integrations",
+      id: "mercadolivre-sync-running",
+      title: "Sincronização em andamento",
+      tone: "info",
+    };
+  }
+
+  if (data.catalogStats.pendingSyncProducts > 0) {
+    return {
+      actionKey: "open-synced-review",
+      actionLabel: "Abrir revisão",
+      description: `${data.catalogStats.pendingSyncProducts} produto(s) sincronizado(s) já estão prontos para importar, vincular ou ignorar no catálogo.`,
+      id: "mercadolivre-pending-review",
+      title: "Produtos aguardando revisão",
+      tone: "success",
+    };
+  }
+
+  if (!lastCompletedRun) {
+    return {
+      actionLabel: "Ir para integrações",
+      description:
+        "A conta está pronta, mas a primeira sincronização do Mercado Livre ainda não foi concluída. Rode o sync em Integrações para trazer os produtos.",
+      href: "/app/integrations",
+      id: "mercadolivre-first-sync",
+      title: "Primeira sincronização pendente",
+      tone: "info",
+    };
+  }
+
+  return {
+    actionLabel: "Ver integrações",
+    description:
+      "A última sincronização foi concluída e não há produtos pendentes de revisão no momento.",
+    href: "/app/integrations",
+    id: "mercadolivre-no-pending-review",
+    title: "Sem revisão pendente",
+    tone: "success",
+  };
 }
 
 function formatMoney(value: number): string {

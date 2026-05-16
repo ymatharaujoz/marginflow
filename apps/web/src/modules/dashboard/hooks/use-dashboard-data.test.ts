@@ -20,7 +20,7 @@ describe("dashboard protected fetchers", () => {
     apiClientMock.getValidatedData.mockReset();
   });
 
-  it("uses the validated API path as the primary source when mock mode is off", async () => {
+  it("uses the validated API path as the protected data source", async () => {
     apiClientMock.getValidatedData.mockResolvedValue({
       cards: [],
       summary: {

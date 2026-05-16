@@ -1,4 +1,6 @@
 import type { IntegrationProviderSlug } from "./integrations";
+import type { ProductMonthlyPerformanceRow } from "./finance-inputs";
+import type { SyncStatusResponse } from "./sync";
 
 export type DecimalString = string;
 
@@ -16,6 +18,27 @@ export type ProductCostFormValues = {
   currency: string;
   effectiveFrom: string | null;
   notes: string | null;
+};
+
+export type ProductManualCreateInitialFinanceValues = {
+  unitCost: DecimalString;
+  packagingCost: DecimalString;
+  advertisingCost: DecimalString;
+  taxRate: DecimalString;
+};
+
+export type ProductManualCreateScopeValues = {
+  companyId: string;
+  referenceMonth: string;
+  channel: "mercadolivre";
+};
+
+export type ProductManualCreateFormValues = {
+  product: ProductFormValues & {
+    sku: string;
+  };
+  initialFinance: ProductManualCreateInitialFinanceValues;
+  scope: ProductManualCreateScopeValues;
 };
 
 export type AdCostFormValues = {
@@ -123,6 +146,10 @@ export type SyncedProductRecord = {
   orderCount: number;
   unitsSold: number;
   grossRevenue: DecimalString;
+  marketplaceCommission: DecimalString;
+  fixedFee: DecimalString;
+  shippingCost: DecimalString;
+  netMarketplaceTake: DecimalString;
   latestUnitPrice: DecimalString | null;
   lastOrderedAt: string | null;
 };
@@ -135,6 +162,12 @@ export type SyncedProductActionResult = {
   linkedProduct: SyncedProductLinkedProduct | null;
   message: string;
   syncedProduct: SyncedProductRecord;
+};
+
+export type ProductManualCreateResult = {
+  product: ProductRecord;
+  productCost: ProductCostRecord;
+  performance: ProductMonthlyPerformanceRow;
 };
 
 export type ProductFinancialState =
@@ -235,5 +268,6 @@ export type ProductAnalyticsSnapshot = ProductCatalogSnapshot & {
   catalogStats: ProductAnalyticsCatalogStats;
   financialState: ProductFinancialState;
   dataGaps: ProductAnalyticsDataGap[];
+  mercadoLivreSyncStatus: SyncStatusResponse;
   scope: ProductAnalyticsScope;
 };

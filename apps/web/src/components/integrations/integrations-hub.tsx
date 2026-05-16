@@ -2,14 +2,13 @@
 
 import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { AlertCircle, Beaker, Link2, Activity } from "lucide-react";
-import { Badge } from "@marginflow/ui";
+import { AlertCircle, Activity } from "lucide-react";
 import { ApiClientError } from "@/lib/api/client";
 import { translateApiMessage } from "@/lib/pt-br/api-ui";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import {
   IntegrationsHeader,
-  IntegrationsList,
+  ConnectedMarketplacesSection,
   SyncStatusGrid,
   SyncControlCard,
   SyncHistorySection,
@@ -162,22 +161,7 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-10">
-      {/* Banner de Modo de Demonstração */}
-      {process.env.NODE_ENV === "development" && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2"
-        >
-          <div className="flex items-center gap-2">
-            <Beaker className="h-4 w-4 text-warning" />
-            <span className="text-sm font-medium text-foreground">Modo de demonstração</span>
-            <Badge variant="warning" className="text-[10px]">
-              Dados de teste
-            </Badge>
-          </div>
-        </motion.div>
-      )}
+      
 
       {/* Banner de Mensagem */}
       {displayMessage && (
@@ -220,24 +204,16 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
       {/* Divider */}
       <div className="border-t border-border/60" />
 
-      {/* Seção 1: Integrações Disponíveis */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Link2 className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            Marketplaces Conectados
-          </h2>
-        </div>
-        <IntegrationsList
-          connections={integrationsQuery.data ?? []}
-          isLoading={integrationsQuery.isLoading}
-          isFetching={integrationsQuery.isFetching}
-          busyProvider={busyProvider}
-          busyAction={busyAction}
-          onConnect={handleConnect}
-          onDisconnect={handleDisconnect}
-        />
-      </section>
+      {/* Seção 1: Marketplaces Conectados — Design Premium */}
+      <ConnectedMarketplacesSection
+        connections={integrationsQuery.data ?? []}
+        isLoading={integrationsQuery.isLoading}
+        isFetching={integrationsQuery.isFetching}
+        busyProvider={busyProvider}
+        busyAction={busyAction}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+      />
 
       {/* Divider */}
       <div className="border-t border-border/60" />

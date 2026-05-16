@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const decimalPattern = /^\d+(?:\.\d{1,2})?$/;
+const decimalRatePattern = /^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/;
 const optionalDateField = z
   .string()
   .trim()
@@ -17,6 +18,13 @@ function decimalField(label: string) {
     .string()
     .trim()
     .regex(decimalPattern, `${label} must be a decimal amount with up to 2 places.`);
+}
+
+function decimalRateField(label: string) {
+  return z
+    .string()
+    .trim()
+    .regex(decimalRatePattern, `${label} must be a decimal rate between 0 and 1.`);
 }
 
 function optionalTrimmedString(max: number) {
@@ -40,6 +48,29 @@ export const productUpdateSchema = productFormSchema.partial().refine(
   (value) => Object.keys(value).length > 0,
   "At least one product field must be provided.",
 );
+
+export const productManualCreateSchema = z.object({
+  initialFinance: z.object({
+    advertisingCost: decimalField("Advertising cost"),
+    packagingCost: decimalField("Packaging cost"),
+    taxRate: decimalRateField("Tax rate"),
+    unitCost: decimalField("Unit cost"),
+  }),
+  product: z.object({
+    isActive: z.boolean().default(true),
+    name: z.string().trim().min(1).max(255),
+    sellingPrice: decimalField("Selling price"),
+    sku: z.string().trim().min(1).max(128),
+  }),
+  scope: z.object({
+    channel: z.literal("mercadolivre"),
+    companyId: z.string().uuid(),
+    referenceMonth: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-01$/, "Expected the first day of a month."),
+  }),
+});
 
 export const productCostFormSchema = z.object({
   amount: decimalField("Product cost"),
@@ -104,6 +135,7 @@ export const productAnalyticsQuerySchema = z.object({
 
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
+export type ProductManualCreateInput = z.infer<typeof productManualCreateSchema>;
 export type ProductCostFormInput = z.infer<typeof productCostFormSchema>;
 export type ProductCostUpdateInput = z.infer<typeof productCostUpdateSchema>;
 export type AdCostFormInput = z.infer<typeof adCostFormSchema>;

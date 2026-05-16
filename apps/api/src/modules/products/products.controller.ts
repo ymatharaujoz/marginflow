@@ -4,7 +4,12 @@ import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
 import { ProductsService } from "./products.service";
-import { CreateProductRequestDto, ProductAnalyticsQueryDto, UpdateProductRequestDto } from "./products.dto";
+import {
+  CreateManualProductRequestDto,
+  CreateProductRequestDto,
+  ProductAnalyticsQueryDto,
+  UpdateProductRequestDto,
+} from "./products.dto";
 
 @Controller("products")
 @UseGuards(AuthGuard, EntitlementGuard)
@@ -46,6 +51,23 @@ export class ProductsController {
   ) {
     return {
       data: await this.productsService.createProduct(authContext.organization!.id, body),
+      error: null,
+    };
+  }
+
+  @Post("manual")
+  async createManualProduct(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Body() body: CreateManualProductRequestDto,
+  ) {
+    return {
+      data: await this.productsService.createManualProduct(
+        {
+          organizationId: authContext.organization!.id,
+          userId: authContext.user.id,
+        },
+        body,
+      ),
       error: null,
     };
   }

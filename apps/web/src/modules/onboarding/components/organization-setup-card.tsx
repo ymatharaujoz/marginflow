@@ -33,9 +33,11 @@ export function OrganizationSetupCard({
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
 
   function handleNameChange(value: string) {
     setName(value);
+    setShowErrors(false);
     if (!slugManuallyEdited) {
       setSlug(generateSlug(value));
     }
@@ -48,6 +50,10 @@ export function OrganizationSetupCard({
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (name.trim().length < 2) {
+      setShowErrors(true);
+      return;
+    }
     onSubmit({
       name: name.trim(),
       slug: slug.trim().length > 0 ? slug.trim() : null,
@@ -57,6 +63,7 @@ export function OrganizationSetupCard({
   const displayName = name.trim() || suggestedName;
   const displaySlug = slug || generateSlug(displayName);
   const previewUrl = `marginflow.com/app/${displaySlug}`;
+  const nameError = showErrors && name.trim().length < 2;
 
   return (
     <motion.div variants={itemVariants} className="h-full min-h-0">
@@ -70,7 +77,7 @@ export function OrganizationSetupCard({
             <div>
               <h3 className="font-semibold text-foreground">Detalhes da organização</h3>
               <p className="text-xs text-muted-foreground">
-                Escolha um nome para identificar seu workspace
+                Escolha um nome para identificar sua organização
               </p>
             </div>
           </div>
@@ -90,15 +97,19 @@ export function OrganizationSetupCard({
                 type="text"
                 value={name}
                 onChange={(e) => handleNameChange(e.target.value)}
-                placeholder="Minha Operação, Minha Loja..."
+                placeholder="Minha Organização"
                 required
                 minLength={2}
                 maxLength={100}
-                className="w-full rounded-lg border border-border bg-surface-strong px-4 py-3 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-border-strong focus:border-accent focus:ring-2 focus:ring-accent/10"
+                className={`w-full rounded-lg border bg-surface-strong px-4 py-3 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-border-strong focus:ring-2 ${
+                  nameError
+                    ? "border-error hover:border-error focus:border-error focus:ring-error/10"
+                    : "border-border focus:border-accent focus:ring-accent/10"
+                }`}
               />
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">
-                  Este nome será exibido no dashboard e relatórios
+                <span className={nameError ? "text-error" : "text-muted-foreground"}>
+                  {nameError ? "Informe pelo menos 2 caracteres" : "Este nome será exibido no dashboard e relatórios"}
                 </span>
                 <span className={`${name.length > 90 ? "text-warning" : "text-muted-foreground"}`}>
                   {name.length}/100
@@ -123,7 +134,7 @@ export function OrganizationSetupCard({
                   type="text"
                   value={slug}
                   onChange={(e) => handleSlugChange(e.target.value)}
-                  placeholder={generateSlug(name) || "minha-operacao"}
+                  placeholder={generateSlug(name) || "minha-organizacao"}
                   className="w-full rounded-lg border border-border bg-surface-strong py-3 pl-[11rem] pr-4 text-sm font-medium text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-border-strong focus:border-accent focus:ring-2 focus:ring-accent/10"
                 />
                 {slugManuallyEdited && slug && (
@@ -140,7 +151,7 @@ export function OrganizationSetupCard({
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Personalize o link do seu workspace. Deixe em branco para gerar automaticamente.
+                Deixe em branco para gerar automaticamente
               </p>
             </div>
 
@@ -183,19 +194,16 @@ export function OrganizationSetupCard({
             <div className="shrink-0 pt-2">
               <Button
                 type="submit"
-                disabled={isSubmitting || name.trim().length < 2}
+                disabled={isSubmitting}
                 loading={isSubmitting}
                 size="lg"
                 className="w-full gap-2 text-white hover:text-white [&_svg]:text-white"
               >
                 {isSubmitting ? (
-                  <>
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Criando organização...
-                  </>
+                  <>Criando organização...</>
                 ) : (
                   <>
-                    Criar organização e começar
+                    Criar organização e continuar
                     <ArrowRight className="h-4 w-4" />
                   </>
                 )}

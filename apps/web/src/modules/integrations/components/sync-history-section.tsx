@@ -125,7 +125,7 @@ export function SyncHistorySection({
             </div>
             <p className="text-sm font-medium text-foreground">Nenhuma sincronização ainda</p>
             <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-              Quando você rodar uma sincronização, cada execução aparecerá aqui com status, horário e volumes importados.
+              Quando você rodar uma sincronização, cada execução aparecerá aqui com status, horário e volumes importados
             </p>
           </div>
         ) : (

@@ -1,4 +1,10 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { buildProductAnalyticsMetrics, type FinancialMonthlyPerformanceInput } from "@marginflow/domain";
 import { and, desc, eq } from "drizzle-orm";
 import type {
@@ -31,6 +37,8 @@ import type {
   ProductCostFormValues,
   ProductCostRecord,
   ProductFormValues,
+  ProductManualCreateFormValues,
+  ProductManualCreateResult,
   ProductListItem,
   ProductMonthlyPerformanceDisplayRow,
   ProductRecord,
@@ -38,6 +46,7 @@ import type {
 import { DATABASE_CLIENT } from "@/common/tokens";
 import { FinanceService } from "@/modules/finance/finance.service";
 import { listSyncedProductsReadModel } from "@/modules/integrations/synced-products.read-model";
+import { SyncService } from "@/modules/sync/sync.service";
 
 type ProductUpdateInput = Partial<ProductFormValues>;
 type ProductCostUpdateInput = Partial<ProductCostFormValues>;
@@ -77,6 +86,12 @@ function normalizeComparableSku(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
+function isUuidLike(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -84,6 +99,8 @@ export class ProductsService {
     private readonly db: DatabaseClient,
     @Inject(FinanceService)
     private readonly financeService: FinanceService,
+    @Inject(SyncService)
+    private readonly syncService: SyncService,
   ) {}
 
   async listProducts(organizationId: string): Promise<ProductListItem[]> {
@@ -125,6 +142,127 @@ export class ProductsService {
       .returning();
 
     return this.toProductRecord(created);
+  }
+
+  async createManualProduct(
+    context: TenantContext,
+    input: ProductManualCreateFormValues,
+  ): Promise<ProductManualCreateResult> {
+    if (!input.scope.companyId || input.scope.companyId.trim().length === 0) {
+      throw new BadRequestException(
+        "Cadastre uma empresa ativa antes de salvar um produto manual com custos e impostos mensais.",
+      );
+    }
+
+    if (!isUuidLike(input.scope.companyId)) {
+      throw new BadRequestException("Manual product creation requires a valid company id.");
+    }
+
+    const normalizedSku = normalizeComparableSku(input.product.sku);
+
+    if (!normalizedSku) {
+      throw new BadRequestException("SKU is required for manual Mercado Livre product creation.");
+    }
+
+    const company = await this.ensureCompanyAccess(context, input.scope.companyId);
+
+    if (!company.isActive) {
+      throw new BadRequestException(
+        "Manual product creation requires an active company for monthly costs and taxes.",
+      );
+    }
+
+    const result = await this.db.transaction(async (tx) => {
+      const [createdProduct] = await tx
+        .insert(products)
+        .values({
+          isActive: input.product.isActive,
+          name: input.product.name,
+          organizationId: context.organizationId,
+          sellingPrice: input.product.sellingPrice,
+          sku: normalizedSku,
+        })
+        .returning();
+
+      const [createdCost] = await tx
+        .insert(productCosts)
+        .values({
+          amount: input.initialFinance.unitCost,
+          costType: "base",
+          currency: "BRL",
+          effectiveFrom: input.scope.referenceMonth,
+          notes: "Cadastro manual inicial",
+          organizationId: context.organizationId,
+          productId: createdProduct.id,
+        })
+        .returning();
+
+      const existingPerformance = await tx.query.productMonthlyPerformance.findFirst({
+        where: (table) =>
+          and(
+            eq(table.organizationId, context.organizationId),
+            eq(table.userId, context.userId),
+            eq(table.companyId, input.scope.companyId),
+            eq(table.referenceMonth, input.scope.referenceMonth),
+            eq(table.channel, input.scope.channel),
+            eq(table.sku, normalizedSku),
+          ),
+      });
+
+      const persistedPerformance = existingPerformance
+        ? (
+            await tx
+              .update(productMonthlyPerformance)
+              .set({
+                advertisingCost: input.initialFinance.advertisingCost,
+                packagingCost: input.initialFinance.packagingCost,
+                productName: input.product.name,
+                salePrice: input.product.sellingPrice,
+                taxRate: input.initialFinance.taxRate,
+                unitCost: input.initialFinance.unitCost,
+              })
+              .where(eq(productMonthlyPerformance.id, existingPerformance.id))
+              .returning()
+          )[0]
+        : (
+            await tx
+              .insert(productMonthlyPerformance)
+              .values({
+                advertisingCost: input.initialFinance.advertisingCost,
+                channel: input.scope.channel,
+                commissionRate: "0.000000",
+                companyId: input.scope.companyId,
+                notes: "Cadastro manual inicial",
+                organizationId: context.organizationId,
+                packagingCost: input.initialFinance.packagingCost,
+                productName: input.product.name,
+                referenceMonth: input.scope.referenceMonth,
+                returnsQuantity: 0,
+                salePrice: input.product.sellingPrice,
+                salesQuantity: 0,
+                shippingFee: "0.00",
+                sku: normalizedSku,
+                taxRate: input.initialFinance.taxRate,
+                unitCost: input.initialFinance.unitCost,
+                userId: context.userId,
+              })
+              .returning()
+          )[0];
+
+      return {
+        performance: persistedPerformance,
+        product: createdProduct,
+        productCost: createdCost,
+      };
+    });
+
+    await this.financeService.materializeOrganizationMetrics(context.organizationId);
+
+    return {
+      performance: this.toPerformanceRecord(result.performance),
+      product: this.toProductRecord(result.product),
+      productCost: this.toProductCostRecord(result.productCost),
+    };
   }
 
   async updateProduct(
@@ -334,7 +472,15 @@ export class ProductsService {
     query: AnalyticsQueryInput = {},
   ): Promise<ProductAnalyticsSnapshot> {
     const scope = await this.resolveAnalyticsScope(context, query);
-    const [productsList, costRows, adCostRows, expenseRows, rawProductRows, financeSnapshot] =
+    const [
+      productsList,
+      costRows,
+      adCostRows,
+      expenseRows,
+      rawProductRows,
+      financeSnapshot,
+      mercadoLivreSyncStatus,
+    ] =
       await Promise.all([
         this.listProducts(context.organizationId),
         this.listProductCosts(context.organizationId),
@@ -345,6 +491,7 @@ export class ProductsService {
           where: (table) => eq(table.organizationId, context.organizationId),
         }),
         this.financeService.buildFinanceSnapshot(context.organizationId),
+        this.syncService.getStatus(context.organizationId, "mercadolivre"),
       ]);
     const monthlyPerformanceRows = await this.readMonthlyPerformanceForAnalytics(context, scope);
     const monthlyPerformanceDisplayRows = monthlyPerformanceRows.map((row) =>
@@ -427,6 +574,7 @@ export class ProductsService {
       dataGaps: this.buildAnalyticsDataGaps(),
       financialState,
       manualExpenses: expenseRows,
+      mercadoLivreSyncStatus,
       monthlyPerformanceRows: monthlyPerformanceDisplayRows,
       productCosts: costRows,
       productRows,
@@ -516,9 +664,15 @@ export class ProductsService {
       };
     }
 
+    const companies = await this.db.query.companies.findMany({
+      where: (table) =>
+        and(eq(table.organizationId, context.organizationId), eq(table.userId, context.userId)),
+    });
+    const activeCompanyCount = companies.filter((company) => company.isActive).length;
+
     return {
       companyId: null,
-      companyRequired: false,
+      companyRequired: activeCompanyCount === 0,
       referenceMonth,
     };
   }
@@ -605,6 +759,29 @@ export class ProductsService {
       sku: row.sku,
       taxRate: String(row.taxRate),
       unitCost: String(row.unitCost),
+    };
+  }
+
+  private toPerformanceRecord(row: ProductMonthlyPerformance) {
+    return {
+      advertisingCost: String(row.advertisingCost),
+      channel: row.channel,
+      commissionRate: String(row.commissionRate),
+      companyId: row.companyId,
+      createdAt: row.createdAt.toISOString(),
+      id: row.id,
+      notes: row.notes,
+      packagingCost: String(row.packagingCost),
+      productName: row.productName,
+      referenceMonth: row.referenceMonth,
+      returnsQuantity: row.returnsQuantity,
+      salePrice: String(row.salePrice),
+      salesQuantity: row.salesQuantity,
+      shippingFee: String(row.shippingFee),
+      sku: row.sku,
+      taxRate: String(row.taxRate),
+      unitCost: String(row.unitCost),
+      updatedAt: row.updatedAt.toISOString(),
     };
   }
 

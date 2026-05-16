@@ -31,7 +31,8 @@ export function brandSeoTitle(tagline: string, source: Record<string, string | u
 /** In-page sections on the marketing homepage (`/`). Header/footer use these instead of separate routes. */
 export const marketingLandingNav = [
   { sectionId: "recursos", label: "Recursos" },
-  { sectionId: "planos", label: "Planos" },
+  { sectionId: "integracoes", label: "Integrações" },
+  { sectionId: "planos", label: "Preços" },
 ] as const;
 
 /** WhatsApp deep link for demo CTAs. Set `NEXT_PUBLIC_WHATSAPP_DEMO_URL` (e.g. `https://wa.me/5511…`). */
@@ -177,20 +178,8 @@ export function getPublicRoutes(source: Record<string, string | undefined> = pro
       priority: 1,
       title: `${name} | Venda mais. Lucre mais.`,
     },
-    {
-      changeFrequency: "weekly" as const,
-      description: "Panorama das funcionalidades: dashboard, analytics, insights com IA e métricas de lucro.",
-      path: "/features",
-      priority: 0.8,
-      title: `Recursos | ${name}`,
-    },
-    {
-      changeFrequency: "weekly" as const,
-      description: `Planos de assinatura ${name} mensal e anual. Comece gratuitamente.`,
-      path: "/pricing",
-      priority: 0.8,
-      title: `Preços | ${name}`,
-    },
+
+
     {
       changeFrequency: "weekly" as const,
       description: "Integrações Mercado Livre, Shopee, Amazon e entradas manuais de custo.",

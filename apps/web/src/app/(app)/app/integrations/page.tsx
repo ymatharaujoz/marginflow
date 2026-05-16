@@ -3,6 +3,7 @@ import { IntegrationsHub } from "@/components/integrations/integrations-hub";
 import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
+import { hasActiveCompany, readServerCompanies } from "@/lib/server-companies";
 
 type IntegrationsPageProps = {
   searchParams: Promise<{
@@ -23,6 +24,16 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
 
   if (redirectTarget) {
     redirect(redirectTarget);
+  }
+
+  if (!authState) {
+    redirect("/sign-in");
+  }
+
+  const companies = await readServerCompanies();
+
+  if (!hasActiveCompany(companies)) {
+    redirect("/app/onboarding");
   }
 
   return (

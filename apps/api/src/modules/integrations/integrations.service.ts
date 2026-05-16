@@ -586,7 +586,7 @@ export class IntegrationsService {
         lastSyncedAt: null,
         provider: provider.provider,
         status: "disconnected",
-        statusMessage: "Nenhuma conta do marketplace está conectada ainda.",
+        statusMessage: "Nenhuma conta do marketplace está conectada ainda",
         tokenExpiresAt: null,
       };
     }
@@ -738,15 +738,19 @@ export class IntegrationsService {
 
     return {
       externalProductId: row.externalProductId,
+      fixedFee: "0.00",
       grossRevenue: toDecimalString(grossRevenue),
       id: row.id,
       lastOrderedAt,
       latestUnitPrice: this.selectLatestUnitPrice(row.orderItems),
       linkedProduct: this.toLinkedProductSummary(row.linkedProduct),
+      marketplaceCommission: "0.00",
+      netMarketplaceTake: "0.00",
       orderCount: uniqueOrderIds.size,
       provider: row.provider as IntegrationProviderSlug,
       reviewStatus: row.reviewStatus as SyncedProductReviewStatus,
       sku: row.sku,
+      shippingCost: "0.00",
       suggestedMatches: this.toSuggestedMatches(
         row,
         productsList,

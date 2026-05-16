@@ -6,16 +6,13 @@ import Image from "next/image";
 // ==========================================
 // MERCADO LIVRE — wordmark + handshake symbol (tight viewBox in public SVGs)
 // ==========================================
-const mercadoLivreLogoSrc = "/icons/mercado-livre-logo.svg";
-const mercadoLivreSymbolSrc = "/icons/mercado-livre-symbol.svg";
+const mercadoLivreLogoSrc = "/icons/mercado-libre-icon.svg";
+const mercadoLivreSymbolSrc = "/icons/mercado-libre-icon.svg";
 const shopeeIconSrc = "/icons/shopee-icon.svg";
 
 /** Same rendered height, width from aspect ratio — keeps ML + Shopee aligned in a row. */
 const marketplaceMarkUniformClass =
-  "h-7 w-auto shrink-0 object-contain object-center sm:h-8";
-
-/** ML levemente menor que a Shopee na mesma linha (só “Compatível com”). */
-const marketplaceMarkMercadoBarClass = `${marketplaceMarkUniformClass} origin-center scale-[0.92] sm:scale-[0.80]`;
+  "h-7 w-auto shrink-0 self-center object-contain object-center sm:h-8";
 
 export function MercadoLivreIcon({ className = "h-11 w-12" }: { className?: string }) {
   return (
@@ -150,7 +147,7 @@ export function MarketplaceLogosBar() {
     <div className="flex items-center gap-3">
       <span className="text-xs text-muted-foreground">Compatível com:</span>
       <div className="flex items-center gap-2">
-        <MercadoLivreMiniIcon className={marketplaceMarkMercadoBarClass} />
+        <MercadoLivreMiniIcon className="h-6 w-auto shrink-0 self-center object-contain object-center sm:h-7" />
         <ShopeeMiniIcon className={marketplaceMarkUniformClass} />
       </div>
     </div>

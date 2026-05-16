@@ -313,6 +313,10 @@ function allocateProportionally(total: bigint, weights: bigint[]) {
   return allocations;
 }
 
+function classifyExternalFeeType(feeType: string) {
+  return feeType === "shipping_cost" ? "shipping_cost" : "marketplace_fee";
+}
+
 function ensureAccumulator<TKey>(map: Map<TKey, MutableAccumulator>, key: TKey) {
   const existing = map.get(key);
 
@@ -701,8 +705,10 @@ function buildProductAggregateMap(snapshot: FinanceSnapshot) {
 
   for (const order of snapshot.orders) {
     const itemWeights = order.items.map((item) => parseMoney(item.totalPrice));
-    const totalFees = sumMoney(order.fees.map((fee) => fee.amount));
-    const feeAllocations = allocateProportionally(totalFees, itemWeights);
+    const feeAllocationsByType = order.fees.map((fee) => ({
+      allocations: allocateProportionally(parseMoney(fee.amount), itemWeights),
+      kind: classifyExternalFeeType(fee.feeType),
+    }));
 
     for (let index = 0; index < order.items.length; index += 1) {
       const item = order.items[index];
@@ -733,15 +739,30 @@ function buildProductAggregateMap(snapshot: FinanceSnapshot) {
       const itemRevenue = parseMoney(item.totalPrice);
       const quantity = item.quantity;
       const cogs = parseMoney(matchedProduct.unitCost) * BigInt(quantity);
+      const allocatedMarketplaceFee = feeAllocationsByType.reduce((sum, entry) => {
+        if (entry.kind !== "marketplace_fee") {
+          return sum;
+        }
+
+        return sum + (entry.allocations[index] ?? 0n);
+      }, 0n);
+      const allocatedShippingFee = feeAllocationsByType.reduce((sum, entry) => {
+        if (entry.kind !== "shipping_cost") {
+          return sum;
+        }
+
+        return sum + (entry.allocations[index] ?? 0n);
+      }, 0n);
 
       existing.accumulator.grossRevenue += itemRevenue;
       existing.accumulator.netRevenue += itemRevenue;
-      existing.accumulator.totalFees += feeAllocations[index] ?? 0n;
-      existing.accumulator.totalCogs += cogs;
+      existing.accumulator.totalFees += allocatedMarketplaceFee;
+      existing.accumulator.totalCogs += cogs + allocatedShippingFee;
       existing.productCost += cogs;
       existing.accumulator.unitsSold += quantity;
       existing.accumulator.ordersCount += 1;
       existing.sales += quantity;
+      existing.shippingCost += allocatedShippingFee;
       existing.channels.add(order.provider);
     }
   }

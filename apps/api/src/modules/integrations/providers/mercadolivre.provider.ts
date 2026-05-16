@@ -48,7 +48,16 @@ type MercadoLivreOrderResponse = {
   order_items?: MercadoLivreOrderItemResponse[];
   payments?: Array<{
     fee_amount?: number;
+    marketplace_fee?: number;
+    shipping_cost?: number;
   }>;
+  seller?: {
+    id?: number;
+  };
+  shipping?: {
+    id?: number | string;
+  };
+  shipping_cost?: number;
   status?: string;
   tags?: string[];
   total_amount?: number;
@@ -328,7 +337,14 @@ export class MercadoLivreProvider implements IntegrationProvider {
         );
       }
 
-      const pageOrders = (payload.results ?? []).map((order) => this.normalizeOrder(order));
+      const pageOrders = await Promise.all(
+        (payload.results ?? []).map((order) =>
+          this.normalizeOrder(order, {
+            accessToken: input.accessToken,
+            sellerAccountId: input.accountId,
+          }),
+        ),
+      );
       collected.push(...pageOrders);
       total = payload.paging?.total ?? pageOrders.length;
       offset += payload.paging?.limit ?? limit;
@@ -342,7 +358,13 @@ export class MercadoLivreProvider implements IntegrationProvider {
     return collected;
   }
 
-  private normalizeOrder(order: MercadoLivreOrderResponse): IntegrationSyncOrder {
+  private async normalizeOrder(
+    order: MercadoLivreOrderResponse,
+    input: {
+      accessToken: string;
+      sellerAccountId: string;
+    },
+  ): Promise<IntegrationSyncOrder> {
     const skuByExternalProductId: Record<string, string | null> = {};
     const titleByExternalProductId: Record<string, string | null> = {};
 
@@ -369,28 +391,50 @@ export class MercadoLivreProvider implements IntegrationProvider {
 
     const fees: IntegrationSyncFee[] = [];
 
-    for (const item of order.order_items ?? []) {
-      if (typeof item.sale_fee === "number" && item.sale_fee > 0) {
+    const paymentMarketplaceFee = (order.payments ?? []).reduce((sum, payment) => {
+      return sum + (typeof payment.marketplace_fee === "number" ? payment.marketplace_fee : 0);
+    }, 0);
+    const itemSaleFee = (order.order_items ?? []).reduce((sum, item) => {
+      return sum + (typeof item.sale_fee === "number" ? item.sale_fee : 0);
+    }, 0);
+    const marketplaceCommission =
+      paymentMarketplaceFee > 0 ? paymentMarketplaceFee : itemSaleFee > 0 ? itemSaleFee : 0;
+
+    if (marketplaceCommission > 0) {
+      fees.push({
+        amount: toDecimalString(marketplaceCommission),
+        currency: order.currency_id ?? "BRL",
+        feeType: "marketplace_commission",
+        metadata: {
+          source: paymentMarketplaceFee > 0 ? "payment.marketplace_fee" : "order_items.sale_fee",
+        },
+      });
+    }
+
+    for (const payment of order.payments ?? []) {
+      if (typeof payment.fee_amount === "number" && payment.fee_amount > 0) {
         fees.push({
-          amount: toDecimalString(item.sale_fee),
+          amount: toDecimalString(payment.fee_amount),
           currency: order.currency_id ?? "BRL",
-          feeType: "sale_fee",
-          metadata: {},
+          feeType: "fixed_fee",
+          metadata: {
+            source: "payments.fee_amount",
+          },
         });
       }
     }
 
-    if (fees.length === 0) {
-      for (const payment of order.payments ?? []) {
-        if (typeof payment.fee_amount === "number" && payment.fee_amount > 0) {
-          fees.push({
-            amount: toDecimalString(payment.fee_amount),
-            currency: order.currency_id ?? "BRL",
-            feeType: "payment_fee",
-            metadata: {},
-          });
-        }
-      }
+    const shippingCost = await this.resolveShippingCost(order, input);
+
+    if (shippingCost > 0) {
+      fees.push({
+        amount: toDecimalString(shippingCost),
+        currency: order.currency_id ?? "BRL",
+        feeType: "shipping_cost",
+        metadata: {
+          shipmentId: order.shipping?.id ? String(order.shipping.id) : null,
+        },
+      });
     }
 
     return {
@@ -407,6 +451,77 @@ export class MercadoLivreProvider implements IntegrationProvider {
       status: order.status ?? "imported",
       totalAmount: toDecimalString(order.total_amount),
     };
+  }
+
+  private async resolveShippingCost(
+    order: MercadoLivreOrderResponse,
+    input: {
+      accessToken: string;
+      sellerAccountId: string;
+    },
+  ) {
+    const shipmentId = order.shipping?.id ? String(order.shipping.id) : null;
+
+    if (shipmentId) {
+      const shipmentCost = await this.fetchShipmentSellerCost({
+        accessToken: input.accessToken,
+        sellerAccountId: input.sellerAccountId,
+        shipmentId,
+      });
+
+      if (shipmentCost !== null) {
+        return shipmentCost;
+      }
+    }
+
+    const paymentShippingCost = (order.payments ?? []).reduce((sum, payment) => {
+      return sum + (typeof payment.shipping_cost === "number" ? payment.shipping_cost : 0);
+    }, 0);
+
+    if (paymentShippingCost > 0) {
+      return paymentShippingCost;
+    }
+
+    return typeof order.shipping_cost === "number" && order.shipping_cost > 0
+      ? order.shipping_cost
+      : 0;
+  }
+
+  private async fetchShipmentSellerCost(input: {
+    accessToken: string;
+    sellerAccountId: string;
+    shipmentId: string;
+  }) {
+    const response = await fetch(`https://api.mercadolibre.com/shipments/${input.shipmentId}/costs`, {
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        accept: "application/json",
+        "x-format-new": "true",
+      },
+      method: "GET",
+    });
+
+    const payload = (await parseProviderResponse(response)) as
+      | {
+          senders?: Array<{
+            cost?: number;
+            user_id?: number;
+          }>;
+        }
+      | string;
+
+    if (!response.ok || typeof payload === "string") {
+      return null;
+    }
+
+    const matchedSender =
+      payload.senders?.find((sender) => String(sender.user_id ?? "") === input.sellerAccountId) ??
+      payload.senders?.[0] ??
+      null;
+
+    return typeof matchedSender?.cost === "number" && matchedSender.cost > 0
+      ? matchedSender.cost
+      : null;
   }
 
   private getRedirectUri() {

@@ -37,8 +37,8 @@ export function readPublicEnv(source: Record<string, string | undefined> = proce
     ...merged,
     NEXT_PUBLIC_APP_NAME: merged.NEXT_PUBLIC_APP_NAME ?? "MarginFlow",
     NEXT_PUBLIC_APP_ICON: merged.NEXT_PUBLIC_APP_ICON ?? "M",
-    NEXT_PUBLIC_PRICE_MONTHLY_LABEL: merged.NEXT_PUBLIC_PRICE_MONTHLY_LABEL ?? "US$ 99",
-    NEXT_PUBLIC_PRICE_ANNUAL_LABEL: merged.NEXT_PUBLIC_PRICE_ANNUAL_LABEL ?? "US$ 79",
+    NEXT_PUBLIC_PRICE_MONTHLY_LABEL: merged.NEXT_PUBLIC_PRICE_MONTHLY_LABEL ?? "R$ 99",
+    NEXT_PUBLIC_PRICE_ANNUAL_LABEL: merged.NEXT_PUBLIC_PRICE_ANNUAL_LABEL ?? "R$ 79",
   };
 }
 

@@ -18,12 +18,11 @@ interface MarketplacesSectionProps {
 
 const marketplaceIcons = {
   mercadolivre: (
-    <svg viewBox="0 0 40 40" className="h-8 w-8" fill="none">
-      <rect width="40" height="40" rx="8" fill="#FFE600" />
-      <path d="M20 10c-6 0-11 3-14 8 3 5 8 8 14 8s11-3 14-8c-3-5-8-8-14-8z" fill="#2D3277" />
-      <circle cx="14" cy="18" r="2.5" fill="white" />
-      <circle cx="26" cy="18" r="2.5" fill="white" />
-    </svg>
+    <img
+      src="/icons/mercado-libre-icon.svg"
+      alt="Mercado Livre"
+      className="h-8 w-auto"
+    />
   ),
 };
 

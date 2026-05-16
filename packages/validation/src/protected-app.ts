@@ -274,6 +274,15 @@ export const productCostRecordSchema = z.object({
   updatedAt: isoDateTimeField("Updated at"),
 });
 
+export const companyRecordSchema = z.object({
+  id: z.string().trim().min(1),
+  name: z.string().trim().min(1),
+  code: z.string().trim().min(1),
+  isActive: z.boolean(),
+  createdAt: isoDateTimeField("Created at"),
+  updatedAt: isoDateTimeField("Updated at"),
+});
+
 export const productListItemSchema = z.object({
   id: z.string().trim().min(1),
   organizationId: z.string().trim().min(1),
@@ -338,6 +347,10 @@ export const syncedProductRecordSchema = z.object({
   orderCount: z.number().int().min(0),
   unitsSold: z.number().int().min(0),
   grossRevenue: decimalField("Synced product gross revenue"),
+  marketplaceCommission: decimalField("Synced product marketplace commission"),
+  fixedFee: decimalField("Synced product fixed fee"),
+  shippingCost: decimalField("Synced product shipping cost"),
+  netMarketplaceTake: decimalField("Synced product net marketplace take"),
   latestUnitPrice: decimalField("Latest unit price").nullable(),
   lastOrderedAt: z.string().trim().min(1).nullable(),
 });
@@ -409,6 +422,7 @@ export const productAnalyticsSnapshotSchema = z.object({
   productCosts: z.array(productCostRecordSchema),
   products: z.array(productListItemSchema),
   syncedProducts: z.array(syncedProductRecordSchema),
+  mercadoLivreSyncStatus: dashboardRecentSyncResponseSchema,
   productRows: z.array(productAnalyticsRowSchema),
   monthlyPerformanceRows: z.array(productMonthlyPerformanceRowSchema),
   catalogStats: productAnalyticsCatalogStatsSchema,
@@ -448,6 +462,7 @@ export const productAnalyticsSnapshotApiResponseSchema = createApiSuccessRespons
 export const completeOnboardingApiResponseSchema = createApiSuccessResponseSchema(
   completeOnboardingResponseSchema,
 );
+export const companiesApiResponseSchema = createApiSuccessResponseSchema(z.array(companyRecordSchema));
 
 export type AuthStateInput = z.infer<typeof authStateSchema>;
 export type BillingStateInput = z.infer<typeof billingStateSchema>;

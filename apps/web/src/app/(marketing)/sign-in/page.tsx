@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Container } from "@marginflow/ui";
 import { SignInPanel } from "@/components/auth/sign-in-panel";
+import { ParticleCanvas } from "@/components/auth/particle-canvas";
 import { readServerAuthState } from "@/lib/server-auth";
 import { createPageMetadata, resolveSiteConfig, sitePageTitle } from "@/lib/site";
 
@@ -26,24 +25,21 @@ export default async function SignInPage() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-6rem)] flex-col">
-      <div className="flex flex-1 flex-col items-center justify-center py-12 md:py-16">
-        <Container size="sm" className="flex w-full flex-col items-center">
-          <SignInPanel />
-          <Link
-            href="/"
-            className="mt-8 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            ← Voltar ao site
-          </Link>
-        </Container>
+    <main className="relative flex min-h-[calc(100vh-6rem)] flex-col overflow-hidden">
+      {/* Particle canvas overlay on the original light background */}
+      <ParticleCanvas />
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-12 md:py-16">
+        <SignInPanel />
       </div>
 
-      <Container size="sm" className="shrink-0 pb-10 pt-2">
-        <p className="text-center text-[11px] leading-relaxed text-muted-foreground/90 sm:text-xs">
+      {/* Footer note */}
+      <div className="relative z-10 mx-auto max-w-sm px-4 pb-10 pt-2">
+        <p className="text-center text-[11px] leading-relaxed text-muted-foreground/90">
           Uso empresarial: recomendamos entrar com o mesmo domínio de e-mail que sua equipe utiliza, quando possível.
         </p>
-      </Container>
+      </div>
     </main>
   );
 }

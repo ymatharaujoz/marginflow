@@ -76,10 +76,10 @@ interface Testimonial {
 const testimonials: Testimonial[] = [
   {
     quote:
-      "Aumentamos nossa margem em 23% no primeiro trimestre usando o MarginFlow. Finalmente conseguimos ver onde estávamos perdendo dinheiro.",
+      "Aumentamos nossa margem em 23% no primeiro trimestre usando o MarginFlow. Finalmente conseguimos ver onde estávamos perdendo dinheiro",
     author: "Carlos Silva",
     role: "CFO",
-    company: "TechStore Brasil",
+    company: "",
     initials: "CS",
     color: "#0e7a6f",
     rating: 5,
@@ -89,7 +89,7 @@ const testimonials: Testimonial[] = [
       "Finalmente entendemos onde estávamos perdendo dinheiro. O dashboard de lucratividade por SKU mudou completamente nossa forma de precificar.",
     author: "Ana Paula Mendes",
     role: "CEO",
-    company: "ModaBrasil",
+    company: "",
     initials: "AP",
     color: "#2563eb",
     rating: 5,
@@ -99,7 +99,7 @@ const testimonials: Testimonial[] = [
       "O ROI ficou claro desde o primeiro mês. Conseguimos reduzir custos em 15% e aumentar o lucro líquido em 30%.",
     author: "Roberto Campos",
     role: "Fundador",
-    company: "EletroPlus",
+    company: "",
     initials: "RC",
     color: "#dc2626",
     rating: 5,
@@ -108,7 +108,7 @@ const testimonials: Testimonial[] = [
 
 const trustMetrics = [
   {
-    value: "500+",
+    value: "15+",
     label: "Empresas usando",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -157,7 +157,7 @@ export function SocialProof() {
             Empresários que transformaram seus resultados
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Veja como sellers profissionais estão usando o MarginFlow para escalar seus negócios.
+            Veja como sellers profissionais estão usando o MarginFlow para escalar seus negócios
           </p>
         </motion.div>
 
@@ -213,7 +213,7 @@ export function SocialProof() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">{testimonial.author}</p>
                   <p className="text-xs text-muted-foreground">
-                    {testimonial.role}, {testimonial.company}
+                    {testimonial.role} {testimonial.company}
                   </p>
                 </div>
               </div>
@@ -233,8 +233,8 @@ export function SocialProof() {
           className="mt-16 text-center"
         >
           <p className="text-sm text-muted-foreground">
-            Junte-se a mais de <span className="font-semibold text-foreground">500 empresas</span> que já estão
-            tomando decisões baseadas em dados reais.
+            Junte-se a mais de <span className="font-semibold text-foreground">15 empresas</span> que já estão
+            tomando decisões baseadas em dados reais
           </p>
         </motion.div>
       </div>

@@ -16,7 +16,6 @@
     "db:migrate": "corepack pnpm --filter @marginflow/database db:migrate",
     "db:diagnose": "corepack pnpm --filter @marginflow/database db:diagnose",
     "db:studio": "corepack pnpm --filter @marginflow/database db:studio",
-    "db:seed": "corepack pnpm --filter @marginflow/database db:seed",
     "build": "corepack pnpm exec turbo run build",
     "start:api": "corepack pnpm --filter @marginflow/api start",
     "start": "corepack pnpm --filter @marginflow/web start",

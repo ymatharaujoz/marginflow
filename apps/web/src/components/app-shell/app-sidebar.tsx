@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { ChevronLeft, X } from "lucide-react";
 import { Avatar } from "@marginflow/ui";
 import { PUBLIC_BRAND } from "@/lib/public-branding";
 
@@ -37,13 +38,6 @@ const BillingIcon = () => (
   </svg>
 );
 
-const SettingsIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
-  </svg>
-);
-
 type AppSidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
@@ -55,6 +49,7 @@ type AppSidebarProps = {
   organization: {
     name: string;
   };
+  isMobile?: boolean;
 };
 
 const navLinks = [
@@ -84,7 +79,7 @@ function cn(...parts: Array<string | undefined | null | false>) {
   return parts.filter(Boolean).join(" ");
 }
 
-export function AppSidebar({ collapsed, onToggle, user, organization }: AppSidebarProps) {
+export function AppSidebar({ collapsed, onToggle, user, organization, isMobile = false }: AppSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -96,7 +91,7 @@ export function AppSidebar({ collapsed, onToggle, user, organization }: AppSideb
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r border-border bg-surface-strong/95 backdrop-blur-xl",
+        "relative flex h-full flex-col border-r border-border bg-surface-strong/95 backdrop-blur-xl",
         "transition-all duration-[var(--transition-normal)] ease-out",
         collapsed ? "w-[68px]" : "w-[240px]",
       )}
@@ -104,18 +99,18 @@ export function AppSidebar({ collapsed, onToggle, user, organization }: AppSideb
       {/* Logo / Brand */}
       <div className={cn(
         "flex h-16 items-center border-b border-border",
-        collapsed ? "justify-center px-2" : "px-4"
+        collapsed ? "justify-center px-2" : "justify-between px-4"
       )}>
-        <button 
-          onClick={onToggle} 
-          type="button" 
+        <button
+          onClick={onToggle}
+          type="button"
           className={cn(
             "group flex items-center gap-3 text-foreground transition-colors",
             collapsed && "justify-center"
           )}
           aria-label="Alternar menu lateral"
         >
-          <motion.div 
+          <motion.div
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-br from-accent to-accent-strong text-xs font-bold text-white shadow-[0_2px_8px_rgba(14,122,111,0.25)]"
@@ -124,7 +119,7 @@ export function AppSidebar({ collapsed, onToggle, user, organization }: AppSideb
           </motion.div>
           <AnimatePresence>
             {!collapsed && (
-              <motion.span 
+              <motion.span
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
@@ -136,6 +131,18 @@ export function AppSidebar({ collapsed, onToggle, user, organization }: AppSideb
             )}
           </AnimatePresence>
         </button>
+
+        {/* Mobile close button */}
+        {isMobile && (
+          <button
+            onClick={onToggle}
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground transition-colors"
+            aria-label="Fechar menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
@@ -209,46 +216,36 @@ export function AppSidebar({ collapsed, onToggle, user, organization }: AppSideb
           })}
         </ul>
 
-        {/* Divider */}
-        <div className="my-4 border-t border-border/50" />
-
-        {/* Secondary nav */}
-        <ul className="flex flex-col gap-0.5">
-          <motion.li
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: navLinks.length * 0.05, duration: 0.3 }}
-          >
-            <button
-              className={cn(
-                "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5",
-                "text-[13px] font-medium text-muted-foreground",
-                "hover:bg-foreground/[0.03] hover:text-foreground",
-                "transition-all duration-[var(--transition-fast)]",
-                collapsed && "justify-center px-2"
-              )}
-              onClick={() => {}}
-              type="button"
-            >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground group-hover:text-foreground">
-                <SettingsIcon />
-              </span>
-              <AnimatePresence>
-                {!collapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    Configurações
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </button>
-          </motion.li>
-        </ul>
       </nav>
+
+      {/* Collapse toggle handle — desktop only, centered on the right edge */}
+      {!isMobile && (
+        <button
+          onClick={onToggle}
+          type="button"
+          className={cn(
+            "absolute top-1/2 -translate-y-1/2",
+            "right-0 translate-x-1/2",
+            "z-10",
+            "flex h-8 w-8 items-center justify-center",
+            "rounded-full",
+            "border border-border/70 bg-surface shadow-[var(--shadow-sm)]",
+            "text-muted-foreground",
+            "transition-all duration-[var(--transition-normal)]",
+            "hover:border-border-strong hover:bg-surface-elevated hover:text-foreground",
+            "hover:shadow-[var(--shadow-md)] hover:scale-110",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30",
+          )}
+          aria-label={collapsed ? "Expandir menu" : "Minimizar menu"}
+        >
+          <span
+            className="transition-transform duration-[var(--transition-normal)] ease-[cubic-bezier(0.16,1,0.3,1)]"
+            style={{ transform: collapsed ? "rotate(180deg)" : "rotate(0deg)" }}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </span>
+        </button>
+      )}
 
       {/* User Section */}
       <div className={cn(

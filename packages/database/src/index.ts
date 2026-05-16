@@ -3,7 +3,6 @@ import * as schema from "./schema";
 export { createDatabaseClient, type DatabaseClient } from "./client";
 export { createPostgresConnection } from "./connection";
 export { createDatabaseRuntime, type DatabaseRuntime } from "./runtime";
-export { TEMPLATE_WORKSPACE_SLUG } from "./template-workspace";
 export * from "./schema";
 
 export const dbSchema = schema;

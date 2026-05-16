@@ -5,12 +5,13 @@ import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "fr
 import { useEffect, useRef, useState } from "react";
 import { scrollToLandingSection } from "@/components/marketing/scroll-to-landing-section";
 import { PUBLIC_BRAND } from "@/lib/public-branding";
-import { getWhatsappDemoUrl } from "@/lib/site";
-import { HeroMetrics, ProgressMetrics, DashboardMetrics } from "./hero-metrics";
-import { HeroIntegrationLine, MarketplaceLogosBar } from "./marketplace-icons";
+import { getWhatsappDemoUrl, pricingPlans } from "@/lib/site";
+import { HeroMetrics } from "./hero-metrics";
+import { MarketplaceLogosBar } from "./marketplace-icons";
 import { DashboardShowcase } from "./dashboard-showcase";
 import { SocialProof } from "./social-proof";
 import { IntegrationsSection } from "./integrations-section";
+import { ParticleCanvas } from "@/components/auth/particle-canvas";
 
 const easeOut = [0.16, 1, 0.3, 1] as const;
 
@@ -66,9 +67,33 @@ function IconOrb({ children, color = "accent" }: { children: React.ReactNode; co
   );
 }
 
-// Hero Dashboard Preview Component
+// Hero Dashboard Preview Component — matches real app layout
 function HeroDashboardPreview() {
   const reduceMotion = useReducedMotion();
+
+  const kpiCards = [
+    { label: "Faturamento", value: "R$ 124,5 mil", sub: "847 pedidos · 1.203 un", positive: true },
+    { label: "Margem Média", value: "23,4%", sub: "Margem saudável", positive: true },
+    { label: "Ponto de Equilíbrio", value: "R$ 98,2 mil", sub: "Meta atingida", positive: true },
+    { label: "Lucro Líquido", value: "R$ 48,2 mil", sub: "38,7% do faturamento", positive: true },
+  ];
+
+  const channelData = [
+    { name: "Mercado Livre", profit: "R$ 32,1 mil", color: "bg-yellow-400" },
+    { name: "Shopee", profit: "R$ 16,1 mil", color: "bg-orange-500" },
+  ];
+
+  const insights = [
+    { type: "growth", text: "Lucratividade positiva: lucro líquido de R$ 48,2 mil" },
+    { type: "alert", text: "3 produtos com margem negativa precisam de atenção" },
+    { type: "info", text: "Progresso até ponto de equilíbrio: 126% da meta" },
+  ];
+
+  const topProducts = [
+    { name: "Fone Bluetooth Pro", channel: "MELI", health: "Escalável", profit: "R$ 8.450", margin: "32%" },
+    { name: "Smart Watch X1", channel: "MELI", health: "Saudável", profit: "R$ 12.300", margin: "28%" },
+    { name: "Carregador Turbo", channel: "SHPE", health: "Saudável", profit: "R$ 4.680", margin: "41%" },
+  ];
 
   return (
     <motion.div
@@ -81,7 +106,7 @@ function HeroDashboardPreview() {
       <div className="absolute -inset-4 rounded-3xl bg-accent/10 blur-3xl" />
 
       {/* Dashboard Card */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-white shadow-2xl">
+      <div className="relative rounded-2xl border border-border bg-white shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <div className="flex items-center gap-2">
@@ -95,33 +120,159 @@ function HeroDashboardPreview() {
         </div>
 
         {/* Content */}
-        <div className="p-5">
-          <div className="mb-4">
-            <p className="text-xs text-muted-foreground">Visão geral - Maio 2026</p>
-            <h3 className="text-lg font-bold text-foreground">Dashboard do negócio</h3>
+        <div className="p-4">
+          {/* Title */}
+          <div className="mb-3">
+            <p className="text-[10px] text-muted-foreground">Visão geral - Maio 2026</p>
+            <h3 className="text-base font-bold text-foreground">Dashboard do negócio</h3>
           </div>
 
-          <DashboardMetrics />
+          {/* KPI Cards — matching real app financial indicators */}
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            {kpiCards.map((kpi, i) => (
+              <motion.div
+                key={kpi.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 + i * 0.08, duration: 0.5 }}
+                className="rounded-xl border border-border bg-white p-3 shadow-sm"
+              >
+                <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{kpi.label}</p>
+                <p className="mt-1 text-base font-bold text-foreground md:text-lg">{kpi.value}</p>
+                <p className={`mt-0.5 text-[10px] font-medium ${kpi.positive ? "text-success" : "text-error"}`}>
+                  {kpi.sub}
+                </p>
+              </motion.div>
+            ))}
+          </div>
 
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-              <p className="mb-3 text-xs font-medium text-muted-foreground">Métricas de performance</p>
-              <ProgressMetrics />
+          {/* Charts row — matching real app layout */}
+          <div className="grid gap-2 md:grid-cols-2">
+            {/* Line Chart mock */}
+            <div className="rounded-xl border border-border bg-white p-3 shadow-sm">
+              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Evolução Financeira
+              </p>
+              <p className="mb-2 text-[10px] text-muted-foreground">Receita bruta vs Lucro</p>
+              <div className="relative h-20">
+                <svg viewBox="0 0 200 60" className="h-full w-full" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="heroArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#0e7a6f" stopOpacity="0.2" />
+                      <stop offset="100%" stopColor="#0e7a6f" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M0,52 Q20,48 40,40 T80,32 T120,24 T160,20 T200,12 L200,60 L0,60 Z"
+                    fill="url(#heroArea)"
+                  />
+                  <path
+                    d="M0,52 Q20,48 40,40 T80,32 T120,24 T160,20 T200,12"
+                    fill="none"
+                    stroke="#0e7a6f"
+                    strokeWidth="1.5"
+                  />
+                  <path
+                    d="M0,56 Q20,53 40,50 T80,44 T120,38 T160,34 T200,28"
+                    fill="none"
+                    stroke="#141c22"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 2"
+                  />
+                </svg>
+              </div>
+              <div className="mt-1 flex justify-between text-[9px] text-muted-foreground">
+                <span>1º</span>
+                <span>10º</span>
+                <span>20º</span>
+                <span>25º</span>
+              </div>
             </div>
 
-            <div className="rounded-xl border border-border bg-gradient-to-br from-accent/5 to-transparent p-4">
-              <div className="flex items-center gap-2">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10">
-                  <svg className="h-3 w-3 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </div>
-                <span className="text-xs font-semibold text-accent">Dica do dia</span>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Seus produtos no Mercado Livre têm margem 15% maior que na Shopee. Considere redirecionar
-                anúncios.
+            {/* Channel Performance */}
+            <div className="rounded-xl border border-border bg-white p-3 shadow-sm">
+              <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Performance por Canal
               </p>
+              <p className="mb-2 text-[10px] text-muted-foreground">Lucro por marketplace</p>
+              <div className="space-y-2">
+                {channelData.map((ch) => (
+                  <div key={ch.name} className="flex items-center gap-2">
+                    <div className={`h-2.5 w-2.5 rounded-full ${ch.color}`} />
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground">{ch.name}</span>
+                        <span className="text-[10px] font-bold text-foreground">{ch.profit}</span>
+                      </div>
+                      <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-gray-100">
+                        <motion.div
+                          className={`h-full rounded-full ${ch.color}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: ch.name === "Mercado Livre" ? "66%" : "34%" }}
+                          transition={{ duration: 1, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Insights */}
+          <div className="mt-2 rounded-xl border border-accent/20 bg-gradient-to-br from-accent/[0.03] to-transparent p-3">
+            <div className="flex items-center gap-1.5">
+              <div className="flex h-4 w-4 items-center justify-center rounded-full bg-accent/10">
+                <svg className="h-2 w-2 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+              </div>
+              <span className="text-[10px] font-semibold text-accent">Insights</span>
+            </div>
+            <ul className="mt-1.5 space-y-1">
+              {insights.map((insight, i) => (
+                <motion.li
+                  key={i}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 1 + i * 0.1 }}
+                  className="flex items-start gap-1.5 text-[10px] text-muted-foreground"
+                >
+                  <span className={`mt-1 h-1 w-1 shrink-0 rounded-full ${
+                    insight.type === "alert" ? "bg-warning" : insight.type === "info" ? "bg-info" : "bg-success"
+                  }`} />
+                  {insight.text}
+                </motion.li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Top Products — compact (2 rows) */}
+          <div className="mt-2 rounded-xl border border-border bg-white p-3 shadow-sm">
+            <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Top Produtos
+            </p>
+            <div className="grid grid-cols-4 gap-1 border-b border-border pb-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+              <span className="col-span-2">Produto</span>
+              <span>Saúde</span>
+              <span className="text-right">Lucro</span>
+            </div>
+            <div className="mt-1 space-y-1">
+              {topProducts.slice(0, 2).map((p, i) => (
+                <motion.div
+                  key={p.name}
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 1.2 + i * 0.06 }}
+                  className="grid grid-cols-4 gap-1 text-[10px]"
+                >
+                  <span className="col-span-2 truncate font-medium text-foreground">{p.name}</span>
+                  <span className={`text-[9px] font-medium ${
+                    p.health === "Escalável" ? "text-accent" : "text-success"
+                  }`}>{p.health}</span>
+                  <span className="text-right font-medium text-accent">{p.profit}</span>
+                </motion.div>
+              ))}
             </div>
           </div>
         </div>
@@ -129,7 +280,7 @@ function HeroDashboardPreview() {
 
       {/* Floating badge */}
       <motion.div
-        className="absolute -right-4 top-10 hidden rounded-xl border border-border bg-white p-3 shadow-lg md:block"
+        className="absolute -right-3 top-8 hidden rounded-xl border border-border bg-white p-3 shadow-lg md:block"
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       >
@@ -176,7 +327,7 @@ function FeatureCard({
         ease: easeOut,
       }}
       whileHover={reduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
-      className="group relative flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
     >
       <IconOrb color={color}>{icon}</IconOrb>
       <h3 className="mt-4 text-lg font-semibold text-foreground">{title}</h3>
@@ -192,7 +343,7 @@ function FeatureCard({
 function PricingCard({
   name,
   price,
-  period,
+  suffix,
   description,
   features,
   featured = false,
@@ -202,7 +353,7 @@ function PricingCard({
 }: {
   name: string;
   price: string;
-  period: string;
+  suffix: string;
   description: string;
   features: string[];
   featured?: boolean;
@@ -241,7 +392,7 @@ function PricingCard({
         <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{name}</h3>
         <div className="mt-2 flex items-baseline gap-1">
           <span className="text-4xl font-bold text-foreground">{price}</span>
-          <span className="text-sm text-muted-foreground">/{period}</span>
+          <span className="text-sm text-muted-foreground">{suffix}</span>
         </div>
         <p className="mt-2 text-sm text-muted-foreground">{description}</p>
       </div>
@@ -290,7 +441,7 @@ export function LandingPage() {
   const features = [
     {
       title: "Dashboard em Tempo Real",
-      description: "Acompanhe receita, lucro e margem em tempo real com atualizações automáticas a cada sincronização.",
+      description: "Acompanhe receita, lucro e margem em tempo real com atualizações automáticas a cada sincronização",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -300,7 +451,7 @@ export function LandingPage() {
     },
     {
       title: "Gestão de Lucro por SKU",
-      description: "Saiba exatamente quanto cada produto está lucrando, considerando todos os custos e taxas.",
+      description: "Saiba exatamente quanto cada produto está lucrando, considerando todos os custos e taxas",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -310,7 +461,7 @@ export function LandingPage() {
     },
     {
       title: "Analytics Avançado",
-      description: "Gráficos detalhados de vendas, comparativos por período e análise de tendências de crescimento.",
+      description: "Gráficos detalhados de vendas, comparativos por período e análise de tendências de crescimento",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
@@ -320,7 +471,7 @@ export function LandingPage() {
     },
     {
       title: "Insights com IA",
-      description: "Receba recomendações inteligentes sobre preços, estoque e oportunidades de crescimento.",
+      description: "Receba recomendações inteligentes sobre preços, estoque e oportunidades de crescimento",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -330,7 +481,7 @@ export function LandingPage() {
     },
     {
       title: "Performance de Anúncios",
-      description: "Acompanhe o ROI de seus anúncios e otimize seus investimentos em marketing.",
+      description: "Acompanhe o ROI de seus anúncios e otimize seus investimentos em marketing",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
@@ -341,7 +492,7 @@ export function LandingPage() {
     },
     {
       title: "Comparativos entre Marketplaces",
-      description: "Compare a performance do seu negócio entre Mercado Livre, Shopee e Amazon em uma única visão.",
+      description: "Compare a performance do seu negócio entre Mercado Livre, Shopee e Amazon em uma única visão",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
@@ -351,7 +502,7 @@ export function LandingPage() {
     },
     {
       title: "Alertas Automáticos",
-      description: "Seja notificado quando produtos atingirem margem negativa ou quando houver variações anormais.",
+      description: "Seja notificado quando produtos atingirem margem negativa ou quando houver variações anormais",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -361,7 +512,7 @@ export function LandingPage() {
     },
     {
       title: "Relatórios Inteligentes",
-      description: "Gere relatórios executivos em PDF com os indicadores mais importantes do seu negócio.",
+      description: "Gere relatórios executivos em PDF com os indicadores mais importantes do seu negócio",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -371,64 +522,29 @@ export function LandingPage() {
     },
   ];
 
-  const plans = [
-    {
-      name: "Starter",
-      monthlyPrice: "R$ 29",
-      annualPrice: "R$ 24",
-      description: "Perfeito para quem está começando a profissionalizar a operação.",
-      features: [
-        "Até 100 produtos",
-        "1 marketplace",
-        "Dashboard essencial",
-        "Sincronização manual",
-        "Suporte por email",
-      ],
-      cta: "Começar Gratuitamente",
-      featured: false,
-    },
-    {
-      name: "Growth",
-      monthlyPrice: "R$ 79",
-      annualPrice: "R$ 63",
-      description: "Para operações que precisam escalar com dados e insights.",
-      features: [
-        "Produtos ilimitados",
-        "Múltiplos marketplaces",
-        "Analytics avançado",
-        "Insights com IA",
-        "Suporte prioritário",
-        "Relatórios executivos",
-      ],
-      cta: "Começar Gratuitamente",
+  const plans = pricingPlans
+    .filter((plan) => plan.name === "Crescimento")
+    .map((plan) => ({
+      ...plan,
       featured: true,
-    },
-    {
-      name: "Scale",
-      monthlyPrice: "R$ 149",
-      annualPrice: "R$ 119",
-      description: "Para empresas com operação complexa e equipes grandes.",
-      features: [
-        "Tudo do plano Growth",
-        "API access",
-        "Onboarding dedicado",
-        "Relatórios customizados",
-        "SLA garantido",
-        "Gerente de conta",
-      ],
-      cta: "Falar com Vendas",
-      featured: false,
-    },
-  ];
+      cta: plan.ctaLabel,
+      href: plan.ctaHref,
+      features: [...plan.features],
+    }));
 
   return (
     <main className="relative">
+      {/* Particles across entire page */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <ParticleCanvas />
+      </div>
+
       {/* Hero Section */}
       <section ref={heroRef} className="relative pt-20 md:pt-28">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
             {/* Hero Content */}
-            <div className="max-w-2xl">
+            <div className="flex max-w-2xl flex-col justify-start pt-4">
               {/* Eyebrow */}
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
@@ -446,9 +562,9 @@ export function LandingPage() {
                 transition={{ duration: 0.5, delay: 0.1, ease: easeOut }}
                 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl lg:text-6xl"
               >
-                Venda mais.
+                Descubra onde seu
                 <br />
-                <span className="text-accent">Lucre mais.</span>
+                <span className="text-accent">dinheiro está indo</span>
               </motion.h1>
 
               {/* Subheadline */}
@@ -458,8 +574,8 @@ export function LandingPage() {
                 transition={{ duration: 0.5, delay: 0.2, ease: easeOut }}
                 className="mt-6 text-lg leading-relaxed text-muted-foreground md:text-xl"
               >
-                A única plataforma que centraliza métricas de vendas, lucro, margem e performance de todos os
-                seus marketplaces em um só lugar.
+                Dashboard de lucro real com custos, taxas e comissões já descontados. Acompanhe margem, 
+                vendas e performance por canal — Mercado Livre, Shopee e Amazon — em tempo real
               </motion.p>
 
               {/* CTAs */}
@@ -500,8 +616,10 @@ export function LandingPage() {
             </div>
 
             {/* Hero Dashboard Preview */}
-            <motion.div style={{ y: dashboardY }} className="lg:pl-8">
-              <HeroDashboardPreview />
+            <motion.div style={{ y: dashboardY }} className="flex items-start justify-center lg:pl-8">
+              <div className="w-full max-w-[480px]">
+                <HeroDashboardPreview />
+              </div>
             </motion.div>
           </div>
         </div>
@@ -529,7 +647,7 @@ export function LandingPage() {
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
               De métricas ao vivo a insights com IA, cada funcionalidade foi pensada para ajudar você a vender
-              mais e lucrar mais.
+              mais e lucrar mais
             </p>
           </motion.div>
 
@@ -585,8 +703,8 @@ export function LandingPage() {
               Escolha o plano ideal para você
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Comece gratuitamente e evolua conforme seu negócio cresce. Sem taxa de setup, cancele quando
-              quiser.
+              Comece gratuitamente e evolua conforme seu negócio cresce. Sem taxa de configuração, cancele quando
+              quiser
             </p>
           </motion.div>
 
@@ -634,13 +752,13 @@ export function LandingPage() {
           </motion.div>
 
           {/* Pricing Cards */}
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="mx-auto grid max-w-sm gap-6">
             {plans.map((plan, index) => (
               <PricingCard
                 key={plan.name}
                 name={plan.name}
                 price={billing === "monthly" ? plan.monthlyPrice : plan.annualPrice}
-                period={billing === "monthly" ? "mês" : "mês"}
+                suffix={billing === "monthly" ? plan.monthlySuffix : plan.annualSuffix}
                 description={plan.description}
                 features={plan.features}
                 featured={plan.featured}
@@ -675,7 +793,7 @@ export function LandingPage() {
               Pronto para ver o lucro real do seu negócio?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Junte-se a centenas de sellers profissionais que já descobriram onde estavam perdendo dinheiro.
+              Junte-se a centenas de sellers profissionais que já descobriram onde estavam perdendo dinheiro
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -689,7 +807,7 @@ export function LandingPage() {
             </div>
 
             <p className="mt-6 text-sm text-muted-foreground">
-              Setup em 2 minutos. Cancele quando quiser. Sem cartão de crédito.
+              Configuração em 5 minutos. Cancele quando quiser. Sem cartão de crédito.
             </p>
           </motion.div>
         </div>

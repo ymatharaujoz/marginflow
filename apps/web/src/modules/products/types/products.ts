@@ -19,6 +19,16 @@ export type ProductInsight = {
 
 export type CatalogStats = ProductAnalyticsCatalogStats;
 
+export type ProductMarketplaceNotice = {
+  id: string;
+  title: string;
+  description: string;
+  tone: "alert" | "info" | "success";
+  actionLabel?: string;
+  href?: string;
+  actionKey?: "open-synced-review";
+};
+
 export type ProductTableRow = {
   id: string;
   name: string;

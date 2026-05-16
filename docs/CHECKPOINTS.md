@@ -60,10 +60,10 @@
 
 - Date: 2026-04-21
 - Milestone: M4. Database and Schema
-- Summary of what shipped: converted `packages/database` into the shared Drizzle/Postgres source of truth with full organization-scoped schema coverage, generated initial SQL migration assets, local seed workflow, and a Nest database provider seam in the API
-- Key files/modules added: `packages/database/src/schema.ts`, `packages/database/drizzle.config.ts`, `packages/database/drizzle/0000_small_dazzler.sql`, `packages/database/src/seed.ts`, `apps/api/src/infra/database/database.module.ts`, `apps/api/src/common/config/api-env.test.ts`
+- Summary of what shipped: converted `packages/database` into the shared Drizzle/Postgres source of truth with full organization-scoped schema coverage, generated initial SQL migration assets, and a Nest database provider seam in the API
+- Key files/modules added: `packages/database/src/schema.ts`, `packages/database/drizzle.config.ts`, `packages/database/drizzle/0000_small_dazzler.sql`, `apps/api/src/infra/database/database.module.ts`, `apps/api/src/common/config/api-env.test.ts`
 - Tests added or updated: `packages/database/src/schema.test.ts`, `packages/database/src/drizzle-config.test.ts`, `apps/api/src/common/config/api-env.test.ts`, `apps/api/src/modules/health/health.test.ts`; verified with `lint`, `typecheck`, `test`, `build`, and migration generation
-- Known issues: Supabase-first workflow now expects `DATABASE_URL` for runtime and prefers `DATABASE_MIGRATION_URL` for `db:migrate`, `db:seed`, and `db:studio`; local dev credentials currently work, but separate long-lived dev/prod Supabase project management still lives outside the repo
+- Known issues: Supabase-first workflow now expects `DATABASE_URL` for runtime and prefers `DATABASE_MIGRATION_URL` for `db:migrate` and `db:studio`; local dev credentials currently work, but separate long-lived dev/prod Supabase project management still lives outside the repo
 - Next recommended milestone: M5
 - Next recommended task: install Better Auth in `apps/api`, connect it to the new Drizzle schema baseline, and start protected access control wiring
 

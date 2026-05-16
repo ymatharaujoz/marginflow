@@ -34,18 +34,6 @@ export function MarketingShell({
               {/* Navigation */}
               <div className="hidden items-center gap-1 md:flex">
                 <MarketingNavLinks linkClassName="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-accent/5 hover:text-foreground" />
-                <Link
-                  href="/features"
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-accent/5 hover:text-foreground"
-                >
-                  Recursos
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-accent/5 hover:text-foreground"
-                >
-                  Preços
-                </Link>
               </div>
 
               {/* CTA Button */}
@@ -81,18 +69,6 @@ export function MarketingShell({
               {/* Links */}
               <nav className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2">
                 <MarketingNavLinks linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground" />
-                <Link
-                  href="/features"
-                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Recursos
-                </Link>
-                <Link
-                  href="/pricing"
-                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Preços
-                </Link>
               </nav>
 
               {/* Copyright */}

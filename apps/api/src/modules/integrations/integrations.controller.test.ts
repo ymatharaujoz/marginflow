@@ -84,7 +84,7 @@ describe("integrations controller", () => {
         lastSyncedAt: null,
         provider: "mercadolivre",
         status: "disconnected",
-        statusMessage: "Nenhuma conta do marketplace está conectada ainda.",
+        statusMessage: "Nenhuma conta do marketplace está conectada ainda",
         tokenExpiresAt: null,
       },
     ]);
@@ -192,15 +192,19 @@ describe("integrations controller", () => {
     vi.spyOn(integrationsService, "listSyncedProducts").mockResolvedValueOnce([
       {
         externalProductId: "MLB-1",
+        fixedFee: "2.00",
         grossRevenue: "42.00",
         id: "external_1",
         lastOrderedAt: "2026-05-01T11:00:00.000Z",
         latestUnitPrice: "21.00",
         linkedProduct: null,
+        marketplaceCommission: "10.00",
+        netMarketplaceTake: "17.00",
         orderCount: 1,
         provider: "mercadolivre",
         reviewStatus: "unreviewed",
         sku: "SKU-42",
+        shippingCost: "13.00",
         suggestedMatches: [],
         title: "Kit Mercado Livre",
         unitsSold: 2,

@@ -41,7 +41,7 @@ export function ProductHeader({
         <StatusBadge status={statusConfig.badge.status} label={statusConfig.badge.label} />
       </div>
       <p className="text-sm text-muted-foreground">
-        Gerencie seu catálogo de produtos, custos e revisões sincronizadas.
+        Gerencie seu catálogo de produtos, custos e revisões sincronizadas
       </p>
     </motion.div>
   );

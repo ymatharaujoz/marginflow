@@ -19,8 +19,8 @@ interface IntegrationsListProps {
 }
 
 const providerIcons: Record<string, React.ReactNode> = {
-  mercadolivre: <Store className="h-5 w-5" />,
-  shopee: <Store className="h-5 w-5" />, // Ícone provisório para futura integração
+  mercadolivre: <img src="/icons/mercado-libre-icon.svg" alt="Mercado Livre" className="h-5 w-auto" />,
+  shopee: <img src="/icons/shopee-icon.svg" alt="Shopee" className="h-5 w-auto" />,
 };
 
 const providerNames: Record<string, string> = {

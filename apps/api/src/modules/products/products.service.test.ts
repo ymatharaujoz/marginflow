@@ -52,19 +52,26 @@ function createService() {
         findMany: vi.fn(),
       },
     },
+    transaction: vi.fn(),
     update: vi.fn(),
   };
 
   const financeService = {
     buildFinanceSnapshot: vi.fn(),
+    materializeOrganizationMetrics: vi.fn(),
+  };
+  const syncService = {
+    getStatus: vi.fn(),
   };
 
   return {
     db,
     financeService,
+    syncService,
     service: new ProductsService(
       db as never,
       financeService as never,
+      syncService as never,
     ),
   };
 }
@@ -154,6 +161,208 @@ describe("ProductsService", () => {
         id: "product_1",
         organizationId: "org_1",
       }),
+    );
+  });
+
+  it("creates a manual product with initial finance inputs in one flow", async () => {
+    const { db, financeService, service } = createService();
+
+    const createdProduct = {
+      createdAt: new Date("2026-05-14T10:00:00.000Z"),
+      id: "product_1",
+      isActive: true,
+      name: "Kit Mercado Livre",
+      organizationId: "org_1",
+      sellingPrice: "149.90",
+      sku: "ML-001",
+      updatedAt: new Date("2026-05-14T10:00:00.000Z"),
+    };
+    const createdCost = {
+      amount: "80.00",
+      costType: "base",
+      createdAt: new Date("2026-05-14T10:01:00.000Z"),
+      currency: "BRL",
+      effectiveFrom: "2026-05-01",
+      id: "cost_1",
+      notes: "Cadastro manual inicial",
+      organizationId: "org_1",
+      productId: "product_1",
+      updatedAt: new Date("2026-05-14T10:01:00.000Z"),
+    };
+    const createdPerformance = {
+      advertisingCost: "15.00",
+      channel: "mercadolivre",
+      commissionRate: "0.000000",
+      companyId: "11111111-1111-4111-8111-111111111111",
+      createdAt: new Date("2026-05-14T10:02:00.000Z"),
+      id: "perf_1",
+      notes: "Cadastro manual inicial",
+      organizationId: "org_1",
+      packagingCost: "3.00",
+      productName: "Kit Mercado Livre",
+      referenceMonth: "2026-05-01",
+      returnsQuantity: 0,
+      salePrice: "149.90",
+      salesQuantity: 0,
+      shippingFee: "0.00",
+      sku: "ML-001",
+      taxRate: "0.120000",
+      unitCost: "80.00",
+      updatedAt: new Date("2026-05-14T10:02:00.000Z"),
+      userId: "user_1",
+    };
+
+    db.transaction = vi.fn(async (callback) =>
+      callback({
+        insert: vi
+          .fn()
+          .mockReturnValueOnce({
+            values: vi.fn().mockReturnValue({
+              returning: vi.fn().mockResolvedValue([createdProduct]),
+            }),
+          })
+          .mockReturnValueOnce({
+            values: vi.fn().mockReturnValue({
+              returning: vi.fn().mockResolvedValue([createdCost]),
+            }),
+          })
+          .mockReturnValueOnce({
+            values: vi.fn().mockReturnValue({
+              returning: vi.fn().mockResolvedValue([createdPerformance]),
+            }),
+          }),
+        query: {
+          productMonthlyPerformance: {
+            findFirst: vi.fn().mockResolvedValue(null),
+          },
+        },
+        update: vi.fn(),
+      }),
+    );
+    db.query.companies.findFirst.mockResolvedValue({
+      code: "MAIN",
+      createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      id: "11111111-1111-4111-8111-111111111111",
+      isActive: true,
+      name: "Empresa Principal",
+      organizationId: "org_1",
+      updatedAt: new Date("2026-05-01T10:00:00.000Z"),
+      userId: "user_1",
+    });
+    financeService.materializeOrganizationMetrics = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      service.createManualProduct(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        {
+          initialFinance: {
+            advertisingCost: "15.00",
+            packagingCost: "3.00",
+            taxRate: "0.120000",
+            unitCost: "80.00",
+          },
+          product: {
+            isActive: true,
+            name: "Kit Mercado Livre",
+            sellingPrice: "149.90",
+            sku: "ML-001",
+          },
+          scope: {
+            channel: "mercadolivre",
+            companyId: "11111111-1111-4111-8111-111111111111",
+            referenceMonth: "2026-05-01",
+          },
+        },
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        performance: expect.objectContaining({
+          channel: "mercadolivre",
+          referenceMonth: "2026-05-01",
+          sku: "ML-001",
+        }),
+        product: expect.objectContaining({
+          id: "product_1",
+          sellingPrice: "149.90",
+          sku: "ML-001",
+        }),
+        productCost: expect.objectContaining({
+          amount: "80.00",
+          productId: "product_1",
+        }),
+      }),
+    );
+    expect(financeService.materializeOrganizationMetrics).toHaveBeenCalledWith("org_1");
+  });
+
+  it("rejects manual product creation when company context is missing", async () => {
+    const { db, service } = createService();
+
+    db.query.companies.findFirst.mockResolvedValue(null);
+
+    await expect(
+      service.createManualProduct(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        {
+          initialFinance: {
+            advertisingCost: "15.00",
+            packagingCost: "3.00",
+            taxRate: "0.120000",
+            unitCost: "80.00",
+          },
+          product: {
+            isActive: true,
+            name: "Kit Mercado Livre",
+            sellingPrice: "149.90",
+            sku: "ML-001",
+          },
+          scope: {
+            channel: "mercadolivre",
+            companyId: "22222222-2222-4222-8222-222222222222",
+            referenceMonth: "2026-05-01",
+          },
+        },
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("rejects manual product creation when company id is blank", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.createManualProduct(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        {
+          initialFinance: {
+            advertisingCost: "15.00",
+            packagingCost: "3.00",
+            taxRate: "0.120000",
+            unitCost: "80.00",
+          },
+          product: {
+            isActive: true,
+            name: "Kit Mercado Livre",
+            sellingPrice: "149.90",
+            sku: "ML-001",
+          },
+          scope: {
+            channel: "mercadolivre",
+            companyId: "",
+            referenceMonth: "2026-05-01",
+          },
+        } as never,
+      ),
+    ).rejects.toThrow(
+      "Cadastre uma empresa ativa antes de salvar um produto manual com custos e impostos mensais.",
     );
   });
 
@@ -295,7 +504,7 @@ describe("ProductsService", () => {
   });
 
   it("uses company-scoped monthly performance in analytics snapshots", async () => {
-    const { db, financeService, service } = createService();
+    const { db, financeService, service, syncService } = createService();
 
     const product = {
       createdAt: new Date("2026-05-01T10:00:00.000Z"),
@@ -370,6 +579,21 @@ describe("ProductsService", () => {
         },
       ],
     });
+    syncService.getStatus.mockResolvedValue({
+      activeRun: null,
+      availability: {
+        canRun: true,
+        currentWindowKey: "2026-05-13-morning",
+        currentWindowLabel: "Manha",
+        currentWindowSlot: "morning",
+        lastSuccessfulSyncAt: null,
+        message: "Sync is available for the current daily window.",
+        nextAvailableAt: "2026-05-13T09:00:00.000Z",
+        provider: "mercadolivre",
+        reason: "available",
+      },
+      lastCompletedRun: null,
+    });
 
     const snapshot = await service.getAnalyticsSnapshot(
       {
@@ -383,6 +607,15 @@ describe("ProductsService", () => {
     );
 
     expect(snapshot.dataGaps).toEqual([]);
+    expect(snapshot.mercadoLivreSyncStatus).toEqual(
+      expect.objectContaining({
+        availability: expect.objectContaining({
+          provider: "mercadolivre",
+          reason: "available",
+        }),
+        lastCompletedRun: null,
+      }),
+    );
     expect(snapshot.scope).toEqual({
       companyId: "22222222-2222-4222-8222-222222222222",
       companyRequired: false,
@@ -416,5 +649,48 @@ describe("ProductsService", () => {
         unitCost: "25.00",
       },
     ]);
+  });
+
+  it("marks analytics scope as company-required when no active company exists", async () => {
+    const { db, financeService, service, syncService } = createService();
+
+    db.query.companies.findMany.mockResolvedValue([]);
+    db.query.products.findMany.mockResolvedValue([]);
+    db.query.productCosts.findMany.mockResolvedValue([]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+    db.query.productMonthlyPerformance.findMany.mockResolvedValue([]);
+    financeService.buildFinanceSnapshot.mockResolvedValue({
+      adCosts: [],
+      manualExpenses: [],
+      orders: [],
+      products: [],
+    });
+    syncService.getStatus.mockResolvedValue({
+      activeRun: null,
+      availability: {
+        canRun: false,
+        currentWindowKey: null,
+        currentWindowLabel: null,
+        currentWindowSlot: null,
+        lastSuccessfulSyncAt: null,
+        message: "Connect this marketplace account before running the first sync.",
+        nextAvailableAt: null,
+        provider: "mercadolivre",
+        reason: "provider_disconnected",
+      },
+      lastCompletedRun: null,
+    });
+
+    const snapshot = await service.getAnalyticsSnapshot({
+      organizationId: "org_1",
+      userId: "user_1",
+    });
+
+    expect(snapshot.scope).toEqual({
+      companyId: null,
+      companyRequired: true,
+      referenceMonth: expect.stringMatching(/^\d{4}-\d{2}-01$/),
+    });
   });
 });

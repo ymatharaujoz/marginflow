@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { RefreshCw, Plus, AlertCircle } from "lucide-react";
+import { RefreshCw, AlertCircle } from "lucide-react";
 import { Card, EmptyState, Skeleton, Button } from "@marginflow/ui";
 import { ApiClientError } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonChart, SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
 import { DashboardHeader } from "./dashboard-header";
-import { KpiCards } from "./kpi-cards";
+import { DashboardFinancialIndicators } from "./dashboard-financial-indicators";
 import { ChartsSection } from "./charts-section";
 import { MarketplacesSection } from "./marketplaces-section";
 import { InsightsSection } from "./insights-section";
@@ -23,7 +23,8 @@ function LoadingDashboard() {
   return (
     <div className="space-y-8">
       <Skeleton className="h-24 w-full" />
-      <SkeletonGrid rows={2} columns={4} height={120} />
+      <SkeletonGrid rows={1} columns={4} height={120} />
+      <Skeleton className="h-12 w-full" />
       <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
         <SkeletonChart />
         <SkeletonChart />
@@ -64,26 +65,6 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-function EmptySyncState() {
-  return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-      <EmptyState
-        title="Ainda sem dados de sincronizacao"
-        description="Conecte o Mercado Livre e execute a primeira importacao em Integracoes para liberar tendencias aqui."
-        icon={<span className="text-4xl">📊</span>}
-        action={
-          <Button asChild size="lg" className="gap-2">
-            <Link href="/app/integrations">
-              <RefreshCw className="h-4 w-4" />
-              Conectar marketplace
-            </Link>
-          </Button>
-        }
-      />
-    </motion.div>
-  );
-}
-
 export function DashboardHome({ organizationName }: DashboardHomeProps) {
   const {
     summaryQuery,
@@ -106,10 +87,6 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
     return <ErrorState error={error} onRetry={refetchAll} />;
   }
 
-  if (financialState === "sync") {
-    return <EmptySyncState />;
-  }
-
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
       <DashboardHeader
@@ -119,9 +96,12 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
         recentSync={recentSyncQuery.data}
       />
 
-      {summaryQuery.data && (
+      {profitabilityQuery.data && (
         <section>
-          <KpiCards data={summaryQuery.data} />
+          <DashboardFinancialIndicators
+            data={profitabilityQuery.data}
+            summary={summaryQuery.data ?? undefined}
+          />
         </section>
       )}
 
@@ -141,27 +121,6 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
         </motion.section>
       )}
 
-      {financialState === "catalog" && summaryQuery.data && (
-        <motion.div variants={fadeInVariants} initial="hidden" animate="visible">
-          <Card variant="outlined" className="border-warning/20 bg-warning-soft/30 p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Cadastre custos de produto</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Ha dados de marketplace, mas faltam custos para enxergar lucratividade completa.
-                </p>
-              </div>
-              <Button asChild variant="secondary" className="gap-2">
-                <Link href="/app/products">
-                  <Plus className="h-4 w-4" />
-                  Adicionar custos
-                </Link>
-              </Button>
-            </div>
-          </Card>
-        </motion.div>
-      )}
-
       {financialState === "insufficient" && (
         <motion.div variants={fadeInVariants} initial="hidden" animate="visible">
           <EmptyState
@@ -176,9 +135,7 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
         </motion.div>
       )}
 
-      {recentSyncQuery.data?.availability?.message && (
-        <p className="text-xs text-muted-foreground">{recentSyncQuery.data.availability.message}</p>
-      )}
+
     </motion.div>
   );
 }

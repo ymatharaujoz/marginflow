@@ -1,36 +1,61 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, Link2, BarChart3, ArrowUpRight } from "lucide-react";
+import { Zap, Link2, BarChart3, ArrowUpRight, Building2, Package } from "lucide-react";
 import { Card } from "@marginflow/ui";
 import { itemVariants } from "@/lib/animations";
 
-const features = [
+const organizationFeatures = [
   {
     icon: Link2,
-    title: "Conecte seus canais",
-    description: "Sincronize automaticamente produtos e pedidos do Mercado Livre e Shopee em um só lugar.",
+    title: "Conexão a Marketplaces",
+    description: "Sincronize produtos e pedidos do Mercado Livre e Shopee automaticamente em um só lugar",
   },
   {
     icon: BarChart3,
-    title: "Veja sua lucratividade",
-    description: "Acompanhe margens reais, custos operacionais e descubra quais produtos trazem mais resultado.",
+    title: "Visão dos seus lucros",
+    description: "Acompanhe margens reais, custos operacionais e descubra quais produtos são mais rentáveis",
   },
   {
     icon: Zap,
-    title: "Dashboard inteligente",
-    description: "Monitore vendas, tendências e performance de cada canal com dados atualizados automaticamente.",
+    title: "Dashboards inteligentes",
+    description: "Monitore vendas, tendências e performance de cada canal com dados atualizados",
   },
 ];
 
-export function SetupInfoCard() {
+const companyFeatures = [
+  {
+    icon: Building2,
+    title: "Escopo por empresa",
+    description: "Separe operações quando precisar trabalhar com mais de uma empresa na mesma organização",
+  },
+  {
+    icon: Package,
+    title: "Produto manual com SKU",
+    description: "Cadastre o SKU do seu produto para fazer match com as vendas sincronizadas de Marketplaces",
+  },
+  {
+    icon: BarChart3,
+    title: "Filtro mensal consistente",
+    description: "Consulte vendas, devoluções, frete, taxas e impostos pelo mês da empresa selecionada",
+  },
+];
+
+export function SetupInfoCard({ stage = "organization" }: { stage?: "company" | "organization" }) {
+  const isCompanyStage = stage === "company";
+  const features = isCompanyStage ? companyFeatures : organizationFeatures;
+
   return (
     <motion.div variants={itemVariants} className="h-full min-h-0">
       <Card className="flex h-full min-h-0 flex-col overflow-hidden border-border/60">
         <div className="shrink-0 border-b border-border bg-surface-strong/30 px-6 py-4">
-          <h3 className="font-semibold text-foreground">O que vem depois?</h3>
+          <h3 className="font-semibold text-foreground">
+            {isCompanyStage ? "Por que essa etapa?" : "O que vem depois?"}
+          </h3>
           <p className="text-xs text-muted-foreground">
-            Após criar sua organização, você terá acesso a:
+            {isCompanyStage
+              ? "A empresa define o contexto usado nos relatórios mensais"
+              : "Após criar sua organização, você terá acesso a:"}
           </p>
         </div>
 
@@ -38,7 +63,7 @@ export function SetupInfoCard() {
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="flex flex-1 items-start gap-4 p-4 transition-colors hover:bg-surface-strong/30"
+              className="flex items-start gap-4 p-4 transition-colors hover:bg-surface-strong/30"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                 <feature.icon className="h-4 w-4" />

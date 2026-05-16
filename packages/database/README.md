@@ -8,7 +8,6 @@ Shared Drizzle schema and database access layer for MarginFlow.
 - Point `DATABASE_MIGRATION_URL` at Supabase dev direct or migration-safe Postgres.
 - Generate SQL migrations with `corepack pnpm db:generate`.
 - Apply migrations with `corepack pnpm db:migrate`.
-- Seed local fixture data with `corepack pnpm db:seed`.
 - Open Drizzle Studio with `corepack pnpm db:studio`.
 
 ## Production workflow

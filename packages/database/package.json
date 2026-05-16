@@ -15,8 +15,7 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "tsx src/migrate.ts",
     "db:diagnose": "tsx src/diagnose-migrations.ts",
-    "db:studio": "drizzle-kit studio --config drizzle.config.ts",
-    "db:seed": "tsx src/seed.ts"
+    "db:studio": "drizzle-kit studio --config drizzle.config.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.7",

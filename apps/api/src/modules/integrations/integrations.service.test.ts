@@ -149,6 +149,7 @@ describe("IntegrationsService", () => {
             where: vi.fn().mockResolvedValue([
               {
                 externalOrder: {
+                  id: "order_1",
                   orderedAt: new Date("2026-05-01T11:00:00.000Z"),
                 },
                 orderItem: {
@@ -165,6 +166,48 @@ describe("IntegrationsService", () => {
               },
             ]),
           }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue([
+            {
+              amount: "14.00",
+              createdAt: new Date("2026-05-01T11:00:00.000Z"),
+              currency: "BRL",
+              externalOrderId: "order_1",
+              feeType: "marketplace_commission",
+              id: "fee_1",
+              metadata: {},
+              organizationId: "org_1",
+              provider: "mercadolivre",
+              updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+            },
+            {
+              amount: "4.00",
+              createdAt: new Date("2026-05-01T11:00:00.000Z"),
+              currency: "BRL",
+              externalOrderId: "order_1",
+              feeType: "fixed_fee",
+              id: "fee_2",
+              metadata: {},
+              organizationId: "org_1",
+              provider: "mercadolivre",
+              updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+            },
+            {
+              amount: "8.00",
+              createdAt: new Date("2026-05-01T11:00:00.000Z"),
+              currency: "BRL",
+              externalOrderId: "order_1",
+              feeType: "shipping_cost",
+              id: "fee_3",
+              metadata: {},
+              organizationId: "org_1",
+              provider: "mercadolivre",
+              updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+            },
+          ]),
         }),
       });
     db.query.products.findMany.mockResolvedValue([
@@ -183,9 +226,13 @@ describe("IntegrationsService", () => {
     await expect(service.listSyncedProducts("org_1", "mercadolivre")).resolves.toEqual([
       expect.objectContaining({
         externalProductId: "MLB-1",
+        fixedFee: "4.00",
         grossRevenue: "42.00",
+        marketplaceCommission: "14.00",
+        netMarketplaceTake: "26.00",
         orderCount: 1,
         reviewStatus: "unreviewed",
+        shippingCost: "8.00",
         suggestedMatches: [
           expect.objectContaining({
             productId: "product_1",

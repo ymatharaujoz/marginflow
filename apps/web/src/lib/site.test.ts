@@ -20,16 +20,16 @@ describe("site helpers", () => {
   it("builds canonical metadata", () => {
     const metadata = createPageMetadata({
       description: "Profit clarity for marketplace operators.",
-      path: "/pricing",
-      title: "Pricing | MarginFlow",
+      path: "/",
+      title: "MarginFlow | Venda mais. Lucre mais.",
     });
 
-    expect(metadata.alternates?.canonical).toBe("http://localhost:3000/pricing");
+    expect(metadata.alternates?.canonical).toBe("http://localhost:3000/");
     expect(metadata.openGraph).toEqual(
       expect.objectContaining({
         siteName: "MarginFlow",
-        title: "Pricing | MarginFlow",
-        url: "http://localhost:3000/pricing",
+        title: "MarginFlow | Venda mais. Lucre mais.",
+        url: "http://localhost:3000/",
       }),
     );
   });

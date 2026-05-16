@@ -24,6 +24,21 @@ const snapshot: ProductAnalyticsSnapshot = {
   dataGaps: [],
   financialState: "ready",
   manualExpenses: [],
+  mercadoLivreSyncStatus: {
+    activeRun: null,
+    availability: {
+      canRun: true,
+      currentWindowKey: "2026-05-13-morning",
+      currentWindowLabel: "Manha",
+      currentWindowSlot: "morning",
+      lastSuccessfulSyncAt: null,
+      message: "Sync is available for the current daily window.",
+      nextAvailableAt: "2026-05-13T09:00:00.000Z",
+      provider: "mercadolivre",
+      reason: "available",
+    },
+    lastCompletedRun: null,
+  },
   monthlyPerformanceRows: [
     {
       advertisingCost: "10.00",
@@ -164,15 +179,19 @@ const snapshot: ProductAnalyticsSnapshot = {
   syncedProducts: [
     {
       externalProductId: "MLB-1",
+      fixedFee: "5.00",
       grossRevenue: "200.00",
       id: "external_1",
       lastOrderedAt: "2026-05-01T11:00:00.000Z",
       latestUnitPrice: "100.00",
       linkedProduct: null,
+      marketplaceCommission: "20.00",
+      netMarketplaceTake: "37.00",
       orderCount: 1,
       provider: "mercadolivre",
       reviewStatus: "unreviewed",
       sku: "XYZ-1",
+      shippingCost: "12.00",
       suggestedMatches: [
         {
           isActive: true,
@@ -235,18 +254,25 @@ describe("products foundation helpers", () => {
   });
 
   it("derives product insights from the official analytics snapshot", () => {
-    const insights = buildProductInsights(snapshot, snapshot.catalogStats);
+    const insights = buildProductInsights(
+      snapshot,
+      snapshot.catalogStats,
+      buildProductTableRows(snapshot),
+    );
 
     expect(insights).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           href: "/app/products",
-          id: "products-without-cost",
+          id: "best-profit-product",
         }),
         expect.objectContaining({
-          actionKey: "open-synced-review",
           href: "/app/products",
-          id: "pending-sync",
+          id: "highest-returns-product",
+        }),
+        expect.objectContaining({
+          href: "/app/products",
+          id: "highest-shipping-product",
         }),
       ]),
     );

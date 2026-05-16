@@ -16,14 +16,15 @@ type AppLayoutClientProps = {
     name: string;
   };
   hasSubscription: boolean;
+  hasOnboarded: boolean;
 };
 
-export function AppLayoutClient({ children, organization, user, hasSubscription }: AppLayoutClientProps) {
+export function AppLayoutClient({ children, organization, user, hasSubscription, hasOnboarded }: AppLayoutClientProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Sem assinatura: mostra header minimalista sem sidebar
-  if (!hasSubscription) {
+  // Sem assinatura ou sem onboarding completo: mostra layout simples sem sidebar
+  if (!hasSubscription || !hasOnboarded) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <MinimalHeader user={user} />
@@ -50,6 +51,7 @@ export function AppLayoutClient({ children, organization, user, hasSubscription 
           onToggle={() => setCollapsed(!collapsed)}
           user={user}
           organization={organization}
+          isMobile={false}
         />
       </div>
 
@@ -63,6 +65,7 @@ export function AppLayoutClient({ children, organization, user, hasSubscription 
           onToggle={() => setMobileOpen(false)}
           user={user}
           organization={organization}
+          isMobile
         />
       </div>
 

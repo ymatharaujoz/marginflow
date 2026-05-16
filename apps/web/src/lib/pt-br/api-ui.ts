@@ -15,7 +15,7 @@ const API_MESSAGES_BASE: Record<string, string> = {
   "This provider is connected structurally but does not support live sync yet.":
     "Este provedor está ligado estruturalmente, mas ainda não oferece sincronização em tempo real.",
   "Connect this marketplace account before running the first sync.":
-    "Conecte esta conta do marketplace antes de executar a primeira sincronização.",
+    "Conecte esta conta do marketplace antes de executar a primeira sincronização",
   "Stored provider token expired. Reconnect the account before syncing again.":
     "O token armazenado do provedor expirou. Reconecte a conta antes de sincronizar novamente.",
   "A sync is already in progress for this provider.":
@@ -26,7 +26,7 @@ const API_MESSAGES_BASE: Record<string, string> = {
   "Mercado Livre connected successfully.": "Mercado Livre conectado com sucesso.",
 
   "No marketplace account is connected yet.":
-    "Nenhuma conta do marketplace está conectada ainda.",
+    "Nenhuma conta do marketplace está conectada ainda",
   "Account connected and ready for sync.": "Conta conectada e pronta para sincronizar.",
   "Stored token expired. Reconnect this provider before the next sync.":
     "O token armazenado expirou. Reconecte este provedor antes da próxima sincronização.",

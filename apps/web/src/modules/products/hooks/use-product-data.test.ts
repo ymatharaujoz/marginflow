@@ -20,7 +20,7 @@ describe("products protected fetchers", () => {
     apiClientMock.getValidatedData.mockReset();
   });
 
-  it("uses the analytics snapshot endpoint as the primary source when mock mode is off", async () => {
+  it("uses the analytics snapshot endpoint as the protected data source", async () => {
     apiClientMock.getValidatedData.mockResolvedValue({
       adCosts: [],
       catalogStats: {
@@ -38,6 +38,21 @@ describe("products protected fetchers", () => {
       dataGaps: [],
       financialState: "empty",
       manualExpenses: [],
+      mercadoLivreSyncStatus: {
+        activeRun: null,
+        availability: {
+          canRun: false,
+          currentWindowKey: "2026-05-13-morning",
+          currentWindowLabel: "Manha",
+          currentWindowSlot: "morning",
+          lastSuccessfulSyncAt: null,
+          message: "Connect this marketplace account before running the first sync.",
+          nextAvailableAt: "2026-05-13T09:00:00.000Z",
+          provider: "mercadolivre",
+          reason: "provider_disconnected",
+        },
+        lastCompletedRun: null,
+      },
       monthlyPerformanceRows: [],
       productCosts: [],
       productRows: [],

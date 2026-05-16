@@ -1,19 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Check, CreditCard, Building2, Rocket } from "lucide-react";
+import { Check, CreditCard, Building2, Rocket, Factory } from "lucide-react";
 import { fadeInVariants } from "@/lib/animations";
 
 interface SetupStep {
   id: string;
   label: string;
-  description: string;
   icon: React.ElementType;
   status: "completed" | "current" | "upcoming";
 }
 
 interface SetupProgressProps {
-  currentStep: string;
+  currentStep: "organization" | "company";
 }
 
 export function SetupProgress({ currentStep }: SetupProgressProps) {
@@ -21,25 +20,34 @@ export function SetupProgress({ currentStep }: SetupProgressProps) {
     {
       id: "payment",
       label: "Pagamento",
-      description: "Assinatura confirmada",
       icon: CreditCard,
       status: "completed",
     },
     {
       id: "organization",
       label: "Organização",
-      description: "Criar workspace",
       icon: Building2,
-      status: currentStep === "organization" ? "current" : "upcoming",
+      status: currentStep === "organization" ? "current" : "completed",
+    },
+    {
+      id: "company",
+      label: "Empresa",
+      icon: Factory,
+      status: currentStep === "company" ? "current" : "upcoming",
     },
     {
       id: "start",
       label: "Começar",
-      description: "Acessar o app",
       icon: Rocket,
       status: "upcoming",
     },
   ];
+
+  const progressWidth = currentStep === "organization" ? "25%" : "50%";
+  const mobileStep = currentStep === "organization" ? "2" : "3";
+  const mobileTotal = "4";
+  const mobileLabel = currentStep === "organization" ? "Organização" : "Empresa";
+  const mobileProgressWidth = currentStep === "organization" ? "w-1/3" : "w-2/3";
 
   return (
     <motion.div
@@ -53,14 +61,15 @@ export function SetupProgress({ currentStep }: SetupProgressProps) {
         <div className="relative">
           {/* Progress Line Background */}
           <div className="absolute left-0 right-0 top-5 h-0.5 bg-border" />
-          
+
           {/* Progress Line Fill */}
-          <div className="absolute left-0 top-5 h-0.5 bg-accent transition-all duration-500" 
-            style={{ width: currentStep === "organization" ? "33%" : "0%" }} 
+          <div
+            className="absolute left-0 top-5 h-0.5 bg-accent transition-all duration-500"
+            style={{ width: progressWidth }}
           />
 
           <div className="relative flex justify-between">
-            {steps.map((step, index) => (
+            {steps.map((step) => (
               <div key={step.id} className="flex flex-col items-center">
                 {/* Step Circle */}
                 <div
@@ -90,9 +99,6 @@ export function SetupProgress({ currentStep }: SetupProgressProps) {
                   >
                     {step.label}
                   </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {step.description}
-                  </p>
                 </div>
               </div>
             ))}
@@ -104,14 +110,18 @@ export function SetupProgress({ currentStep }: SetupProgressProps) {
       <div className="sm:hidden">
         <div className="flex items-center gap-3 rounded-lg border border-border bg-surface-strong/50 px-4 py-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white">
-            <Building2 className="h-4 w-4" />
+            {currentStep === "organization" ? (
+              <Building2 className="h-4 w-4" />
+            ) : (
+              <Factory className="h-4 w-4" />
+            )}
           </div>
           <div className="flex-1">
             <p className="text-sm font-medium text-foreground">
-              Etapa 2 de 3: Organização
+              Etapa {mobileStep} de {mobileTotal}: {mobileLabel}
             </p>
             <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-border">
-              <div className="h-full w-2/3 rounded-full bg-accent" />
+              <div className={`h-full rounded-full bg-accent ${mobileProgressWidth}`} />
             </div>
           </div>
         </div>

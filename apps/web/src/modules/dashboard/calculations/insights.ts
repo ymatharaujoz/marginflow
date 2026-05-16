@@ -75,8 +75,8 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       insights.push({
         id: "contribution-strong",
         type: "growth",
-        title: "Margem de Contribuição Forte",
-        description: `Seu negócio mantém ${contributionRate.toFixed(1)}% de margem de contribuição, cobrindo bem os custos operacionais antes das despesas fixas.`,
+        title: "Margem de contribuição forte",
+        description: `Seu negócio mantém ${contributionRate.toFixed(1)}% de margem de contribuição, cobrindo bem os custos operacionais antes das despesas fixas`,
         priority: "medium",
       });
     }
@@ -88,8 +88,8 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       insights.push({
         id: "high-returns",
         type: "alert",
-        title: "Taxa de devolucao elevada",
-        description: `${totalReturns} devolucoes em ${unitsSold} vendas (${returnRate.toFixed(1)}%). Revise qualidade ou descricao dos produtos.`,
+        title: "Taxa de Devolução Elevada",
+        description: `${totalReturns} devoluções em ${unitsSold} vendas (${returnRate.toFixed(1)}%). Revise qualidade ou descrição dos produtos`,
         priority: "high",
         href: "/app/products",
         actionLabel: "Ver produtos",
@@ -98,8 +98,8 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       insights.push({
         id: "returns-healthy",
         type: "growth",
-        title: "Taxa de devolucao saudavel",
-        description: `Apenas ${returnRate.toFixed(1)}% de devolucoes. ${totalReturns === 0 ? "Nenhuma devolucao registrada no periodo." : "Bom controle de qualidade e expectativas."}`,
+        title: "Taxa de Devolução Saudável",
+        description: `Apenas ${returnRate.toFixed(1)}% de devoluções ${totalReturns === 0 ? "Nenhuma devolução registrada no periodo" : "Bom controle de qualidade e expectativas"}`,
         priority: "low",
       });
     }
@@ -111,8 +111,8 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       insights.push({
         id: "cac-insight",
         type: "info",
-        title: "Custo de aquisicao (CAC)",
-        description: `Voce investe ${formatMoney(cac)} em media para adquirir cada cliente atraves de anuncios.`,
+        title: "Custo de Aquisição (CAC)",
+        description: `Você investe ${formatMoney(cac)} em média para adquirir cada cliente através de anúncios`,
         priority: "low",
       });
     }
@@ -124,10 +124,10 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       type: "info",
       title: "Cobertura financeira parcial",
       description:
-        "Alguns custos operacionais ainda dependem da cobertura atual do snapshot. O dashboard mostra zeros explicitos em vez de estimativas.",
+        "Alguns custos operacionais ainda dependem da cobertura atual do snapshot. O dashboard mostra zeros explicitos em vez de estimativas",
       priority: "medium",
       href: "/app/products",
-      actionLabel: "Revisar catalogo",
+      actionLabel: "Revisar catálogo",
     });
   }
 
@@ -135,8 +135,8 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
     insights.push({
       id: "ai-tip",
       type: "ai",
-      title: "Sugestao de IA",
-      description: "Continue sincronizando e cadastrando custos para liberar analises mais profundas do catalogo.",
+      title: "Sugestão de IA",
+      description: "Continue sincronizando e cadastrando custos para liberar análises mais profundas do catálogo",
     });
   }
 

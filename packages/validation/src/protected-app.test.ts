@@ -102,6 +102,21 @@ describe("@marginflow/validation protected app schemas", () => {
         dataGaps: [],
         financialState: "ready",
         manualExpenses: [],
+        mercadoLivreSyncStatus: {
+          activeRun: null,
+          availability: {
+            canRun: true,
+            currentWindowKey: "2026-05-13-morning",
+            currentWindowLabel: "Manha",
+            currentWindowSlot: "morning",
+            lastSuccessfulSyncAt: null,
+            message: "Sync is available for the current daily window.",
+            nextAvailableAt: "2026-05-13T09:00:00.000Z",
+            provider: "mercadolivre",
+            reason: "available",
+          },
+          lastCompletedRun: null,
+        },
         monthlyPerformanceRows: [
           {
             advertisingCost: "0.00",
@@ -185,6 +200,40 @@ describe("@marginflow/validation protected app schemas", () => {
         dataGaps: [],
         financialState: "insufficient",
         manualExpenses: [],
+        mercadoLivreSyncStatus: {
+          activeRun: null,
+          availability: {
+            canRun: false,
+            currentWindowKey: "2026-05-13-afternoon",
+            currentWindowLabel: "Tarde",
+            currentWindowSlot: "afternoon",
+            lastSuccessfulSyncAt: "2026-05-12T19:00:00.000Z",
+            message: "This daily sync window was already used. Wait for the next window to open.",
+            nextAvailableAt: "2026-05-13T18:00:00.000Z",
+            provider: "mercadolivre",
+            reason: "window_already_used",
+          },
+          lastCompletedRun: {
+            counts: {
+              fees: 1,
+              items: 1,
+              orders: 1,
+              products: 1,
+            },
+            createdAt: "2026-05-12T19:00:00.000Z",
+            cursor: {
+              orderedAfter: "2026-05-12T18:59:00.000Z",
+            },
+            errorSummary: null,
+            finishedAt: "2026-05-12T19:03:00.000Z",
+            id: "sync_1",
+            provider: "mercadolivre",
+            startedAt: "2026-05-12T19:00:10.000Z",
+            status: "completed",
+            updatedAt: "2026-05-12T19:03:00.000Z",
+            windowKey: "2026-05-12-evening",
+          },
+        },
         monthlyPerformanceRows: [
           {
             advertisingCost: "0.00",
@@ -257,15 +306,19 @@ describe("@marginflow/validation protected app schemas", () => {
         syncedProducts: [
           {
             externalProductId: "MLB-1",
+            fixedFee: "0.00",
             grossRevenue: "0.00",
             id: "external_1",
             lastOrderedAt: null,
             latestUnitPrice: null,
             linkedProduct: null,
+            marketplaceCommission: "0.00",
+            netMarketplaceTake: "0.00",
             orderCount: 0,
             provider: "mercadolivre",
             reviewStatus: "unreviewed",
             sku: "XYZ-1",
+            shippingCost: "0.00",
             suggestedMatches: [],
             title: "Produto Dois",
             unitsSold: 0,

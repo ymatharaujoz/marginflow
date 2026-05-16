@@ -100,7 +100,8 @@ const profitability = {
 describe("dashboard foundation helpers", () => {
   it("derives financial states correctly", () => {
     expect(determineDashboardFinancialState(summary, charts, profitability)).toBe("ready");
-    expect(determineDashboardFinancialState(summary, { ...charts, daily: [] }, profitability)).toBe("sync");
+    // Sem dados de sync (daily vazio) mas com custos cadastrados → deve mostrar dados (não bloquear)
+    expect(determineDashboardFinancialState(summary, { ...charts, daily: [] }, profitability)).toBe("ready");
     expect(
       determineDashboardFinancialState(
         {
