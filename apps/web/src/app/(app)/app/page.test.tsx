@@ -7,6 +7,8 @@ const redirectMock = vi.hoisted(() => vi.fn());
 const dashboardHomeMock = vi.hoisted(() => vi.fn(() => <div>dashboard-home</div>));
 const readServerAuthStateMock = vi.hoisted(() => vi.fn());
 const readServerBillingStateMock = vi.hoisted(() => vi.fn());
+const readServerCompaniesMock = vi.hoisted(() => vi.fn());
+const hasActiveCompanyMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
@@ -24,6 +26,11 @@ vi.mock("@/lib/server-billing", () => ({
   readServerBillingState: readServerBillingStateMock,
 }));
 
+vi.mock("@/lib/server-companies", () => ({
+  readServerCompanies: readServerCompaniesMock,
+  hasActiveCompany: hasActiveCompanyMock,
+}));
+
 describe("AppHomePage", () => {
   it("renders the dashboard for entitled authenticated users", async () => {
     readServerAuthStateMock.mockResolvedValueOnce({
@@ -38,6 +45,8 @@ describe("AppHomePage", () => {
       entitled: true,
       status: "active",
     });
+    readServerCompaniesMock.mockResolvedValueOnce([{ isActive: true }]);
+    hasActiveCompanyMock.mockReturnValueOnce(true);
 
     const result = await AppHomePage();
     const markup = renderToStaticMarkup(result);
@@ -60,6 +69,8 @@ describe("AppHomePage", () => {
       entitled: false,
       status: "inactive",
     });
+    readServerCompaniesMock.mockResolvedValueOnce([]);
+    hasActiveCompanyMock.mockReturnValueOnce(false);
 
     await AppHomePage();
 

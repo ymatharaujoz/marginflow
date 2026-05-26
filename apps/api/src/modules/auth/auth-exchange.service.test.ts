@@ -21,6 +21,9 @@ function createService() {
       authExchangeTickets: {
         findFirst: vi.fn(),
       },
+      sessions: {
+        findFirst: vi.fn(),
+      },
     },
     transaction: vi.fn(async (callback: (tx: typeof db) => Promise<unknown>) => callback(db)),
     update: vi.fn((table: unknown) => {
@@ -33,15 +36,15 @@ function createService() {
       };
     }),
   };
-  const authService = {
-    resolveRequestContext: vi.fn(),
+  const organizationProvisioningService = {
+    findDefaultOrganization: vi.fn(),
   };
 
   return {
-    authService,
     db,
     insertValues,
-    service: new AuthExchangeService(db as never, authService as never),
+    organizationProvisioningService,
+    service: new AuthExchangeService(db as never, organizationProvisioningService as never),
     updateSet,
   };
 }
@@ -85,24 +88,18 @@ describe("AuthExchangeService", () => {
   });
 
   it("consumes valid ticket once and returns mirrored auth payload", async () => {
-    const { authService, db, service } = createService();
+    const { db, organizationProvisioningService, service } = createService();
     db.query.authExchangeTickets.findFirst.mockResolvedValue({
       expiresAt: new Date("2099-01-01T00:00:00.000Z"),
       id: "exchange_123",
       remoteSessionToken: "remote_session_token_123",
+      sessionId: "session_123",
+      userId: "user_123",
       usedAt: null,
     });
-    authService.resolveRequestContext.mockResolvedValue({
-      organization: {
-        id: "org_123",
-        name: "MarginFlow",
-        role: "owner",
-        slug: "marginflow",
-      },
-      session: {
-        expiresAt: new Date("2026-12-31T00:00:00.000Z"),
-        id: "session_123",
-      },
+    db.query.sessions.findFirst.mockResolvedValue({
+      expiresAt: new Date("2026-12-31T00:00:00.000Z"),
+      id: "session_123",
       user: {
         email: "owner@marginflow.local",
         emailVerified: true,
@@ -111,16 +108,18 @@ describe("AuthExchangeService", () => {
         name: "Mateus",
       },
     });
-
-    const ticket = await service.createTicket({
-      remoteSessionToken: "remote_session_token_123",
-      sessionId: "session_123",
-      userId: "user_123",
+    organizationProvisioningService.findDefaultOrganization.mockResolvedValue({
+      id: "org_123",
+      name: "MarginFlow",
+      role: "owner",
+      slug: "marginflow",
     });
 
-    const payload = await service.consumeTicket(ticket);
+    const payload = await service.consumeTicket("ticket_123");
 
-    expect(authService.resolveRequestContext).toHaveBeenCalled();
+    expect(db.query.authExchangeTickets.findFirst).toHaveBeenCalled();
+    expect(db.query.sessions.findFirst).toHaveBeenCalled();
+    expect(organizationProvisioningService.findDefaultOrganization).toHaveBeenCalledWith("user_123");
     expect(payload).toEqual({
       authState: {
         onboardingStatus: "complete",
@@ -144,5 +143,22 @@ describe("AuthExchangeService", () => {
       },
       remoteSessionToken: "remote_session_token_123",
     });
+  });
+
+  it("rejects ticket consumption when the stored Better Auth session row no longer exists", async () => {
+    const { db, service } = createService();
+    db.query.authExchangeTickets.findFirst.mockResolvedValue({
+      expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+      id: "exchange_123",
+      remoteSessionToken: "remote_session_token_123",
+      sessionId: "session_123",
+      userId: "user_123",
+      usedAt: null,
+    });
+    db.query.sessions.findFirst.mockResolvedValue(null);
+
+    await expect(service.consumeTicket("ticket_123")).rejects.toThrow(
+      "Remote Better Auth session is no longer valid.",
+    );
   });
 });

@@ -249,6 +249,9 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
           </div>
         </div>
 
+        <p className="mt-3 px-1 text-xs text-muted-foreground/70">
+          Quando frete, imposto, embalagem ou devolucoes ainda nao tiverem fonte operacional dedicada, os valores sao estimados a partir das taxas do canal.
+        </p>
       </Card>
     </motion.div>
   );
