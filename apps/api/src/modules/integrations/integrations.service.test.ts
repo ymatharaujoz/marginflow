@@ -117,8 +117,9 @@ describe("IntegrationsService", () => {
     );
   });
 
-  it("lists synced products with review metrics and SKU suggestions", async () => {
+  it("auto-links synced products to catalog products when SKU matches", async () => {
     const { db, service } = createService();
+    db.update = createUpdateMock();
 
     db.select
       .mockReturnValueOnce({
@@ -231,17 +232,94 @@ describe("IntegrationsService", () => {
         marketplaceCommission: "14.00",
         netMarketplaceTake: "26.00",
         orderCount: 1,
-        reviewStatus: "unreviewed",
         shippingCost: "8.00",
-        suggestedMatches: [
-          expect.objectContaining({
-            productId: "product_1",
-            reason: "sku_exact",
-          }),
-        ],
+        linkedProduct: expect.objectContaining({
+          id: "product_1",
+          sku: "SKU-42",
+        }),
+        reviewStatus: "linked_to_existing_product",
+        suggestedMatches: [],
         unitsSold: 2,
       }),
     ]);
+    expect(db.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps synced products in review when more than one internal product shares the same SKU", async () => {
+    const { db, service } = createService();
+    db.update = createUpdateMock();
+
+    db.select
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValue([
+              {
+                createdAt: new Date("2026-05-01T10:00:00.000Z"),
+                externalProductId: "MLB-2",
+                id: "external_2",
+                linkedProductId: null,
+                marketplaceConnectionId: "conn_1",
+                metadata: {},
+                organizationId: "org_1",
+                provider: "mercadolivre",
+                reviewStatus: "unreviewed",
+                sku: "SKU-DUP",
+                title: "Produto com SKU duplicado",
+                updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+              },
+            ]),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-29T10:00:00.000Z"),
+        id: "product_1",
+        isActive: true,
+        name: "Produto A",
+        organizationId: "org_1",
+        sellingPrice: "30.00",
+        sku: "SKU-DUP",
+        updatedAt: new Date("2026-04-29T10:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-04-29T10:00:00.000Z"),
+        id: "product_2",
+        isActive: true,
+        name: "Produto B",
+        organizationId: "org_1",
+        sellingPrice: "45.00",
+        sku: "SKU-DUP",
+        updatedAt: new Date("2026-04-29T10:00:00.000Z"),
+      },
+    ]);
+
+    await expect(service.listSyncedProducts("org_1", "mercadolivre")).resolves.toEqual([
+      expect.objectContaining({
+        externalProductId: "MLB-2",
+        linkedProduct: null,
+        reviewStatus: "unreviewed",
+        suggestedMatches: [
+          expect.objectContaining({
+            productId: "product_1",
+            sku: "SKU-DUP",
+          }),
+          expect.objectContaining({
+            productId: "product_2",
+            sku: "SKU-DUP",
+          }),
+        ],
+      }),
+    ]);
+    expect(db.update).not.toHaveBeenCalled();
   });
 
   it("rejects importing a synced product already linked to an existing catalog item", async () => {

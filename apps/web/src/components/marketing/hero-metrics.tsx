@@ -116,8 +116,8 @@ function MetricCard({ value, label, suffix = "", prefix = "", delay, highlight =
       whileHover={reduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
       className={`group relative flex flex-col overflow-hidden rounded-xl border p-4 shadow-sm transition-all duration-300 ${
         highlight 
-          ? "border-accent/20 bg-gradient-to-br from-accent/[0.04] to-white hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5" 
-          : "border-border bg-white hover:border-accent/20 hover:shadow-md"
+          ? "border-accent/20 bg-gradient-to-br from-accent/[0.04] to-surface hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5" 
+          : "border-border bg-surface hover:border-accent/20 hover:shadow-md"
       }`}
     >
       {/* Animated gradient overlay on hover */}
@@ -207,7 +207,7 @@ export function DashboardMetrics() {
             delay: 0.8 + index * 0.12,
             ease: [0.16, 1, 0.3, 1],
           }}
-          className="rounded-xl border border-border bg-white/95 p-3 shadow-sm"
+          className="rounded-xl border border-border bg-surface p-3 shadow-sm"
         >
           <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
           <p className="mt-1 text-lg font-bold text-foreground md:text-xl">{metric.value}</p>

@@ -1,6 +1,6 @@
 import { getWebEnv } from "@/lib/env";
 import type { ApiContractSchema } from "./contract";
-import { ApiContractError, parseApiContract } from "./contract";
+import { parseApiContract } from "./contract";
 export { ApiContractError } from "./contract";
 
 type PrimitiveBody = BodyInit | null | undefined;

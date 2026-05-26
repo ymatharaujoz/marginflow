@@ -7,28 +7,19 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import {
-  externalOrderItems,
-  externalOrders,
   externalProducts,
   marketplaceConnections,
   type DatabaseClient,
-  type ExternalOrder,
-  type ExternalOrderItem,
-  type ExternalProduct,
   type MarketplaceConnection,
-  type Product,
 } from "@marginflow/database";
 import type {
   IntegrationConnectionRecord,
   IntegrationConnectResponse,
   IntegrationProviderSlug,
   SyncedProductActionResult,
-  SyncedProductLinkedProduct,
   SyncedProductRecord,
-  SyncedProductReviewStatus,
-  SyncedProductSuggestedMatch,
 } from "@marginflow/types";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
 import { ProductsService } from "@/modules/products/products.service";
@@ -50,19 +41,9 @@ type CallbackQuery = {
   state?: string;
 };
 
-type ExternalProductOrderItemRow = ExternalOrderItem & {
-  externalOrder: ExternalOrder | null;
-};
-
-type SyncedExternalProductRow = ExternalProduct & {
-  linkedProduct: Product | null;
-  orderItems: ExternalProductOrderItemRow[];
-};
-
-type LegacySyncedExternalProductRow = Omit<ExternalProduct, "linkedProductId" | "reviewStatus"> & {
-  linkedProductId: string | null;
-  reviewStatus: "unreviewed";
-};
+type ExternalProductOrderItemRow = Awaited<
+  ReturnType<IntegrationsService["requireSyncedExternalProduct"]>
+>["orderItems"][number];
 
 function toIsoString(value: Date | string | null | undefined) {
   if (!value) {
@@ -92,34 +73,6 @@ function toDecimalString(value: number | string | null | undefined) {
   }
 
   return "0.00";
-}
-
-function normalizeSku(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().toUpperCase();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function isMissingExternalProductReviewColumns(error: unknown) {
-  if (!error || typeof error !== "object") {
-    return false;
-  }
-
-  const code = "code" in error && typeof error.code === "string" ? error.code : null;
-  const message =
-    "message" in error && typeof error.message === "string" ? error.message : null;
-
-  if (code === "42703") {
-    return true;
-  }
-
-  return Boolean(
-    message &&
-      (message.includes("linked_product_id") || message.includes("review_status")),
-  );
 }
 
 @Injectable()
@@ -183,14 +136,14 @@ export class IntegrationsService {
       if (query.error) {
         throw new IntegrationProviderError(
           query.error_description?.trim() ||
-            "O Mercado Livre recusou a solicitação de conexão.",
+            "O Mercado Livre recusou a solicitação de conexão",
           "callback_rejected",
         );
       }
 
       if (!query.code || !query.state) {
         throw new IntegrationProviderError(
-          "A resposta do Mercado Livre não incluiu o state e o code obrigatórios.",
+          "A resposta do Mercado Livre não incluiu o state e o code obrigatórios",
           "callback_invalid",
         );
       }
@@ -199,7 +152,7 @@ export class IntegrationsService {
 
       if (state.provider !== "mercadolivre") {
         throw new IntegrationProviderError(
-          "O state retornado não corresponde ao provedor esperado (Mercado Livre).",
+          "O state retornado não corresponde ao provedor esperado (Mercado Livre)",
           "callback_invalid",
         );
       }
@@ -243,7 +196,6 @@ export class IntegrationsService {
         });
 
       return this.buildRedirectUrl(baseRedirect, {
-        message: "Mercado Livre conectado com sucesso.",
         provider: "mercadolivre",
         status: "success",
       });
@@ -253,7 +205,7 @@ export class IntegrationsService {
           ? error.message
           : error instanceof Error
             ? error.message
-            : "Falha ao conectar o Mercado Livre.";
+            : "Falha ao conectar o Mercado Livre";
 
       return this.buildRedirectUrl(baseRedirect, {
         message,
@@ -345,7 +297,7 @@ export class IntegrationsService {
       externalProduct.reviewStatus === "linked_to_existing_product"
     ) {
       throw new ConflictException(
-        "Este produto sincronizado já está vinculado a um produto do catálogo.",
+        "Este produto sincronizado já está vinculado a um produto do catálogo",
       );
     }
 
@@ -357,7 +309,7 @@ export class IntegrationsService {
         organizationId,
         providerSlug,
         externalProductId,
-        "Este produto sincronizado já foi importado para o catálogo.",
+        "Este produto sincronizado já foi importado para o catálogo",
       );
     }
 
@@ -382,7 +334,7 @@ export class IntegrationsService {
       organizationId,
       providerSlug,
       externalProductId,
-      "Produto sincronizado importado para o cat\u00e1logo.",
+      "Produto sincronizado importado para o catálogo",
     );
   }
 
@@ -407,7 +359,7 @@ export class IntegrationsService {
       externalProduct.linkedProductId !== product.id
     ) {
       throw new ConflictException(
-        "Este produto sincronizado já foi importado como produto interno do catálogo.",
+        "Este produto sincronizado já foi importado como produto interno do catálogo",
       );
     }
 
@@ -419,7 +371,7 @@ export class IntegrationsService {
         organizationId,
         providerSlug,
         externalProductId,
-        "Produto sincronizado j\u00e1 vinculado ao cat\u00e1logo selecionado.",
+        "Produto sincronizado j\u00e1 vinculado ao cat\u00e1logo selecionado",
       );
     }
 
@@ -436,7 +388,7 @@ export class IntegrationsService {
       organizationId,
       providerSlug,
       externalProductId,
-      "Produto sincronizado vinculado ao produto existente.",
+      "Produto sincronizado vinculado ao produto existente",
     );
   }
 
@@ -467,20 +419,22 @@ export class IntegrationsService {
       organizationId,
       providerSlug,
       externalProductId,
-      "Produto sincronizado marcado para revis\u00e3o posterior.",
+      "Produto sincronizado marcado para revisão posterior",
     );
   }
 
   private buildRedirectUrl(
     baseRedirect: string,
     input: {
-      message: string;
+      message?: string;
       provider: IntegrationProviderSlug;
       status: "error" | "success";
     },
   ) {
     const url = new URL(baseRedirect);
-    url.searchParams.set("message", input.message);
+    if (input.message) {
+      url.searchParams.set("message", input.message);
+    }
     url.searchParams.set("provider", input.provider);
     url.searchParams.set("status", input.status);
 
@@ -491,7 +445,7 @@ export class IntegrationsService {
     const provider = this.providers.find((entry) => entry.provider === providerSlug);
 
     if (!provider) {
-      throw new NotFoundException(`Provedor de integração não suportado: "${providerSlug}".`);
+      throw new NotFoundException(`Provedor de integração não suportado: "${providerSlug}"`);
     }
 
     return provider;
@@ -500,7 +454,7 @@ export class IntegrationsService {
   private assertSyncProductProvider(providerSlug: IntegrationProviderSlug) {
     if (providerSlug !== "mercadolivre") {
       throw new BadRequestException(
-        "Por enquanto, só há produtos sincronizados do Mercado Livre neste workspace.",
+        "Por enquanto, só há produtos sincronizados do Mercado Livre neste workspace",
       );
     }
   }
@@ -517,7 +471,7 @@ export class IntegrationsService {
     );
 
     if (!syncedProduct) {
-      throw new NotFoundException("Produto sincronizado não encontrado.");
+      throw new NotFoundException("Produto sincronizado não encontrado");
     }
 
     return {
@@ -570,7 +524,7 @@ export class IntegrationsService {
           provider: provider.provider,
           status: "unavailable",
           statusMessage:
-            "As credenciais do provedor ainda não estão configuradas no ambiente da API.",
+            "As credenciais do provedor ainda não estão configuradas no ambiente da API",
           tokenExpiresAt: null,
         };
       }
@@ -620,12 +574,12 @@ export class IntegrationsService {
             ? "disconnected"
             : "unavailable",
       statusMessage: connected
-        ? "Conta conectada e pronta para sincronizar."
+        ? "Conta conectada e pronta para sincronizar"
         : needsReconnect
-          ? "O token armazenado expirou. Reconecte este provedor antes da próxima sincronização."
+          ? "O token armazenado expirou. Reconecte este provedor antes da próxima sincronização"
           : provider.isConfigured()
             ? "Conta desconectada."
-            : "Faltam credenciais do provedor; não é possível reconectar neste momento.",
+            : "Faltam credenciais do provedor; não é possível reconectar neste momento",
       tokenExpiresAt: toIsoString(row.tokenExpiresAt),
     };
   }
@@ -654,7 +608,7 @@ export class IntegrationsService {
       })) ?? null;
 
     if (!row) {
-      throw new NotFoundException("Produto sincronizado não encontrado.");
+      throw new NotFoundException("Produto sincronizado não encontrado");
     }
 
     return row;
@@ -668,140 +622,5 @@ export class IntegrationsService {
     })[0];
 
     return latestItem ? toDecimalString(latestItem.unitPrice) : null;
-  }
-
-  private toLinkedProductSummary(product: Product | null): SyncedProductLinkedProduct | null {
-    if (!product) {
-      return null;
-    }
-
-    return {
-      id: product.id,
-      isActive: product.isActive,
-      name: product.name,
-      sku: product.sku,
-    };
-  }
-
-  private toSuggestedMatches(
-    externalProduct: ExternalProduct,
-    productsList: Product[],
-    reviewStatus: SyncedProductReviewStatus,
-  ): SyncedProductSuggestedMatch[] {
-    if (
-      externalProduct.linkedProductId ||
-      reviewStatus === "ignored" ||
-      reviewStatus === "imported_as_internal_product"
-    ) {
-      return [];
-    }
-
-    const normalizedExternalSku = normalizeSku(externalProduct.sku);
-
-    if (!normalizedExternalSku) {
-      return [];
-    }
-
-    return productsList
-      .filter((product) => normalizeSku(product.sku) === normalizedExternalSku)
-      .slice(0, 3)
-      .map((product) => ({
-        isActive: product.isActive,
-        name: product.name,
-        productId: product.id,
-        reason: "sku_exact",
-        sku: product.sku,
-      }));
-  }
-
-  private toSyncedProductRecord(
-    row: SyncedExternalProductRow,
-    productsList: Product[],
-  ): SyncedProductRecord {
-    const uniqueOrderIds = new Set<string>();
-    let unitsSold = 0;
-    let grossRevenue = 0;
-    let lastOrderedAt: string | null = null;
-
-    for (const item of row.orderItems) {
-      uniqueOrderIds.add(item.externalOrderId);
-      unitsSold += item.quantity;
-      grossRevenue += Number(item.totalPrice) || 0;
-
-      const orderedAt = item.externalOrder?.orderedAt ?? null;
-      const orderedAtIso = orderedAt ? orderedAt.toISOString() : null;
-
-      if (orderedAtIso && (!lastOrderedAt || orderedAtIso > lastOrderedAt)) {
-        lastOrderedAt = orderedAtIso;
-      }
-    }
-
-    return {
-      externalProductId: row.externalProductId,
-      fixedFee: "0.00",
-      grossRevenue: toDecimalString(grossRevenue),
-      id: row.id,
-      lastOrderedAt,
-      latestUnitPrice: this.selectLatestUnitPrice(row.orderItems),
-      linkedProduct: this.toLinkedProductSummary(row.linkedProduct),
-      marketplaceCommission: "0.00",
-      netMarketplaceTake: "0.00",
-      orderCount: uniqueOrderIds.size,
-      provider: row.provider as IntegrationProviderSlug,
-      reviewStatus: row.reviewStatus as SyncedProductReviewStatus,
-      sku: row.sku,
-      shippingCost: "0.00",
-      suggestedMatches: this.toSuggestedMatches(
-        row,
-        productsList,
-        row.reviewStatus as SyncedProductReviewStatus,
-      ),
-      title: row.title,
-      unitsSold,
-    };
-  }
-
-  private async readSyncedExternalProducts(
-    organizationId: string,
-    providerSlug: IntegrationProviderSlug,
-  ): Promise<Array<ExternalProduct | LegacySyncedExternalProductRow>> {
-    try {
-      return await this.db
-        .select()
-        .from(externalProducts)
-        .where(
-          and(eq(externalProducts.organizationId, organizationId), eq(externalProducts.provider, providerSlug)),
-        )
-        .orderBy(desc(externalProducts.updatedAt), desc(externalProducts.createdAt));
-    } catch (error) {
-      if (!isMissingExternalProductReviewColumns(error)) {
-        throw error;
-      }
-
-      const legacyRows = await this.db
-        .select({
-          createdAt: externalProducts.createdAt,
-          externalProductId: externalProducts.externalProductId,
-          id: externalProducts.id,
-          marketplaceConnectionId: externalProducts.marketplaceConnectionId,
-          metadata: externalProducts.metadata,
-          organizationId: externalProducts.organizationId,
-          provider: externalProducts.provider,
-          sku: externalProducts.sku,
-          title: externalProducts.title,
-          updatedAt: externalProducts.updatedAt,
-        })
-        .from(externalProducts)
-        .where(
-          and(eq(externalProducts.organizationId, organizationId), eq(externalProducts.provider, providerSlug)),
-        )
-        .orderBy(desc(externalProducts.updatedAt), desc(externalProducts.createdAt));
-
-      return legacyRows.map((row) => ({
-        ...row,
-        linkedProductId: null,
-        reviewStatus: "unreviewed" as const,
-      }));
-    }
   }
 }

@@ -50,7 +50,15 @@ export function formatMetricDate(value: string) {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+const providerLabels: Record<string, string> = {
+  mercadolivre: "Mercado Livre",
+  shopee: "Shopee",
+};
+
 export function formatProviderLabel(value: string) {
+  const normalized = value.toLowerCase().trim();
+  if (providerLabels[normalized]) return providerLabels[normalized];
+
   return value
     .split(/[_\s-]+/)
     .filter(Boolean)

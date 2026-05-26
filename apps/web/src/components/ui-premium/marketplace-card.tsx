@@ -74,7 +74,7 @@ export function MarketplaceCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-[var(--shadow-xs)]">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-elevated shadow-[var(--shadow-xs)]">
             {config?.icon || (
               <div 
                 className="h-6 w-6 rounded"

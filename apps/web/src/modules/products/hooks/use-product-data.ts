@@ -5,7 +5,7 @@ import { useMemo, useState, useCallback } from "react";
 import type { ProductAnalyticsSnapshot } from "@marginflow/types";
 import { productAnalyticsSnapshotApiResponseSchema } from "@marginflow/validation";
 import { ApiClientError, apiClient } from "@/lib/api/client";
-import type { ProductCatalogData, ProductTableRow, PaginationState } from "../types/products";
+import type { ProductCatalogData, PaginationState } from "../types/products";
 import {
   buildCatalogStats,
   buildProductInsights,

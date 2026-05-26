@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { BadRequestException } from "@nestjs/common";
 import { FinanceService } from "@/modules/finance/finance.service";
+import { SyncPerformanceMaterializerService } from "./sync-performance-materializer.service";
 import { SyncService } from "./sync.service";
 
 function createUpdateMock(returnValue: unknown) {
@@ -44,6 +46,9 @@ function createService(envOverrides: Record<string, unknown> = {}) {
   const financeService = {
     materializeOrganizationMetrics: vi.fn(),
   } satisfies Pick<FinanceService, "materializeOrganizationMetrics">;
+  const syncPerformanceMaterializer = {
+    materializeForSync: vi.fn(),
+  } satisfies Pick<SyncPerformanceMaterializerService, "materializeForSync">;
   const service = new SyncService(
     db as never,
     {
@@ -67,11 +72,13 @@ function createService(envOverrides: Record<string, unknown> = {}) {
       ...envOverrides,
     } as never,
     financeService as never,
+    syncPerformanceMaterializer as never,
   );
 
   return {
     db,
     financeService,
+    syncPerformanceMaterializer,
     service,
   };
 }
@@ -211,7 +218,7 @@ describe("SyncService", () => {
 
   it("runs a sync, stores imported data, and materializes finance metrics", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
-    const { db, financeService, service } = createService();
+    const { db, financeService, service, syncPerformanceMaterializer } = createService();
     const provider = {
       createAuthorization: vi.fn(),
       disconnect: vi.fn(),
@@ -355,9 +362,15 @@ describe("SyncService", () => {
       windowKey: "2026-05-01:morning",
     });
 
-    const response = await service.runSync("org_123", "mercadolivre");
+    const response = await service.runSync("org_123", "user_123", "mercadolivre");
 
     expect(provider.syncOrders).toHaveBeenCalledTimes(1);
+    expect(syncPerformanceMaterializer.materializeForSync).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      providerSlug: "mercadolivre",
+      syncRunId: "sync_123",
+      userId: "user_123",
+    });
     expect(financeService.materializeOrganizationMetrics).toHaveBeenCalledWith("org_123");
     expect(response.run.counts.orders).toBe(1);
     expect(response.availability.reason).toBe("window_already_used");
@@ -383,5 +396,92 @@ describe("SyncService", () => {
     expect(response).toEqual({
       clearedCount: 2,
     });
+  });
+
+  it("fails the sync honestly when performance materialization cannot resolve an active company", async () => {
+    vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
+    const { db, financeService, service, syncPerformanceMaterializer } = createService();
+    const provider = {
+      createAuthorization: vi.fn(),
+      disconnect: vi.fn(),
+      displayName: "Mercado Livre",
+      exchangeCode: vi.fn(),
+      isConfigured: () => true,
+      provider: "mercadolivre" as const,
+      supportsSync: () => true,
+      syncOrders: vi.fn().mockResolvedValue({
+        cursor: null,
+        orders: [],
+        products: [],
+      }),
+    };
+
+    (service as unknown as { providers: unknown[] }).providers = [provider];
+    (
+      service as unknown as {
+        persistSyncResult: ReturnType<typeof vi.fn>;
+      }
+    ).persistSyncResult = vi.fn().mockResolvedValue({
+      fees: 0,
+      items: 0,
+      orders: 0,
+      products: 0,
+    });
+    syncPerformanceMaterializer.materializeForSync = vi
+      .fn()
+      .mockRejectedValue(new BadRequestException("missing active company"));
+
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      createdAt: new Date("2026-05-01T11:00:00.000Z"),
+      externalAccountId: "seller_123",
+      id: "conn_123",
+      lastSyncedAt: null,
+      metadata: {},
+      organizationId: "org_123",
+      provider: "mercadolivre",
+      refreshToken: "refresh",
+      status: "connected",
+      tokenExpiresAt: new Date("2026-05-03T11:00:00.000Z"),
+      updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+    });
+    db.query.syncRuns.findFirst.mockResolvedValue(null);
+    db.insert = createInsertMock([
+      [
+        {
+          createdAt: new Date("2026-05-01T12:30:00.000Z"),
+          errorSummary: null,
+          finishedAt: null,
+          id: "sync_123",
+          marketplaceConnectionId: "conn_123",
+          metadata: {},
+          organizationId: "org_123",
+          provider: "mercadolivre",
+          startedAt: null,
+          status: "pending",
+          updatedAt: new Date("2026-05-01T12:30:00.000Z"),
+          windowKey: "2026-05-01:morning",
+        },
+      ],
+    ]);
+    db.update = createUpdateMock({
+      createdAt: new Date("2026-05-01T12:30:00.000Z"),
+      errorSummary: null,
+      finishedAt: null,
+      id: "sync_123",
+      marketplaceConnectionId: "conn_123",
+      metadata: {},
+      organizationId: "org_123",
+      provider: "mercadolivre",
+      startedAt: new Date("2026-05-01T12:31:00.000Z"),
+      status: "processing",
+      updatedAt: new Date("2026-05-01T12:31:00.000Z"),
+      windowKey: "2026-05-01:morning",
+    });
+
+    await expect(service.runSync("org_123", "user_123", "mercadolivre")).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(financeService.materializeOrganizationMetrics).not.toHaveBeenCalled();
   });
 });

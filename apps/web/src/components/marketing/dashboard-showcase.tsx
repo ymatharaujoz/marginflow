@@ -40,7 +40,7 @@ function LineChart() {
         <motion.path
           d={pathD}
           fill="none"
-          stroke="#0e7a6f"
+          stroke="var(--accent)"
           strokeWidth="0.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -52,8 +52,8 @@ function LineChart() {
         {/* Gradient definition */}
         <defs>
           <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0e7a6f" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#0e7a6f" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -67,7 +67,7 @@ function LineChart() {
               cx={x}
               cy={y}
               r="1"
-              fill="#0e7a6f"
+              fill="var(--accent)"
               initial={{ opacity: 0, scale: 0 }}
               animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0 }}
               transition={{
@@ -298,9 +298,9 @@ export function DashboardShowcase() {
           <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-accent/5 via-accent/10 to-accent/5 blur-2xl" />
 
           {/* Dashboard Container */}
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-white shadow-2xl">
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
             {/* Dashboard Header */}
-            <div className="border-b border-border bg-white px-6 py-4">
+            <div className="border-b border-border bg-surface px-6 py-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-accent to-accent-strong" />
@@ -331,7 +331,7 @@ export function DashboardShowcase() {
                       duration: 0.5,
                       delay: reduceMotion ? 0 : index * 0.1,
                     }}
-                    className="rounded-xl border border-border bg-white p-4 shadow-sm transition-all hover:border-accent/20 hover:shadow-md"
+                    className="rounded-xl border border-border bg-surface p-4 shadow-sm transition-all hover:border-accent/20 hover:shadow-md"
                   >
                     <p className="text-xs text-muted-foreground">{kpi.label}</p>
                     <p className="mt-1 text-xl font-bold text-foreground">{kpi.value}</p>
@@ -349,7 +349,7 @@ export function DashboardShowcase() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
                   transition={{ duration: 0.6, delay: 0.3 }}
-                  className="rounded-xl border border-border bg-white p-5 shadow-sm"
+                  className="rounded-xl border border-border bg-surface p-5 shadow-sm"
                 >
                   <h3 className="mb-4 text-sm font-semibold text-foreground">Evolução de Vendas</h3>
                   <LineChart />
@@ -360,7 +360,7 @@ export function DashboardShowcase() {
                   initial={{ opacity: 0, x: 20 }}
                   animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
                   transition={{ duration: 0.6, delay: 0.4 }}
-                  className="rounded-xl border border-border bg-white p-5 shadow-sm"
+                  className="rounded-xl border border-border bg-surface p-5 shadow-sm"
                 >
                   <h3 className="mb-4 text-sm font-semibold text-foreground">Métricas de Performance</h3>
                   <PerformanceMetricsCard />
@@ -374,7 +374,7 @@ export function DashboardShowcase() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 20 }}
                   transition={{ duration: 0.6, delay: 0.5 }}
-                  className="rounded-xl border border-border bg-white p-5 shadow-sm"
+                  className="rounded-xl border border-border bg-surface p-5 shadow-sm"
                 >
                   <h3 className="mb-4 text-sm font-semibold text-foreground">Top Produtos</h3>
                   <TopProductsTable />
@@ -394,7 +394,7 @@ export function DashboardShowcase() {
 
           {/* Floating elements */}
           <motion.div
-            className="absolute -right-4 top-20 hidden rounded-lg border border-border bg-white p-3 shadow-lg lg:block"
+            className="absolute -right-4 top-20 hidden rounded-lg border border-border bg-surface p-3 shadow-lg lg:block"
             animate={{
               y: [0, -10, 0],
             }}
@@ -418,7 +418,7 @@ export function DashboardShowcase() {
           </motion.div>
 
           <motion.div
-            className="absolute -left-4 bottom-32 hidden rounded-lg border border-border bg-white p-3 shadow-lg lg:block"
+            className="absolute -left-4 bottom-32 hidden rounded-lg border border-border bg-surface p-3 shadow-lg lg:block"
             animate={{
               y: [0, 10, 0],
             }}

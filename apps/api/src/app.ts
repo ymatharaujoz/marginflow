@@ -1,6 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import cors from "@fastify/cors";
+import multipart from "@fastify/multipart";
 import { fromNodeHeaders } from "better-auth/node";
 import { AppModule } from "./app.module";
 import {
@@ -27,6 +28,10 @@ export async function buildApp(
   await app.register(cors, {
     credentials: true,
     origin: readTrustedOriginList(env),
+  });
+
+  await app.register(multipart, {
+    limits: { fileSize: 5 * 1024 * 1024 },
   });
 
   app.useGlobalFilters(new HttpExceptionFilter());

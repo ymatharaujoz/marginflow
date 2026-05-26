@@ -9,6 +9,7 @@ import {
   dbSchema,
   fixedCosts,
   organizations,
+  productFinanceDefaults,
   productMonthlyPerformance,
   products,
   users,
@@ -20,6 +21,7 @@ describe("@marginflow/database schema", () => {
     expect(dbSchema.organizations).toBe(organizations);
     expect(dbSchema.companies).toBe(companies);
     expect(dbSchema.fixedCosts).toBe(fixedCosts);
+    expect(dbSchema.productFinanceDefaults).toBe(productFinanceDefaults);
     expect(dbSchema.productMonthlyPerformance).toBe(productMonthlyPerformance);
     expect(dbSchema.products).toBe(products);
     expect(dbSchema.users).toBe(users);
@@ -35,6 +37,7 @@ describe("@marginflow/database schema", () => {
     expect(db.query.organizations).toBeDefined();
     expect(db.query.companies).toBeDefined();
     expect(db.query.products).toBeDefined();
+    expect(db.query.productFinanceDefaults).toBeDefined();
     expect(db.query.productMonthlyPerformance).toBeDefined();
   });
 
@@ -47,6 +50,9 @@ describe("@marginflow/database schema", () => {
       organizationId: randomUUID(),
       name: "Produto",
     };
+    const financeDefaultsInsert: typeof productFinanceDefaults.$inferInsert = {
+      productId: randomUUID(),
+    };
     const companyInsert: typeof companies.$inferInsert = {
       code: "MELI",
       name: "Mercado Livre",
@@ -56,7 +62,36 @@ describe("@marginflow/database schema", () => {
 
     expect(organizationInsert.slug).toBe("demo-org");
     expect(companyInsert.code).toBe("MELI");
+    expect(financeDefaultsInsert.productId).toBeDefined();
     expect(productInsert.name).toBe("Produto");
+  });
+
+  it("keeps product finance defaults aligned with migration assets", () => {
+    const financeDefaultsCreateMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0006_product_finance_defaults.sql"),
+      "utf8",
+    );
+    const financeDefaultsCleanupMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0007_product_finance_defaults_cleanup.sql"),
+      "utf8",
+    );
+
+    expect(financeDefaultsCreateMigration).toContain('CREATE TABLE IF NOT EXISTS "product_finance_defaults"');
+    expect(financeDefaultsCreateMigration).toContain('"organization_id" uuid NOT NULL');
+    expect(financeDefaultsCreateMigration).toContain('"product_id" uuid NOT NULL');
+    expect(financeDefaultsCreateMigration).toContain('"packaging_cost" numeric(12, 2) DEFAULT \'0\' NOT NULL');
+    expect(financeDefaultsCreateMigration).toContain('"tax_rate" numeric(8, 6) DEFAULT \'0\' NOT NULL');
+    expect(financeDefaultsCreateMigration).toContain('"advertising_cost" numeric(12, 2) DEFAULT \'0\' NOT NULL');
+    expect(financeDefaultsCreateMigration).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "product_finance_defaults_product_id_key"',
+    );
+    expect(financeDefaultsCleanupMigration).toContain('DROP INDEX IF EXISTS "product_finance_defaults_organization_id_idx"');
+    expect(financeDefaultsCleanupMigration).toContain(
+      'DROP CONSTRAINT IF EXISTS "product_finance_defaults_organization_id_organizations_id_fk"',
+    );
+    expect(financeDefaultsCleanupMigration).toContain(
+      'DROP COLUMN IF EXISTS "organization_id"',
+    );
   });
 
   it("keeps auth table names aligned with baseline migration assets", () => {

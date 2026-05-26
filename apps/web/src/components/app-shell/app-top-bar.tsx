@@ -10,6 +10,8 @@ type AppTopBarProps = {
 const pageTitles: Record<string, string> = {
   "/app": "Painel",
   "/app/products": "Produtos e custos",
+  "/app/products/catalog": "Catálogo",
+  "/app/products/performance": "Performance",
   "/app/integrations": "Integrações",
   "/app/billing": "Assinatura",
 };

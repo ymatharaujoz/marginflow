@@ -1,25 +1,6 @@
 # API App
 
-NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
-
-- Fastify adapter
-- `GET /health` health endpoint
-- explicit credentialed CORS strategy for web-to-api requests
-- Better Auth mounted under `/auth/*`
-- session-aware `GET /auth-state/me` and protected guard seam
-- default-organization bootstrap for first authenticated access
-- Stripe-backed billing module with `GET /billing/subscription`
-- API-owned Stripe checkout creation through `POST /billing/checkout`
-- Authenticated `POST /billing/checkout/confirm` to mirror the subscription after Checkout redirect (covers delayed or missing webhooks during local dev)
-- Live Stripe reconcile on `GET /billing/subscription` and every `EntitlementGuard` gate when Postgres shows `active`/`trialing` for a Stripe-linked row, so cancelling in Stripe revokes access even if webhook delivery stalled
-- Stripe webhook handling at `POST /billing/stripe/webhook`
-- marketplace connection module with `GET /integrations`, `POST /integrations/mercadolivre/connect`, `GET /integrations/mercadolivre/callback`, and `POST /integrations/:provider/disconnect`
-- entitlement enforcement for protected API surfaces (including `/products` and `/costs/*`)
-- shared trusted-origin parsing for Fastify CORS and Better Auth
-- lifecycle-managed Postgres runtime that keeps the `DATABASE_CLIENT` token stable for modules
-- shared exception handling and future Zod validation seam
-- Render-ready start/build commands
-- shared database provider seam for app modules
+NestJS + Fastify backend for MarginFlow.
 
 ## Local commands
 
@@ -30,63 +11,68 @@ NestJS backend scaffold for MarginFlow. M5 and M6 currently include:
 - `corepack pnpm ngrok:mercadolivre:callback`
 - `corepack pnpm ngrok:mercadolivre:callback:url`
 
-## Render baseline
+## Local environment loading
 
-- Build command: `corepack pnpm install && corepack pnpm --filter @marginflow/api build`
+Local runtime keeps reading `.env`, `.env.local`, and development overrides from the monorepo root.
+`apps/api/.env.example` is only a deploy template/reference for Railway.
+
+## Railway deploy baseline
+
+This app is deployed as its own Railway service while still using the monorepo root for install/build.
+
+- Config file: `/apps/api/railway.toml`
+- Build command: `corepack enable && corepack pnpm install --frozen-lockfile && corepack pnpm --filter @marginflow/api build`
 - Start command: `corepack pnpm --filter @marginflow/api start`
 - Health check path: `/health`
 
-## Environment
+Important:
 
-The dev server loads `.env`, `.env.local`, and (when `NODE_ENV` is `development`) `.env.development` from the **monorepo root**, not from `apps/api`. Copy `.env.example` there or set variables in your shell.
+- Keep repository root available during build because API depends on workspace packages.
+- Railway injects `PORT`; `readApiEnv()` already falls back from `API_PORT` to `PORT`.
+- Current production runtime intentionally stays on `tsx src/main.ts`; this cycle does not switch to `dist`.
 
-- `API_HOST`: listen host, default `0.0.0.0`
-- `API_PORT`: listen port, default `4000`
-- `API_DB_POOL_MAX`: Postgres pool size cap for API runtime, default `10`
-- `NGROK_AUTHTOKEN`: optional local ngrok auth token used by the helper tunnel script
-- `NGROK_DOMAIN`: optional reserved ngrok domain used by the helper tunnel script
-- `DATABASE_URL`: Supabase pooled/runtime Postgres connection string used by the API at boot
-- `DATABASE_MIGRATION_URL`: optional Supabase direct or migration-safe Postgres connection string used by Drizzle tooling
-- `BETTER_AUTH_SECRET`: Better Auth signing secret
-- `BETTER_AUTH_URL`: absolute API base URL used by Better Auth callbacks and cookies
-- `GOOGLE_CLIENT_ID`: Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-- `MERCADOLIVRE_CLIENT_ID`: optional Mercado Livre app ID used for the live marketplace connection flow
-- `MERCADOLIVRE_CLIENT_SECRET`: optional Mercado Livre app secret used for token exchange
-- `MERCADOLIVRE_REDIRECT_URI`: optional exact callback URI for Mercado Livre; defaults to `<BETTER_AUTH_URL>/integrations/mercadolivre/callback`
-- `AUTH_TRUSTED_ORIGINS`: optional comma-separated extra trusted frontend origins
-- `WEB_APP_ORIGIN`: allowed browser origin for credentialed requests, default `http://localhost:3000`
-- `STRIPE_SECRET_KEY`: Stripe secret API key used for checkout and webhook follow-up fetches
-- `STRIPE_WEBHOOK_SECRET`: Stripe webhook signing secret used to verify raw webhook payloads
-- `STRIPE_PRICE_MONTHLY`: Stripe recurring price ID for the monthly plan
-- `STRIPE_PRICE_ANNUAL`: Stripe recurring price ID for the annual plan
-- `SYNC_RELAX_GUARDS`: when `true` / `1` / `yes`, skips overnight and “window already used” sync availability checks for local testing; **ignored when `NODE_ENV` is `production`**
+## Runtime environment
 
-`DATABASE_URL` is required for runtime boot in every environment and should target Supabase runtime/pooler credentials. `DATABASE_MIGRATION_URL` is optional for the API itself, but database tooling should use it when present so migrations, seeds, and Studio can use a safer direct connection path. `SUPABASE_*` values remain optional and reserved for later service integrations.
+Required in production:
 
-## Ngrok for Mercado Livre local callbacks
+- `DATABASE_URL`
+- `BETTER_AUTH_SECRET`
+- `BETTER_AUTH_URL`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `WEB_APP_ORIGIN`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PRICE_MONTHLY`
+- `STRIPE_PRICE_ANNUAL`
 
-Keep the default local app flow unchanged:
+Optional but recommended:
 
-- `BETTER_AUTH_URL=http://localhost:4000`
-- `WEB_APP_ORIGIN=http://localhost:3000`
-- web app still runs on `http://localhost:3000`
-- API still runs on `http://localhost:4000`
+- `DATABASE_MIGRATION_URL`
+- `API_DB_POOL_MAX`
+- `AUTH_TRUSTED_ORIGINS`
 
-Use ngrok only to give Mercado Livre a stable public callback URL for the local API.
+Optional only when Mercado Livre integration is enabled:
 
-Recommended root `.env` additions:
+- `MERCADOLIVRE_CLIENT_ID`
+- `MERCADOLIVRE_CLIENT_SECRET`
+- `MERCADOLIVRE_REDIRECT_URI`
 
-- `NGROK_AUTHTOKEN=...`
-- `NGROK_DOMAIN=your-reserved-domain.ngrok.app`
-- `MERCADOLIVRE_REDIRECT_URI=https://your-reserved-domain.ngrok.app/integrations/mercadolivre/callback`
+Optional local/testing helper:
 
-Workflow:
+- `SYNC_RELAX_GUARDS`
 
-1. Start the API locally with `corepack pnpm dev:api`
-2. Start the tunnel with `corepack pnpm ngrok:mercadolivre:callback`
-3. Print the exact callback URL with `corepack pnpm ngrok:mercadolivre:callback:url`
-4. Register that exact URL in the Mercado Livre developer portal
-5. Run the existing connection flow from `/app/integrations`
+`DATABASE_URL` should target pooled/runtime Postgres credentials. `DATABASE_MIGRATION_URL` should target direct or migration-safe credentials for Drizzle tooling.
 
-The ngrok helper assumes the ngrok agent is already installed locally and available on your `PATH`.
+## Docs
+
+Unified deploy guide lives at [docs/deploy-railway-vercel.md](/C:/Users/ymath/OneDrive/Documentos/Projects/marginflow/docs/deploy-railway-vercel.md).
+
+It covers:
+
+- Railway setup for API
+- Vercel setup for web
+- required and optional env vars
+- deploy order
+- post-deploy validation
+- troubleshooting

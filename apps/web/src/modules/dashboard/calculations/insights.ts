@@ -75,7 +75,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       insights.push({
         id: "contribution-strong",
         type: "growth",
-        title: "Margem de contribuição forte",
+        title: "Margem de Contribuição Forte",
         description: `Seu negócio mantém ${contributionRate.toFixed(1)}% de margem de contribuição, cobrindo bem os custos operacionais antes das despesas fixas`,
         priority: "medium",
       });
@@ -122,7 +122,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
     insights.push({
       id: "margin-unavailable",
       type: "info",
-      title: "Cobertura financeira parcial",
+      title: "Cobertura Financeira Parcial",
       description:
         "Alguns custos operacionais ainda dependem da cobertura atual do snapshot. O dashboard mostra zeros explicitos em vez de estimativas",
       priority: "medium",

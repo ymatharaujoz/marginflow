@@ -1,5 +1,5 @@
 import { HttpException, Inject, Injectable, Logger } from "@nestjs/common";
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { isNotNull } from "drizzle-orm";
 import type { DatabaseClient } from "@marginflow/database";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import type { BillingSnapshot } from "./billing.types";

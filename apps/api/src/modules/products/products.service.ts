@@ -7,6 +7,8 @@ import {
 } from "@nestjs/common";
 import { buildProductAnalyticsMetrics, type FinancialMonthlyPerformanceInput } from "@marginflow/domain";
 import { and, desc, eq } from "drizzle-orm";
+import { read, utils } from "xlsx";
+import { productImportRowSchema } from "@marginflow/validation";
 import type {
   AdCost,
   Company,
@@ -14,14 +16,14 @@ import type {
   ManualExpense,
   Product,
   ProductCost,
+  ProductFinanceDefaults,
   ProductMonthlyPerformance,
 } from "@marginflow/database";
 import {
   adCosts,
-  companies,
   manualExpenses,
   productCosts,
-  productMonthlyPerformance,
+  productFinanceDefaults,
   products,
 } from "@marginflow/database";
 import type {
@@ -86,10 +88,12 @@ function normalizeComparableSku(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
-function isUuidLike(value: string) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    value,
-  );
+function assertFractionalRate(value: string, fieldName: string) {
+  if (!/^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/.test(value)) {
+    throw new BadRequestException({
+      message: `${fieldName} must be a decimal rate between 0 and 1.`,
+    });
+  }
 }
 
 @Injectable()
@@ -108,6 +112,9 @@ export class ProductsService {
       this.db.query.products.findMany({
         orderBy: (table) => [desc(table.createdAt)],
         where: (table) => eq(table.organizationId, organizationId),
+        with: {
+          financeDefaults: true,
+        },
       }),
       this.db.query.productCosts.findMany({
         orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
@@ -126,6 +133,9 @@ export class ProductsService {
     return productRows.map((productRow) => ({
       ...this.toProductRecord(productRow),
       latestCost: latestCosts.get(productRow.id) ?? null,
+      financeDefaults: productRow.financeDefaults
+        ? this.toProductFinanceDefaultsRecord(productRow.financeDefaults)
+        : null,
     }));
   }
 
@@ -148,29 +158,13 @@ export class ProductsService {
     context: TenantContext,
     input: ProductManualCreateFormValues,
   ): Promise<ProductManualCreateResult> {
-    if (!input.scope.companyId || input.scope.companyId.trim().length === 0) {
-      throw new BadRequestException(
-        "Cadastre uma empresa ativa antes de salvar um produto manual com custos e impostos mensais.",
-      );
-    }
-
-    if (!isUuidLike(input.scope.companyId)) {
-      throw new BadRequestException("Manual product creation requires a valid company id.");
-    }
-
     const normalizedSku = normalizeComparableSku(input.product.sku);
 
     if (!normalizedSku) {
-      throw new BadRequestException("SKU is required for manual Mercado Livre product creation.");
+      throw new BadRequestException("SKU is required for manual product creation.");
     }
 
-    const company = await this.ensureCompanyAccess(context, input.scope.companyId);
-
-    if (!company.isActive) {
-      throw new BadRequestException(
-        "Manual product creation requires an active company for monthly costs and taxes.",
-      );
-    }
+    assertFractionalRate(input.initialFinance.taxRate, "Tax rate");
 
     const result = await this.db.transaction(async (tx) => {
       const [createdProduct] = await tx
@@ -190,67 +184,24 @@ export class ProductsService {
           amount: input.initialFinance.unitCost,
           costType: "base",
           currency: "BRL",
-          effectiveFrom: input.scope.referenceMonth,
+          effectiveFrom: null,
           notes: "Cadastro manual inicial",
           organizationId: context.organizationId,
           productId: createdProduct.id,
         })
         .returning();
 
-      const existingPerformance = await tx.query.productMonthlyPerformance.findFirst({
-        where: (table) =>
-          and(
-            eq(table.organizationId, context.organizationId),
-            eq(table.userId, context.userId),
-            eq(table.companyId, input.scope.companyId),
-            eq(table.referenceMonth, input.scope.referenceMonth),
-            eq(table.channel, input.scope.channel),
-            eq(table.sku, normalizedSku),
-          ),
-      });
-
-      const persistedPerformance = existingPerformance
-        ? (
-            await tx
-              .update(productMonthlyPerformance)
-              .set({
-                advertisingCost: input.initialFinance.advertisingCost,
-                packagingCost: input.initialFinance.packagingCost,
-                productName: input.product.name,
-                salePrice: input.product.sellingPrice,
-                taxRate: input.initialFinance.taxRate,
-                unitCost: input.initialFinance.unitCost,
-              })
-              .where(eq(productMonthlyPerformance.id, existingPerformance.id))
-              .returning()
-          )[0]
-        : (
-            await tx
-              .insert(productMonthlyPerformance)
-              .values({
-                advertisingCost: input.initialFinance.advertisingCost,
-                channel: input.scope.channel,
-                commissionRate: "0.000000",
-                companyId: input.scope.companyId,
-                notes: "Cadastro manual inicial",
-                organizationId: context.organizationId,
-                packagingCost: input.initialFinance.packagingCost,
-                productName: input.product.name,
-                referenceMonth: input.scope.referenceMonth,
-                returnsQuantity: 0,
-                salePrice: input.product.sellingPrice,
-                salesQuantity: 0,
-                shippingFee: "0.00",
-                sku: normalizedSku,
-                taxRate: input.initialFinance.taxRate,
-                unitCost: input.initialFinance.unitCost,
-                userId: context.userId,
-              })
-              .returning()
-          )[0];
+      const [createdDefaults] = await tx
+        .insert(productFinanceDefaults)
+        .values({
+          packagingCost: input.initialFinance.packagingCost,
+          productId: createdProduct.id,
+          taxRate: input.initialFinance.taxRate,
+        })
+        .returning();
 
       return {
-        performance: persistedPerformance,
+        financeDefaults: createdDefaults,
         product: createdProduct,
         productCost: createdCost,
       };
@@ -259,10 +210,111 @@ export class ProductsService {
     await this.financeService.materializeOrganizationMetrics(context.organizationId);
 
     return {
-      performance: this.toPerformanceRecord(result.performance),
+      financeDefaults: this.toProductFinanceDefaultsRecord(result.financeDefaults),
       product: this.toProductRecord(result.product),
       productCost: this.toProductCostRecord(result.productCost),
     };
+  }
+
+  async importProducts(
+    context: TenantContext,
+    fileBuffer: Buffer,
+  ): Promise<{ imported: number; errors: Array<{ row: number; message: string }> }> {
+    const wb = read(fileBuffer, { type: "buffer" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+
+    if (!ws) {
+      throw new BadRequestException("Planilha vazia ou inválida.");
+    }
+
+    const rawRows = utils.sheet_to_json<Record<string, unknown>>(ws);
+
+    if (rawRows.length === 0) {
+      throw new BadRequestException("A planilha está vazia.");
+    }
+
+    if (rawRows.length > 50) {
+      throw new BadRequestException("A planilha pode ter no máximo 50 produtos");
+    }
+
+    const requiredColumns = ["PRODUTO", "SKU", "PREÇO DE VENDA", "CUSTO UNITÁRIO", "EMBALAGEM", "IMPOSTO", "STATUS"];
+    const normalizedRows = rawRows.map((row) => {
+      const normalized: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(row)) {
+        normalized[key.trim().toUpperCase()] = value;
+      }
+      return normalized;
+    });
+
+    const missingColumns = requiredColumns.filter((col) => !(col in normalizedRows[0]));
+    if (missingColumns.length > 0) {
+      throw new BadRequestException(`Colunas obrigatórias não encontradas: ${missingColumns.join(", ")}`);
+    }
+
+    const existingSkus = new Set(
+      (
+        await this.db.query.products.findMany({
+          columns: { sku: true },
+          where: (table) => eq(table.organizationId, context.organizationId),
+        })
+      )
+        .map((p) => (p.sku ? p.sku.trim().toUpperCase() : null))
+        .filter((s): s is string => s !== null),
+    );
+
+    const errors: Array<{ row: number; message: string }> = [];
+    const validRows: Array<{
+      product: { name: string; sku: string; sellingPrice: string; isActive: boolean };
+      initialFinance: { unitCost: string; packagingCost: string; taxRate: string };
+    }> = [];
+    const seenSkus = new Set<string>();
+
+    for (let i = 0; i < normalizedRows.length; i++) {
+      const rowNumber = i + 2;
+      const parsed = productImportRowSchema.safeParse(normalizedRows[i]);
+
+      if (!parsed.success) {
+        const firstIssue = parsed.error.issues[0];
+        const fieldName = firstIssue?.path.join(".") ?? "";
+        const message = firstIssue?.message ?? "Dados inválidos";
+        errors.push({ row: rowNumber, message: fieldName ? `${fieldName}: ${message}` : message });
+        continue;
+      }
+
+      const data = parsed.data;
+      const normalizedSku = data.SKU.trim().toUpperCase();
+
+      if (existingSkus.has(normalizedSku)) {
+        errors.push({ row: rowNumber, message: `SKU "${data.SKU}" já existe no catálogo` });
+        continue;
+      }
+
+      if (seenSkus.has(normalizedSku)) {
+        errors.push({ row: rowNumber, message: `SKU "${data.SKU}" duplicado na planilha` });
+        continue;
+      }
+
+      seenSkus.add(normalizedSku);
+      validRows.push({
+        initialFinance: {
+          packagingCost: Number(data.EMBALAGEM).toFixed(2),
+          taxRate: (Number(data.IMPOSTO) / 100).toFixed(6),
+          unitCost: Number(data["CUSTO UNITÁRIO"]).toFixed(2),
+        },
+        product: {
+          isActive: Number(data.STATUS) === 1,
+          name: data.PRODUTO,
+          sellingPrice: Number(data["PREÇO DE VENDA"]).toFixed(2),
+          sku: normalizedSku,
+        },
+      });
+    }
+
+    for (const row of validRows) {
+      await this.createManualProduct(context, row);
+    }
+
+    return { errors, imported: validRows.length };
   }
 
   async updateProduct(
@@ -749,6 +801,7 @@ export class ProductsService {
       advertisingCost: String(row.advertisingCost),
       channel: row.channel,
       commissionRate: String(row.commissionRate),
+      marketplaceCommission: (Number(row.commissionRate) * Number(row.salePrice)).toFixed(2),
       packagingCost: String(row.packagingCost),
       productName: row.productName,
       referenceMonth: row.referenceMonth,
@@ -759,29 +812,6 @@ export class ProductsService {
       sku: row.sku,
       taxRate: String(row.taxRate),
       unitCost: String(row.unitCost),
-    };
-  }
-
-  private toPerformanceRecord(row: ProductMonthlyPerformance) {
-    return {
-      advertisingCost: String(row.advertisingCost),
-      channel: row.channel,
-      commissionRate: String(row.commissionRate),
-      companyId: row.companyId,
-      createdAt: row.createdAt.toISOString(),
-      id: row.id,
-      notes: row.notes,
-      packagingCost: String(row.packagingCost),
-      productName: row.productName,
-      referenceMonth: row.referenceMonth,
-      returnsQuantity: row.returnsQuantity,
-      salePrice: String(row.salePrice),
-      salesQuantity: row.salesQuantity,
-      shippingFee: String(row.shippingFee),
-      sku: row.sku,
-      taxRate: String(row.taxRate),
-      unitCost: String(row.unitCost),
-      updatedAt: row.updatedAt.toISOString(),
     };
   }
 
@@ -873,6 +903,18 @@ export class ProductsService {
       notes: row.notes,
       organizationId: row.organizationId,
       productId: row.productId,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private toProductFinanceDefaultsRecord(row: ProductFinanceDefaults) {
+    return {
+      advertisingCost: String(row.advertisingCost),
+      createdAt: row.createdAt.toISOString(),
+      id: row.id,
+      packagingCost: String(row.packagingCost),
+      productId: row.productId,
+      taxRate: String(row.taxRate),
       updatedAt: row.updatedAt.toISOString(),
     };
   }

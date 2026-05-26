@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import {
-  LineChart,
   Line,
   BarChart,
   Bar,
@@ -28,7 +27,7 @@ interface ChartsSectionProps {
 
 const chartColors = {
   grossRevenue: "#0e7a6f",
-  netProfit: "#141c22",
+  netProfit: "#64748b",
   warning: "#f59e0b",
   grid: "rgba(148, 163, 184, 0.15)",
 };
@@ -43,7 +42,7 @@ function CustomTooltip({ active, label, payload }: CustomTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
 
   return (
-    <div className="rounded-[var(--radius-md)] border border-border bg-white px-3 py-2.5 shadow-[var(--shadow-lg)]">
+    <div className="rounded-[var(--radius-md)] border border-border bg-surface px-3 py-2.5 shadow-[var(--shadow-lg)]">
       <p className="text-xs font-semibold text-foreground">{label}</p>
       <div className="mt-1.5 space-y-0.5">
         {payload.map((entry, index) => (
@@ -64,6 +63,11 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
   const dailyData = data.daily.map((point) => ({
     ...point,
     label: formatMetricDate(point.metricDate),
+  }));
+
+  const channelData = data.channels.map((entry) => ({
+    ...entry,
+    channelLabel: formatProviderLabel(entry.channel),
   }));
 
   return (
@@ -98,35 +102,35 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                   tickLine={false}
                   axisLine={{ stroke: chartColors.grid }}
                 />
                 <YAxis
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                   tickFormatter={formatMoneyCompact}
                   tickLine={false}
                   axisLine={false}
                   width={50}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <Area type="monotone" dataKey="grossRevenue" stroke="none" fill="url(#revenueGradient)" />
-                <Area type="monotone" dataKey="netProfit" stroke="none" fill="url(#profitGradient)" />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="grossRevenue"
                   name="Receita bruta"
                   stroke={chartColors.grossRevenue}
                   strokeWidth={2.5}
+                  fill="url(#revenueGradient)"
                   dot={false}
                   activeDot={{ r: 5, strokeWidth: 0, fill: chartColors.grossRevenue }}
                 />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="netProfit"
                   name="Lucro líquido"
                   stroke={chartColors.netProfit}
                   strokeWidth={2.5}
+                  fill="url(#profitGradient)"
                   dot={false}
                   activeDot={{ r: 5, strokeWidth: 0, fill: chartColors.netProfit }}
                 />
@@ -152,28 +156,27 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
 
           <div className="h-[160px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.channels} margin={{ top: 4, right: 12, left: 0, bottom: 20 }}>
+              <BarChart data={channelData} margin={{ top: 4, right: 12, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} horizontal vertical={false} />
                 <XAxis
-                  dataKey="channel"
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
-                  tickFormatter={formatProviderLabel}
+                  dataKey="channelLabel"
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                   tickLine={false}
                   axisLine={{ stroke: chartColors.grid }}
-                  angle={data.channels.length > 3 ? -30 : 0}
-                  textAnchor={data.channels.length > 3 ? "end" : "middle"}
-                  height={data.channels.length > 3 ? 50 : 30}
+                  angle={channelData.length > 3 ? -30 : 0}
+                  textAnchor={channelData.length > 3 ? "end" : "middle"}
+                  height={channelData.length > 3 ? 50 : 30}
                 />
                 <YAxis
-                  tick={{ fill: "#6b7280", fontSize: 11 }}
+                  tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                   tickFormatter={formatMoneyCompact}
                   tickLine={false}
                   axisLine={false}
                   width={50}
                 />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(128,128,128,0.06)" }} />
                 <Bar dataKey="netProfit" name="Lucro líquido" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                  {data.channels.map((entry, index) => (
+                  {channelData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.netProfit >= 0 ? chartColors.grossRevenue : chartColors.warning} />
                   ))}
                 </Bar>

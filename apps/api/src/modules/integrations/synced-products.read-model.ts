@@ -214,6 +214,59 @@ function toLinkedProductSummary(product: Product | null): SyncedProductLinkedPro
   };
 }
 
+async function applySkuAutoLinks(input: {
+  db: DatabaseClient;
+  externalProductRows: Array<ExternalProduct | LegacySyncedExternalProductRow>;
+  productsList: Product[];
+}) {
+  const productRowsBySku = new Map<string, Product[]>();
+
+  for (const product of input.productsList) {
+    const normalizedSku = normalizeSku(product.sku);
+
+    if (!normalizedSku) {
+      continue;
+    }
+
+    const currentRows = productRowsBySku.get(normalizedSku) ?? [];
+    currentRows.push(product);
+    productRowsBySku.set(normalizedSku, currentRows);
+  }
+
+  for (const externalProduct of input.externalProductRows) {
+    if (externalProduct.linkedProductId || externalProduct.reviewStatus !== "unreviewed") {
+      continue;
+    }
+
+    const normalizedSku = normalizeSku(externalProduct.sku);
+    const matchingProducts = normalizedSku ? productRowsBySku.get(normalizedSku) ?? [] : [];
+
+    if (matchingProducts.length !== 1) {
+      continue;
+    }
+
+    const [matchingProduct] = matchingProducts;
+
+    try {
+      await input.db
+        .update(externalProducts)
+        .set({
+          linkedProductId: matchingProduct.id,
+          reviewStatus: "linked_to_existing_product",
+          updatedAt: new Date(),
+        })
+        .where(eq(externalProducts.id, externalProduct.id));
+
+      externalProduct.linkedProductId = matchingProduct.id;
+      externalProduct.reviewStatus = "linked_to_existing_product";
+    } catch (error) {
+      if (!isMissingExternalProductReviewColumns(error)) {
+        throw error;
+      }
+    }
+  }
+}
+
 function toSuggestedMatches(
   externalProduct: ExternalProduct | LegacySyncedExternalProductRow,
   productsList: Product[],
@@ -358,6 +411,12 @@ export async function listSyncedProductsReadModel(input: {
   if (externalProductRows.length === 0) {
     return [];
   }
+
+  await applySkuAutoLinks({
+    db: input.db,
+    externalProductRows,
+    productsList: input.productsList,
+  });
 
   const productRowsById = new Map(input.productsList.map((row) => [row.id, row] as const));
   const externalProductIds = externalProductRows.map((row) => row.id);

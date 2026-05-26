@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Command, X } from "lucide-react";
-import { Button } from "@marginflow/ui";
+import { Search, X } from "lucide-react";
 
 interface SearchItem {
   id: string;

@@ -587,7 +587,7 @@ export function BillingPanel({
                     size="lg"
                     variant="primary"
                   >
-                    {plan.emphasized ? "Assinar Anual" : "Assinar Mensal"}
+                    <span className="text-white">Assinar</span>
                   </Button>
                 </div>
               </Card>

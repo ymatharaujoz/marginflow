@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import { 
   TrendingUp, 
   AlertTriangle, 
-  Clock, 
   Lightbulb, 
   Info,
   Sparkles
@@ -88,7 +87,7 @@ export function InsightCard({
       variants={slideInLeftVariants}
       className={`
         group relative overflow-hidden rounded-lg
-        border border-border bg-white
+        border border-border bg-surface
         p-3 transition-all duration-[var(--transition-normal)]
         hover:shadow-[var(--shadow-sm)] hover:border-border-strong
         ${className}

@@ -32,7 +32,7 @@ function IntegrationCard({
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.5, delay: index * 0.1, ease: easeOut }}
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
-      className="group relative flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-md"
+      className="group relative flex flex-col rounded-2xl border border-border bg-surface p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-md"
     >
       {/* Status badge - subtle pill */}
       <div className="absolute right-4 top-4">
@@ -149,7 +149,7 @@ export function IntegrationsSection() {
             icon={<MercadoLivreIcon className="h-12 w-12" />}
             status="available"
             statusLabel="Disponível"
-            statusColor="border-green-200 bg-green-50 text-green-700"
+            statusColor="border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-400"
             features={[
               "Sincronização automática de pedidos",
               "Importação de produtos e SKUs",
@@ -165,7 +165,7 @@ export function IntegrationsSection() {
             icon={<ShopeeIcon className="h-12 w-12" />}
             status="coming-soon"
             statusLabel="Em breve"
-            statusColor="border-indigo-200 bg-indigo-50 text-indigo-700"
+            statusColor="border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-400"
             index={1}
           />
         </div>

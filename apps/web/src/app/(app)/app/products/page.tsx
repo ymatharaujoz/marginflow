@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { ProductsHub } from "@/components/products/products-hub";
 import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
@@ -27,7 +26,5 @@ export default async function ProductsPage() {
     redirect("/app/onboarding");
   }
 
-  return (
-    <ProductsHub organizationName={authState.organization?.name ?? authState.user.name} />
-  );
+  redirect("/app/products/catalog");
 }

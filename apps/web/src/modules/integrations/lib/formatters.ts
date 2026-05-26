@@ -36,3 +36,20 @@ export function formatSyncDuration(startedAt: string | null, finishedAt: string 
 export function getSyncStatusLabel(canRun: boolean): string {
   return canRun ? "Disponível agora" : "Bloqueada";
 }
+
+const slotLabels: Record<string, string> = {
+  morning: "Manhã",
+  afternoon: "Tarde",
+  evening: "Noite",
+  night: "Madrugada",
+};
+
+export function formatWindowKey(windowKey: string | null): string {
+  if (!windowKey) return "—";
+  const [datePart, slot] = windowKey.split(":");
+  if (!datePart || !slot) return windowKey;
+  const date = new Date(datePart + "T00:00:00");
+  const dateStr = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(date);
+  const slotStr = slotLabels[slot.toLowerCase()] || slot;
+  return `${dateStr} · ${slotStr}`;
+}

@@ -241,6 +241,8 @@ export function buildProductInsights(
 }
 
 export function buildMarketplaceSyncNotice(data: ProductCatalogData): ProductMarketplaceNotice | null {
+  return null;
+  // eslint-disable-next-line no-unreachable
   const { availability, activeRun, lastCompletedRun } = data.mercadoLivreSyncStatus;
 
   if (availability.reason === "provider_unavailable") {
@@ -275,7 +277,7 @@ export function buildMarketplaceSyncNotice(data: ProductCatalogData): ProductMar
     return {
       actionLabel: "Ver integrações",
       description:
-        "Há uma sincronização do Mercado Livre em andamento. Assim que ela terminar, os itens pendentes aparecerão aqui para revisão.",
+        "Há uma sincronização do Mercado Livre em andamento. Assim que ela terminar, os itens serão vinculados automaticamente por SKU quando houver match único; os demais ficarão em revisão.",
       href: "/app/integrations",
       id: "mercadolivre-sync-running",
       title: "Sincronização em andamento",
@@ -287,7 +289,7 @@ export function buildMarketplaceSyncNotice(data: ProductCatalogData): ProductMar
     return {
       actionKey: "open-synced-review",
       actionLabel: "Abrir revisão",
-      description: `${data.catalogStats.pendingSyncProducts} produto(s) sincronizado(s) já estão prontos para importar, vincular ou ignorar no catálogo.`,
+      description: `${data.catalogStats.pendingSyncProducts} produto(s) sincronizado(s) seguem pendentes porque ainda não houve match automático único por SKU. Revise para vincular, importar ou ignorar.`,
       id: "mercadolivre-pending-review",
       title: "Produtos aguardando revisão",
       tone: "success",
@@ -329,19 +331,22 @@ function formatMoney(value: number): string {
 export function buildProductTableRows(data: ProductCatalogData): ProductTableRow[] {
   return data.monthlyPerformanceRows.map((row) => {
     const financials = deriveRowFinancials(row);
+    const sellingPrice = toNumber(row.salePrice);
 
     return {
       ...financials,
       adSpend: toNumber(row.advertisingCost),
       channelLabel: row.channel,
-      commissionPct: toNumber(row.commissionRate) * 100,
+      commissionPct: sellingPrice > 0
+        ? (toNumber(row.marketplaceCommission ?? "0") / sellingPrice) * 100
+        : 0,
       id: `${row.referenceMonth}:${row.channel}:${row.sku}`,
       name: row.productName,
       packagingCost: toNumber(row.packagingCost),
       referenceMonth: row.referenceMonth,
       returns: row.returnsQuantity,
       sales: row.salesQuantity,
-      sellingPrice: toNumber(row.salePrice),
+      sellingPrice,
       shipping: toNumber(row.shippingFee),
       sku: row.sku,
       taxPct: toNumber(row.taxRate) * 100,

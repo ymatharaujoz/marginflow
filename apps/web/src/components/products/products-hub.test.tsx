@@ -1,5 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  convertManualProductTaxRateToFraction,
+  isManualProductTaxRateValid,
+  normalizeManualProductTaxRateInput,
+} from "./products-shell";
 import { ProductsHub } from "./products-hub";
 
 const reactQueryMocks = vi.hoisted(() => ({
@@ -19,6 +24,11 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => "/app/products",
+}));
+
 describe("ProductsHub", () => {
   beforeEach(() => {
     reactQueryMocks.invalidateQueries.mockReset();
@@ -26,71 +36,16 @@ describe("ProductsHub", () => {
     reactQueryMocks.useQuery.mockReset();
   });
 
-  it("renders an empty catalog workspace", () => {
-    reactQueryMocks.useQuery.mockReturnValueOnce({
-      data: {
-        adCosts: [],
-        catalogStats: {
-          activeProducts: 0,
-          archivedProducts: 0,
-          pendingSyncProducts: 0,
-          productsWithCost: 0,
-          productsWithoutCost: 0,
-          syncedProductsTotal: 0,
-          totalAdCosts: 0,
-          totalManualExpenses: 0,
-          totalProductCosts: 0,
-          totalProducts: 0,
-        },
-        dataGaps: [],
-        financialState: "empty",
-        manualExpenses: [],
-        mercadoLivreSyncStatus: {
-          activeRun: null,
-          availability: {
-            canRun: false,
-            currentWindowKey: "2026-05-13-morning",
-            currentWindowLabel: "Manha",
-            currentWindowSlot: "morning",
-            lastSuccessfulSyncAt: null,
-            message: "Connect this marketplace account before running the first sync.",
-            nextAvailableAt: "2026-05-13T09:00:00.000Z",
-            provider: "mercadolivre",
-            reason: "provider_disconnected",
-          },
-          lastCompletedRun: null,
-        },
-        monthlyPerformanceRows: [],
-        productCosts: [],
-        productRows: [],
-        products: [],
-        scope: {
-          companyId: null,
-          companyRequired: false,
-          referenceMonth: "2026-05-01",
-        },
-        syncedProducts: [],
-      },
-      error: null,
-      isLoading: false,
-    });
-
+  it("renders the shell wrapper with fallback message", () => {
     const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
-
-    expect(markup).toContain("Catálogo vazio");
-    expect(markup).toContain("Criar primeiro produto");
+    expect(markup).toContain("Selecione uma secao no menu para continuar.");
   });
 
-  it("renders API failure state", () => {
-    reactQueryMocks.useQuery.mockReturnValueOnce({
-      data: null,
-      error: new Error("Boom"),
-      isLoading: false,
-    });
-
-    const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
-
-    expect(markup).toContain("Erro ao carregar dados");
-    expect(markup).toContain("Não foi possível carregar o catálogo de produtos.");
+  it("normalizes integer tax percentages for the manual product modal", () => {
+    expect(normalizeManualProductTaxRateInput(" 15 ")).toBe("15");
+    expect(normalizeManualProductTaxRateInput("15.5")).toBeNull();
+    expect(isManualProductTaxRateValid("15")).toBe(true);
+    expect(isManualProductTaxRateValid("101")).toBe(false);
+    expect(convertManualProductTaxRateToFraction("15")).toBe("0.150000");
   });
 });

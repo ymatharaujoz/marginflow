@@ -288,6 +288,7 @@ describe("@marginflow/validation protected app schemas", () => {
         products: [
           {
             createdAt: "2026-05-01T10:00:00.000Z",
+            financeDefaults: null,
             id: "product_2",
             isActive: true,
             latestCost: null,

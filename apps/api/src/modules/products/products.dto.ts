@@ -45,7 +45,6 @@ export class CreateManualProductRequestDto implements ProductManualCreateInput {
   static schema = productManualCreateSchema;
 
   initialFinance!: {
-    advertisingCost: string;
     packagingCost: string;
     taxRate: string;
     unitCost: string;
@@ -56,12 +55,6 @@ export class CreateManualProductRequestDto implements ProductManualCreateInput {
     name: string;
     sellingPrice: string;
     sku: string;
-  };
-
-  scope!: {
-    channel: "mercadolivre";
-    companyId: string;
-    referenceMonth: string;
   };
 }
 

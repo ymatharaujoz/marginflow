@@ -51,7 +51,6 @@ export const productUpdateSchema = productFormSchema.partial().refine(
 
 export const productManualCreateSchema = z.object({
   initialFinance: z.object({
-    advertisingCost: decimalField("Advertising cost"),
     packagingCost: decimalField("Packaging cost"),
     taxRate: decimalRateField("Tax rate"),
     unitCost: decimalField("Unit cost"),
@@ -61,14 +60,6 @@ export const productManualCreateSchema = z.object({
     name: z.string().trim().min(1).max(255),
     sellingPrice: decimalField("Selling price"),
     sku: z.string().trim().min(1).max(128),
-  }),
-  scope: z.object({
-    channel: z.literal("mercadolivre"),
-    companyId: z.string().uuid(),
-    referenceMonth: z
-      .string()
-      .trim()
-      .regex(/^\d{4}-\d{2}-01$/, "Expected the first day of a month."),
   }),
 });
 
@@ -133,7 +124,18 @@ export const productAnalyticsQuerySchema = z.object({
   referenceMonth: optionalReferenceMonthField,
 });
 
+export const productImportRowSchema = z.object({
+  PRODUTO: z.string().trim().min(1, "Nome do produto é obrigatório").max(255),
+  SKU: z.coerce.string().trim().min(1, "SKU é obrigatório").max(128),
+  "PREÇO DE VENDA": z.coerce.number().nonnegative("Preço de venda deve ser >= 0"),
+  "CUSTO UNITÁRIO": z.coerce.number().nonnegative("Custo unitário deve ser >= 0"),
+  EMBALAGEM: z.coerce.number().nonnegative("Embalagem deve ser >= 0"),
+  IMPOSTO: z.coerce.number().min(0, "Imposto deve ser >= 0").max(100, "Imposto deve ser <= 100"),
+  STATUS: z.coerce.number().refine((v) => v === 0 || v === 1, "STATUS deve ser 0 ou 1"),
+});
+
 export type ProductFormInput = z.infer<typeof productFormSchema>;
+export type ProductImportRowInput = z.infer<typeof productImportRowSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type ProductManualCreateInput = z.infer<typeof productManualCreateSchema>;
 export type ProductCostFormInput = z.infer<typeof productCostFormSchema>;

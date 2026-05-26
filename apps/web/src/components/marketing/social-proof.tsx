@@ -52,7 +52,7 @@ function TrustBadge({
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5, delay: reduceMotion ? 0 : delay }}
-      className="flex flex-col items-center gap-2 rounded-xl border border-border bg-white p-4 shadow-sm"
+      className="flex flex-col items-center gap-2 rounded-xl border border-border bg-surface p-4 shadow-sm"
     >
       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
         {icon}
@@ -140,7 +140,7 @@ export function SocialProof() {
   const reduceMotion = useReducedMotion();
 
   return (
-    <section className="py-24 md:py-32">
+    <section id="depoimentos" className="scroll-mt-28 py-24 md:py-32">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <motion.div
@@ -188,7 +188,7 @@ export function SocialProof() {
                 ease: [0.16, 1, 0.3, 1],
               }}
               whileHover={reduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
-              className="group relative flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
+              className="group relative flex flex-col rounded-2xl border border-border bg-surface p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
             >
               {/* Quote icon */}
               <div className="absolute -top-3 left-6 flex h-6 w-6 items-center justify-center rounded-full bg-accent text-white shadow-md">

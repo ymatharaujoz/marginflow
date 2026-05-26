@@ -6,7 +6,7 @@ import { Button, Skeleton } from "@marginflow/ui";
 import { fadeInVariants } from "@/lib/animations";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { translateSyncRunStatus } from "@/lib/pt-br/api-ui";
-import { formatStartedParts, formatSyncDuration } from "../lib/formatters";
+import { formatStartedParts, formatSyncDuration, formatWindowKey } from "../lib/formatters";
 import type { SyncRunRecord } from "../types/integrations";
 
 interface SyncHistorySectionProps {
@@ -195,7 +195,7 @@ export function SyncHistorySection({
                       </td>
                       <td className="align-top px-5 py-4">
                         <span className="inline-flex max-w-[14rem] truncate rounded-md border border-border/80 bg-muted/15 px-2 py-1 font-mono text-[11px] leading-none text-foreground">
-                          {run.windowKey || "—"}
+                          {formatWindowKey(run.windowKey)}
                         </span>
                       </td>
                       <td className="align-top px-5 py-4 text-right">

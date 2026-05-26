@@ -62,7 +62,7 @@ export function SubscriptionDetailsCard({
                 </p>
               </div>
             </div>
-            <Badge variant={isActive ? "success" : "secondary"}>
+            <Badge variant={isActive ? "success" : "neutral"}>
               {isActive ? "Ativo" : status}
             </Badge>
           </div>

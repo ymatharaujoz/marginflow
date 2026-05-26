@@ -106,7 +106,7 @@ function HeroDashboardPreview() {
       <div className="absolute -inset-4 rounded-3xl bg-accent/10 blur-3xl" />
 
       {/* Dashboard Card */}
-      <div className="relative rounded-2xl border border-border bg-white shadow-2xl">
+      <div className="relative rounded-2xl border border-border bg-surface shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <div className="flex items-center gap-2">
@@ -135,7 +135,7 @@ function HeroDashboardPreview() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 + i * 0.08, duration: 0.5 }}
-                className="rounded-xl border border-border bg-white p-3 shadow-sm"
+                className="rounded-xl border border-border bg-surface p-3 shadow-sm"
               >
                 <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{kpi.label}</p>
                 <p className="mt-1 text-base font-bold text-foreground md:text-lg">{kpi.value}</p>
@@ -149,7 +149,7 @@ function HeroDashboardPreview() {
           {/* Charts row — matching real app layout */}
           <div className="grid gap-2 md:grid-cols-2">
             {/* Line Chart mock */}
-            <div className="rounded-xl border border-border bg-white p-3 shadow-sm">
+            <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
               <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Evolução Financeira
               </p>
@@ -175,7 +175,7 @@ function HeroDashboardPreview() {
                   <path
                     d="M0,56 Q20,53 40,50 T80,44 T120,38 T160,34 T200,28"
                     fill="none"
-                    stroke="#141c22"
+                    stroke="var(--foreground)"
                     strokeWidth="1.5"
                     strokeDasharray="4 2"
                   />
@@ -190,7 +190,7 @@ function HeroDashboardPreview() {
             </div>
 
             {/* Channel Performance */}
-            <div className="rounded-xl border border-border bg-white p-3 shadow-sm">
+            <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
               <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Performance por Canal
               </p>
@@ -204,7 +204,7 @@ function HeroDashboardPreview() {
                         <span className="text-[10px] font-medium text-foreground">{ch.name}</span>
                         <span className="text-[10px] font-bold text-foreground">{ch.profit}</span>
                       </div>
-                      <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-gray-100">
+                      <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/10">
                         <motion.div
                           className={`h-full rounded-full ${ch.color}`}
                           initial={{ width: 0 }}
@@ -248,7 +248,7 @@ function HeroDashboardPreview() {
           </div>
 
           {/* Top Products — compact (2 rows) */}
-          <div className="mt-2 rounded-xl border border-border bg-white p-3 shadow-sm">
+          <div className="mt-2 rounded-xl border border-border bg-surface p-3 shadow-sm">
             <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               Top Produtos
             </p>
@@ -280,7 +280,7 @@ function HeroDashboardPreview() {
 
       {/* Floating badge */}
       <motion.div
-        className="absolute -right-3 top-8 hidden rounded-xl border border-border bg-white p-3 shadow-lg md:block"
+        className="absolute -right-3 top-8 hidden rounded-xl border border-border bg-surface p-3 shadow-lg md:block"
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
       >
@@ -327,7 +327,7 @@ function FeatureCard({
         ease: easeOut,
       }}
       whileHover={reduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
+      className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
     >
       <IconOrb color={color}>{icon}</IconOrb>
       <h3 className="mt-4 text-lg font-semibold text-foreground">{title}</h3>
@@ -376,8 +376,8 @@ function PricingCard({
       whileHover={reduceMotion ? undefined : { y: -8, transition: { duration: 0.2 } }}
       className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:shadow-xl ${
         featured
-          ? "border-accent bg-gradient-to-b from-white to-accent/[0.02] ring-1 ring-accent/20"
-          : "border-border bg-white"
+          ? "border-accent bg-gradient-to-b from-surface to-accent/[0.02] ring-1 ring-accent/20"
+          : "border-border bg-surface"
       }`}
     >
       {featured && (
@@ -402,7 +402,7 @@ function PricingCard({
         className={`mb-6 inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold transition-all ${
           featured
             ? "bg-accent text-white shadow-md hover:bg-accent-strong hover:shadow-lg"
-            : "border border-border bg-white text-foreground hover:border-accent/30 hover:bg-accent/[0.02]"
+            : "border border-border bg-surface text-foreground hover:border-accent/30 hover:bg-accent/[0.02]"
         }`}
       >
         {cta}
@@ -591,7 +591,7 @@ export function LandingPage() {
                 >
                   Começar Gratuitamente
                 </Link>
-                <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-white px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
+                <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-surface px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
               </motion.div>
 
               {/* Marketplace Logos */}
@@ -716,7 +716,7 @@ export function LandingPage() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="mb-12 flex flex-col items-center gap-4"
           >
-            <div className="inline-flex items-center rounded-full border border-border bg-white p-1 shadow-sm">
+            <div className="inline-flex items-center rounded-full border border-border bg-surface p-1 shadow-sm">
               {(["monthly", "annual"] as const).map((key) => {
                 const active = billing === key;
                 return (
@@ -803,7 +803,7 @@ export function LandingPage() {
               >
                 Começar Agora
               </Link>
-              <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-white px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
+              <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-surface px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
             </div>
 
             <p className="mt-6 text-sm text-muted-foreground">

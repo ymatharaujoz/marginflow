@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { DollarSign } from "lucide-react";
+import { DollarSign, Receipt, Megaphone, Percent } from "lucide-react";
 import { containerVariants, itemVariants } from "@/lib/animations";
 import { formatMoney } from "../utils/formatters";
 import type { ProductTableRow } from "../types/products";
@@ -78,6 +78,18 @@ export function ProductFinancialIndicators({ rows }: ProductFinancialIndicatorsP
     return rows.reduce((sum, row) => sum + row.revenue, 0);
   }, [rows]);
 
+  const totalCommission = useMemo(() => {
+    return rows.reduce((sum, row) => sum + row.revenue * (row.commissionPct / 100), 0);
+  }, [rows]);
+
+  const totalShipping = useMemo(() => {
+    return rows.reduce((sum, row) => sum + row.shipping * row.netLiquidSales, 0);
+  }, [rows]);
+
+  const totalAdvertising = useMemo(() => {
+    return rows.reduce((sum, row) => sum + row.adSpend, 0);
+  }, [rows]);
+
   return (
     <motion.div
       variants={containerVariants}
@@ -91,6 +103,27 @@ export function ProductFinancialIndicators({ rows }: ProductFinancialIndicatorsP
           value={formatMoney(totalRevenue)}
           subValue={`${rows.length} produto${rows.length !== 1 ? "s" : ""}`}
           icon={<DollarSign className="h-4 w-4" />}
+          variant="default"
+        />
+        <IndicatorCard
+          label="Comissão Marketplaces"
+          value={formatMoney(totalCommission)}
+          subValue="Total de comissões para marketplaces"
+          icon={<Percent className="h-4 w-4" />}
+          variant="default"
+        />
+        <IndicatorCard
+          label="Frete"
+          value={formatMoney(totalShipping)}
+          subValue="Total dos custos de frete"
+          icon={<Receipt className="h-4 w-4" />}
+          variant="default"
+        />
+        <IndicatorCard
+          label="Publicidade"
+          value={formatMoney(totalAdvertising)}
+          subValue="Investimento total em publicidade"
+          icon={<Megaphone className="h-4 w-4" />}
           variant="default"
         />
       </div>

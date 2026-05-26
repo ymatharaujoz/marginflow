@@ -16,11 +16,11 @@ export function MarketingBackdrop() {
 
       {/* Subtle grid pattern */}
       <div
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 opacity-[0.03] dark:opacity-[0.04]"
         style={{
           backgroundImage: `
-            linear-gradient(to right, #000 1px, transparent 1px),
-            linear-gradient(to bottom, #000 1px, transparent 1px)
+            linear-gradient(to right, var(--foreground) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--foreground) 1px, transparent 1px)
           `,
           backgroundSize: "80px 80px",
         }}

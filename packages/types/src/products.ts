@@ -1,5 +1,4 @@
 import type { IntegrationProviderSlug } from "./integrations";
-import type { ProductMonthlyPerformanceRow } from "./finance-inputs";
 import type { SyncStatusResponse } from "./sync";
 
 export type DecimalString = string;
@@ -23,14 +22,7 @@ export type ProductCostFormValues = {
 export type ProductManualCreateInitialFinanceValues = {
   unitCost: DecimalString;
   packagingCost: DecimalString;
-  advertisingCost: DecimalString;
   taxRate: DecimalString;
-};
-
-export type ProductManualCreateScopeValues = {
-  companyId: string;
-  referenceMonth: string;
-  channel: "mercadolivre";
 };
 
 export type ProductManualCreateFormValues = {
@@ -38,7 +30,6 @@ export type ProductManualCreateFormValues = {
     sku: string;
   };
   initialFinance: ProductManualCreateInitialFinanceValues;
-  scope: ProductManualCreateScopeValues;
 };
 
 export type AdCostFormValues = {
@@ -109,6 +100,7 @@ export type ManualExpenseRecord = {
 
 export type ProductListItem = ProductRecord & {
   latestCost: ProductCostRecord | null;
+  financeDefaults: ProductFinanceDefaultsRecord | null;
 };
 
 export type SyncedProductReviewStatus =
@@ -164,10 +156,20 @@ export type SyncedProductActionResult = {
   syncedProduct: SyncedProductRecord;
 };
 
+export type ProductFinanceDefaultsRecord = {
+  id: string;
+  productId: string;
+  packagingCost: DecimalString;
+  taxRate: DecimalString;
+  advertisingCost: DecimalString;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ProductManualCreateResult = {
   product: ProductRecord;
   productCost: ProductCostRecord;
-  performance: ProductMonthlyPerformanceRow;
+  financeDefaults: ProductFinanceDefaultsRecord;
 };
 
 export type ProductFinancialState =
@@ -239,6 +241,7 @@ export type ProductMonthlyPerformanceDisplayRow = {
   taxRate: DecimalString;
   packagingCost: DecimalString;
   advertisingCost: DecimalString;
+  marketplaceCommission?: DecimalString;
 };
 
 export type ProductAnalyticsCatalogStats = {

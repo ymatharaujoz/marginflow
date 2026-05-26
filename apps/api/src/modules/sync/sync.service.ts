@@ -38,6 +38,7 @@ import {
   type IntegrationSyncResult,
 } from "@/modules/integrations/integrations.types";
 import { resolveSyncWindowState, resolveSyncWindowStateAtNextOpenHour } from "./sync-window";
+import { SyncPerformanceMaterializerService } from "./sync-performance-materializer.service";
 
 function toIsoString(value: Date | string | null | undefined) {
   if (!value) {
@@ -106,6 +107,8 @@ export class SyncService {
     private readonly env: ApiRuntimeEnv,
     @Inject(FinanceService)
     private readonly financeService: FinanceService,
+    @Inject(SyncPerformanceMaterializerService)
+    private readonly syncPerformanceMaterializer: SyncPerformanceMaterializerService,
   ) {
     this.providers = createIntegrationProviders(this.env);
   }
@@ -161,6 +164,7 @@ export class SyncService {
 
   async runSync(
     organizationId: string,
+    userId: string,
     providerSlug: IntegrationProviderSlug,
   ): Promise<RunSyncResponse> {
     const provider = this.getProvider(providerSlug);
@@ -212,6 +216,12 @@ export class SyncService {
         providerSlug,
         syncResult,
         syncRunId: processingRun.id,
+      });
+      await this.syncPerformanceMaterializer.materializeForSync({
+        organizationId,
+        providerSlug,
+        syncRunId: processingRun.id,
+        userId,
       });
 
       await this.db

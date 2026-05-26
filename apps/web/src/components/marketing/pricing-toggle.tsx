@@ -42,8 +42,8 @@ function PricingCard({
       whileHover={{ y: -6, transition: { duration: 0.2 } }}
       className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:shadow-lg ${
         isGrowth
-          ? "border-accent/30 bg-gradient-to-b from-white to-accent/[0.03] ring-1 ring-accent/10"
-          : "border-border bg-gradient-to-b from-white to-muted/20"
+          ? "border-accent/30 bg-gradient-to-b from-surface to-accent/[0.03] ring-1 ring-accent/10"
+          : "border-border bg-gradient-to-b from-surface to-muted/20"
       }`}
     >
       {/* Badge */}
@@ -102,7 +102,7 @@ function PricingCard({
         className={`mb-6 inline-flex h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
           isGrowth
             ? "bg-accent text-white shadow-md hover:bg-accent-strong hover:shadow-lg"
-            : "border border-border bg-white text-foreground hover:border-accent/30 hover:bg-accent/[0.02]"
+            : "border border-border bg-surface text-foreground hover:border-accent/30 hover:bg-accent/[0.02]"
         }`}
       >
         {plan.ctaLabel}
@@ -134,7 +134,7 @@ export function PricingToggle() {
     <div className="space-y-8">
       {/* Toggle */}
       <div className="flex flex-col items-center gap-4">
-        <div className="inline-flex items-center rounded-full border border-border bg-white p-1 shadow-sm">
+        <div className="inline-flex items-center rounded-full border border-border bg-surface p-1 shadow-sm">
           {(["annual", "monthly"] as BillingCycle[]).map((option) => {
             const active = cycle === option;
             return (

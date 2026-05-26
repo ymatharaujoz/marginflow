@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
+import "@fastify/multipart";
 import { AuthGuard } from "@/modules/auth/auth.guard";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
@@ -51,6 +53,38 @@ export class ProductsController {
   ) {
     return {
       data: await this.productsService.createProduct(authContext.organization!.id, body),
+      error: null,
+    };
+  }
+
+  @Post("import")
+  async importProducts(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Req() req: FastifyRequest,
+  ) {
+    const data = await req.file();
+
+    if (!data) {
+      throw new BadRequestException("Nenhum arquivo enviado.");
+    }
+
+    if (
+      !data.filename.toLowerCase().endsWith(".xlsx") &&
+      data.mimetype !== "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ) {
+      throw new BadRequestException("Apenas arquivos .xlsx são aceitos.");
+    }
+
+    const buffer = await data.toBuffer();
+
+    return {
+      data: await this.productsService.importProducts(
+        {
+          organizationId: authContext.organization!.id,
+          userId: authContext.user.id,
+        },
+        buffer,
+      ),
       error: null,
     };
   }

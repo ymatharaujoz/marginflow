@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
-import { and, desc, eq, isNotNull, or } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import type { DatabaseClient } from "@marginflow/database";
 import {
   billingCustomers,
@@ -405,8 +405,8 @@ export class BillingService {
     });
     const interval = this.resolveInterval(subscription);
     // Stripe.Subscription já inclui current_period_start e current_period_end como timestamps
-    const currentPeriodStart = this.toDate(subscription.current_period_start);
-    const currentPeriodEnd = this.toDate(subscription.current_period_end);
+    const currentPeriodStart = this.toDate(subscription.items.data[0]?.current_period_start);
+    const currentPeriodEnd = this.toDate(subscription.items.data[0]?.current_period_end);
     const existingSubscription = await db.query.subscriptions.findFirst({
       where: (table, { eq }) => eq(table.externalSubscriptionId, subscription.id),
     });
@@ -495,13 +495,6 @@ export class BillingService {
     });
 
     return customer.id;
-  }
-
-  private async upsertOrganizationBillingCustomer(input: {
-    externalCustomerId: string;
-    organizationId: string;
-  }) {
-    return this.upsertOrganizationBillingCustomerDb(this.db, input);
   }
 
   private async upsertOrganizationBillingCustomerDb(

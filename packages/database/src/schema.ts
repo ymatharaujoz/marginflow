@@ -531,6 +531,25 @@ export const products = pgTable(
   ],
 );
 
+export const productFinanceDefaults = pgTable(
+  "product_finance_defaults",
+  {
+    id: id(),
+    productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
+    packagingCost: numeric("packaging_cost", { precision: 12, scale: 2 }).default("0").notNull(),
+    taxRate: numeric("tax_rate", { precision: 8, scale: 6 }).default("0").notNull(),
+    advertisingCost: numeric("advertising_cost", { precision: 12, scale: 2 }).default("0").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("product_finance_defaults_product_id_key").on(table.productId),
+    check("product_finance_defaults_packaging_cost_non_negative", sql`${table.packagingCost} >= 0`),
+    check("product_finance_defaults_tax_rate_range", sql`${table.taxRate} >= 0 and ${table.taxRate} <= 1`),
+    check("product_finance_defaults_advertising_cost_non_negative", sql`${table.advertisingCost} >= 0`),
+  ],
+);
+
 export const productCosts = pgTable(
   "product_costs",
   {
@@ -659,6 +678,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   externalFees: many(externalFees),
   fixedCosts: many(fixedCosts),
   products: many(products),
+  productFinanceDefaults: many(productFinanceDefaults),
   productCosts: many(productCosts),
   productMonthlyPerformance: many(productMonthlyPerformance),
   adCosts: many(adCosts),
@@ -822,10 +842,21 @@ export const productsRelations = relations(products, ({ one, many }) => ({
     fields: [products.organizationId],
     references: [organizations.id],
   }),
+  financeDefaults: one(productFinanceDefaults, {
+    fields: [products.id],
+    references: [productFinanceDefaults.productId],
+  }),
   externalProducts: many(externalProducts),
   productCosts: many(productCosts),
   adCosts: many(adCosts),
   productMetrics: many(productMetrics),
+}));
+
+export const productFinanceDefaultsRelations = relations(productFinanceDefaults, ({ one }) => ({
+  product: one(products, {
+    fields: [productFinanceDefaults.productId],
+    references: [products.id],
+  }),
 }));
 
 export const productCostsRelations = relations(productCosts, ({ one }) => ({

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CreditCard, Calendar, AlertCircle } from "lucide-react";
+import { CreditCard, AlertCircle } from "lucide-react";
 import { Badge } from "@marginflow/ui";
 import { fadeInVariants } from "@/lib/animations";
 
@@ -13,31 +13,9 @@ interface BillingHeaderProps {
   currentPeriodEnd?: string | null;
 }
 
-function formatInterval(interval: string): string {
-  const intervals: Record<string, string> = {
-    monthly: "Mensal",
-    annual: "Anual",
-    year: "Anual",
-    month: "Mensal",
-  };
-  return intervals[interval] || interval;
-}
-
-function formatDate(dateString: string | null | undefined): string {
-  if (!dateString) return "N/A";
-  return new Date(dateString).toLocaleDateString("pt-BR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export function BillingHeader({
-  organizationName,
   isActive,
   isPendingOnboarding,
-  interval,
-  currentPeriodEnd,
 }: BillingHeaderProps) {
   const getStatusBadge = () => {
     if (isPendingOnboarding) {

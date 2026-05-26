@@ -52,7 +52,11 @@ export class SyncController {
     @Body() body: RunSyncDto,
   ) {
     return {
-      data: await this.syncService.runSync(authContext.organization!.id, body.provider),
+      data: await this.syncService.runSync(
+        authContext.organization!.id,
+        authContext.user.id,
+        body.provider,
+      ),
       error: null,
     };
   }

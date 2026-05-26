@@ -30,7 +30,7 @@ export function PeriodSelector({ value, onChange, className = "" }: PeriodSelect
           {value === period.value && (
             <motion.div
               layoutId="period-selector"
-              className="absolute inset-0 rounded-md bg-white shadow-[var(--shadow-sm)] border border-border/50"
+              className="absolute inset-0 rounded-md bg-surface-elevated shadow-[var(--shadow-sm)] border border-border/50"
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
             />
           )}

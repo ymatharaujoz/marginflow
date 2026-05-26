@@ -95,8 +95,7 @@ export function DashboardHeader({
             <StatusBadge status={currentStatus.badge.status} label={currentStatus.badge.label} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Visão consolidada do seu negócio. Última sincronização:{" "}
-            <span className="font-medium text-foreground">{relativeTime}</span>
+            Visão consolidada do seu negócio
           </p>
         </div>
 

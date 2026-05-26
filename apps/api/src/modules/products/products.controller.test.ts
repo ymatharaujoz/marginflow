@@ -73,6 +73,7 @@ describe("products controller", () => {
     vi.spyOn(productsService, "listProducts").mockResolvedValueOnce([
       {
         createdAt: "2026-04-28T10:00:00.000Z",
+        financeDefaults: null,
         id: "product_1",
         isActive: true,
         latestCost: null,
@@ -187,23 +188,13 @@ describe("products controller", () => {
       subscription: null,
     });
     vi.spyOn(productsService, "createManualProduct").mockResolvedValueOnce({
-      performance: {
+      financeDefaults: {
         advertisingCost: "15.00",
-        channel: "mercadolivre",
-        commissionRate: "0.000000",
-        companyId: "11111111-1111-4111-8111-111111111111",
         createdAt: "2026-05-14T10:00:00.000Z",
-        id: "perf_1",
+        id: "defaults_1",
         packagingCost: "3.00",
-        productName: "Kit Mercado Livre",
-        referenceMonth: "2026-05-01",
-        returnsQuantity: 0,
-        salePrice: "149.90",
-        salesQuantity: 0,
-        shippingFee: "0.00",
-        sku: "ML-001",
+        productId: "product_1",
         taxRate: "0.120000",
-        unitCost: "80.00",
         updatedAt: "2026-05-14T10:00:00.000Z",
       },
       product: {
@@ -221,7 +212,7 @@ describe("products controller", () => {
         costType: "base",
         createdAt: "2026-05-14T10:00:00.000Z",
         currency: "BRL",
-        effectiveFrom: "2026-05-01",
+        effectiveFrom: null,
         id: "cost_1",
         notes: "Cadastro manual inicial",
         organizationId: "org_123",
@@ -234,7 +225,6 @@ describe("products controller", () => {
       method: "POST",
       payload: {
         initialFinance: {
-          advertisingCost: "15.00",
           packagingCost: "3.00",
           taxRate: "0.120000",
           unitCost: "80.00",
@@ -245,11 +235,6 @@ describe("products controller", () => {
           sellingPrice: "149.90",
           sku: "ML-001",
         },
-        scope: {
-          channel: "mercadolivre",
-          companyId: "11111111-1111-4111-8111-111111111111",
-          referenceMonth: "2026-05-01",
-        },
       },
       url: "/products/manual",
     });
@@ -257,8 +242,8 @@ describe("products controller", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json()).toEqual({
       data: expect.objectContaining({
-        performance: expect.objectContaining({
-          channel: "mercadolivre",
+        financeDefaults: expect.objectContaining({
+          productId: "product_1",
           taxRate: "0.120000",
         }),
         product: expect.objectContaining({
@@ -268,6 +253,65 @@ describe("products controller", () => {
       }),
       error: null,
     });
+  });
+
+  it("rejects manual products when tax rate bypasses the frontend contract", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    const createManualProductSpy = vi.spyOn(productsService, "createManualProduct");
+    createManualProductSpy.mockClear();
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        initialFinance: {
+          packagingCost: "3.00",
+          taxRate: "15",
+          unitCost: "80.00",
+        },
+        product: {
+          isActive: true,
+          name: "Kit Mercado Livre",
+          sellingPrice: "149.90",
+          sku: "ML-001",
+        },
+      },
+      url: "/products/manual",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: {
+        message: "Request validation failed",
+        statusCode: 400,
+      },
+      path: "/products/manual",
+      timestamp: expect.any(String),
+    });
+    expect(createManualProductSpy).not.toHaveBeenCalled();
   });
 
   it("returns the protected analytics snapshot for authenticated requests", async () => {
@@ -535,7 +579,6 @@ describe("products controller", () => {
       method: "POST",
       payload: {
         initialFinance: {
-          advertisingCost: "15.00",
           packagingCost: "3.00",
           taxRate: "0.120000",
           unitCost: "80.00",
@@ -544,12 +587,7 @@ describe("products controller", () => {
           isActive: true,
           name: "Kit Mercado Livre",
           sellingPrice: "149.90",
-          sku: "ML-001",
-        },
-        scope: {
-          channel: "mercadolivre",
-          companyId: "",
-          referenceMonth: "2026-05-01",
+          sku: "",
         },
       },
       url: "/products/manual",

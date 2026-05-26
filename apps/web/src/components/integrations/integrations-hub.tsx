@@ -26,9 +26,12 @@ interface IntegrationsHubProps {
 
 export function IntegrationsHub({ initialMessage, initialStatus, organizationName }: IntegrationsHubProps) {
   // Estado de mensagens (vindas da URL ou ações do usuário)
-  const [message, setMessage] = useState<string | null>(() =>
-    initialMessage ? translateApiMessage(initialMessage) || initialMessage : null,
-  );
+  const [message, setMessage] = useState<string | null>(() => {
+    if (!initialMessage) return null;
+    const translated = translateApiMessage(initialMessage) || initialMessage;
+    if (translated === "Mercado Livre conectado com sucesso.") return null;
+    return translated;
+  });
   const [messageTone, setMessageTone] = useState<"critical" | "neutral">(
     initialStatus === "error" ? "critical" : "neutral",
   );
@@ -195,10 +198,6 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
       <IntegrationsHeader
         organizationName={organizationName}
         isConnected={isConnected}
-        onSync={handleSyncClick}
-        isSyncing={syncMutation.isPending}
-        canSync={syncStatusQuery.data?.availability.canRun ?? false}
-        lastSyncDate={mercadoLivreConnection?.lastSyncedAt ?? undefined}
       />
 
       {/* Divider */}

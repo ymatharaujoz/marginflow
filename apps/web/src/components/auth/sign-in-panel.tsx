@@ -157,9 +157,7 @@ export function SignInPanel() {
 
         {/* Info */}
         <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground/70">
-          Você será enviado à página segura do Google para confirmar sua identidade.
-          <br />
-          Não armazenamos sua senha do Google.
+          Você será enviado à página segura do Google para confirmar sua identidade
         </p>
 
         {/* Back link */}

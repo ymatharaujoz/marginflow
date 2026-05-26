@@ -32,29 +32,6 @@ function getChannelBadge(channel: string) {
   return <Badge>{label}</Badge>;
 }
 
-function formatTrendValue(value: number, isPositiveGood = true) {
-  const isPositive = value >= 0;
-  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
-  const colorClass =
-    isPositiveGood
-      ? isPositive
-        ? "text-success"
-        : "text-error"
-      : isPositive
-        ? "text-error"
-        : "text-success";
-
-  return (
-    <div className={`flex items-center justify-end gap-1 ${colorClass}`}>
-      <TrendIcon className="h-3 w-3" />
-      <span className="text-sm font-medium">
-        {isPositive ? "+" : ""}
-        {formatPercent(value, { digits: 1 })}
-      </span>
-    </div>
-  );
-}
-
 export function ProductsTable({ data, className = "" }: ProductsTableProps) {
   const allRows = buildDashboardProductRows(data);
   // Pegar apenas os 5 melhores produtos (ordenados por lucro)
@@ -104,11 +81,6 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
             <ArrowUpRight className="h-3.5 w-3.5" />
           </Link>
         </div>
-
-        <p className="mb-4 rounded-[var(--radius-md)] border border-info/20 bg-info/5 px-3 py-2 text-xs text-muted-foreground">
-          Quando frete, imposto, embalagem ou devolucoes ainda nao tiverem fonte operacional dedicada,
-          o backend mantem esses campos explicitos em zero em vez de inferir valores.
-        </p>
 
         {/* Scroll horizontal para a tabela expandida */}
         <div className="overflow-x-auto -mx-2 px-2">

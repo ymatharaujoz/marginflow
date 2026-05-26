@@ -29,7 +29,7 @@ export function StripeSecurityCard() {
               <h4 className="font-semibold text-foreground">Pagamento seguro via Stripe</h4>
               <p className="mt-1 text-sm text-muted-foreground">
                 Todas as informações de pagamento são armazenadas e processadas de forma segura pelo Stripe. 
-                Não armazenamos dados de cartão em nossos servidores.
+                Não armazenamos dados de cartão em nossos servidores
               </p>
             </div>
 

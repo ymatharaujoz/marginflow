@@ -5,34 +5,36 @@ import { motion } from "framer-motion";
 import {
   RefreshCw,
   Plus,
+  Upload,
   AlertCircle,
   Package,
   Box,
-  TrendingUp,
   DollarSign,
   BarChart3,
   Sparkles,
   ArrowRight,
 } from "lucide-react";
-import { Card, Skeleton, Button } from "@marginflow/ui";
+import { Card, Skeleton, Button, Badge, EmptyState } from "@marginflow/ui";
 import { ApiClientError } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
 import { ProductHeader } from "./product-header";
 import { ProductFinancialIndicators } from "./product-financial-indicators";
-import { ProductInsights } from "./product-insights";
+
 import { ProductTable } from "./product-table";
 import {
   formatReferenceMonthPtBr,
   useProductData,
 } from "../hooks/use-product-data";
-import { buildMarketplaceSyncNotice, buildProductCoverageNote } from "../calculations/product-insights";
-import type { CatalogStats, ProductInsight, ProductMarketplaceNotice } from "../types/products";
+import { buildMarketplaceSyncNotice } from "../calculations/product-insights";
+import { formatMoney, formatPercent } from "../utils/formatters";
+import type { CatalogStats, ProductMarketplaceNotice } from "../types/products";
 
 interface ProductsHomeProps {
   organizationName: string;
+  view?: "catalog" | "performance";
   onAddProduct?: (context: { companyId: string | null; referenceMonth: string }) => void;
-  onInsightAction?: (insight: ProductInsight) => boolean | void;
+  onImportProducts?: () => void;
 }
 
 function LoadingState() {
@@ -67,11 +69,11 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
             : "Não foi possível carregar o catálogo de produtos. Tente novamente."}
         </p>
         {isUnauthorized ? (
-          <Button asChild>
+          <Button asChild className="text-white">
             <Link href="/sign-in">Fazer login</Link>
           </Button>
         ) : (
-          <Button onClick={onRetry}>
+          <Button onClick={onRetry} className="text-white">
             <RefreshCw className="mr-2 h-4 w-4" />
             Tentar novamente
           </Button>
@@ -99,7 +101,7 @@ const emptyCatalogBenefits = [
   },
 ];
 
-function EmptyCatalogState({ onAdd }: { onAdd?: () => void }) {
+function EmptyCatalogState({ onAdd, onImport }: { onAdd?: () => void; onImport?: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -144,11 +146,17 @@ function EmptyCatalogState({ onAdd }: { onAdd?: () => void }) {
         </div>
 
         <div className="mt-8 flex flex-col items-center gap-3">
-          <Button size="lg" className="gap-2 px-6 text-sm text-white" onClick={onAdd}>
-            <Plus className="h-4 w-4" />
-            Criar primeiro produto
-            <ArrowRight className="h-4 w-4 opacity-70" />
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button size="lg" className="gap-2 px-6 text-sm text-white" onClick={onAdd}>
+              <Plus className="h-4 w-4" />
+              Criar primeiro produto
+              <ArrowRight className="h-4 w-4 opacity-70" />
+            </Button>
+            <Button size="lg" variant="secondary" className="gap-2 px-6 text-sm" onClick={onImport}>
+              <Upload className="h-4 w-4" />
+              Importar produtos
+            </Button>
+          </div>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Sparkles className="h-3 w-3 text-accent" />
             Leva menos de 5 minutos
@@ -188,10 +196,8 @@ function NoCostsState({ stats, onAdd }: { stats: CatalogStats } & { onAdd?: () =
 
 function MarketplaceNoticeCard({
   notice,
-  onAction,
 }: {
   notice: ProductMarketplaceNotice;
-  onAction?: (insight: ProductInsight) => boolean | void;
 }) {
   const toneClasses =
     notice.tone === "alert"
@@ -207,30 +213,10 @@ function MarketplaceNoticeCard({
           <h3 className="text-sm font-semibold text-foreground">{notice.title}</h3>
           <p className="text-sm text-muted-foreground">{notice.description}</p>
         </div>
-        {notice.actionLabel ? (
-          notice.href ? (
-            <Button asChild variant="secondary" className="shrink-0">
-              <Link href={notice.href}>{notice.actionLabel}</Link>
-            </Button>
-          ) : notice.actionKey ? (
-            <Button
-              className="shrink-0"
-              onClick={() =>
-                onAction?.({
-                  actionKey: notice.actionKey,
-                  actionLabel: notice.actionLabel,
-                  description: notice.description,
-                  href: "/app/products",
-                  id: notice.id,
-                  title: notice.title,
-                  type: notice.tone === "alert" ? "alert" : "info",
-                })
-              }
-              variant="secondary"
-            >
-              {notice.actionLabel}
-            </Button>
-          ) : null
+        {notice.actionLabel && notice.href ? (
+          <Button asChild variant="secondary" className="shrink-0">
+            <Link href={notice.href}>{notice.actionLabel}</Link>
+          </Button>
         ) : null}
       </div>
     </Card>
@@ -264,17 +250,121 @@ function ReferenceMonthToolbar({
   );
 }
 
+function formatProductDate(dateIso: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    dateStyle: "medium",
+  }).format(new Date(dateIso));
+}
+
+function CatalogProductsTable({
+  products,
+}: {
+  products: ReturnType<typeof useProductData>["products"];
+}) {
+  if (products.length === 0) {
+    return (
+      <Card padding="lg">
+        <EmptyState
+          title="Nenhum produto cadastrado"
+          description="Cadastre um produto manual para iniciar seu catálogo."
+          icon={<Package className="h-6 w-6" />}
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <Card padding="lg">
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-foreground">Produtos do catálogo</h3>
+        <p className="text-xs text-muted-foreground">Itens cadastrados manualmente ou importados</p>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1100px] border-separate border-spacing-0">
+          <thead>
+            <tr className="border-b border-border bg-surface-strong/95">
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Produto
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                SKU
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Preço de venda
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Custo unitário
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Embalagem
+              </th>
+              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Imposto
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Status
+              </th>
+              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Criado em
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {products.map((product) => (
+              <tr key={product.id} className="border-b border-border/50 hover:bg-surface-strong/30">
+                <td className="px-3 py-3 text-sm font-medium text-foreground">{product.name}</td>
+                <td className="px-3 py-3 text-sm text-muted-foreground">{product.sku ?? "Sem SKU"}</td>
+                <td className="px-3 py-3 text-right text-sm text-foreground">
+                  {formatMoney(Number(product.sellingPrice))}
+                </td>
+                <td className="px-3 py-3 text-right text-sm text-foreground">
+                  {product.latestCost ? formatMoney(Number(product.latestCost.amount)) : "Sem custo"}
+                </td>
+                <td className="px-3 py-3 text-right text-sm text-foreground">
+                  {product.financeDefaults
+                    ? formatMoney(Number(product.financeDefaults.packagingCost))
+                    : "—"}
+                </td>
+                <td className="px-3 py-3 text-right text-sm text-foreground">
+                  {product.financeDefaults
+                    ? formatPercent(Number(product.financeDefaults.taxRate) * 100, { digits: 1 })
+                    : "—"}
+                </td>
+                <td className="px-3 py-3 text-left">
+                  <Badge
+                    variant={product.isActive ? "success" : "neutral"}
+                    className="gap-1.5"
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${product.isActive ? "bg-green-600" : "bg-gray-400"}`}
+                    />
+                    {product.isActive ? "Ativo" : "Arquivado"}
+                  </Badge>
+                </td>
+                <td className="px-3 py-3 text-sm text-muted-foreground">
+                  {formatProductDate(product.createdAt)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
 export function ProductsHome({
   organizationName,
+  view = "catalog",
   onAddProduct,
-  onInsightAction,
+  onImportProducts,
 }: ProductsHomeProps) {
   const {
     data,
     referenceMonth,
     referenceMonthSelectOptions,
     stats,
-    insights,
     rows,
     pagination,
     financialState,
@@ -285,7 +375,6 @@ export function ProductsHome({
     refetch,
     goToPage,
   } = useProductData();
-  const coverageNote = buildProductCoverageNote(data);
   const marketplaceNotice = data ? buildMarketplaceSyncNotice(data) : null;
   const handleAddProduct = () =>
     onAddProduct?.({
@@ -308,16 +397,43 @@ export function ProductsHome({
       referenceMonth={referenceMonth}
     />
   );
-  const topActions = <div className="flex items-center gap-3">{monthToolbar}</div>;
+  const addProductButton = (
+    <Button
+      size="md"
+      className="gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg active:translate-y-0 active:shadow-sm"
+      onClick={handleAddProduct}
+    >
+      <Plus className="h-4 w-4" />
+      Cadastrar produto
+    </Button>
+  );
+  const importButton = (
+    <Button
+      size="md"
+      variant="secondary"
+      className="gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0"
+      onClick={onImportProducts}
+    >
+      <Upload className="h-4 w-4" />
+      Importar produtos
+    </Button>
+  );
+  const topActions = (
+    <div className="flex items-center gap-3">
+      {view === "performance" ? monthToolbar : null}
+      {view !== "performance" ? importButton : null}
+      {view !== "performance" ? addProductButton : null}
+    </div>
+  );
 
   if (financialState === "empty") {
     return (
       <motion.div variants={fadeInVariants} initial="hidden" animate="visible" className="space-y-6">
         <ProductHeader organizationName={organizationName} stats={stats} />
         {marketplaceNotice ? (
-          <MarketplaceNoticeCard notice={marketplaceNotice} onAction={onInsightAction} />
+          <MarketplaceNoticeCard notice={marketplaceNotice} />
         ) : null}
-        <EmptyCatalogState onAdd={handleAddProduct} />
+        <EmptyCatalogState onAdd={handleAddProduct} onImport={onImportProducts} />
       </motion.div>
     );
   }
@@ -327,7 +443,7 @@ export function ProductsHome({
       <motion.div variants={fadeInVariants} initial="hidden" animate="visible" className="space-y-6">
         <ProductHeader organizationName={organizationName} stats={stats} />
         {marketplaceNotice ? (
-          <MarketplaceNoticeCard notice={marketplaceNotice} onAction={onInsightAction} />
+          <MarketplaceNoticeCard notice={marketplaceNotice} />
         ) : null}
         <NoCostsState stats={stats} onAdd={handleAddProduct} />
       </motion.div>
@@ -341,33 +457,25 @@ export function ProductsHome({
         {topActions}
       </div>
 
-      {marketplaceNotice ? (
-        <MarketplaceNoticeCard notice={marketplaceNotice} onAction={onInsightAction} />
+      {view === "catalog" && marketplaceNotice ? (
+        <MarketplaceNoticeCard notice={marketplaceNotice} />
       ) : null}
 
-      <ProductFinancialIndicators rows={rows} />
-
-      {coverageNote ? (
-        <Card variant="outlined" className="border-info/20 bg-info/5 p-4">
-          <p className="text-sm text-muted-foreground">{coverageNote}</p>
-        </Card>
+      {view === "performance" ? (
+        <>
+          <hr className="border-border/60" />
+          <ProductFinancialIndicators rows={rows} />
+        </>
       ) : null}
 
-      <ProductInsights insights={insights} onInsightAction={onInsightAction} />
+      {view === "catalog" ? <hr className="border-border/60" /> : null}
 
       <section className="min-w-0 w-full space-y-3">
-        <div className="flex items-center justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-muted-foreground hover:text-foreground"
-            onClick={handleAddProduct}
-          >
-            <Plus className="h-4 w-4" />
-            Cadastrar produto
-          </Button>
-        </div>
-        <ProductTable rows={rows} pagination={pagination} onPageChange={goToPage} />
+        {view === "catalog" ? (
+          <CatalogProductsTable products={data?.products ?? []} />
+        ) : (
+          <ProductTable rows={rows} pagination={pagination} onPageChange={goToPage} />
+        )}
       </section>
     </motion.div>
   );

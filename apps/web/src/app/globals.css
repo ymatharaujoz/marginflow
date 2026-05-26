@@ -128,6 +128,62 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
+}
+
+.dark body {
+  background:
+    radial-gradient(ellipse 85% 55% at 50% -12%, rgba(26, 188, 156, 0.08), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 92% 18%, rgba(26, 188, 156, 0.05), transparent 52%),
+    linear-gradient(180deg, var(--background) 0%, var(--background-soft) 100%);
+}
+
+.dark {
+  /* ─── Core palette ─── */
+  --background: #0d0f0e;
+  --background-soft: #121514;
+  --background-elevated: #181b1a;
+  --foreground: #f0f2f1;
+  --foreground-soft: #b8c4c0;
+  --muted: #5c6b66;
+  --muted-foreground: #8a9994;
+
+  /* ─── Surfaces ─── */
+  --surface: rgba(22, 26, 24, 0.94);
+  --surface-strong: #1a1d1c;
+  --surface-elevated: rgba(28, 31, 30, 0.97);
+
+  /* ─── Borders ─── */
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-focus: rgba(26, 188, 156, 0.55);
+
+  /* ─── Brand / accent ─── */
+  --accent: #1abc9c;
+  --accent-strong: #16a085;
+  --accent-soft: rgba(26, 188, 156, 0.10);
+  --accent-foreground: #f0fffe;
+
+  /* ─── Semantic ─── */
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.10);
+  --error: #f87171;
+  --error-soft: rgba(248, 113, 113, 0.10);
+  --warning: #fbbf24;
+  --warning-soft: rgba(251, 191, 36, 0.10);
+  --info: #60a5fa;
+  --info-soft: rgba(96, 165, 250, 0.10);
+
+  /* ─── Elevation / shadows ─── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.40);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.45);
+  --shadow-2xl: 0 24px 64px rgba(0, 0, 0, 0.50);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.30), 0 8px 32px rgba(0, 0, 0, 0.35);
+  --shadow-hero: 0 28px 80px rgba(0, 0, 0, 0.50);
+  --shadow-glow: 0 0 40px rgba(26, 188, 156, 0.20);
 }
 
 /* Em @layer base para não sobrescrever utilitários (ex.: text-accent-foreground em <Link asChild / Button>) */
@@ -277,16 +333,32 @@ h4 {
   background-size: 60px 60px;
 }
 
+.dark .mf-grid-bg {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
 .mf-glass {
   background: rgba(247, 248, 246, 0.78);
   backdrop-filter: blur(16px) saturate(1.5);
   border: 1px solid var(--border);
+  transition: background var(--transition-normal), border-color var(--transition-normal);
+}
+
+.dark .mf-glass {
+  background: rgba(22, 26, 24, 0.78);
 }
 
 .mf-glass-strong {
   background: rgba(252, 252, 251, 0.92);
   backdrop-filter: blur(20px) saturate(1.8);
   border: 1px solid var(--border);
+  transition: background var(--transition-normal), border-color var(--transition-normal);
+}
+
+.dark .mf-glass-strong {
+  background: rgba(28, 31, 30, 0.92);
 }
 
 .mf-focus-ring {

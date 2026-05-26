@@ -274,6 +274,16 @@ export const productCostRecordSchema = z.object({
   updatedAt: isoDateTimeField("Updated at"),
 });
 
+export const productFinanceDefaultsRecordSchema = z.object({
+  id: z.string().trim().min(1),
+  productId: z.string().trim().min(1),
+  packagingCost: decimalField("Packaging cost"),
+  taxRate: decimalField("Tax rate"),
+  advertisingCost: decimalField("Advertising cost"),
+  createdAt: isoDateTimeField("Created at"),
+  updatedAt: isoDateTimeField("Updated at"),
+});
+
 export const companyRecordSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),
@@ -293,6 +303,7 @@ export const productListItemSchema = z.object({
   createdAt: isoDateTimeField("Created at"),
   updatedAt: isoDateTimeField("Updated at"),
   latestCost: productCostRecordSchema.nullable(),
+  financeDefaults: productFinanceDefaultsRecordSchema.nullable(),
 });
 
 export const adCostRecordSchema = z.object({
@@ -401,6 +412,7 @@ export const productMonthlyPerformanceRowSchema = z.object({
   taxRate: decimalRateField("Tax rate"),
   packagingCost: decimalField("Packaging cost"),
   advertisingCost: decimalField("Advertising cost"),
+  marketplaceCommission: decimalField("Marketplace commission").optional(),
 });
 
 export const productAnalyticsCatalogStatsSchema = z.object({

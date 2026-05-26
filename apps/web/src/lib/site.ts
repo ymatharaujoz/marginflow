@@ -32,7 +32,8 @@ export function brandSeoTitle(tagline: string, source: Record<string, string | u
 export const marketingLandingNav = [
   { sectionId: "recursos", label: "Recursos" },
   { sectionId: "integracoes", label: "Integrações" },
-  { sectionId: "planos", label: "Preços" },
+  { sectionId: "depoimentos", label: "Depoimentos" },
+  { sectionId: "planos", label: "Planos" },
 ] as const;
 
 /** WhatsApp deep link for demo CTAs. Set `NEXT_PUBLIC_WHATSAPP_DEMO_URL` (e.g. `https://wa.me/5511…`). */

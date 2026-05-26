@@ -1515,8 +1515,8 @@ Build the public website and SEO baseline in Next.js.
 - No blockers currently logged
 - 2026-04: Landing principal redesenhada em PT-BR com partículas (`@tsparticles`), animações (`framer-motion`), hero com mock do dashboard, grade de recursos, integrações, preços (mensal/anual) e CTA alinhados ao layout de marketing.
 - M7 landing and SEO implementation shipped in `apps/web` with dedicated `features`, `pricing`, and `integrations` pages, reusable marketing components, metadata helpers, `robots.txt`, and `sitemap.xml`
-- 2026-05-08: Marketing Mercado Livre icons (`MercadoLivreIcon`, `MercadoLivreMiniIcon`) passam a usar o SVG em `apps/web/public/icons/mercado-livre-logo.svg` (cópia do asset em `src/public/icons` para servir via Next.js `public/`).
-- 2026-05-08 (follow-up): `viewBox` do wordmark ajustado para o logo preencher o canvas; símbolo (aperto de mãos) em `mercado-livre-symbol.svg` para mini/hero; rótulo textual removido ao lado do mini ícone nas linhas de integração do marketing.
+- 2026-05-08: Marketing Mercado Livre icons (`MercadoLivreIcon`, `MercadoLivreMiniIcon`) passam a usar o SVG servido em `apps/web/public/icons/mercado-libre-icon.svg`.
+- 2026-05-08 (follow-up): o asset do Mercado Livre passou a ser servido pelo ícone consolidado em `apps/web/public/icons/mercado-libre-icon.svg`, com rótulo textual removido ao lado do mini ícone nas linhas de integração do marketing.
 - 2026-05-08: Símbolo ML com `viewBox` quadrado centrado no desenho + `Image` 243×243 e badge “Compatível com” em `grid place-items-center` para evitar ícone torto/comprimido no círculo.
 - 2026-05-08: Barra “Compatível com” no marketing sem card circular — só texto + ícone ML alinhados em `flex`.
 - 2026-05-08: Barra “Compatível com” inclui ícone Shopee (`public/icons/shopee-icon.svg`); `ShopeeIcon` / `ShopeeMiniIcon` passam a usar esse SVG em vez do placeholder.

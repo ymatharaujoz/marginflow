@@ -67,7 +67,7 @@ export function SyncControlCard({
             disabled={!canSync || isSyncing}
             loading={isSyncing}
             onClick={onSyncClick}
-            className="shrink-0"
+            className="shrink-0 gap-2 rounded-lg bg-accent px-5 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-all duration-[var(--transition-fast)] hover:-translate-y-0.5 hover:bg-accent-strong hover:text-white hover:shadow-[var(--shadow-md)]"
           >
             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
             {isSyncing ? "Sincronizando..." : "Sincronizar agora"}
@@ -81,12 +81,7 @@ export function SyncControlCard({
               <Clock className="h-3.5 w-3.5" />
               <span>Última: {lastSync ? formatDateTime(lastSync) : "Nunca"}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span>
-                Próxima: {canSync ? "Agora" : nextWindow ? formatDateTime(nextWindow) : "-"}
-              </span>
-            </div>
+
             {syncStatus.lastCompletedRun && (
               <div className="ml-auto text-muted-foreground">
                 {syncStatus.lastCompletedRun.counts.orders} pedidos na última sincronização

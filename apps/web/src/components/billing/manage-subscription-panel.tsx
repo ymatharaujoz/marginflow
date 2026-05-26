@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { CreditCard, HelpCircle } from "lucide-react";
+import { HelpCircle } from "lucide-react";
 import type { ServerBillingState } from "@/lib/server-billing";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import { containerVariants, itemVariants } from "@/lib/animations";
@@ -86,15 +86,8 @@ export function ManageSubscriptionPanel({
       {/* Estado ativo - Cards de gerenciamento */}
       {isActive && (
         <>
-          {/* Divider com label */}
-          <div className="flex items-center gap-4">
-            <div className="h-px flex-1 bg-border" />
-            <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <CreditCard className="h-3.5 w-3.5" />
-              Detalhes da Assinatura
-            </span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
+          {/* Divider */}
+          <hr className="border-border" />
 
           {/* Cards Grid */}
           <div className="grid gap-6">
@@ -102,7 +95,7 @@ export function ManageSubscriptionPanel({
             <SubscriptionDetailsCard
               interval={subscription?.interval || "monthly"}
               status={subscription?.status || "Inativo"}
-              currentPeriodEnd={subscription?.currentPeriodEnd}
+              currentPeriodEnd={subscription?.currentPeriodEnd ?? null}
               cancelAtPeriodEnd={cancelAtPeriodEnd}
               isActive={isActive}
               onManageSubscription={handleManageSubscription}

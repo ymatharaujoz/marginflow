@@ -82,11 +82,12 @@ describe("ProductsService", () => {
   });
 
   it("returns products with latest cost snapshots", async () => {
-    const { db, financeService, service } = createService();
+    const { db, service } = createService();
 
     db.query.products.findMany.mockResolvedValue([
       {
         createdAt: new Date("2026-04-28T10:00:00.000Z"),
+        financeDefaults: null,
         id: "product_1",
         isActive: true,
         name: "Notebook",
@@ -189,66 +190,39 @@ describe("ProductsService", () => {
       productId: "product_1",
       updatedAt: new Date("2026-05-14T10:01:00.000Z"),
     };
-    const createdPerformance = {
+    const createdDefaults = {
       advertisingCost: "15.00",
-      channel: "mercadolivre",
-      commissionRate: "0.000000",
-      companyId: "11111111-1111-4111-8111-111111111111",
       createdAt: new Date("2026-05-14T10:02:00.000Z"),
-      id: "perf_1",
-      notes: "Cadastro manual inicial",
-      organizationId: "org_1",
+      id: "defaults_1",
       packagingCost: "3.00",
-      productName: "Kit Mercado Livre",
-      referenceMonth: "2026-05-01",
-      returnsQuantity: 0,
-      salePrice: "149.90",
-      salesQuantity: 0,
-      shippingFee: "0.00",
-      sku: "ML-001",
+      productId: "product_1",
       taxRate: "0.120000",
-      unitCost: "80.00",
       updatedAt: new Date("2026-05-14T10:02:00.000Z"),
-      userId: "user_1",
     };
+    const txInsert = vi
+      .fn()
+      .mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([createdProduct]),
+        }),
+      })
+      .mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([createdCost]),
+        }),
+      })
+      .mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([createdDefaults]),
+        }),
+      });
 
     db.transaction = vi.fn(async (callback) =>
       callback({
-        insert: vi
-          .fn()
-          .mockReturnValueOnce({
-            values: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([createdProduct]),
-            }),
-          })
-          .mockReturnValueOnce({
-            values: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([createdCost]),
-            }),
-          })
-          .mockReturnValueOnce({
-            values: vi.fn().mockReturnValue({
-              returning: vi.fn().mockResolvedValue([createdPerformance]),
-            }),
-          }),
-        query: {
-          productMonthlyPerformance: {
-            findFirst: vi.fn().mockResolvedValue(null),
-          },
-        },
+        insert: txInsert,
         update: vi.fn(),
       }),
     );
-    db.query.companies.findFirst.mockResolvedValue({
-      code: "MAIN",
-      createdAt: new Date("2026-05-01T10:00:00.000Z"),
-      id: "11111111-1111-4111-8111-111111111111",
-      isActive: true,
-      name: "Empresa Principal",
-      organizationId: "org_1",
-      updatedAt: new Date("2026-05-01T10:00:00.000Z"),
-      userId: "user_1",
-    });
     financeService.materializeOrganizationMetrics = vi.fn().mockResolvedValue(undefined);
 
     await expect(
@@ -259,7 +233,6 @@ describe("ProductsService", () => {
         },
         {
           initialFinance: {
-            advertisingCost: "15.00",
             packagingCost: "3.00",
             taxRate: "0.120000",
             unitCost: "80.00",
@@ -268,21 +241,16 @@ describe("ProductsService", () => {
             isActive: true,
             name: "Kit Mercado Livre",
             sellingPrice: "149.90",
-            sku: "ML-001",
-          },
-          scope: {
-            channel: "mercadolivre",
-            companyId: "11111111-1111-4111-8111-111111111111",
-            referenceMonth: "2026-05-01",
+            sku: " ml-001 ",
           },
         },
       ),
     ).resolves.toEqual(
       expect.objectContaining({
-        performance: expect.objectContaining({
-          channel: "mercadolivre",
-          referenceMonth: "2026-05-01",
-          sku: "ML-001",
+        financeDefaults: expect.objectContaining({
+          packagingCost: "3.00",
+          productId: "product_1",
+          taxRate: "0.120000",
         }),
         product: expect.objectContaining({
           id: "product_1",
@@ -295,44 +263,12 @@ describe("ProductsService", () => {
         }),
       }),
     );
+    expect(db.query.companies.findFirst).not.toHaveBeenCalled();
+    expect(txInsert).toHaveBeenCalledTimes(3);
     expect(financeService.materializeOrganizationMetrics).toHaveBeenCalledWith("org_1");
   });
 
-  it("rejects manual product creation when company context is missing", async () => {
-    const { db, service } = createService();
-
-    db.query.companies.findFirst.mockResolvedValue(null);
-
-    await expect(
-      service.createManualProduct(
-        {
-          organizationId: "org_1",
-          userId: "user_1",
-        },
-        {
-          initialFinance: {
-            advertisingCost: "15.00",
-            packagingCost: "3.00",
-            taxRate: "0.120000",
-            unitCost: "80.00",
-          },
-          product: {
-            isActive: true,
-            name: "Kit Mercado Livre",
-            sellingPrice: "149.90",
-            sku: "ML-001",
-          },
-          scope: {
-            channel: "mercadolivre",
-            companyId: "22222222-2222-4222-8222-222222222222",
-            referenceMonth: "2026-05-01",
-          },
-        },
-      ),
-    ).rejects.toBeInstanceOf(NotFoundException);
-  });
-
-  it("rejects manual product creation when company id is blank", async () => {
+  it("rejects manual product creation when sku is blank", async () => {
     const { service } = createService();
 
     await expect(
@@ -343,7 +279,6 @@ describe("ProductsService", () => {
         },
         {
           initialFinance: {
-            advertisingCost: "15.00",
             packagingCost: "3.00",
             taxRate: "0.120000",
             unitCost: "80.00",
@@ -352,18 +287,39 @@ describe("ProductsService", () => {
             isActive: true,
             name: "Kit Mercado Livre",
             sellingPrice: "149.90",
-            sku: "ML-001",
-          },
-          scope: {
-            channel: "mercadolivre",
-            companyId: "",
-            referenceMonth: "2026-05-01",
+            sku: "",
           },
         } as never,
       ),
-    ).rejects.toThrow(
-      "Cadastre uma empresa ativa antes de salvar um produto manual com custos e impostos mensais.",
-    );
+    ).rejects.toThrow("SKU is required for manual product creation.");
+  });
+
+  it("rejects manual product creation when tax rate is not fractional", async () => {
+    const { db, service } = createService();
+
+    await expect(
+      service.createManualProduct(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        {
+          initialFinance: {
+            packagingCost: "3.00",
+            taxRate: "15",
+            unitCost: "80.00",
+          },
+          product: {
+            isActive: true,
+            name: "Kit Mercado Livre",
+            sellingPrice: "149.90",
+            sku: "ML-001",
+          },
+        },
+      ),
+    ).rejects.toThrow("Tax rate must be a decimal rate between 0 and 1.");
+
+    expect(db.transaction).not.toHaveBeenCalled();
   });
 
   it("rejects cross-organization product cost writes", async () => {
@@ -508,6 +464,7 @@ describe("ProductsService", () => {
 
     const product = {
       createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      financeDefaults: null,
       id: "11111111-1111-4111-8111-111111111111",
       isActive: true,
       name: "Notebook",
@@ -637,6 +594,7 @@ describe("ProductsService", () => {
         advertisingCost: "10.00",
         channel: "mercadolivre",
         commissionRate: "0.100000",
+        marketplaceCommission: "10.00",
         packagingCost: "2.00",
         productName: "Notebook",
         referenceMonth: "2026-05-01",

@@ -95,7 +95,7 @@ describe("IntegrationsHub", () => {
 
     const markup = renderToStaticMarkup(
       <IntegrationsHub
-        initialMessage="Mercado Livre conectado com sucesso."
+        initialMessage={null}
         initialStatus="success"
         organizationName="MarginFlow"
       />,
@@ -104,7 +104,7 @@ describe("IntegrationsHub", () => {
     expect(markup).toContain("Integrações");
     expect(markup).toContain("Mercado Livre");
     expect(markup).toContain("Conectar");
-    expect(markup).toContain("Mercado Livre conectado com sucesso.");
+    expect(markup).not.toContain("Mercado Livre conectado com sucesso.");
     expect(markup).toContain("Status da Sincronização");
     expect(markup).toContain("Histórico de Sincronizações");
   });

@@ -44,6 +44,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       advertisingCost: "10.00",
       channel: "mercadolivre",
       commissionRate: "0.100000",
+      marketplaceCommission: "10.00",
       packagingCost: "4.00",
       productName: "Product One",
       referenceMonth: "2026-05-01",
@@ -59,6 +60,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       advertisingCost: "0.00",
       channel: "unknown",
       commissionRate: "0.000000",
+      marketplaceCommission: "0.00",
       packagingCost: "0.00",
       productName: "Product Two",
       referenceMonth: "2026-05-01",
@@ -144,6 +146,7 @@ const snapshot: ProductAnalyticsSnapshot = {
   products: [
     {
       createdAt: "2026-05-01T10:00:00.000Z",
+      financeDefaults: null,
       id: "product_1",
       isActive: true,
       latestCost: {
@@ -166,6 +169,7 @@ const snapshot: ProductAnalyticsSnapshot = {
     },
     {
       createdAt: "2026-05-01T10:00:00.000Z",
+      financeDefaults: null,
       id: "product_2",
       isActive: true,
       latestCost: null,

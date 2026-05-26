@@ -219,6 +219,7 @@ describe("sync controller", () => {
       }),
       error: null,
     });
+    expect(syncService.runSync).toHaveBeenCalledWith("org_123", "user_123", "mercadolivre");
   });
 
   it("rejects unauthenticated sync requests", async () => {
