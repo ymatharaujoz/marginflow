@@ -118,7 +118,7 @@ export const integrationHighlights = [
 const pricingPlansTemplate = [
   {
     annualPrice: "R$ 63",
-    annualSuffix: "/mês cobrado anualmente",
+    annualSuffix: "/ano",
     ctaHref: "/sign-in",
     ctaLabel: "Começar Gratuitamente",
     description: "Para operações que precisam de ritmo semanal de decisão e custo anual menor.",
