@@ -1,4 +1,4 @@
-import { getWebEnv } from "@/lib/env";
+import { getClientPublicEnv } from "@/lib/env";
 import type { ApiContractSchema } from "./contract";
 import { parseApiContract } from "./contract";
 export { ApiContractError } from "./contract";
@@ -143,7 +143,7 @@ let cachedApiClient: ReturnType<typeof createApiClient> | undefined;
 function getDefaultApiClient() {
   if (!cachedApiClient) {
     cachedApiClient = createApiClient({
-      baseUrl: getWebEnv().NEXT_PUBLIC_API_BASE_URL,
+      baseUrl: getClientPublicEnv().NEXT_PUBLIC_API_BASE_URL,
     });
   }
 
