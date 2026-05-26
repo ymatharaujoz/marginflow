@@ -53,7 +53,10 @@ export function readSignedWebAuthSession(
 }
 
 export function buildRemoteAuthCookieHeader(remoteSessionToken: string) {
-  return `better-auth.session_token=${remoteSessionToken}`;
+  return [
+    `__Secure-better-auth.session_token=${remoteSessionToken}`,
+    `better-auth.session_token=${remoteSessionToken}`,
+  ].join("; ");
 }
 
 export function getWebSessionSecret(source: Record<string, string | undefined> = process.env) {

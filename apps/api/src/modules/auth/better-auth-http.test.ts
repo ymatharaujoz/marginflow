@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildBetterAuthSessionCookieHeader,
   buildBetterAuthFinalizeUrl,
   buildWebAuthCompleteRedirectUrl,
   readBetterAuthSessionTokenFromCookieHeader,
@@ -52,5 +53,13 @@ describe("readBetterAuthSessionTokenFromCookieHeader", () => {
         "__Secure-better-auth.session_token=abc123.%2Bdef%2Fghi%3D",
       ),
     ).toBe("abc123.+def/ghi=");
+  });
+});
+
+describe("buildBetterAuthSessionCookieHeader", () => {
+  it("emits both secure and non-secure Better Auth cookie names for session revalidation", () => {
+    expect(buildBetterAuthSessionCookieHeader("token_123")).toBe(
+      "__Secure-better-auth.session_token=token_123; better-auth.session_token=token_123",
+    );
   });
 });

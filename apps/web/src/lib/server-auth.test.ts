@@ -126,7 +126,8 @@ describe("readServerAuthState", () => {
       expect.objectContaining({
         cache: "no-store",
         headers: {
-          cookie: "better-auth.session_token=remote_session_token_123",
+          cookie:
+            "__Secure-better-auth.session_token=remote_session_token_123; better-auth.session_token=remote_session_token_123",
         },
       }),
     );

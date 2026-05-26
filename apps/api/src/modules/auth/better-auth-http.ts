@@ -85,6 +85,13 @@ export function readBetterAuthSessionTokenFromCookieHeader(cookieHeader: string 
   return match?.[1] ? decodeCookieValue(match[1]) : null;
 }
 
+export function buildBetterAuthSessionCookieHeader(sessionToken: string) {
+  return [
+    `__Secure-better-auth.session_token=${sessionToken}`,
+    `better-auth.session_token=${sessionToken}`,
+  ].join("; ");
+}
+
 export function buildAbsoluteRequestUrl(request: FastifyRequest) {
   const host = readHeaderValue(request.headers["x-forwarded-host"]) ?? request.headers.host ?? "localhost";
   const protocol =

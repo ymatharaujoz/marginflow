@@ -4,6 +4,7 @@ import { authExchangeTickets } from "@marginflow/database";
 import { eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import { AuthService } from "./auth.service";
+import { buildBetterAuthSessionCookieHeader } from "./better-auth-http";
 import type { AuthenticatedRequestContext } from "./auth.types";
 
 const EXCHANGE_TICKET_TTL_MS = 5 * 60 * 1000;
@@ -80,7 +81,7 @@ export class AuthExchangeService {
 
       const authContext = await this.authService.resolveRequestContext({
         headers: new Headers({
-          cookie: `better-auth.session_token=${record.remoteSessionToken}`,
+          cookie: buildBetterAuthSessionCookieHeader(record.remoteSessionToken),
         }),
       });
 

@@ -45,7 +45,7 @@ describe("web auth session", () => {
 
   it("builds the remote Better Auth cookie header from mirrored session token", () => {
     expect(buildRemoteAuthCookieHeader("remote_session_token_123")).toBe(
-      "better-auth.session_token=remote_session_token_123",
+      "__Secure-better-auth.session_token=remote_session_token_123; better-auth.session_token=remote_session_token_123",
     );
   });
 });
