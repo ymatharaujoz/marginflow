@@ -13,8 +13,8 @@ describe("resolveAuthBaseUrl", () => {
 
 describe("buildGoogleAuthStartUrl", () => {
   it("builds the first-party auth start route with the callback URL", () => {
-    expect(buildGoogleAuthStartUrl("https://marginflow-production.up.railway.app/", "https://marginflow-web.vercel.app/app")).toBe(
-      "https://marginflow-production.up.railway.app/auth/start/google?callbackURL=https%3A%2F%2Fmarginflow-web.vercel.app%2Fapp",
+    expect(buildGoogleAuthStartUrl("https://marginflow-web.vercel.app/api", "https://marginflow-web.vercel.app/app")).toBe(
+      "https://marginflow-web.vercel.app/api/auth/start/google?callbackURL=https%3A%2F%2Fmarginflow-web.vercel.app%2Fapp",
     );
   });
 });

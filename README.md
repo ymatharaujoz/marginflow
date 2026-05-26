@@ -74,8 +74,9 @@ The frontend usually runs at `http://localhost:3000`, but Next.js will move to a
 Runtime environment parsing is owned by `packages/validation`, with `apps/web` consuming the shared public env validator.
 
 - `NEXT_PUBLIC_*` variables are treated as client-visible
-- `NEXT_PUBLIC_API_BASE_URL` configures the frontend API base for NestJS communication
-- `WEB_APP_ORIGIN`, `API_HOST`, `API_PORT`, `API_DB_POOL_MAX`, `BETTER_AUTH_URL`, and `AUTH_TRUSTED_ORIGINS` configure the backend bootstrap and auth/browser origin trust
+- `NEXT_PUBLIC_API_BASE_URL` configures the frontend API base for NestJS communication; in production it must point to the Vercel-hosted proxy path such as `https://marginflow-web.vercel.app/api`, not the Railway origin
+- `WEB_APP_ORIGIN`, `API_HOST`, `API_PORT`, `API_DB_POOL_MAX`, `BETTER_AUTH_URL`, `API_PUBLIC_BASE_URL`, and `AUTH_TRUSTED_ORIGINS` configure the backend bootstrap and auth/browser origin trust
+- `BETTER_AUTH_URL` should stay on the public Vercel auth surface such as `https://marginflow-web.vercel.app/api/auth`, while `API_PUBLIC_BASE_URL` should stay on the Railway origin such as `https://marginflow-production.up.railway.app`
 - `DATABASE_URL` is the runtime DB URL for app processes
 - `DATABASE_MIGRATION_URL` is the preferred DB URL for Drizzle migrations, seed, and Studio
 - `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` are required for auth boot

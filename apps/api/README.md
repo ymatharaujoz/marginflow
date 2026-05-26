@@ -38,6 +38,7 @@ Required in production:
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET`
 - `BETTER_AUTH_URL`
+- `API_PUBLIC_BASE_URL`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `WEB_APP_ORIGIN`
@@ -64,6 +65,7 @@ Optional local/testing helper:
 - `SYNC_RELAX_GUARDS`
 
 `DATABASE_URL` should target pooled/runtime Postgres credentials. `DATABASE_MIGRATION_URL` should target direct or migration-safe credentials for Drizzle tooling.
+`BETTER_AUTH_URL` should point at the public Better Auth surface. When the web app proxies auth through Vercel, this becomes `https://<web>.vercel.app/api/auth`. `API_PUBLIC_BASE_URL` should remain the raw public backend base, such as the Railway URL.
 
 ## Docs
 

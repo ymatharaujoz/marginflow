@@ -22,6 +22,9 @@ export function buildBetterAuth(db: DatabaseClient, env: ApiRuntimeEnv) {
     : [];
 
   return betterAuth({
+    advanced: {
+      trustedProxyHeaders: true,
+    },
     baseURL: env.BETTER_AUTH_URL,
     basePath: "/auth",
     secret: env.BETTER_AUTH_SECRET,

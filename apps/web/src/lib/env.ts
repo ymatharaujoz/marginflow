@@ -4,7 +4,6 @@ import { validateClientEnv } from "@marginflow/validation/env";
 const DEFAULT_PUBLIC_APP_URL = "http://localhost:3000";
 const DEFAULT_PUBLIC_API_BASE_URL = "http://localhost:4000";
 const DEFAULT_PRODUCTION_PUBLIC_APP_URL = "https://marginflow-web.vercel.app";
-const DEFAULT_PRODUCTION_PUBLIC_API_BASE_URL = "https://marginflow-production.up.railway.app";
 const REQUIRED_PUBLIC_ENV_KEYS = ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_API_BASE_URL"] as const;
 let hasLoggedProductionEnvDiagnostic = false;
 
@@ -29,6 +28,15 @@ function resolveProductionAppUrl(source: Record<string, string | undefined>): st
   }
 
   return DEFAULT_PRODUCTION_PUBLIC_APP_URL;
+}
+
+function resolveProductionApiBaseUrl(source: Record<string, string | undefined>): string {
+  const explicitApiBaseUrl = pickNonEmpty(source.NEXT_PUBLIC_API_BASE_URL);
+  if (explicitApiBaseUrl) {
+    return explicitApiBaseUrl;
+  }
+
+  return `${resolveProductionAppUrl(source).replace(/\/+$/, "")}/api`;
 }
 
 function extractMissingRequiredPublicEnv(error: unknown): string[] {
@@ -115,7 +123,7 @@ export function readPublicEnv(source: Record<string, string | undefined> = proce
       (useLocalDefaults ? DEFAULT_PUBLIC_APP_URL : resolveProductionAppUrl(source)),
     NEXT_PUBLIC_API_BASE_URL:
       pickNonEmpty(source.NEXT_PUBLIC_API_BASE_URL) ??
-      (useLocalDefaults ? DEFAULT_PUBLIC_API_BASE_URL : DEFAULT_PRODUCTION_PUBLIC_API_BASE_URL),
+      (useLocalDefaults ? DEFAULT_PUBLIC_API_BASE_URL : resolveProductionApiBaseUrl(source)),
     NEXT_PUBLIC_WHATSAPP_DEMO_URL: pickNonEmpty(source.NEXT_PUBLIC_WHATSAPP_DEMO_URL),
     NEXT_PUBLIC_APP_NAME: pickNonEmpty(source.NEXT_PUBLIC_APP_NAME),
     NEXT_PUBLIC_APP_ICON: pickNonEmpty(source.NEXT_PUBLIC_APP_ICON),

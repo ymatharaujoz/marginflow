@@ -27,7 +27,7 @@ describe("readServerBillingState", () => {
 
   it("returns null on 401", async () => {
     process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
-    process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:4000";
+    process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:3000/api";
     global.fetch = vi.fn(async () => new Response(null, { status: 401 })) as typeof fetch;
 
     await expect(readServerBillingState()).resolves.toBeNull();
@@ -35,7 +35,7 @@ describe("readServerBillingState", () => {
 
   it("parses billing snapshot payload", async () => {
     process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
-    process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:4000";
+    process.env.NEXT_PUBLIC_API_BASE_URL = "http://localhost:3000/api";
     global.fetch = vi.fn(
       async () =>
         new Response(
@@ -91,5 +91,21 @@ describe("readServerBillingState", () => {
         status: "inactive",
       },
     });
+  });
+
+  it("requests billing state through the proxied /api base on the web origin", async () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://marginflow-web.vercel.app";
+    process.env.NEXT_PUBLIC_API_BASE_URL = "https://marginflow-web.vercel.app/api";
+    const fetchSpy = vi.fn(async () => new Response(null, { status: 401 })) as typeof fetch;
+    global.fetch = fetchSpy;
+
+    await readServerBillingState();
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://marginflow-web.vercel.app/api/billing/subscription",
+      expect.objectContaining({
+        cache: "no-store",
+      }),
+    );
   });
 });

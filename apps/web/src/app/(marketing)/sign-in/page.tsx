@@ -25,7 +25,7 @@ type SignInPageProps = {
 };
 
 export default async function SignInPage({ searchParams }: SignInPageProps) {
-  const authState = await readServerAuthState();
+  const authState = await readServerAuthState({ mode: "soft" });
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   if (authState) {

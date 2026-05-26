@@ -114,6 +114,29 @@ describe("readApiEnv", () => {
     );
   });
 
+  it("accepts an optional public backend base url distinct from BETTER_AUTH_URL", () => {
+    const env = readApiEnv({
+      API_HOST: "127.0.0.1",
+      API_PORT: "4000",
+      API_DB_POOL_MAX: "12",
+      API_PUBLIC_BASE_URL: "https://marginflow-production.up.railway.app",
+      DATABASE_URL: runtimeUrl,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "https://marginflow-web.vercel.app/api/auth",
+      GOOGLE_CLIENT_ID: "google-client-id",
+      GOOGLE_CLIENT_SECRET: "google-client-secret",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "https://marginflow-web.vercel.app",
+    });
+
+    expect(env.API_PUBLIC_BASE_URL).toBe("https://marginflow-production.up.railway.app");
+    expect(env.BETTER_AUTH_URL).toBe("https://marginflow-web.vercel.app/api/auth");
+  });
+
   it("parses SYNC_RELAX_GUARDS", () => {
     const base = {
       API_HOST: "127.0.0.1",

@@ -527,7 +527,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
   private getRedirectUri() {
     return (
       this.env.MERCADOLIVRE_REDIRECT_URI ??
-      `${this.env.BETTER_AUTH_URL.replace(/\/$/, "")}/integrations/mercadolivre/callback`
+      `${(this.env.API_PUBLIC_BASE_URL ?? this.env.BETTER_AUTH_URL).replace(/\/$/, "")}/integrations/mercadolivre/callback`
     );
   }
 }
