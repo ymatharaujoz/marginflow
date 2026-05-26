@@ -67,6 +67,7 @@ export async function buildApp(
         provider: "google",
         reply,
         request,
+        webAppOrigin: env.WEB_APP_ORIGIN,
       });
     },
   });

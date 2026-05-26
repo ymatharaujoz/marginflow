@@ -25,6 +25,9 @@ export function buildBetterAuth(db: DatabaseClient, env: ApiRuntimeEnv) {
     baseURL: env.BETTER_AUTH_URL,
     basePath: "/auth",
     secret: env.BETTER_AUTH_SECRET,
+    account: {
+      storeStateStrategy: "cookie",
+    },
     database: drizzleAdapter(db, {
       provider: "pg",
       schema: authSchema,

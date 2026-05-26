@@ -5,6 +5,8 @@ type BetterAuthHandler = {
   handler: (request: Request) => Promise<Response>;
 };
 
+const OAUTH_START_FAILURE_CODE = "oauth_start_failed";
+
 function readHeaderValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
@@ -59,12 +61,14 @@ export async function startBetterAuthSocialSignIn({
   provider,
   reply,
   request,
+  webAppOrigin,
 }: {
   auth: BetterAuthHandler;
   callbackURL?: string;
   provider: string;
   reply: FastifyReply;
   request: FastifyRequest;
+  webAppOrigin: string;
 }) {
   const authUrl = new URL("/auth/sign-in/social", buildAbsoluteRequestUrl(request).origin);
   const headers = fromNodeHeaders(request.headers);
@@ -83,7 +87,11 @@ export async function startBetterAuthSocialSignIn({
   const location = response.headers.get("location");
 
   if (!location) {
-    return proxyBetterAuthResponse(reply, response);
+    const fallbackUrl = new URL("/sign-in", webAppOrigin);
+    fallbackUrl.searchParams.set("auth_error", OAUTH_START_FAILURE_CODE);
+    reply.status(302);
+    reply.header("location", fallbackUrl.toString());
+    return reply.send();
   }
 
   applyBetterAuthResponse(reply, response);

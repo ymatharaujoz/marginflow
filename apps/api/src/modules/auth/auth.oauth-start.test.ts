@@ -61,4 +61,27 @@ describe("auth oauth start route", () => {
     );
     expect(handlerSpy).toHaveBeenCalledOnce();
   });
+
+  it("redirects back to the frontend sign-in page when Better Auth does not return a provider location", async () => {
+    const auth = app.get<{ handler: (request: Request) => Promise<Response> }>(AUTH_INSTANCE);
+
+    vi.spyOn(auth, "handler").mockResolvedValueOnce(
+      new Response("null", {
+        headers: {
+          "content-type": "application/json",
+        },
+        status: 500,
+      }),
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/auth/start/google?callbackURL=https%3A%2F%2Fmarginflow-web.vercel.app%2Fapp",
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/sign-in?auth_error=oauth_start_failed",
+    );
+  });
 });

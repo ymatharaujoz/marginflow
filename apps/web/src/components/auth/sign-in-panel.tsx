@@ -36,7 +36,11 @@ type AuthErrorLike = {
   message?: string | null;
 };
 
-export function SignInPanel() {
+type SignInPanelProps = {
+  initialErrorMessage?: string | null;
+};
+
+export function SignInPanel({ initialErrorMessage = null }: SignInPanelProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -51,8 +55,9 @@ export function SignInPanel() {
   const isBusy = isSubmitting || sessionState.isPending;
   const errorMessage = useMemo(() => {
     if (message) return message;
+    if (initialErrorMessage) return initialErrorMessage;
     return (sessionState.error as AuthErrorLike | null)?.message ?? null;
-  }, [message, sessionState.error]);
+  }, [initialErrorMessage, message, sessionState.error]);
 
   async function handleGoogleSignIn() {
     setIsSubmitting(true);

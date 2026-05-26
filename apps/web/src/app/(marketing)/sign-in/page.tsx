@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { SignInPanel } from "@/components/auth/sign-in-panel";
 import { ParticleCanvas } from "@/components/auth/particle-canvas";
+import { resolveAuthErrorMessage } from "@/lib/auth-errors";
 import { readServerAuthState } from "@/lib/server-auth";
 import { createPageMetadata, resolveSiteConfig, sitePageTitle } from "@/lib/site";
 
@@ -17,8 +18,15 @@ metadata.robots = {
   index: false,
 };
 
-export default async function SignInPage() {
+type SignInPageProps = {
+  searchParams?: Promise<{
+    auth_error?: string | string[];
+  }>;
+};
+
+export default async function SignInPage({ searchParams }: SignInPageProps) {
   const authState = await readServerAuthState();
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   if (authState) {
     redirect("/app");
@@ -31,7 +39,9 @@ export default async function SignInPage() {
 
       {/* Content */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-12 md:py-16">
-        <SignInPanel />
+        <SignInPanel
+          initialErrorMessage={resolveAuthErrorMessage(resolvedSearchParams?.auth_error)}
+        />
       </div>
 
       {/* Footer note */}
