@@ -46,4 +46,21 @@ export function getWebEnv(source: Record<string, string | undefined> = process.e
   return readPublicEnv(source);
 }
 
+/**
+ * Client-safe helper: use direct `process.env.NEXT_PUBLIC_*` access so Next.js can inline
+ * the values into browser bundles during build.
+ */
+export function getClientPublicEnv() {
+  return readPublicEnv({
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+    NEXT_PUBLIC_APP_ICON: process.env.NEXT_PUBLIC_APP_ICON,
+    NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_PRICE_ANNUAL_LABEL: process.env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL,
+    NEXT_PUBLIC_PRICE_MONTHLY_LABEL: process.env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL,
+    NEXT_PUBLIC_WHATSAPP_DEMO_URL: process.env.NEXT_PUBLIC_WHATSAPP_DEMO_URL,
+  });
+}
+
 export type WebPublicEnv = ReturnType<typeof readPublicEnv>;

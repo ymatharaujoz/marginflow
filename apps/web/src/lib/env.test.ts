@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getWebEnv, readPublicEnv } from "@/lib/env";
+import { getClientPublicEnv, getWebEnv, readPublicEnv } from "@/lib/env";
 
 describe("readPublicEnv", () => {
   afterEach(() => {
@@ -60,6 +60,17 @@ describe("readPublicEnv", () => {
     });
 
     expect(env.NEXT_PUBLIC_APP_URL).toBe("http://localhost:3000");
+  });
+
+  it("reads client public env from direct NEXT_PUBLIC process access", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://marginflow-web-qn8b.vercel.app");
+    vi.stubEnv("NEXT_PUBLIC_API_BASE_URL", "https://marginflow-production.up.railway.app");
+
+    const env = getClientPublicEnv();
+
+    expect(env.NEXT_PUBLIC_APP_URL).toBe("https://marginflow-web-qn8b.vercel.app");
+    expect(env.NEXT_PUBLIC_API_BASE_URL).toBe("https://marginflow-production.up.railway.app");
   });
 
   it("accepts optional whatsapp demo url", () => {
