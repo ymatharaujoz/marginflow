@@ -132,7 +132,7 @@ const pricingPlansTemplate = [
     ],
     monthlyPrice: "R$ 79",
     monthlySuffix: "/mês",
-    name: "Crescimento",
+    name: "",
   },
   {
     annualPrice: "Sob consulta",
@@ -154,14 +154,22 @@ const pricingPlansTemplate = [
   },
 ] as const;
 
-export function getPricingPlans(source: Record<string, string | undefined> = process.env) {
-  const env = readPublicEnv(source);
+export function getPricingPlans(source?: Record<string, string | undefined>) {
+  // Direct `process.env.*` access lets Next.js inline NEXT_PUBLIC_* values into browser bundles.
+  const monthlyPrice =
+    source?.NEXT_PUBLIC_PRICE_MONTHLY_LABEL ??
+    process.env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL ??
+    "R$ 79";
+  const annualPrice =
+    source?.NEXT_PUBLIC_PRICE_ANNUAL_LABEL ??
+    process.env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL ??
+    "R$ 63";
   const [growth, scale] = pricingPlansTemplate;
   return [
     {
       ...growth,
-      annualPrice: env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL || growth.annualPrice,
-      monthlyPrice: env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL || growth.monthlyPrice,
+      monthlyPrice,
+      annualPrice,
     },
     { ...scale },
   ];
