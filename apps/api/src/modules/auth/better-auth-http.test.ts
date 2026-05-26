@@ -45,4 +45,12 @@ describe("readBetterAuthSessionTokenFromCookieHeader", () => {
       ),
     ).toBe("token_123");
   });
+
+  it("decodes url-encoded Better Auth session tokens from browser cookies", () => {
+    expect(
+      readBetterAuthSessionTokenFromCookieHeader(
+        "__Secure-better-auth.session_token=abc123.%2Bdef%2Fghi%3D",
+      ),
+    ).toBe("abc123.+def/ghi=");
+  });
 });

@@ -11,6 +11,14 @@ function readHeaderValue(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function decodeCookieValue(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function getSetCookieHeaders(response: Response) {
   const headers = response.headers as Headers & {
     getSetCookie?: () => string[];
@@ -74,7 +82,7 @@ export function readBetterAuthSessionTokenFromCookieHeader(cookieHeader: string 
   }
 
   const match = rawCookieHeader.match(/(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/i);
-  return match?.[1] ?? null;
+  return match?.[1] ? decodeCookieValue(match[1]) : null;
 }
 
 export function buildAbsoluteRequestUrl(request: FastifyRequest) {
