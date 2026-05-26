@@ -1,10 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
-import { authExchangeTickets } from "@marginflow/database";
+import { authExchangeTickets, sessions } from "@marginflow/database";
 import { eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
-import { AuthService } from "./auth.service";
-import { buildBetterAuthSessionCookieHeader } from "./better-auth-http";
+import { OrganizationProvisioningService } from "./organization-provisioning.service";
 import type { AuthenticatedRequestContext } from "./auth.types";
 
 const EXCHANGE_TICKET_TTL_MS = 5 * 60 * 1000;
@@ -24,6 +23,19 @@ type AuthExchangeDb = {
     authExchangeTickets: {
       findFirst: (input?: unknown) => Promise<AuthExchangeRecord | null>;
     };
+    sessions: {
+      findFirst: (input?: unknown) => Promise<{
+        expiresAt: Date;
+        id: string;
+        user: {
+          email: string;
+          emailVerified: boolean;
+          id: string;
+          image: string | null;
+          name: string;
+        } | null;
+      } | null>;
+    };
   };
   transaction: <T>(callback: (tx: AuthExchangeDb) => Promise<T>) => Promise<T>;
   update: (table: unknown) => {
@@ -35,7 +47,7 @@ type AuthExchangeDb = {
 export class AuthExchangeService {
   constructor(
     @Inject(DATABASE_CLIENT) private readonly db: AuthExchangeDb,
-    private readonly authService: AuthService,
+    private readonly organizationProvisioningService: OrganizationProvisioningService,
   ) {}
 
   async createTicket(input: {
@@ -79,15 +91,16 @@ export class AuthExchangeService {
         throw new UnauthorizedException("Invalid or expired auth exchange ticket.");
       }
 
-      const authContext = await this.authService.resolveRequestContext({
-        headers: new Headers({
-          cookie: buildBetterAuthSessionCookieHeader(record.remoteSessionToken),
-        }),
+      const persistedSession = await tx.query.sessions.findFirst({
+        where: eq(sessions.id, record.sessionId),
+        with: {
+          user: true,
+        },
       });
 
-      if (!authContext) {
+      if (!persistedSession?.user || persistedSession.expiresAt.getTime() <= Date.now()) {
         console.warn("[marginflow/api] Auth exchange ticket rejected.", {
-          code: "remote_session_invalid",
+          code: !persistedSession?.user ? "remote_session_missing" : "remote_session_expired",
           sessionId: record.sessionId,
           userId: record.userId,
         });
@@ -106,8 +119,25 @@ export class AuthExchangeService {
         userId: record.userId,
       });
 
+      const organization = await this.organizationProvisioningService.findDefaultOrganization(
+        record.userId,
+      );
+
       return {
-        authState: this.toAuthState(authContext),
+        authState: this.toAuthState({
+          organization,
+          session: {
+            expiresAt: persistedSession.expiresAt,
+            id: persistedSession.id,
+          },
+          user: {
+            email: persistedSession.user.email,
+            emailVerified: persistedSession.user.emailVerified,
+            id: persistedSession.user.id,
+            image: persistedSession.user.image,
+            name: persistedSession.user.name,
+          },
+        }),
         remoteSessionToken: record.remoteSessionToken,
       };
     });
