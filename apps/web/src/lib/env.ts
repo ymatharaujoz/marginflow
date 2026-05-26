@@ -3,12 +3,32 @@ import { validateClientEnv } from "@marginflow/validation/env";
 /** Same defaults documented in `.env.example` and used in `auth-client.ts`. */
 const DEFAULT_PUBLIC_APP_URL = "http://localhost:3000";
 const DEFAULT_PUBLIC_API_BASE_URL = "http://localhost:4000";
+const DEFAULT_PRODUCTION_PUBLIC_APP_URL = "https://marginflow-web.vercel.app";
+const DEFAULT_PRODUCTION_PUBLIC_API_BASE_URL = "https://marginflow-production.up.railway.app";
 const REQUIRED_PUBLIC_ENV_KEYS = ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_API_BASE_URL"] as const;
 let hasLoggedProductionEnvDiagnostic = false;
 
 function pickNonEmpty(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeHttpsUrl(value: string): string {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
+function resolveProductionAppUrl(source: Record<string, string | undefined>): string {
+  const explicitAppUrl = pickNonEmpty(source.NEXT_PUBLIC_APP_URL);
+  if (explicitAppUrl) {
+    return explicitAppUrl;
+  }
+
+  const vercelProductionHost = pickNonEmpty(source.VERCEL_PROJECT_PRODUCTION_URL);
+  if (vercelProductionHost) {
+    return normalizeHttpsUrl(vercelProductionHost);
+  }
+
+  return DEFAULT_PRODUCTION_PUBLIC_APP_URL;
 }
 
 function extractMissingRequiredPublicEnv(error: unknown): string[] {
@@ -74,19 +94,28 @@ function buildPublicEnvValidationError({
  * Validates `NEXT_PUBLIC_*` URLs.
  * Outside \`NODE_ENV === "production"\` (development, tests, previews), fills missing URLs with localhost
  * defaults so client-side `fetch` bundles do not explode when Turborepo or ad-hoc shells omit env.
- * Production builds must still provide real URLs in the environment embedded at compile time.
+ * Production builds fall back to the canonical public hosts so a Vercel env propagation miss
+ * does not white-screen the published app.
  */
 export function readPublicEnv(source: Record<string, string | undefined> = process.env) {
   const nodeEnv = source.NODE_ENV ?? process.env.NODE_ENV;
   const useLocalDefaults = nodeEnv !== "production";
+  const missingProductionKeys =
+    nodeEnv === "production"
+      ? REQUIRED_PUBLIC_ENV_KEYS.filter((key) => !pickNonEmpty(source[key]))
+      : [];
+
+  if (missingProductionKeys.length > 0) {
+    logProductionEnvDiagnostic(source, missingProductionKeys);
+  }
 
   const candidateEnv = {
     NEXT_PUBLIC_APP_URL:
       pickNonEmpty(source.NEXT_PUBLIC_APP_URL) ??
-      (useLocalDefaults ? DEFAULT_PUBLIC_APP_URL : undefined),
+      (useLocalDefaults ? DEFAULT_PUBLIC_APP_URL : resolveProductionAppUrl(source)),
     NEXT_PUBLIC_API_BASE_URL:
       pickNonEmpty(source.NEXT_PUBLIC_API_BASE_URL) ??
-      (useLocalDefaults ? DEFAULT_PUBLIC_API_BASE_URL : undefined),
+      (useLocalDefaults ? DEFAULT_PUBLIC_API_BASE_URL : DEFAULT_PRODUCTION_PUBLIC_API_BASE_URL),
     NEXT_PUBLIC_WHATSAPP_DEMO_URL: pickNonEmpty(source.NEXT_PUBLIC_WHATSAPP_DEMO_URL),
     NEXT_PUBLIC_APP_NAME: pickNonEmpty(source.NEXT_PUBLIC_APP_NAME),
     NEXT_PUBLIC_APP_ICON: pickNonEmpty(source.NEXT_PUBLIC_APP_ICON),
@@ -106,10 +135,6 @@ export function readPublicEnv(source: Record<string, string | undefined> = proce
     };
   } catch (error) {
     const missingKeys = extractMissingRequiredPublicEnv(error);
-    if (nodeEnv === "production" && missingKeys.length > 0) {
-      logProductionEnvDiagnostic(source, missingKeys);
-    }
-
     throw buildPublicEnvValidationError({ cause: error, missingKeys, nodeEnv });
   }
 }

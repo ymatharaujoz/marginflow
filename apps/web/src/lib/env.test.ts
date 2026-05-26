@@ -48,11 +48,12 @@ describe("readPublicEnv", () => {
     expect(env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL).toBe("R$ 40");
   });
 
-  it("rejects missing public urls in production even when sourcing empty overrides", () => {
+  it("uses production fallbacks when public urls are omitted in production", () => {
     vi.stubEnv("NODE_ENV", "production");
-    expect(() => readPublicEnv({})).toThrow(
-      "Invalid public environment configuration. Missing: NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_API_BASE_URL. Configure them in Vercel Project Settings > Environment Variables for the active environment and redeploy.",
-    );
+    const env = readPublicEnv({});
+
+    expect(env.NEXT_PUBLIC_APP_URL).toBe("https://marginflow-web.vercel.app");
+    expect(env.NEXT_PUBLIC_API_BASE_URL).toBe("https://marginflow-production.up.railway.app");
   });
 
   it("reads process-like sources through helper", () => {
@@ -105,10 +106,8 @@ describe("readPublicEnv", () => {
     vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "marginflow-web.vercel.app");
     const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    expect(() => readPublicEnv({})).toThrow(
-      "Invalid public environment configuration. Missing: NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_API_BASE_URL. Configure them in Vercel Project Settings > Environment Variables for the active environment and redeploy.",
-    );
-    expect(() => readPublicEnv({})).toThrow();
+    expect(readPublicEnv({}).NEXT_PUBLIC_APP_URL).toBe("https://marginflow-web.vercel.app");
+    expect(readPublicEnv({}).NEXT_PUBLIC_API_BASE_URL).toBe("https://marginflow-production.up.railway.app");
 
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -123,5 +122,16 @@ describe("readPublicEnv", () => {
         NEXT_PUBLIC_APP_URL: false,
       }),
     );
+  });
+
+  it("uses the vercel production host as public app url fallback when available", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    const env = readPublicEnv({
+      VERCEL_PROJECT_PRODUCTION_URL: "marginflow-web-custom.vercel.app",
+    });
+
+    expect(env.NEXT_PUBLIC_APP_URL).toBe("https://marginflow-web-custom.vercel.app");
+    expect(env.NEXT_PUBLIC_API_BASE_URL).toBe("https://marginflow-production.up.railway.app");
   });
 });
