@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@marginflow/ui";
-import { authClient } from "@/lib/auth-client";
+import { authClient, buildGoogleAuthStartUrl } from "@/lib/auth-client";
+import { getClientPublicEnv } from "@/lib/env";
 import { PUBLIC_BRAND } from "@/lib/public-branding";
 
 function GoogleGlyph({ className }: { className?: string }) {
@@ -56,17 +57,13 @@ export function SignInPanel() {
   async function handleGoogleSignIn() {
     setIsSubmitting(true);
     setMessage(null);
+    const callbackURL = `${window.location.origin}/app`;
+    const startUrl = buildGoogleAuthStartUrl(
+      getClientPublicEnv().NEXT_PUBLIC_API_BASE_URL,
+      callbackURL,
+    );
 
-    const result = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: `${window.location.origin}/app`,
-    });
-
-    if (result.error) {
-      setMessage(result.error.message ?? "Não foi possível conectar com o Google. Tente de novo.");
-      setIsSubmitting(false);
-      return;
-    }
+    window.location.assign(startUrl);
   }
 
   if (sessionState.data) {

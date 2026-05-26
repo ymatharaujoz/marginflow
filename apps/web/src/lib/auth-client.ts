@@ -8,6 +8,12 @@ export function resolveAuthBaseUrl(apiBaseUrl: string) {
   return `${trimmedBaseUrl}/auth`;
 }
 
+export function buildGoogleAuthStartUrl(apiBaseUrl: string, callbackURL: string) {
+  const trimmedBaseUrl = apiBaseUrl.replace(/\/+$/, "");
+  const searchParams = new URLSearchParams({ callbackURL });
+  return `${trimmedBaseUrl}/auth/start/google?${searchParams.toString()}`;
+}
+
 const baseURL = resolveAuthBaseUrl(getClientPublicEnv().NEXT_PUBLIC_API_BASE_URL);
 
 export const authClient = createAuthClient({

@@ -12,6 +12,11 @@ import {
 import { HttpExceptionFilter } from "@/common/filters/http-exception.filter";
 import { ZodValidationPipe } from "@/common/pipes/zod-validation.pipe";
 import { AUTH_INSTANCE } from "@/common/tokens";
+import {
+  buildAbsoluteRequestUrl,
+  proxyBetterAuthResponse,
+  startBetterAuthSocialSignIn,
+} from "@/modules/auth/better-auth-http";
 
 export async function buildApp(
   env: ApiRuntimeEnv = readApiEnv(),
@@ -45,10 +50,32 @@ export async function buildApp(
   };
 
   fastify.route({
+    method: "GET",
+    url: "/auth/start/google",
+    async handler(request, reply) {
+      const callbackURL =
+        typeof request.query === "object" &&
+        request.query !== null &&
+        "callbackURL" in request.query &&
+        typeof request.query.callbackURL === "string"
+          ? request.query.callbackURL
+          : undefined;
+
+      return startBetterAuthSocialSignIn({
+        auth,
+        callbackURL,
+        provider: "google",
+        reply,
+        request,
+      });
+    },
+  });
+
+  fastify.route({
     method: ["GET", "POST"],
     url: "/auth/*",
     async handler(request, reply) {
-      const url = new URL(request.url, `http://${request.headers.host}`);
+      const url = buildAbsoluteRequestUrl(request);
       const headers = fromNodeHeaders(request.headers);
       const authRequest = new Request(url.toString(), {
         method: request.method,
@@ -56,13 +83,7 @@ export async function buildApp(
         ...(request.body !== undefined ? { body: JSON.stringify(request.body) } : {}),
       });
       const response = await auth.handler(authRequest);
-
-      reply.status(response.status);
-      response.headers.forEach((value, key) => {
-        reply.header(key, value);
-      });
-
-      return reply.send(response.body ? await response.text() : null);
+      return proxyBetterAuthResponse(reply, response);
     },
   });
 
