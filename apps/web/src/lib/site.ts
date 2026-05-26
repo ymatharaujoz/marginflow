@@ -132,7 +132,7 @@ const pricingPlansTemplate = [
     ],
     monthlyPrice: "R$ 79",
     monthlySuffix: "/mês",
-    name: "",
+    name: "Crescimento",
   },
   {
     annualPrice: "Sob consulta",
