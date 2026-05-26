@@ -14,6 +14,7 @@
   "dependencies": {
     "@fastify/cors": "^11.1.0",
     "@fastify/multipart": "^10.0.0",
+    "@better-auth/infra": "^0.2.8",
     "@marginflow/database": "workspace:*",
     "@marginflow/domain": "workspace:*",
     "@marginflow/types": "workspace:*",

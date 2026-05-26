@@ -61,7 +61,30 @@ describe("readApiEnv", () => {
     expect(env.API_DB_POOL_MAX).toBe(12);
     expect(env.STRIPE_PRICE_MONTHLY).toBe("price_monthly");
     expect(env.STRIPE_PRICE_ANNUAL).toBe("price_annual");
+    expect(env.BETTER_AUTH_API_KEY).toBeUndefined();
     expect(env.MERCADOLIVRE_CLIENT_ID).toBeUndefined();
+  });
+
+  it("accepts optional Better Auth infrastructure api key", () => {
+    const env = readApiEnv({
+      API_HOST: "127.0.0.1",
+      API_PORT: "4000",
+      API_DB_POOL_MAX: "12",
+      DATABASE_URL: runtimeUrl,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      BETTER_AUTH_API_KEY: "better-auth-api-key",
+      GOOGLE_CLIENT_ID: "google-client-id",
+      GOOGLE_CLIENT_SECRET: "google-client-secret",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    expect(env.BETTER_AUTH_API_KEY).toBe("better-auth-api-key");
   });
 
   it("accepts optional Mercado Livre oauth configuration", () => {

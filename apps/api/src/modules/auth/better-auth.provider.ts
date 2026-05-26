@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { dash } from "@better-auth/infra";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { dbSchema, type DatabaseClient } from "@marginflow/database";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
@@ -12,6 +13,14 @@ const authSchema = {
 };
 
 export function buildBetterAuth(db: DatabaseClient, env: ApiRuntimeEnv) {
+  const plugins = env.BETTER_AUTH_API_KEY
+    ? [
+        dash({
+          apiKey: env.BETTER_AUTH_API_KEY,
+        }),
+      ]
+    : [];
+
   return betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     basePath: "/auth",
@@ -21,6 +30,7 @@ export function buildBetterAuth(db: DatabaseClient, env: ApiRuntimeEnv) {
       schema: authSchema,
     }),
     trustedOrigins: readTrustedOriginList(env),
+    plugins,
     socialProviders: {
       google: {
         clientId: env.GOOGLE_CLIENT_ID,

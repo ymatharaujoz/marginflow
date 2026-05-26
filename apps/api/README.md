@@ -51,6 +51,7 @@ Optional but recommended:
 - `DATABASE_MIGRATION_URL`
 - `API_DB_POOL_MAX`
 - `AUTH_TRUSTED_ORIGINS`
+- `BETTER_AUTH_API_KEY` (required if you want Better Auth Dashboard / ownership verification)
 
 Optional only when Mercado Livre integration is enabled:
 
