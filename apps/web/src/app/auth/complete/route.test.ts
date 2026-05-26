@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const setMock = vi.hoisted(() => vi.fn());
 const getWebSessionSecretMock = vi.hoisted(() => vi.fn(() => "web-session-secret"));
 const createSignedWebAuthSessionMock = vi.hoisted(() => vi.fn(() => "signed-web-session"));
 
@@ -80,8 +79,11 @@ describe("GET /auth/complete", () => {
       },
       "web-session-secret",
     );
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe("https://marginflow-web.vercel.app/app");
+    expect(response.status).toBe(303);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("location")).toBe(
+      "https://marginflow-web.vercel.app/auth/verify-session?next=%2Fapp",
+    );
     expect(response.headers.get("set-cookie")).toContain("marginflow.web_session=signed-web-session");
   });
 });

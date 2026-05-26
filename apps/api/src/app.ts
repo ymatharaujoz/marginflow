@@ -123,6 +123,12 @@ export async function buildApp(
               webAppOrigin: env.WEB_APP_ORIGIN,
             });
 
+            console.info("[marginflow/api] Better Auth callback redirected to web handoff.", {
+              origin: url.origin,
+              path: url.pathname,
+              redirectUrl,
+            });
+
             reply.raw.setHeader("set-cookie", setCookieHeaders);
             reply.status(302);
             reply.header("location", redirectUrl);

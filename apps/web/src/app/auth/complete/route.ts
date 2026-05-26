@@ -8,6 +8,9 @@ import {
   WEB_AUTH_SESSION_COOKIE_NAME,
 } from "@/lib/web-auth-session";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function sanitizeNextPath(input: string | null) {
   if (!input || !input.startsWith("/")) {
     return "/app";
@@ -24,46 +27,91 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const ticket = url.searchParams.get("ticket");
   const nextPath = sanitizeNextPath(url.searchParams.get("next"));
+  const exchangeEndpoint = `${getWebEnv().NEXT_PUBLIC_API_BASE_URL}/auth-state/exchange-ticket`;
+  const signInUrl = new URL("/sign-in?auth_error=oauth_complete_failed", url);
 
   if (!ticket) {
-    return NextResponse.redirect(new URL("/sign-in?auth_error=oauth_complete_failed", url));
+    console.error("[marginflow/web] Auth completion missing ticket.", {
+      nextPath,
+      origin: url.origin,
+      path: url.pathname,
+    });
+    return NextResponse.redirect(signInUrl, {
+      status: 303,
+    });
   }
 
-  const response = await fetch(`${getWebEnv().NEXT_PUBLIC_API_BASE_URL}/auth-state/exchange-ticket`, {
-    body: JSON.stringify({ ticket }),
-    headers: {
-      "content-type": "application/json",
-    },
-    method: "POST",
-  });
+  try {
+    const response = await fetch(exchangeEndpoint, {
+      body: JSON.stringify({ ticket }),
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "POST",
+    });
 
-  if (!response.ok) {
-    return NextResponse.redirect(new URL("/sign-in?auth_error=oauth_complete_failed", url));
+    if (!response.ok) {
+      console.error("[marginflow/web] Auth exchange ticket request failed.", {
+        endpoint: exchangeEndpoint,
+        nextPath,
+        origin: url.origin,
+        path: url.pathname,
+        status: response.status,
+      });
+      return NextResponse.redirect(signInUrl, {
+        status: 303,
+      });
+    }
+
+    const payload = await response.json();
+    const data = parseApiContract(
+      "/auth-state/exchange-ticket",
+      payload,
+      exchangeAuthTicketApiResponseSchema,
+    ).data;
+    const cookieValue = createSignedWebAuthSession(
+      {
+        authState: data.authState,
+        remoteSessionToken: data.remoteSessionToken,
+      },
+      getWebSessionSecret(),
+    );
+    const redirectUrl = new URL("/auth/verify-session", url.origin);
+
+    redirectUrl.searchParams.set("next", nextPath);
+
+    const nextResponse = NextResponse.redirect(redirectUrl, {
+      status: 303,
+    });
+    nextResponse.headers.set("Cache-Control", "no-store");
+
+    nextResponse.cookies.set(WEB_AUTH_SESSION_COOKIE_NAME, cookieValue, {
+      expires: new Date(data.authState.session.expiresAt),
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: redirectUrl.protocol === "https:",
+    });
+
+    console.info("[marginflow/web] Auth exchange ticket redeemed.", {
+      endpoint: exchangeEndpoint,
+      nextPath,
+      origin: url.origin,
+      path: url.pathname,
+      status: response.status,
+    });
+
+    return nextResponse;
+  } catch (error) {
+    console.error("[marginflow/web] Auth completion crashed while redeeming ticket.", {
+      endpoint: exchangeEndpoint,
+      nextPath,
+      origin: url.origin,
+      path: url.pathname,
+      error: error instanceof Error ? error.message : "unknown_error",
+    });
+    return NextResponse.redirect(signInUrl, {
+      status: 303,
+    });
   }
-
-  const payload = await response.json();
-  const data = parseApiContract(
-    "/auth-state/exchange-ticket",
-    payload,
-    exchangeAuthTicketApiResponseSchema,
-  ).data;
-  const cookieValue = createSignedWebAuthSession(
-    {
-      authState: data.authState,
-      remoteSessionToken: data.remoteSessionToken,
-    },
-    getWebSessionSecret(),
-  );
-  const redirectUrl = new URL(nextPath, url.origin);
-  const nextResponse = NextResponse.redirect(redirectUrl);
-
-  nextResponse.cookies.set(WEB_AUTH_SESSION_COOKIE_NAME, cookieValue, {
-    expires: new Date(data.authState.session.expiresAt),
-    httpOnly: true,
-    path: "/",
-    sameSite: "lax",
-    secure: redirectUrl.protocol === "https:",
-  });
-
-  return nextResponse;
 }

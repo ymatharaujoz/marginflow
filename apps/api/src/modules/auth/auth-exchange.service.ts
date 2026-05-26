@@ -12,6 +12,8 @@ type AuthExchangeRecord = {
   id: string;
   remoteSessionToken: string;
   expiresAt: Date;
+  sessionId: string;
+  userId: string;
   usedAt: Date | null;
 };
 
@@ -53,6 +55,12 @@ export class AuthExchangeService {
       userId: input.userId,
     });
 
+    console.info("[marginflow/api] Auth exchange ticket created.", {
+      organizationId: input.organizationId ?? null,
+      sessionId: input.sessionId,
+      userId: input.userId,
+    });
+
     return ticket;
   }
 
@@ -63,6 +71,9 @@ export class AuthExchangeService {
       });
 
       if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+        console.warn("[marginflow/api] Auth exchange ticket rejected.", {
+          code: !record ? "ticket_not_found" : record.usedAt ? "ticket_already_used" : "ticket_expired",
+        });
         throw new UnauthorizedException("Invalid or expired auth exchange ticket.");
       }
 
@@ -73,6 +84,11 @@ export class AuthExchangeService {
       });
 
       if (!authContext) {
+        console.warn("[marginflow/api] Auth exchange ticket rejected.", {
+          code: "remote_session_invalid",
+          sessionId: record.sessionId,
+          userId: record.userId,
+        });
         throw new UnauthorizedException("Remote Better Auth session is no longer valid.");
       }
 
@@ -82,6 +98,11 @@ export class AuthExchangeService {
           usedAt: new Date(),
         })
         .where(eq(authExchangeTickets.id, record.id));
+
+      console.info("[marginflow/api] Auth exchange ticket consumed.", {
+        sessionId: record.sessionId,
+        userId: record.userId,
+      });
 
       return {
         authState: this.toAuthState(authContext),

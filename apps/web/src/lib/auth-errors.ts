@@ -1,6 +1,8 @@
 const AUTH_ERROR_MESSAGES = {
-  oauth_complete_failed: "Não foi possível concluir o login com Google. Tente de novo.",
-  oauth_start_failed: "Não foi possível iniciar o login com Google. Tente de novo.",
+  oauth_complete_failed: "Nao foi possivel concluir o login com Google. Tente de novo.",
+  oauth_start_failed: "Nao foi possivel iniciar o login com Google. Tente de novo.",
+  web_session_not_persisted:
+    "Seu login foi concluido, mas a sessao do app nao foi salva. Tente novamente.",
 } as const;
 
 export function resolveAuthErrorMessage(
