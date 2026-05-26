@@ -46,7 +46,7 @@ describe("auth oauth start route", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/auth/start/google?callbackURL=https%3A%2F%2Fmarginflow-web.vercel.app%2Fapp",
+      url: "/auth/start/google?next=%2Fapp",
     });
 
     expect(response.statusCode).toBe(302);
@@ -60,6 +60,12 @@ describe("auth oauth start route", () => {
       ]),
     );
     expect(handlerSpy).toHaveBeenCalledOnce();
+    const authRequest = handlerSpy.mock.calls[0]?.[0];
+    expect(authRequest).toBeInstanceOf(Request);
+    await expect(authRequest!.json()).resolves.toEqual({
+      callbackURL: "http://localhost/auth/finalize?next=%2Fapp",
+      provider: "google",
+    });
   });
 
   it("redirects back to the frontend sign-in page when Better Auth does not return a provider location", async () => {
@@ -76,7 +82,7 @@ describe("auth oauth start route", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/auth/start/google?callbackURL=https%3A%2F%2Fmarginflow-web.vercel.app%2Fapp",
+      url: "/auth/start/google?next=%2Fapp",
     });
 
     expect(response.statusCode).toBe(302);

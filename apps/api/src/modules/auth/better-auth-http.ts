@@ -25,37 +25,56 @@ function getSetCookieHeaders(response: Response) {
   return singleValue ? [singleValue] : [];
 }
 
-export function readBetterAuthSessionTokenFromSetCookie(setCookieHeaders: string[]) {
-  for (const header of setCookieHeaders) {
-    const match = header.match(/(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/i);
-    if (match?.[1]) {
-      return match[1];
-    }
+export function sanitizeNextPath(input: string | null | undefined) {
+  if (!input || !input.startsWith("/")) {
+    return "/app";
   }
 
-  return null;
+  if (input.startsWith("//")) {
+    return "/app";
+  }
+
+  return input;
 }
 
-export function buildAuthCompleteRedirectUrl({
-  callbackLocation,
+export function buildBetterAuthFinalizeUrl({
+  nextPath,
+  request,
+}: {
+  nextPath: string;
+  request: FastifyRequest;
+}) {
+  const finalizeUrl = new URL("/auth/finalize", buildAbsoluteRequestUrl(request).origin);
+
+  finalizeUrl.searchParams.set("next", sanitizeNextPath(nextPath));
+  return finalizeUrl.toString();
+}
+
+export function buildWebAuthCompleteRedirectUrl({
+  nextPath,
   ticket,
   webAppOrigin,
 }: {
-  callbackLocation: string;
+  nextPath: string;
   ticket: string;
   webAppOrigin: string;
 }) {
-  const webUrl = new URL(webAppOrigin);
-  const callbackUrl = new URL(callbackLocation, webUrl);
-  const nextPath =
-    callbackUrl.origin === webUrl.origin && callbackUrl.pathname.startsWith("/")
-      ? `${callbackUrl.pathname}${callbackUrl.search}`
-      : "/app";
-  const redirectUrl = new URL("/auth/complete", webUrl);
+  const redirectUrl = new URL("/auth/complete", webAppOrigin);
 
   redirectUrl.searchParams.set("ticket", ticket);
-  redirectUrl.searchParams.set("next", nextPath || "/app");
+  redirectUrl.searchParams.set("next", sanitizeNextPath(nextPath));
   return redirectUrl.toString();
+}
+
+export function readBetterAuthSessionTokenFromCookieHeader(cookieHeader: string | string[] | undefined) {
+  const rawCookieHeader = readHeaderValue(cookieHeader);
+
+  if (!rawCookieHeader) {
+    return null;
+  }
+
+  const match = rawCookieHeader.match(/(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/i);
+  return match?.[1] ?? null;
 }
 
 export function buildAbsoluteRequestUrl(request: FastifyRequest) {
@@ -90,14 +109,14 @@ export async function proxyBetterAuthResponse(reply: FastifyReply, response: Res
 
 export async function startBetterAuthSocialSignIn({
   auth,
-  callbackURL,
+  nextPath,
   provider,
   reply,
   request,
   webAppOrigin,
 }: {
   auth: BetterAuthHandler;
-  callbackURL?: string;
+  nextPath?: string;
   provider: string;
   reply: FastifyReply;
   request: FastifyRequest;
@@ -112,7 +131,10 @@ export async function startBetterAuthSocialSignIn({
     headers,
     body: JSON.stringify({
       provider,
-      ...(callbackURL ? { callbackURL } : {}),
+      callbackURL: buildBetterAuthFinalizeUrl({
+        nextPath: sanitizeNextPath(nextPath),
+        request,
+      }),
     }),
   });
 

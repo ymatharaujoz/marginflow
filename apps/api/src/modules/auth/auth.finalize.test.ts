@@ -1,0 +1,79 @@
+import type { NestFastifyApplication } from "@nestjs/platform-fastify";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { buildApp } from "@/app";
+import { AuthExchangeService } from "./auth-exchange.service";
+import { AuthService } from "./auth.service";
+
+describe("auth finalize route", () => {
+  let app: NestFastifyApplication;
+
+  beforeAll(async () => {
+    app = await buildApp({
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      AUTH_TRUSTED_ORIGINS: "http://localhost:3000",
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      GOOGLE_CLIENT_ID: "google-client-id",
+      GOOGLE_CLIENT_SECRET: "google-client-secret",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
+      NODE_ENV: "test",
+      SYNC_RELAX_GUARDS: false,
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it("creates a web auth handoff ticket after Better Auth session cookie is present in the browser", async () => {
+    const authService = app.get(AuthService);
+    const authExchangeService = app.get(AuthExchangeService);
+
+    vi.spyOn(authService, "resolveRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "MarginFlow",
+        role: "owner",
+        slug: "marginflow",
+      },
+      session: {
+        expiresAt: new Date("2026-12-31T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(authExchangeService, "createTicket").mockResolvedValueOnce("ticket_123");
+
+    const response = await app.inject({
+      headers: {
+        cookie: "__Secure-better-auth.session_token=remote_session_token_123",
+      },
+      method: "GET",
+      url: "/auth/finalize?next=%2Fapp",
+    });
+
+    expect(response.statusCode).toBe(303);
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/auth/complete?ticket=ticket_123&next=%2Fapp",
+    );
+    expect(authExchangeService.createTicket).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      remoteSessionToken: "remote_session_token_123",
+      sessionId: "session_123",
+      userId: "user_123",
+    });
+  });
+});

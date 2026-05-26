@@ -14,9 +14,10 @@ import { ZodValidationPipe } from "@/common/pipes/zod-validation.pipe";
 import { AUTH_INSTANCE } from "@/common/tokens";
 import {
   buildAbsoluteRequestUrl,
-  buildAuthCompleteRedirectUrl,
+  buildWebAuthCompleteRedirectUrl,
   proxyBetterAuthResponse,
-  readBetterAuthSessionTokenFromSetCookie,
+  readBetterAuthSessionTokenFromCookieHeader,
+  sanitizeNextPath,
   startBetterAuthSocialSignIn,
 } from "@/modules/auth/better-auth-http";
 import { AuthExchangeService } from "@/modules/auth/auth-exchange.service";
@@ -59,22 +60,85 @@ export async function buildApp(
     method: "GET",
     url: "/auth/start/google",
     async handler(request, reply) {
-      const callbackURL =
+      const nextPath =
         typeof request.query === "object" &&
         request.query !== null &&
-        "callbackURL" in request.query &&
-        typeof request.query.callbackURL === "string"
-          ? request.query.callbackURL
+        "next" in request.query &&
+        typeof request.query.next === "string"
+          ? request.query.next
           : undefined;
 
       return startBetterAuthSocialSignIn({
         auth,
-        callbackURL,
+        nextPath,
         provider: "google",
         reply,
         request,
         webAppOrigin: env.WEB_APP_ORIGIN,
       });
+    },
+  });
+
+  fastify.route({
+    method: "GET",
+    url: "/auth/finalize",
+    async handler(request, reply) {
+      const nextPath =
+        typeof request.query === "object" &&
+        request.query !== null &&
+        "next" in request.query &&
+        typeof request.query.next === "string"
+          ? sanitizeNextPath(request.query.next)
+          : "/app";
+      const sessionToken = readBetterAuthSessionTokenFromCookieHeader(request.headers.cookie);
+
+      if (!sessionToken) {
+        console.error("[marginflow/api] Better Auth finalize missing session cookie.", {
+          nextPath,
+          origin: buildAbsoluteRequestUrl(request).origin,
+          path: request.url,
+        });
+        reply.status(303);
+        reply.header("location", `${env.WEB_APP_ORIGIN}/sign-in?auth_error=oauth_complete_failed`);
+        return reply.send();
+      }
+
+      const authContext = await authService.resolveRequestContext({
+        headers: request.headers,
+      });
+
+      if (!authContext) {
+        console.error("[marginflow/api] Better Auth finalize could not resolve session context.", {
+          nextPath,
+          origin: buildAbsoluteRequestUrl(request).origin,
+          path: request.url,
+        });
+        reply.status(303);
+        reply.header("location", `${env.WEB_APP_ORIGIN}/sign-in?auth_error=oauth_complete_failed`);
+        return reply.send();
+      }
+
+      const ticket = await authExchangeService.createTicket({
+        organizationId: authContext.organization?.id ?? null,
+        remoteSessionToken: sessionToken,
+        sessionId: authContext.session.id,
+        userId: authContext.user.id,
+      });
+      const redirectUrl = buildWebAuthCompleteRedirectUrl({
+        nextPath,
+        ticket,
+        webAppOrigin: env.WEB_APP_ORIGIN,
+      });
+
+      console.info("[marginflow/api] Better Auth finalize redirected to web handoff.", {
+        origin: buildAbsoluteRequestUrl(request).origin,
+        path: request.url,
+        redirectUrl,
+      });
+
+      reply.status(303);
+      reply.header("location", redirectUrl);
+      return reply.send();
     },
   });
 
@@ -90,52 +154,6 @@ export async function buildApp(
         ...(request.body !== undefined ? { body: JSON.stringify(request.body) } : {}),
       });
       const response = await auth.handler(authRequest);
-
-      if (
-        request.method === "GET" &&
-        url.pathname.startsWith("/auth/callback/") &&
-        response.headers.get("location")
-      ) {
-        const setCookieHeaders = (response.headers as Headers & { getSetCookie?: () => string[] }).getSetCookie?.() ??
-          (() => {
-            const header = response.headers.get("set-cookie");
-            return header ? [header] : [];
-          })();
-        const sessionToken = readBetterAuthSessionTokenFromSetCookie(setCookieHeaders);
-
-        if (sessionToken) {
-          const authContext = await authService.resolveRequestContext({
-            headers: new Headers({
-              cookie: `better-auth.session_token=${sessionToken}`,
-            }),
-          });
-
-          if (authContext) {
-            const ticket = await authExchangeService.createTicket({
-              organizationId: authContext.organization?.id ?? null,
-              remoteSessionToken: sessionToken,
-              sessionId: authContext.session.id,
-              userId: authContext.user.id,
-            });
-            const redirectUrl = buildAuthCompleteRedirectUrl({
-              callbackLocation: response.headers.get("location")!,
-              ticket,
-              webAppOrigin: env.WEB_APP_ORIGIN,
-            });
-
-            console.info("[marginflow/api] Better Auth callback redirected to web handoff.", {
-              origin: url.origin,
-              path: url.pathname,
-              redirectUrl,
-            });
-
-            reply.raw.setHeader("set-cookie", setCookieHeaders);
-            reply.status(302);
-            reply.header("location", redirectUrl);
-            return reply.send();
-          }
-        }
-      }
 
       return proxyBetterAuthResponse(reply, response);
     },
