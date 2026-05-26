@@ -3,7 +3,9 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": []
+      "env": ["NEXT_PUBLIC_*"],
+      "outputs": [],
+      "passThroughEnv": ["VERCEL_ENV", "VERCEL_URL", "VERCEL_PROJECT_PRODUCTION_URL"]
     },
     "lint": {
       "dependsOn": ["^lint"],
