@@ -6,6 +6,7 @@ import type { NextConfig } from "next";
 
 const webRoot = dirname(fileURLToPath(import.meta.url));
 const monorepoRoot = resolve(webRoot, "..", "..");
+const requiredPublicEnvKeys = ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_API_BASE_URL"] as const;
 
 function loadIfExists(filePath: string, override: boolean) {
   if (existsSync(filePath)) {
@@ -27,6 +28,20 @@ loadIfExists(resolve(webRoot, ".env.local"), true);
 if (nodeEnv === "development") {
   loadIfExists(resolve(webRoot, ".env.development"), true);
   loadIfExists(resolve(webRoot, ".env.development.local"), true);
+}
+
+if (nodeEnv === "production") {
+  const missingKeys = requiredPublicEnvKeys.filter((key) => !process.env[key]?.trim());
+  if (missingKeys.length > 0) {
+    console.error("[marginflow/web] Missing required public environment variables during Next.js production startup.", {
+      missingKeys,
+      nodeEnv,
+      vercelEnv: process.env.VERCEL_ENV,
+      vercelProjectProductionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+      vercelUrl: process.env.VERCEL_URL,
+      rootDirectory: "apps/web",
+    });
+  }
 }
 
 const nextConfig: NextConfig = {

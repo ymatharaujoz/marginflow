@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getClientPublicEnv, getWebEnv, readPublicEnv } from "@/lib/env";
+import { getClientPublicEnv, getWebEnv, readPublicEnv, resetPublicEnvDiagnosticsForTests } from "@/lib/env";
 
 describe("readPublicEnv", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    resetPublicEnvDiagnosticsForTests();
   });
 
   it("accepts complete public environment", () => {
@@ -16,8 +17,8 @@ describe("readPublicEnv", () => {
     expect(env.NEXT_PUBLIC_API_BASE_URL).toBe("http://localhost:4000");
     expect(env.NEXT_PUBLIC_APP_NAME).toBe("MarginFlow");
     expect(env.NEXT_PUBLIC_APP_ICON).toBe("M");
-    expect(env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL).toBe("US$ 99");
-    expect(env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL).toBe("US$ 79");
+    expect(env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL).toBe("R$ 99");
+    expect(env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL).toBe("R$ 79");
   });
 
   it("uses localhost defaults when vars are omitted outside production", () => {
@@ -27,7 +28,7 @@ describe("readPublicEnv", () => {
     expect(env.NEXT_PUBLIC_APP_URL).toBe("http://localhost:3000");
     expect(env.NEXT_PUBLIC_API_BASE_URL).toBe("http://localhost:4000");
     expect(env.NEXT_PUBLIC_APP_NAME).toBe("MarginFlow");
-    expect(env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL).toBe("US$ 99");
+    expect(env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL).toBe("R$ 99");
   });
 
   it("reads custom branding and price labels when set", () => {
@@ -49,7 +50,9 @@ describe("readPublicEnv", () => {
 
   it("rejects missing public urls in production even when sourcing empty overrides", () => {
     vi.stubEnv("NODE_ENV", "production");
-    expect(() => readPublicEnv({})).toThrow();
+    expect(() => readPublicEnv({})).toThrow(
+      "Invalid public environment configuration. Missing: NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_API_BASE_URL. Configure them in Vercel Project Settings > Environment Variables for the active environment and redeploy.",
+    );
   });
 
   it("reads process-like sources through helper", () => {
@@ -93,5 +96,32 @@ describe("readPublicEnv", () => {
         NEXT_PUBLIC_WHATSAPP_DEMO_URL: "not-a-url",
       }),
     ).toThrow();
+  });
+
+  it("logs a server-side diagnostic once when production public urls are missing", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("VERCEL_URL", "marginflow-web.vercel.app");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "marginflow-web.vercel.app");
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect(() => readPublicEnv({})).toThrow(
+      "Invalid public environment configuration. Missing: NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_API_BASE_URL. Configure them in Vercel Project Settings > Environment Variables for the active environment and redeploy.",
+    );
+    expect(() => readPublicEnv({})).toThrow();
+
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "[marginflow/web] Missing required public environment variables in production.",
+      expect.objectContaining({
+        missingKeys: ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_API_BASE_URL"],
+        nodeEnv: "production",
+        vercelEnv: "production",
+        vercelProjectProductionUrl: "marginflow-web.vercel.app",
+        vercelUrl: "marginflow-web.vercel.app",
+        NEXT_PUBLIC_API_BASE_URL: false,
+        NEXT_PUBLIC_APP_URL: false,
+      }),
+    );
   });
 });
