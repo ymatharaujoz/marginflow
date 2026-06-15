@@ -4,7 +4,7 @@ import { brandSeoTitle, createPageMetadata, resolveSiteConfig } from "@/lib/site
 const brand = resolveSiteConfig();
 
 export const metadata = createPageMetadata({
-  description: `${brand.name} é uma plataforma premium para acompanhar margem, lucro líquido, vendas e performance por canal em um só lugar.`,
+  description: `${brand.name} é uma plataforma para acompanhar margem, lucro líquido, vendas e performance por marketplace em um só lugar.`,
   keywords: [
     "dashboard financeiro",
     "margem de lucro",
@@ -15,7 +15,7 @@ export const metadata = createPageMetadata({
     "analytics marketplace",
   ],
   path: "/",
-  title: brandSeoTitle("Clareza sobre lucro e margem para o seu negócio"),
+  title: brandSeoTitle("Veja o lucro que realmente importa."),
 });
 
 export default function MarketingPage() {
