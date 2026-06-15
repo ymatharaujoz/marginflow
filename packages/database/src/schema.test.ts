@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { createDatabaseClient } from "./client";
 import {
   accounts,
+  billingTrials,
   companies,
   dbSchema,
   fixedCosts,
@@ -26,6 +27,7 @@ describe("@marginflow/database schema", () => {
     expect(dbSchema.products).toBe(products);
     expect(dbSchema.users).toBe(users);
     expect(dbSchema.accounts).toBe(accounts);
+    expect(dbSchema.billingTrials).toBe(billingTrials);
     expect(dbSchema.verifications).toBe(verifications);
   });
 
@@ -55,6 +57,8 @@ describe("@marginflow/database schema", () => {
     };
     const companyInsert: typeof companies.$inferInsert = {
       code: "MELI",
+      fixedCostDefault: "0",
+      taxRateDefault: "0",
       name: "Mercado Livre",
       organizationId: randomUUID(),
       userId: "user_123",
@@ -62,8 +66,54 @@ describe("@marginflow/database schema", () => {
 
     expect(organizationInsert.slug).toBe("demo-org");
     expect(companyInsert.code).toBe("MELI");
+    expect(companyInsert.fixedCostDefault).toBe("0");
+    expect(companyInsert.taxRateDefault).toBe("0");
     expect(financeDefaultsInsert.productId).toBeDefined();
     expect(productInsert.name).toBe("Produto");
+  });
+
+  it("keeps billing trial persistence aligned with migration assets", () => {
+    const billingTrialsMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0011_billing_trials.sql"),
+      "utf8",
+    );
+
+    expect(billingTrialsMigration).toContain(
+      'CREATE TABLE IF NOT EXISTS "billing_trials"',
+    );
+    expect(billingTrialsMigration).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "billing_trials_user_id_key"',
+    );
+    expect(billingTrialsMigration).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "billing_trials_email_key"',
+    );
+    expect(billingTrialsMigration).toContain(
+      'ADD COLUMN IF NOT EXISTS "trial_start"',
+    );
+    expect(billingTrialsMigration).toContain(
+      'ADD COLUMN IF NOT EXISTS "trial_end"',
+    );
+    expect(billingTrialsMigration).toContain('INSERT INTO "billing_trials"');
+  });
+
+  it("keeps company finance defaults aligned with migration assets", () => {
+    const companyDefaultsMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0009_company_finance_defaults.sql"),
+      "utf8",
+    );
+
+    expect(companyDefaultsMigration).toContain(
+      'ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "fixed_cost_default" numeric(12, 2) DEFAULT \'0\' NOT NULL;',
+    );
+    expect(companyDefaultsMigration).toContain(
+      'ALTER TABLE "companies" ADD COLUMN IF NOT EXISTS "tax_rate_default" numeric(8, 6) DEFAULT \'0\' NOT NULL;',
+    );
+    expect(companyDefaultsMigration).toContain(
+      "companies_fixed_cost_default_non_negative",
+    );
+    expect(companyDefaultsMigration).toContain(
+      "companies_tax_rate_default_range",
+    );
   });
 
   it("keeps product finance defaults aligned with migration assets", () => {
@@ -72,25 +122,56 @@ describe("@marginflow/database schema", () => {
       "utf8",
     );
     const financeDefaultsCleanupMigration = readFileSync(
-      path.resolve(__dirname, "../drizzle/0007_product_finance_defaults_cleanup.sql"),
+      path.resolve(
+        __dirname,
+        "../drizzle/0007_product_finance_defaults_cleanup.sql",
+      ),
       "utf8",
     );
 
-    expect(financeDefaultsCreateMigration).toContain('CREATE TABLE IF NOT EXISTS "product_finance_defaults"');
-    expect(financeDefaultsCreateMigration).toContain('"organization_id" uuid NOT NULL');
-    expect(financeDefaultsCreateMigration).toContain('"product_id" uuid NOT NULL');
-    expect(financeDefaultsCreateMigration).toContain('"packaging_cost" numeric(12, 2) DEFAULT \'0\' NOT NULL');
-    expect(financeDefaultsCreateMigration).toContain('"tax_rate" numeric(8, 6) DEFAULT \'0\' NOT NULL');
-    expect(financeDefaultsCreateMigration).toContain('"advertising_cost" numeric(12, 2) DEFAULT \'0\' NOT NULL');
+    expect(financeDefaultsCreateMigration).toContain(
+      'CREATE TABLE IF NOT EXISTS "product_finance_defaults"',
+    );
+    expect(financeDefaultsCreateMigration).toContain(
+      '"organization_id" uuid NOT NULL',
+    );
+    expect(financeDefaultsCreateMigration).toContain(
+      '"product_id" uuid NOT NULL',
+    );
+    expect(financeDefaultsCreateMigration).toContain(
+      "\"packaging_cost\" numeric(12, 2) DEFAULT '0' NOT NULL",
+    );
+    expect(financeDefaultsCreateMigration).toContain(
+      "\"advertising_cost\" numeric(12, 2) DEFAULT '0' NOT NULL",
+    );
     expect(financeDefaultsCreateMigration).toContain(
       'CREATE UNIQUE INDEX IF NOT EXISTS "product_finance_defaults_product_id_key"',
     );
-    expect(financeDefaultsCleanupMigration).toContain('DROP INDEX IF EXISTS "product_finance_defaults_organization_id_idx"');
+    expect(financeDefaultsCleanupMigration).toContain(
+      'DROP INDEX IF EXISTS "product_finance_defaults_organization_id_idx"',
+    );
     expect(financeDefaultsCleanupMigration).toContain(
       'DROP CONSTRAINT IF EXISTS "product_finance_defaults_organization_id_organizations_id_fk"',
     );
     expect(financeDefaultsCleanupMigration).toContain(
       'DROP COLUMN IF EXISTS "organization_id"',
+    );
+  });
+
+  it("keeps tax removal migration aligned with schema", () => {
+    const taxGlobalizationMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0010_globalize_company_tax.sql"),
+      "utf8",
+    );
+
+    expect(taxGlobalizationMigration).toContain(
+      'DROP COLUMN IF EXISTS "tax_rate";',
+    );
+    expect(taxGlobalizationMigration).toContain(
+      'DROP CONSTRAINT IF EXISTS "product_finance_defaults_tax_rate_range"',
+    );
+    expect(taxGlobalizationMigration).toContain(
+      'DROP CONSTRAINT IF EXISTS "product_monthly_performance_tax_rate_range"',
     );
   });
 
@@ -103,6 +184,7 @@ describe("@marginflow/database schema", () => {
     expect(baselineMigration).toContain('CREATE TABLE "user"');
     expect(baselineMigration).toContain('CREATE TABLE "session"');
     expect(baselineMigration).toContain('CREATE TABLE "account"');
+    expect(baselineMigration).toContain('"password" text');
     expect(baselineMigration).not.toContain('CREATE TABLE "users"');
     expect(baselineMigration).not.toContain('CREATE TABLE "sessions"');
     expect(baselineMigration).not.toContain('CREATE TABLE "auth_accounts"');
@@ -114,19 +196,25 @@ describe("@marginflow/database schema", () => {
       "utf8",
     );
 
-    expect(financeMigration).toContain("ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;");
-    expect(financeMigration).toContain("ALTER TABLE public.companies FORCE ROW LEVEL SECURITY;");
     expect(financeMigration).toContain(
-      'CREATE POLICY "Members can view own companies"'
+      "ALTER TABLE public.companies ENABLE ROW LEVEL SECURITY;",
     );
-    expect(financeMigration).toContain('FROM public.organization_members om');
-    expect(financeMigration).toContain("om.organization_id = companies.organization_id");
+    expect(financeMigration).toContain(
+      "ALTER TABLE public.companies FORCE ROW LEVEL SECURITY;",
+    );
+    expect(financeMigration).toContain(
+      'CREATE POLICY "Members can view own companies"',
+    );
+    expect(financeMigration).toContain("FROM public.organization_members om");
+    expect(financeMigration).toContain(
+      "om.organization_id = companies.organization_id",
+    );
     expect(financeMigration).toContain("om.user_id = auth.uid()::text");
     expect(financeMigration).toContain(
-      'CREATE POLICY "Members can insert own product performance"'
+      'CREATE POLICY "Members can insert own product performance"',
     );
     expect(financeMigration).toContain(
-      'CREATE POLICY "Members can insert own fixed costs"'
+      'CREATE POLICY "Members can insert own fixed costs"',
     );
   });
 
@@ -136,7 +224,10 @@ describe("@marginflow/database schema", () => {
       "utf8",
     );
     const analyticsScopeMigration = readFileSync(
-      path.resolve(__dirname, "../drizzle/0005_product_monthly_performance_analytics_scope.sql"),
+      path.resolve(
+        __dirname,
+        "../drizzle/0005_product_monthly_performance_analytics_scope.sql",
+      ),
       "utf8",
     );
 

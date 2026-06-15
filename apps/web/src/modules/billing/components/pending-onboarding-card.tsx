@@ -44,7 +44,7 @@ export function PendingOnboardingCard() {
                   <Button
                     asChild
                     variant="primary"
-                    className="gap-2 text-white hover:text-white [&_svg]:text-white"
+                    className="gap-2 text-accent-foreground hover:text-accent-foreground [&_svg]:text-accent-foreground"
                   >
                     <Link href="/app/onboarding">
                       Completar configuração

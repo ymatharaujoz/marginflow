@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getCatalogCompanyRequirementMessage,
   getManualProductCompanyValidationMessage,
   resolveManualProductCompanyState,
 } from "./manual-product-company-state";
@@ -27,9 +28,11 @@ describe("manual product company state", () => {
           {
             code: "MAIN",
             createdAt: "2026-05-15T10:00:00.000Z",
+            fixedCostDefault: "0.00",
             id: "company_1",
             isActive: true,
             name: "Empresa Principal",
+            taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
         ],
@@ -51,17 +54,21 @@ describe("manual product company state", () => {
           {
             code: "MAIN",
             createdAt: "2026-05-15T10:00:00.000Z",
+            fixedCostDefault: "0.00",
             id: "company_1",
             isActive: true,
             name: "Empresa Principal",
+            taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
           {
             code: "SHOP",
             createdAt: "2026-05-15T10:00:00.000Z",
+            fixedCostDefault: "0.00",
             id: "company_2",
             isActive: true,
             name: "Filial Shop",
+            taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
         ],
@@ -83,17 +90,21 @@ describe("manual product company state", () => {
           {
             code: "MAIN",
             createdAt: "2026-05-15T10:00:00.000Z",
+            fixedCostDefault: "0.00",
             id: "company_1",
             isActive: true,
             name: "Empresa Principal",
+            taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
           {
             code: "SHOP",
             createdAt: "2026-05-15T10:00:00.000Z",
+            fixedCostDefault: "0.00",
             id: "company_2",
             isActive: true,
             name: "Filial Shop",
+            taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
         ],
@@ -101,6 +112,16 @@ describe("manual product company state", () => {
       }),
     ).toBe(
       "Selecione a empresa que deve receber os custos e impostos mensais deste produto.",
+    );
+  });
+
+  it("requires exactly one active company for catalog product creation/import", () => {
+    expect(getCatalogCompanyRequirementMessage(0)).toBe(
+      "Cadastre uma empresa ativa em /app antes de criar ou importar produtos.",
+    );
+    expect(getCatalogCompanyRequirementMessage(1)).toBeNull();
+    expect(getCatalogCompanyRequirementMessage(2)).toBe(
+      "Mantenha apenas uma empresa ativa em /app antes de criar ou importar produtos.",
     );
   });
 });

@@ -28,6 +28,7 @@ export function ManageSubscriptionPanel({
 
   const subscription = billingState?.subscription;
   const isActive = billingState?.status === "active";
+  const hasSubscription = Boolean(subscription?.externalSubscriptionId);
   const isPendingOnboarding = billingState?.status === "pending_onboarding";
   const cancelAtPeriodEnd = subscription?.cancelAtPeriodEnd ?? false;
 
@@ -36,10 +37,10 @@ export function ManageSubscriptionPanel({
     setMessage(null);
 
     try {
-      const response = await apiClient.post<{ data: { portalUrl: string }; error: null }>(
-        "/billing/portal",
-        {},
-      );
+      const response = await apiClient.post<{
+        data: { portalUrl: string };
+        error: null;
+      }>("/billing/portal", {});
       window.location.assign(response.data.portalUrl);
     } catch (error) {
       const errorMessage =
@@ -84,7 +85,7 @@ export function ManageSubscriptionPanel({
       {isPendingOnboarding && <PendingOnboardingCard />}
 
       {/* Estado ativo - Cards de gerenciamento */}
-      {isActive && (
+      {hasSubscription && (
         <>
           {/* Divider */}
           <hr className="border-border" />
@@ -96,6 +97,7 @@ export function ManageSubscriptionPanel({
               interval={subscription?.interval || "monthly"}
               status={subscription?.status || "Inativo"}
               currentPeriodEnd={subscription?.currentPeriodEnd ?? null}
+              trialEnd={subscription?.trialEnd ?? null}
               cancelAtPeriodEnd={cancelAtPeriodEnd}
               isActive={isActive}
               onManageSubscription={handleManageSubscription}

@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "@/components/auth/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type AppTopBarProps = {
   onMenuToggle: () => void;
@@ -40,6 +41,7 @@ export function AppTopBar({ onMenuToggle }: AppTopBarProps) {
           <h1 className="text-lg font-semibold text-foreground">{title}</h1>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <SignOutButton />
         </div>
       </div>

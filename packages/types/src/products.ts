@@ -22,7 +22,6 @@ export type ProductCostFormValues = {
 export type ProductManualCreateInitialFinanceValues = {
   unitCost: DecimalString;
   packagingCost: DecimalString;
-  taxRate: DecimalString;
 };
 
 export type ProductManualCreateFormValues = {
@@ -160,7 +159,6 @@ export type ProductFinanceDefaultsRecord = {
   id: string;
   productId: string;
   packagingCost: DecimalString;
-  taxRate: DecimalString;
   advertisingCost: DecimalString;
   createdAt: string;
   updatedAt: string;
@@ -225,6 +223,7 @@ export type ProductAnalyticsScope = {
   companyId: string | null;
   companyRequired: boolean;
   referenceMonth: string;
+  taxRateDefault: DecimalString;
 };
 
 export type ProductMonthlyPerformanceDisplayRow = {
@@ -238,7 +237,6 @@ export type ProductMonthlyPerformanceDisplayRow = {
   salePrice: DecimalString;
   commissionRate: DecimalString;
   shippingFee: DecimalString;
-  taxRate: DecimalString;
   packagingCost: DecimalString;
   advertisingCost: DecimalString;
   marketplaceCommission?: DecimalString;

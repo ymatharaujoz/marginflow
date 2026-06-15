@@ -23,16 +23,20 @@ export class CreateCompanyRequestDto implements CompanyFormInput {
   static schema = companyFormSchema;
 
   code!: string;
+  fixedCostDefault!: string;
   isActive!: boolean;
   name!: string;
+  taxRateDefault!: string;
 }
 
 export class UpdateCompanyRequestDto implements CompanyUpdateInput {
   static schema = companyUpdateSchema;
 
   code?: string;
+  fixedCostDefault?: string;
   isActive?: boolean;
   name?: string;
+  taxRateDefault?: string;
 }
 
 export class ListPerformanceQueryDto implements PerformanceFiltersInput {
@@ -60,7 +64,6 @@ export class CreatePerformanceRequestDto implements ProductMonthlyPerformanceFor
   salesQuantity!: number;
   shippingFee!: string;
   sku!: string;
-  taxRate!: string;
   unitCost!: string;
 }
 
@@ -80,7 +83,6 @@ export class UpdatePerformanceRequestDto implements ProductMonthlyPerformanceUpd
   salesQuantity?: number;
   shippingFee?: string;
   sku?: string;
-  taxRate?: string;
   unitCost?: string;
 }
 

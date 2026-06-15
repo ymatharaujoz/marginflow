@@ -80,9 +80,11 @@ describe("finance inputs controllers", () => {
       {
         code: "MELI",
         createdAt: "2026-05-09T10:00:00.000Z",
+        fixedCostDefault: "1500.00",
         id: "company_1",
         isActive: true,
         name: "Mercado Livre",
+        taxRateDefault: "0.120000",
         updatedAt: "2026-05-09T10:00:00.000Z",
       },
     ]);
@@ -110,9 +112,11 @@ describe("finance inputs controllers", () => {
     vi.spyOn(financeInputsService, "createCompany").mockResolvedValueOnce({
       code: "MELI",
       createdAt: "2026-05-09T10:00:00.000Z",
+      fixedCostDefault: "1500.00",
       id: "company_1",
       isActive: true,
       name: "Mercado Livre",
+      taxRateDefault: "0.120000",
       updatedAt: "2026-05-09T10:00:00.000Z",
     });
 
@@ -120,8 +124,10 @@ describe("finance inputs controllers", () => {
       method: "POST",
       payload: {
         code: "meli",
+        fixedCostDefault: "1500.00",
         isActive: true,
         name: "Mercado Livre",
+        taxRateDefault: "0.120000",
       },
       url: "/companies",
     });
@@ -130,7 +136,9 @@ describe("finance inputs controllers", () => {
     expect(response.json().data).toEqual(
       expect.objectContaining({
         code: "MELI",
+        fixedCostDefault: "1500.00",
         id: "company_1",
+        taxRateDefault: "0.120000",
       }),
     );
   });
@@ -146,16 +154,20 @@ describe("finance inputs controllers", () => {
     vi.spyOn(financeInputsService, "updateCompany").mockResolvedValueOnce({
       code: "MELI",
       createdAt: "2026-05-09T10:00:00.000Z",
+      fixedCostDefault: "1750.00",
       id: "company_1",
       isActive: false,
       name: "Mercado Livre",
+      taxRateDefault: "0.090000",
       updatedAt: "2026-05-09T12:00:00.000Z",
     });
 
     const response = await app.inject({
       method: "PATCH",
       payload: {
+        fixedCostDefault: "1750.00",
         isActive: false,
+        taxRateDefault: "0.090000",
       },
       url: "/companies/company_1",
     });
@@ -163,8 +175,10 @@ describe("finance inputs controllers", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual(
       expect.objectContaining({
+        fixedCostDefault: "1750.00",
         id: "company_1",
         isActive: false,
+        taxRateDefault: "0.090000",
       }),
     );
   });
@@ -194,7 +208,6 @@ describe("finance inputs controllers", () => {
         salesQuantity: 10,
         shippingFee: "5.00",
         sku: "SKU-1",
-        taxRate: "0.04",
         unitCost: "30.00",
         updatedAt: "2026-05-09T10:00:00.000Z",
       },
@@ -238,7 +251,6 @@ describe("finance inputs controllers", () => {
         salesQuantity: 10,
         shippingFee: "5.00",
         sku: "SKU-1",
-        taxRate: "0.04",
         unitCost: "30.00",
       },
       url: "/performance",
@@ -272,7 +284,6 @@ describe("finance inputs controllers", () => {
       salesQuantity: 10,
       shippingFee: "5.00",
       sku: "SKU-1",
-      taxRate: "0.04",
       unitCost: "30.00",
       updatedAt: "2026-05-09T11:00:00.000Z",
     });
@@ -318,7 +329,6 @@ describe("finance inputs controllers", () => {
       salesQuantity: 10,
       shippingFee: "5.00",
       sku: "SKU-1",
-      taxRate: "0.04",
       unitCost: "30.00",
       updatedAt: "2026-05-09T10:00:00.000Z",
     });

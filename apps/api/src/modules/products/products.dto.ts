@@ -46,7 +46,6 @@ export class CreateManualProductRequestDto implements ProductManualCreateInput {
 
   initialFinance!: {
     packagingCost: string;
-    taxRate: string;
     unitCost: string;
   };
 

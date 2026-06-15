@@ -4,6 +4,7 @@ import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
 import { hasActiveCompany, readServerCompanies } from "@/lib/server-companies";
+import { getActiveCompany } from "@/modules/dashboard/components/company-finance-defaults";
 
 export default async function AppHomePage() {
   const [authState, billingState] = await Promise.all([
@@ -27,7 +28,12 @@ export default async function AppHomePage() {
     redirect("/app/onboarding");
   }
 
+  const activeCompany = getActiveCompany(companies);
+
   return (
-    <DashboardHome organizationName={authState.organization?.name ?? authState.user.name} />
+    <DashboardHome
+      activeCompany={activeCompany}
+      organizationName={authState.organization?.name ?? authState.user.name}
+    />
   );
 }

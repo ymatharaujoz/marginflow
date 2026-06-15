@@ -145,6 +145,51 @@ describe("AuthExchangeService", () => {
     });
   });
 
+  it("accepts string timestamps from database rows when consuming ticket", async () => {
+    const { db, organizationProvisioningService, service } = createService();
+    db.query.authExchangeTickets.findFirst.mockResolvedValue({
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      id: "exchange_123",
+      remoteSessionToken: "remote_session_token_123",
+      sessionId: "session_123",
+      userId: "user_123",
+      usedAt: null,
+    });
+    db.query.sessions.findFirst.mockResolvedValue({
+      expiresAt: "2026-12-31T00:00:00.000Z",
+      id: "session_123",
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    organizationProvisioningService.findDefaultOrganization.mockResolvedValue(null);
+
+    const payload = await service.consumeTicket("ticket_123");
+
+    expect(payload).toEqual({
+      authState: {
+        onboardingStatus: "organization_missing",
+        organization: null,
+        session: {
+          expiresAt: "2026-12-31T00:00:00.000Z",
+          id: "session_123",
+        },
+        user: {
+          email: "owner@marginflow.local",
+          emailVerified: true,
+          id: "user_123",
+          image: null,
+          name: "Mateus",
+        },
+      },
+      remoteSessionToken: "remote_session_token_123",
+    });
+  });
+
   it("rejects ticket consumption when the stored Better Auth session row no longer exists", async () => {
     const { db, service } = createService();
     db.query.authExchangeTickets.findFirst.mockResolvedValue({

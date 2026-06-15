@@ -40,7 +40,7 @@ export function Modal({ children, className, onClose, open, title }: ModalProps)
       />
       <div
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-[var(--radius-xl)] border border-border bg-surface-strong p-6 shadow-[var(--shadow-xl)] animate-rise-in",
+          "relative z-10 w-full max-w-lg max-h-[90vh] flex flex-col rounded-[var(--radius-xl)] border border-border bg-surface-strong shadow-[var(--shadow-xl)] animate-rise-in",
           className,
         )}
         role="dialog"
@@ -48,7 +48,7 @@ export function Modal({ children, className, onClose, open, title }: ModalProps)
         aria-label={title}
       >
         {title && (
-          <div className="mb-4 flex items-center justify-between">
+          <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-6 py-4">
             <h2 className="text-lg font-semibold text-foreground">{title}</h2>
             <button
               className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors"
@@ -62,7 +62,9 @@ export function Modal({ children, className, onClose, open, title }: ModalProps)
             </button>
           </div>
         )}
-        {children}
+        <div className={cn("overflow-y-auto mf-scrollbar min-h-0", title ? "px-6 py-5" : "px-6 py-6")}>
+          {children}
+        </div>
       </div>
     </div>
   );

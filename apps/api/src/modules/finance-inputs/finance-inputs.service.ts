@@ -66,9 +66,11 @@ export class FinanceInputsService {
       .insert(companies)
       .values({
         code: input.code.trim().toUpperCase(),
+        fixedCostDefault: input.fixedCostDefault ?? "0",
         isActive: input.isActive ?? true,
         name: input.name.trim(),
         organizationId: context.organizationId,
+        taxRateDefault: input.taxRateDefault ?? "0",
         userId: context.userId,
       })
       .returning();
@@ -87,8 +89,10 @@ export class FinanceInputsService {
       .update(companies)
       .set({
         ...(input.code !== undefined ? { code: input.code.trim().toUpperCase() } : {}),
+        ...(input.fixedCostDefault !== undefined ? { fixedCostDefault: input.fixedCostDefault } : {}),
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.taxRateDefault !== undefined ? { taxRateDefault: input.taxRateDefault } : {}),
       })
       .where(
         and(
@@ -147,7 +151,6 @@ export class FinanceInputsService {
         salesQuantity: input.salesQuantity,
         shippingFee: input.shippingFee,
         sku: input.sku.trim(),
-        taxRate: input.taxRate,
         unitCost: input.unitCost,
         userId: context.userId,
       })
@@ -183,7 +186,6 @@ export class FinanceInputsService {
         ...(input.salesQuantity !== undefined ? { salesQuantity: input.salesQuantity } : {}),
         ...(input.shippingFee !== undefined ? { shippingFee: input.shippingFee } : {}),
         ...(input.sku !== undefined ? { sku: input.sku.trim() } : {}),
-        ...(input.taxRate !== undefined ? { taxRate: input.taxRate } : {}),
         ...(input.unitCost !== undefined ? { unitCost: input.unitCost } : {}),
       })
       .where(
@@ -363,9 +365,11 @@ export class FinanceInputsService {
     return {
       code: row.code,
       createdAt: row.createdAt.toISOString(),
+      fixedCostDefault: String(row.fixedCostDefault),
       id: row.id,
       isActive: row.isActive,
       name: row.name,
+      taxRateDefault: String(row.taxRateDefault),
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -387,7 +391,6 @@ export class FinanceInputsService {
       salesQuantity: row.salesQuantity,
       shippingFee: String(row.shippingFee),
       sku: row.sku,
-      taxRate: String(row.taxRate),
       unitCost: String(row.unitCost),
       updatedAt: row.updatedAt.toISOString(),
     };

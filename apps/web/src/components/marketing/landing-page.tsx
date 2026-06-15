@@ -4,39 +4,15 @@ import Link from "next/link";
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { scrollToLandingSection } from "@/components/marketing/scroll-to-landing-section";
-import { PUBLIC_BRAND } from "@/lib/public-branding";
-import { getWhatsappDemoUrl, pricingPlans } from "@/lib/site";
+import { pricingPlans } from "@/lib/site";
 import { HeroMetrics } from "./hero-metrics";
-import { MarketplaceLogosBar } from "./marketplace-icons";
 import { DashboardShowcase } from "./dashboard-showcase";
 import { SocialProof } from "./social-proof";
 import { IntegrationsSection } from "./integrations-section";
 import { ParticleCanvas } from "@/components/auth/particle-canvas";
+import { ScheduleDemoLink } from "./schedule-demo-link";
 
 const easeOut = [0.16, 1, 0.3, 1] as const;
-
-function ScheduleDemoLink({ className }: { className: string }) {
-  const wa = getWhatsappDemoUrl();
-  if (wa) {
-    return (
-      <a href={wa} target="_blank" rel="noopener noreferrer" className={className}>
-        Agendar demonstração
-      </a>
-    );
-  }
-  return (
-    <Link
-      href="#demo"
-      className={className}
-      onClick={(e) => {
-        e.preventDefault();
-        scrollToLandingSection("demo");
-      }}
-    >
-      Agendar demonstração
-    </Link>
-  );
-}
 
 function CheckIcon() {
   return (
@@ -79,8 +55,10 @@ function HeroDashboardPreview() {
   ];
 
   const channelData = [
-    { name: "Mercado Livre", profit: "R$ 32,1 mil", color: "bg-yellow-400" },
-    { name: "Shopee", profit: "R$ 16,1 mil", color: "bg-orange-500" },
+    { name: "Mercado Livre", profit: "R$ 32,1 mil", color: "bg-yellow-400", width: "48%" },
+    { name: "Shopee", profit: "R$ 16,1 mil", color: "bg-orange-500", width: "28%" },
+    { name: "TikTok", profit: "Em breve", color: "bg-neutral-800 dark:bg-neutral-200", width: "12%" },
+    { name: "Shein", profit: "Em breve", color: "bg-neutral-500", width: "12%" },
   ];
 
   const insights = [
@@ -94,6 +72,13 @@ function HeroDashboardPreview() {
     { name: "Smart Watch X1", channel: "MELI", health: "Saudável", profit: "R$ 12.300", margin: "28%" },
     { name: "Carregador Turbo", channel: "SHPE", health: "Saudável", profit: "R$ 4.680", margin: "41%" },
   ];
+
+  const currentMonthYear = new Date().toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+  const formattedMonthYear =
+    currentMonthYear.charAt(0).toUpperCase() + currentMonthYear.slice(1);
 
   return (
     <motion.div
@@ -111,11 +96,11 @@ function HeroDashboardPreview() {
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-md bg-gradient-to-br from-accent to-accent-strong" />
-            <span className="text-sm font-semibold text-foreground">{PUBLIC_BRAND.name}</span>
+            <span className="text-sm font-semibold text-foreground">Meu Negócio</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-            <span className="text-xs text-muted-foreground">Ao vivo</span>
+            <span className="text-xs text-muted-foreground">Atualizado</span>
           </div>
         </div>
 
@@ -123,7 +108,7 @@ function HeroDashboardPreview() {
         <div className="p-4">
           {/* Title */}
           <div className="mb-3">
-            <p className="text-[10px] text-muted-foreground">Visão geral - Maio 2026</p>
+            <p className="text-[10px] text-muted-foreground">{`Visão geral - ${formattedMonthYear}`}</p>
             <h3 className="text-base font-bold text-foreground">Dashboard do negócio</h3>
           </div>
 
@@ -153,7 +138,6 @@ function HeroDashboardPreview() {
               <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                 Evolução Financeira
               </p>
-              <p className="mb-2 text-[10px] text-muted-foreground">Receita bruta vs Lucro</p>
               <div className="relative h-20">
                 <svg viewBox="0 0 200 60" className="h-full w-full" preserveAspectRatio="none">
                   <defs>
@@ -208,7 +192,7 @@ function HeroDashboardPreview() {
                         <motion.div
                           className={`h-full rounded-full ${ch.color}`}
                           initial={{ width: 0 }}
-                          animate={{ width: ch.name === "Mercado Livre" ? "66%" : "34%" }}
+                          animate={{ width: ch.width }}
                           transition={{ duration: 1, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
                         />
                       </div>
@@ -267,9 +251,7 @@ function HeroDashboardPreview() {
                   className="grid grid-cols-4 gap-1 text-[10px]"
                 >
                   <span className="col-span-2 truncate font-medium text-foreground">{p.name}</span>
-                  <span className={`text-[9px] font-medium ${
-                    p.health === "Escalável" ? "text-accent" : "text-success"
-                  }`}>{p.health}</span>
+                  <span className="text-[9px] font-medium text-accent">{p.health}</span>
                   <span className="text-right font-medium text-accent">{p.profit}</span>
                 </motion.div>
               ))}
@@ -329,7 +311,7 @@ function FeatureCard({
       whileHover={reduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
       className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-lg"
     >
-      <IconOrb color={color}>{icon}</IconOrb>
+      <IconOrb color="accent">{icon}</IconOrb>
       <h3 className="mt-4 text-lg font-semibold text-foreground">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{description}</p>
 
@@ -441,7 +423,7 @@ export function LandingPage() {
   const features = [
     {
       title: "Dashboard em Tempo Real",
-      description: "Acompanhe receita, lucro e margem em tempo real com atualizações automáticas a cada sincronização",
+      description: "Acompanhe receita, lucro e margem em tempo real com atualizações automáticas a cada venda.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -451,7 +433,7 @@ export function LandingPage() {
     },
     {
       title: "Gestão de Lucro por SKU",
-      description: "Saiba exatamente quanto cada produto está lucrando, considerando todos os custos e taxas",
+      description: "Saiba exatamente quanto cada produto está lucrando, considerando todos os custos e taxas.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
@@ -461,7 +443,7 @@ export function LandingPage() {
     },
     {
       title: "Analytics Avançado",
-      description: "Gráficos detalhados de vendas, comparativos por período e análise de tendências de crescimento",
+      description: "Gráficos detalhados de vendas, comparativos por período e análise de tendências de crescimento.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
@@ -471,7 +453,7 @@ export function LandingPage() {
     },
     {
       title: "Insights com IA",
-      description: "Receba recomendações inteligentes sobre preços, estoque e oportunidades de crescimento",
+      description: "Receba recomendações inteligentes sobre preços, estoque e oportunidades de crescimento.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -481,7 +463,7 @@ export function LandingPage() {
     },
     {
       title: "Performance de Anúncios",
-      description: "Acompanhe o ROI de seus anúncios e otimize seus investimentos em marketing",
+      description: "Acompanhe o ROI de seus anúncios e otimize seus investimentos em marketing.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
@@ -492,7 +474,7 @@ export function LandingPage() {
     },
     {
       title: "Comparativos entre Marketplaces",
-      description: "Compare a performance do seu negócio entre Mercado Livre, Shopee e Amazon em uma única visão",
+      description: "Compare a performance do seu negócio entre Mercado Livre, Shopee, TikTok e Shein em uma única visão. TikTok e Shein em breve.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
@@ -502,7 +484,7 @@ export function LandingPage() {
     },
     {
       title: "Alertas Automáticos",
-      description: "Seja notificado quando produtos atingirem margem negativa ou quando houver variações anormais",
+      description: "Seja notificado quando produtos atingirem margem negativa ou quando houver variações anormais.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -512,7 +494,7 @@ export function LandingPage() {
     },
     {
       title: "Relatórios Inteligentes",
-      description: "Gere relatórios executivos em PDF com os indicadores mais importantes do seu negócio",
+      description: "Gere relatórios executivos em PDF com os indicadores mais importantes do seu negócio.",
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -550,9 +532,12 @@ export function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, ease: easeOut }}
-                className="inline-flex items-center rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent"
+                className="inline-flex items-center gap-1.5 rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-accent"
               >
-                Plataforma de Analytics para Sellers
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                7 dias grátis — sem cartão de crédito
               </motion.p>
 
               {/* Headline */}
@@ -562,9 +547,9 @@ export function LandingPage() {
                 transition={{ duration: 0.5, delay: 0.1, ease: easeOut }}
                 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl lg:text-6xl"
               >
-                Descubra onde seu
+                Veja o lucro que 
                 <br />
-                <span className="text-accent">dinheiro está indo</span>
+                <span className="text-accent">realmente importa.</span>
               </motion.h1>
 
               {/* Subheadline */}
@@ -575,7 +560,7 @@ export function LandingPage() {
                 className="mt-6 text-lg leading-relaxed text-muted-foreground md:text-xl"
               >
                 Dashboard de lucro real com custos, taxas e comissões já descontados. Acompanhe margem, 
-                vendas e performance por canal — Mercado Livre, Shopee e Amazon — em tempo real
+                vendas e performance por canal em tempo real.
               </motion.p>
 
               {/* CTAs */}
@@ -583,25 +568,18 @@ export function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3, ease: easeOut }}
-                className="mt-8 flex flex-wrap gap-4"
+                className="mt-8 flex flex-wrap justify-center gap-4 sm:justify-start"
               >
                 <Link
                   href="/sign-in"
                   className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-8 text-sm font-semibold text-white shadow-md transition-all hover:bg-accent-strong hover:shadow-lg active:scale-[0.98]"
                 >
-                  Começar Gratuitamente
+                  Começar gratuitamente
                 </Link>
-                <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-surface px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
-              </motion.div>
-
-              {/* Marketplace Logos */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4, ease: easeOut }}
-                className="mt-10"
-              >
-                <MarketplaceLogosBar />
+                <ScheduleDemoLink
+                  allowDemoFallback={false}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]"
+                />
               </motion.div>
 
               {/* Hero Metrics */}
@@ -623,6 +601,7 @@ export function LandingPage() {
             </motion.div>
           </div>
         </div>
+
       </section>
 
       {/* Dashboard Showcase Section */}
@@ -643,11 +622,11 @@ export function LandingPage() {
               Recursos
             </span>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
-              Tudo que você precisa para escalar
+              Tudo que você precisa para escalar.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              De métricas ao vivo a insights com IA, cada funcionalidade foi pensada para ajudar você a vender
-              mais e lucrar mais
+              De métricas atualizadas a insights com IA, cada funcionalidade foi pensada para ajudar você a vender
+              mais e lucrar mais.
             </p>
           </motion.div>
 
@@ -700,11 +679,11 @@ export function LandingPage() {
               Planos
             </span>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
-              Escolha o plano ideal para você
+              Escolha o plano ideal para você.
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
               Comece gratuitamente e evolua conforme seu negócio cresce. Sem taxa de configuração, cancele quando
-              quiser
+              quiser.
             </p>
           </motion.div>
 
@@ -793,7 +772,7 @@ export function LandingPage() {
               Pronto para ver o lucro real do seu negócio?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-lg text-muted-foreground">
-              Junte-se a centenas de sellers profissionais que já descobriram onde estavam perdendo dinheiro
+              Junte-se a centenas de sellers profissionais que já descobriram onde estavam perdendo dinheiro.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
@@ -801,9 +780,9 @@ export function LandingPage() {
                 href="/sign-in"
                 className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-8 text-sm font-semibold text-white shadow-lg transition-all hover:bg-accent-strong hover:shadow-xl active:scale-[0.98]"
               >
-                Começar Agora
+                Começar gratuitamente
               </Link>
-              <ScheduleDemoLink className="inline-flex h-12 items-center justify-center rounded-xl border border-border bg-surface px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
+              <ScheduleDemoLink className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-border bg-surface px-8 text-sm font-semibold text-foreground transition-all hover:border-accent/30 hover:bg-accent/[0.02] active:scale-[0.98]" />
             </div>
 
             <p className="mt-6 text-sm text-muted-foreground">

@@ -8,7 +8,7 @@ export function resolveSiteConfig(source: Record<string, string | undefined> = p
   const env = readPublicEnv(source);
   const name = env.NEXT_PUBLIC_APP_NAME;
   return {
-    defaultDescription: `${name} é a plataforma de analytics para sellers que querem vender mais e lucrar mais. Centralize métricas de Mercado Livre, Shopee e Amazon em um só lugar.`,
+    defaultDescription: `${name} é a plataforma de analytics para sellers que querem vender mais e lucrar mais. Centralize métricas de Mercado Livre, Shopee, TikTok, Shein em um só lugar. TikTok e Shein em breve.`,
     defaultTitle: name,
     domainFallback: SITE_DOMAIN_FALLBACK,
     icon: env.NEXT_PUBLIC_APP_ICON,
@@ -36,8 +36,15 @@ export const marketingLandingNav = [
   { sectionId: "planos", label: "Planos" },
 ] as const;
 
-/** WhatsApp deep link for demo CTAs. Set `NEXT_PUBLIC_WHATSAPP_DEMO_URL` (e.g. `https://wa.me/5511…`). */
+const WHATSAPP_DEFAULT_MESSAGE = "Olá, gostaria de saber mais sobre a plataforma Lucreii.";
+
+/** WhatsApp deep link for "Fale conosco" CTAs. Prefer `NEXT_PUBLIC_WHATSAPP_PHONE` (digits only, e.g. 5511999999999). Falls back to `NEXT_PUBLIC_WHATSAPP_DEMO_URL` if set. */
 export function getWhatsappDemoUrl(source: Record<string, string | undefined> = process.env): string | undefined {
+  const phone = source.NEXT_PUBLIC_WHATSAPP_PHONE?.trim();
+  if (phone && /^\d{10,15}$/.test(phone)) {
+    return `https://wa.me/${phone}?text=${encodeURIComponent(WHATSAPP_DEFAULT_MESSAGE)}`;
+  }
+
   const raw = source.NEXT_PUBLIC_WHATSAPP_DEMO_URL;
   return typeof raw === "string" && /^https?:\/\//i.test(raw) ? raw : undefined;
 }
@@ -82,7 +89,7 @@ export const featureGroups = [
     items: [
       "Alertas automáticos de margem negativa",
       "Relatórios executivos em PDF",
-      "Integração com Mercado Livre, Shopee e Amazon",
+      "Integração com Mercado Livre, Shopee, TikTok e Shein (os dois últimos em breve)",
       "Sincronização manual em janelas diárias",
       "Histórico completo de vendas e métricas",
     ],
@@ -90,7 +97,7 @@ export const featureGroups = [
   },
   {
     items: [
-      "Login seguro com Google",
+      "Login seguro com e-mail e senha",
       "Acesso protegido por assinatura",
       "API para integrações customizadas",
       "Suporte prioritário no plano Growth",
@@ -110,6 +117,14 @@ export const integrationHighlights = [
     provider: "Shopee",
   },
   {
+    detail: "Integração em construção. Em breve sincronize pedidos, produtos e métricas do TikTok.",
+    provider: "TikTok — em breve",
+  },
+  {
+    detail: "Integração em construção. Em breve sincronize pedidos, produtos e métricas da Shein.",
+    provider: "Shein — em breve",
+  },
+  {
     detail: "Sobre custos de produtos, ads e fixos aos dados vindos dos marketplaces.",
     provider: "Inputs manuais",
   },
@@ -120,7 +135,7 @@ const pricingPlansTemplate = [
     annualPrice: "R$ 63",
     annualSuffix: "/ano",
     ctaHref: "/sign-in",
-    ctaLabel: "Começar Gratuitamente",
+    ctaLabel: "Começar gratuitamente",
     description: "Para operações que precisam de ritmo semanal de decisão e custo anual menor.",
     features: [
       "Produtos ilimitados",
@@ -191,7 +206,7 @@ export function getPublicRoutes(source: Record<string, string | undefined> = pro
 
     {
       changeFrequency: "weekly" as const,
-      description: "Integrações Mercado Livre, Shopee, Amazon e entradas manuais de custo.",
+      description: "Integrações Mercado Livre, Shopee, TikTok, Shein e entradas manuais de custo. TikTok e Shein em breve.",
       path: "/integrations",
       priority: 0.75,
       title: `Integrações | ${name}`,

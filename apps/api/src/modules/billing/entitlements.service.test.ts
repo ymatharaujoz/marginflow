@@ -3,11 +3,13 @@ import { EntitlementsService } from "./entitlements.service";
 
 function createService({
   billingCustomer = null,
+  billingTrial = null,
   subscription = null,
   pendingCheckout = null,
   pendingCheckoutError,
 }: {
   billingCustomer?: unknown;
+  billingTrial?: unknown;
   subscription?: unknown;
   pendingCheckout?: unknown;
   pendingCheckoutError?: unknown;
@@ -23,6 +25,9 @@ function createService({
     query: {
       billingCustomers: {
         findFirst: vi.fn().mockResolvedValue(billingCustomer),
+      },
+      billingTrials: {
+        findFirst: vi.fn().mockResolvedValue(billingTrial),
       },
       subscriptions: {
         findFirst: vi.fn().mockResolvedValue(subscription),
@@ -58,6 +63,41 @@ describe("EntitlementsService", () => {
     await expect(service.isOrganizationEntitled("org_123")).resolves.toBe(true);
   });
 
+  it("returns trial eligibility and trial dates in billing snapshot", async () => {
+    const { service } = createService({
+      billingTrial: {
+        redeemedAt: null,
+      },
+      subscription: {
+        billingCustomerId: "billing_customer_row",
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: new Date("2026-06-21T00:00:00.000Z"),
+        currentPeriodStart: new Date("2026-06-14T00:00:00.000Z"),
+        externalSubscriptionId: "sub_trial",
+        id: "subscription_123",
+        interval: "monthly",
+        planCode: "marginflow",
+        status: "trialing",
+        trialEnd: new Date("2026-06-21T00:00:00.000Z"),
+        trialStart: new Date("2026-06-14T00:00:00.000Z"),
+      },
+    });
+
+    await expect(
+      service.getBillingSnapshot({
+        organizationId: "org_123",
+        userId: "user_123",
+      }),
+    ).resolves.toMatchObject({
+      trialDays: 7,
+      trialEligible: true,
+      subscription: {
+        trialEnd: "2026-06-21T00:00:00.000Z",
+        trialStart: "2026-06-14T00:00:00.000Z",
+      },
+    });
+  });
+
   it("treats trialing subscriptions as entitled", async () => {
     const { service } = createService({
       subscription: {
@@ -74,6 +114,28 @@ describe("EntitlementsService", () => {
     });
 
     await expect(service.isOrganizationEntitled("org_123")).resolves.toBe(true);
+  });
+
+  it("blocks past-due subscriptions immediately", async () => {
+    const { service } = createService({
+      subscription: {
+        billingCustomerId: "billing_customer_row",
+        cancelAtPeriodEnd: false,
+        currentPeriodEnd: new Date("2026-06-21T00:00:00.000Z"),
+        currentPeriodStart: new Date("2026-06-14T00:00:00.000Z"),
+        externalSubscriptionId: "sub_past_due",
+        id: "subscription_123",
+        interval: "monthly",
+        planCode: "marginflow",
+        status: "past_due",
+        trialEnd: new Date("2026-06-21T00:00:00.000Z"),
+        trialStart: new Date("2026-06-14T00:00:00.000Z"),
+      },
+    });
+
+    await expect(service.isOrganizationEntitled("org_123")).resolves.toBe(
+      false,
+    );
   });
 
   it("returns an inactive snapshot when no subscription exists", async () => {
@@ -94,13 +156,18 @@ describe("EntitlementsService", () => {
       pendingCheckout: null,
       status: "inactive",
       subscription: null,
+      trialDays: 7,
+      trialEligible: false,
     });
   });
 
   it("treats a missing pending_checkouts table as no pending checkout", async () => {
-    const err = Object.assign(new Error('relation "pending_checkouts" does not exist'), {
-      code: "42P01",
-    });
+    const err = Object.assign(
+      new Error('relation "pending_checkouts" does not exist'),
+      {
+        code: "42P01",
+      },
+    );
     const { service } = createService({
       subscription: null,
       pendingCheckoutError: err,

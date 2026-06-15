@@ -143,7 +143,7 @@ export function CompanySetupCard({
                 value={code}
               />
               <p className={`text-xs ${codeError ? "text-error" : "text-muted-foreground"}`}>
-                {codeError ? "Informe pelo menos 2 caracteres" : "Este codigo identifica a empresa nos filtros mensais e no cadastro manual."}
+                {codeError ? "Informe pelo menos 2 caracteres" : "Este código identifica a empresa nos filtros mensais e no cadastro manual"}
               </p>
             </div>
 

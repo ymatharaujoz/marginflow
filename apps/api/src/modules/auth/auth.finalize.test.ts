@@ -12,12 +12,9 @@ describe("auth finalize route", () => {
       API_DB_POOL_MAX: 5,
       API_HOST: "127.0.0.1",
       API_PORT: 4000,
+      API_PUBLIC_BASE_URL: "http://localhost:4000",
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000",
-      BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "http://localhost:4000",
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
-      GOOGLE_CLIENT_ID: "google-client-id",
-      GOOGLE_CLIENT_SECRET: "google-client-secret",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -32,7 +29,7 @@ describe("auth finalize route", () => {
     await app.close();
   });
 
-  it("creates a web auth handoff ticket after Better Auth session cookie is present in the browser", async () => {
+  it("creates a web auth handoff ticket after internal session cookie is present in the browser", async () => {
     const authService = app.get(AuthService);
     const authExchangeService = app.get(AuthExchangeService);
 
@@ -59,7 +56,7 @@ describe("auth finalize route", () => {
 
     const response = await app.inject({
       headers: {
-        cookie: "__Secure-better-auth.session_token=remote_session_token_123",
+        cookie: "marginflow_api_session=remote_session_token_123",
       },
       method: "GET",
       url: "/auth/finalize?next=%2Fapp",
@@ -75,5 +72,17 @@ describe("auth finalize route", () => {
       sessionId: "session_123",
       userId: "user_123",
     });
+  });
+
+  it("redirects to generic auth handoff error when internal session cookie is missing", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/auth/finalize?next=%2Fapp",
+    });
+
+    expect(response.statusCode).toBe(303);
+    expect(response.headers.location).toBe(
+      "http://localhost:3000/sign-in?auth_error=auth_handoff_failed",
+    );
   });
 });

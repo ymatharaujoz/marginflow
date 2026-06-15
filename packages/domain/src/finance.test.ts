@@ -367,7 +367,7 @@ describe("@marginflow/domain finance overview", () => {
               salesQuantity: 3,
               shippingFee: "6.00",
               sku: "ABC-1",
-              taxRate: "0.090000",
+              taxRateDefault: "0.090000",
               unitCost: "25.00",
             },
           ],

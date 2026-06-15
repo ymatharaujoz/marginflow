@@ -44,11 +44,15 @@ export type ProductTableRow = {
   shipping: number;
   taxPct: number;
   packagingCost: number;
+  /** Embalagem total: packagingCost × netLiquidSales */
+  totalPackagingCost: number;
   adSpend: number;
   /** PDV × venda líquida */
   revenue: number;
   /** Contribution-style profit without advertising (formula from ops sheet) */
   totalProfit: number;
+  /** Custo do produto total: unitCost × netLiquidSales */
+  totalProductCost: number;
   /** totalProfit ÷ netLiquidSales (null if no units) */
   unitProfit: number | null;
   /** unitProfit ÷ PDV (null if PDV = 0 or no unit profit context) */

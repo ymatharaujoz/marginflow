@@ -8,13 +8,17 @@ import type { AuthenticatedRequestContext } from "./auth.types";
 
 const EXCHANGE_TICKET_TTL_MS = 5 * 60 * 1000;
 
+function toDate(value: Date | string) {
+  return value instanceof Date ? value : new Date(value);
+}
+
 type AuthExchangeRecord = {
   id: string;
   remoteSessionToken: string;
-  expiresAt: Date;
+  expiresAt: Date | string;
   sessionId: string;
   userId: string;
-  usedAt: Date | null;
+  usedAt: Date | string | null;
 };
 
 type AuthExchangeDb = {
@@ -25,7 +29,7 @@ type AuthExchangeDb = {
     };
     sessions: {
       findFirst: (input?: unknown) => Promise<{
-        expiresAt: Date;
+        expiresAt: Date | string;
         id: string;
         user: {
           email: string;
@@ -47,6 +51,7 @@ type AuthExchangeDb = {
 export class AuthExchangeService {
   constructor(
     @Inject(DATABASE_CLIENT) private readonly db: AuthExchangeDb,
+    @Inject(OrganizationProvisioningService)
     private readonly organizationProvisioningService: OrganizationProvisioningService,
   ) {}
 
@@ -84,7 +89,7 @@ export class AuthExchangeService {
         where: eq(authExchangeTickets.ticketHash, this.hashTicket(ticket)),
       });
 
-      if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) {
+      if (!record || record.usedAt || toDate(record.expiresAt).getTime() <= Date.now()) {
         console.warn("[marginflow/api] Auth exchange ticket rejected.", {
           code: !record ? "ticket_not_found" : record.usedAt ? "ticket_already_used" : "ticket_expired",
         });
@@ -98,7 +103,7 @@ export class AuthExchangeService {
         },
       });
 
-      if (!persistedSession?.user || persistedSession.expiresAt.getTime() <= Date.now()) {
+      if (!persistedSession?.user || toDate(persistedSession.expiresAt).getTime() <= Date.now()) {
         console.warn("[marginflow/api] Auth exchange ticket rejected.", {
           code: !persistedSession?.user ? "remote_session_missing" : "remote_session_expired",
           sessionId: record.sessionId,
@@ -127,7 +132,7 @@ export class AuthExchangeService {
         authState: this.toAuthState({
           organization,
           session: {
-            expiresAt: persistedSession.expiresAt,
+            expiresAt: toDate(persistedSession.expiresAt),
             id: persistedSession.id,
           },
           user: {

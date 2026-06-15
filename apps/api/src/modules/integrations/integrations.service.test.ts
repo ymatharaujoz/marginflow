@@ -1,5 +1,6 @@
 import { ConflictException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createSignedIntegrationState } from "./integration-state";
 import { IntegrationsService } from "./integrations.service";
 
 function createUpdateMock() {
@@ -40,6 +41,7 @@ function createService() {
     GOOGLE_CLIENT_SECRET: "google-client-secret",
     MERCADOLIVRE_CLIENT_ID: "ml-client-id",
     MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+    MERCADOLIVRE_USE_PKCE: false,
     NODE_ENV: "test",
     STRIPE_PRICE_ANNUAL: "price_annual",
     STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -52,12 +54,21 @@ function createService() {
     createProduct: vi.fn(),
     requireProductAccess: vi.fn(),
   };
+  const syncService = {
+    handleMercadoLivreNotification: vi.fn(),
+  };
 
   return {
     db,
     env,
     productsService,
-    service: new IntegrationsService(db as never, productsService as never, env as never),
+    syncService,
+    service: new IntegrationsService(
+      db as never,
+      productsService as never,
+      syncService as never,
+      env as never,
+    ),
   };
 }
 
@@ -115,6 +126,26 @@ describe("IntegrationsService", () => {
         provider: "mercadolivre",
       }),
     );
+  });
+
+  it("returns actionable callback error when PKCE mode is enabled without verifier metadata", async () => {
+    const { env, service } = createService();
+    env.MERCADOLIVRE_USE_PKCE = true;
+
+    const expiredOrMissingVerifierState = createSignedIntegrationState(
+      {
+        organizationId: "org_1",
+        provider: "mercadolivre",
+      },
+      env.BETTER_AUTH_SECRET,
+    );
+
+    await expect(
+      service.handleMercadoLivreCallback({
+        code: "auth-code",
+        state: expiredOrMissingVerifierState,
+      }),
+    ).resolves.toContain("message=");
   });
 
   it("auto-links synced products to catalog products when SKU matches", async () => {
@@ -409,6 +440,91 @@ describe("IntegrationsService", () => {
         provider: "mercadolivre",
         status: "disconnected",
       }),
+    );
+  });
+
+  it("delegates Mercado Livre notifications to the sync service", async () => {
+    const { service, syncService } = createService();
+
+    syncService.handleMercadoLivreNotification.mockResolvedValue({
+      accepted: true,
+      reason: "started",
+      status: "started",
+      summary: {
+        applicationId: "123",
+        attempts: 1,
+        notificationId: "notif_1",
+        resource: "/orders/1",
+        sent: "2026-06-08T12:00:00.000Z",
+        topic: "orders_v2",
+        userId: "456",
+      },
+    });
+
+    await expect(
+      service.handleMercadoLivreNotification({
+        _id: "notif_1",
+        application_id: 123,
+        attempts: 1,
+        resource: "/orders/1",
+        sent: "2026-06-08T12:00:00.000Z",
+        topic: "orders_v2",
+        user_id: 456,
+      }),
+    ).resolves.toEqual(expect.objectContaining({ status: "started" }));
+  });
+
+  it("logs route, notification summary, and ignore reason for ignored Mercado Livre notifications", async () => {
+    const { service, syncService } = createService();
+    const loggerSpy = vi.spyOn(
+      service["logger"],
+      "log",
+    );
+
+    syncService.handleMercadoLivreNotification.mockResolvedValue({
+      accepted: true,
+      reason: "connection_not_found",
+      status: "ignored",
+      summary: {
+        applicationId: "123",
+        attempts: 1,
+        notificationId: "notif_1",
+        resource: "/orders/1",
+        sent: "2026-06-08T12:00:00.000Z",
+        topic: "orders_v2",
+        userId: "456",
+      },
+    });
+
+    await expect(
+      service.handleMercadoLivreNotification(
+        {
+          _id: "notif_1",
+          application_id: 123,
+          attempts: 1,
+          resource: "/orders/1",
+          sent: "2026-06-08T12:00:00.000Z",
+          topic: "orders_v2",
+          user_id: 456,
+        },
+        "/integrations/mercadolivre/notifications",
+      ),
+    ).resolves.toEqual(expect.objectContaining({ status: "ignored" }));
+
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining("route=/integrations/mercadolivre/notifications"),
+    );
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining("reason=connection_not_found"),
+    );
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining("topic=orders_v2"),
+    );
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining("resource=/orders/1"),
+    );
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining("userId=456"),
     );
   });
 });

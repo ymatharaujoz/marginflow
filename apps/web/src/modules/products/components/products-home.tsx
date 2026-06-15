@@ -13,8 +13,9 @@ import {
   BarChart3,
   Sparkles,
   ArrowRight,
+  ChevronDown,
 } from "lucide-react";
-import { Card, Skeleton, Button, Badge, EmptyState } from "@marginflow/ui";
+import { Card, Skeleton, Button, Badge, EmptyState, Dropdown } from "@marginflow/ui";
 import { ApiClientError } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
@@ -27,7 +28,7 @@ import {
   useProductData,
 } from "../hooks/use-product-data";
 import { buildMarketplaceSyncNotice } from "../calculations/product-insights";
-import { formatMoney, formatPercent } from "../utils/formatters";
+import { formatMoney } from "../utils/formatters";
 import type { CatalogStats, ProductMarketplaceNotice } from "../types/products";
 
 interface ProductsHomeProps {
@@ -69,11 +70,11 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
             : "Não foi possível carregar o catálogo de produtos. Tente novamente."}
         </p>
         {isUnauthorized ? (
-          <Button asChild className="text-white">
+          <Button asChild>
             <Link href="/sign-in">Fazer login</Link>
           </Button>
         ) : (
-          <Button onClick={onRetry} className="text-white">
+          <Button onClick={onRetry}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Tentar novamente
           </Button>
@@ -130,7 +131,7 @@ function EmptyCatalogState({ onAdd, onImport }: { onAdd?: () => void; onImport?:
           {emptyCatalogBenefits.map((benefit) => (
             <div
               key={benefit.title}
-              className="flex flex-col items-center rounded-xl border border-border bg-white p-4 text-center shadow-[var(--shadow-xs)] transition-all hover:border-accent/20 hover:shadow-sm"
+              className="flex flex-col items-center rounded-xl border border-border bg-surface p-4 text-center shadow-[var(--shadow-xs)] transition-all hover:border-accent/20 hover:shadow-sm"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 text-accent">
                 <benefit.icon className="h-4 w-4" />
@@ -147,7 +148,7 @@ function EmptyCatalogState({ onAdd, onImport }: { onAdd?: () => void; onImport?:
 
         <div className="mt-8 flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
-            <Button size="lg" className="gap-2 px-6 text-sm text-white" onClick={onAdd}>
+            <Button size="lg" className="gap-2 px-6 text-sm" onClick={onAdd}>
               <Plus className="h-4 w-4" />
               Criar primeiro produto
               <ArrowRight className="h-4 w-4 opacity-70" />
@@ -232,20 +233,25 @@ function ReferenceMonthToolbar({
   referenceMonth: string;
   onReferenceMonthChange: (isoDay: string) => void;
 }) {
+  const items = options.map((iso) => ({
+    id: iso,
+    label: formatReferenceMonthPtBr(iso),
+  }));
+
   return (
     <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-2 shadow-sm">
       <span className="text-xs font-semibold uppercase tracking-wider text-accent">Mês</span>
-      <select
-        className="h-7 rounded-md border-0 bg-transparent px-2 text-sm font-semibold text-foreground hover:bg-accent/5 focus:outline-none focus:ring-2 focus:ring-accent/20 cursor-pointer"
-        onChange={(event) => onReferenceMonthChange(event.target.value)}
-        value={referenceMonth}
-      >
-        {options.map((iso) => (
-          <option key={iso} value={iso}>
-            {formatReferenceMonthPtBr(iso)}
-          </option>
-        ))}
-      </select>
+      <Dropdown
+        align="left"
+        items={items}
+        onSelect={(id) => onReferenceMonthChange(id)}
+        trigger={
+          <div className="flex h-7 items-center gap-1.5 rounded-md bg-surface px-2 text-sm font-semibold text-foreground transition-colors hover:bg-accent/5">
+            {formatReferenceMonthPtBr(referenceMonth)}
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+        }
+      />
     </div>
   );
 }
@@ -299,9 +305,6 @@ function CatalogProductsTable({
               <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Embalagem
               </th>
-              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Imposto
-              </th>
               <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Status
               </th>
@@ -326,18 +329,13 @@ function CatalogProductsTable({
                     ? formatMoney(Number(product.financeDefaults.packagingCost))
                     : "—"}
                 </td>
-                <td className="px-3 py-3 text-right text-sm text-foreground">
-                  {product.financeDefaults
-                    ? formatPercent(Number(product.financeDefaults.taxRate) * 100, { digits: 1 })
-                    : "—"}
-                </td>
                 <td className="px-3 py-3 text-left">
                   <Badge
                     variant={product.isActive ? "success" : "neutral"}
                     className="gap-1.5"
                   >
                     <span
-                      className={`h-1.5 w-1.5 rounded-full ${product.isActive ? "bg-green-600" : "bg-gray-400"}`}
+                      className={`h-1.5 w-1.5 rounded-full ${product.isActive ? "bg-success" : "bg-muted"}`}
                     />
                     {product.isActive ? "Ativo" : "Arquivado"}
                   </Badge>
@@ -400,7 +398,7 @@ export function ProductsHome({
   const addProductButton = (
     <Button
       size="md"
-      className="gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg active:translate-y-0 active:shadow-sm"
+      className="gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-lg active:translate-y-0 active:shadow-sm"
       onClick={handleAddProduct}
     >
       <Plus className="h-4 w-4" />

@@ -6,9 +6,31 @@ import type { ServerBillingState } from "@/lib/server-billing";
  * - `active`: assinatura ativa/trial vinculada à organização.
  * - `pending_onboarding`: checkout confirmado no Stripe; workspace ainda não existe (criar em seguida).
  */
-export function hasSubscriptionForProtectedApp(billingState: ServerBillingState | null) {
+export function hasSubscriptionForProtectedApp(
+  billingState: ServerBillingState | null,
+) {
   return (
-    billingState?.status === "active" || billingState?.status === "pending_onboarding"
+    billingState?.status === "active" ||
+    billingState?.status === "pending_onboarding"
+  );
+}
+
+const MANAGEABLE_SUBSCRIPTION_STATUSES = new Set([
+  "active",
+  "past_due",
+  "paused",
+  "trialing",
+  "unpaid",
+]);
+
+export function hasManageableBillingSubscription(
+  billingState: ServerBillingState | null,
+) {
+  const subscription = billingState?.subscription;
+
+  return Boolean(
+    subscription?.externalSubscriptionId &&
+    MANAGEABLE_SUBSCRIPTION_STATUSES.has(subscription.status),
   );
 }
 

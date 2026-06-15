@@ -1,7 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { MercadoLivreIcon, ShopeeIcon, CheckIcon, ClockIcon, ArrowRightIcon } from "./marketplace-icons";
+import {
+  MercadoLivreIcon,
+  ShopeeIcon,
+  TiktokIcon,
+  SheinIcon,
+  CheckIcon,
+  ClockIcon,
+  ArrowRightIcon,
+} from "./marketplace-icons";
 
 const easeOut = [0.16, 1, 0.3, 1] as const;
 
@@ -32,12 +40,12 @@ function IntegrationCard({
       viewport={{ once: true, margin: "-50px" }}
       transition={{ duration: 0.5, delay: index * 0.1, ease: easeOut }}
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
-      className="group relative flex flex-col rounded-2xl border border-border bg-surface p-6 shadow-sm transition-all duration-300 hover:border-accent/20 hover:shadow-md"
+      className="group relative flex flex-col rounded-[18px] border border-border bg-surface p-7 shadow-card transition-all duration-300 hover:border-accent/20 hover:shadow-lg sm:p-8"
     >
       {/* Status badge - subtle pill */}
       <div className="absolute right-4 top-4">
         <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${statusColor}`}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${statusColor}`}
         >
           {status === "available" ? (
             <>
@@ -54,17 +62,17 @@ function IntegrationCard({
       </div>
 
       {/* Icon */}
-      <div className="mb-4">{icon}</div>
+      <div className="mb-5">{icon}</div>
 
       {/* Name */}
-      <h3 className="mb-2 text-lg font-semibold text-foreground">{name}</h3>
+      <h3 className="mb-2.5 text-xl font-semibold tracking-tight text-foreground">{name}</h3>
 
       {/* Description */}
-      <p className="mb-4 text-sm leading-relaxed text-muted-foreground">{description}</p>
+      <p className="mb-5 text-sm leading-relaxed text-muted-foreground md:text-[15px]">{description}</p>
 
       {/* Features list - only for available */}
       {features && features.length > 0 && (
-        <div className="mt-auto space-y-2 border-t border-border/50 pt-4">
+        <div className="mt-auto space-y-2.5 border-t border-border/50 pt-5">
           {features.map((feature, i) => (
             <motion.div
               key={feature}
@@ -72,10 +80,10 @@ function IntegrationCard({
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.3, delay: 0.2 + i * 0.05 }}
-              className="flex items-center gap-2 text-sm text-muted-foreground"
+              className="flex items-start gap-2.5 text-sm text-muted-foreground"
             >
-              <CheckIcon className="h-3.5 w-3.5 text-accent" />
-              {feature}
+              <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+              <span>{feature}</span>
             </motion.div>
           ))}
         </div>
@@ -83,13 +91,13 @@ function IntegrationCard({
 
       {/* Coming soon CTA */}
       {status === "coming-soon" && (
-        <div className="mt-auto pt-4">
+        <div className="mt-auto pt-5">
           <a
             href="#demo"
-            className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
           >
             Ser notificado quando lançar
-            <ArrowRightIcon className="h-3 w-3" />
+            <ArrowRightIcon className="h-3.5 w-3.5" />
           </a>
         </div>
       )}
@@ -100,7 +108,7 @@ function IntegrationCard({
 export function IntegrationsSection() {
   return (
     <section id="integracoes" className="scroll-mt-28 py-24 md:py-32">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Section Header - Clean */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -126,7 +134,7 @@ export function IntegrationsSection() {
             transition={{ duration: 0.5, delay: 0.15, ease: easeOut }}
             className="mt-5 text-3xl font-semibold tracking-tight text-foreground md:text-4xl"
           >
-            Conecte seus marketplaces
+            Conecte seus marketplaces.
           </motion.h2>
           
           <motion.p
@@ -141,15 +149,15 @@ export function IntegrationsSection() {
         </motion.div>
 
         {/* Integration Cards - Clean Grid */}
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {/* Mercado Livre */}
           <IntegrationCard
             name="Mercado Livre"
             description="A maior marketplace da América Latina. Sincronize pedidos, produtos e métricas em tempo real."
-            icon={<MercadoLivreIcon className="h-12 w-12" />}
+            icon={<MercadoLivreIcon className="h-14 w-14" />}
             status="available"
             statusLabel="Disponível"
-            statusColor="border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-400"
+            statusColor="bg-accent text-accent-foreground border-accent/20"
             features={[
               "Sincronização automática de pedidos",
               "Importação de produtos e SKUs",
@@ -161,30 +169,41 @@ export function IntegrationsSection() {
           {/* Shopee */}
           <IntegrationCard
             name="Shopee"
-            description="Uma das marketplaces que mais cresce no Brasil. Estamos preparando a integração completa."
-            icon={<ShopeeIcon className="h-12 w-12" />}
-            status="coming-soon"
-            statusLabel="Em breve"
-            statusColor="border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-400"
+            description="Uma das marketplaces que mais cresce no Brasil. Sincronize pedidos, produtos e métricas em tempo real."
+            icon={<ShopeeIcon className="h-14 w-14" />}
+            status="available"
+            statusLabel="Disponível"
+            statusColor="bg-accent text-accent-foreground border-accent/20"
+            features={[
+              "Sincronização automática de pedidos",
+              "Importação de produtos e SKUs",
+              "Cálculo automático de taxas",
+            ]}
             index={1}
           />
-        </div>
 
-        {/* Bottom Note */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="mt-12 text-center"
-        >
-          <p className="text-sm text-muted-foreground">
-            Deseja integração com outra plataforma?{" "}
-            <a href="#demo" className="font-medium text-accent hover:underline">
-              Solicite aqui
-            </a>
-          </p>
-        </motion.div>
+          {/* TikTok */}
+          <IntegrationCard
+            name="TikTok"
+            description="Integração em construção. Em breve sincronize pedidos, produtos e métricas do TikTok."
+            icon={<TiktokIcon className="h-14 w-14" />}
+            status="coming-soon"
+            statusLabel="Em breve"
+            statusColor="bg-foreground/60 text-white border-white/20"
+            index={2}
+          />
+
+          {/* Shein */}
+          <IntegrationCard
+            name="Shein"
+            description="Integração em construção. Em breve sincronize pedidos, produtos e métricas da Shein."
+            icon={<SheinIcon className="h-14 w-14" />}
+            status="coming-soon"
+            statusLabel="Em breve"
+            statusColor="bg-foreground/60 text-white border-white/20"
+            index={3}
+          />
+        </div>
       </div>
     </section>
   );

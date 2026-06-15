@@ -1,7 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Calendar, CreditCard, ArrowUpRight, AlertTriangle } from "lucide-react";
+import {
+  Calendar,
+  CreditCard,
+  ArrowUpRight,
+  AlertTriangle,
+} from "lucide-react";
 import { Card, Button, Badge } from "@marginflow/ui";
 import { itemVariants } from "@/lib/animations";
 
@@ -9,6 +14,7 @@ interface SubscriptionDetailsCardProps {
   interval: string;
   status: string;
   currentPeriodEnd: string | null;
+  trialEnd: string | null;
   cancelAtPeriodEnd: boolean;
   isActive: boolean;
   onManageSubscription: () => void;
@@ -38,11 +44,15 @@ export function SubscriptionDetailsCard({
   interval,
   status,
   currentPeriodEnd,
+  trialEnd,
   cancelAtPeriodEnd,
   isActive,
   onManageSubscription,
   isLoadingPortal,
 }: SubscriptionDetailsCardProps) {
+  const isTrialing = status === "trialing";
+  const billingDate = isTrialing ? trialEnd : currentPeriodEnd;
+
   return (
     <motion.div variants={itemVariants}>
       <Card className="overflow-hidden">
@@ -63,7 +73,7 @@ export function SubscriptionDetailsCard({
               </div>
             </div>
             <Badge variant={isActive ? "success" : "neutral"}>
-              {isActive ? "Ativo" : status}
+              {isTrialing ? "Em teste" : isActive ? "Ativo" : status}
             </Badge>
           </div>
         </div>
@@ -79,9 +89,11 @@ export function SubscriptionDetailsCard({
                   <Calendar className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Próxima cobrança</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {isTrialing ? "Primeira cobrança" : "Próxima cobrança"}
+                  </p>
                   <p className="text-sm text-muted-foreground">
-                    {formatDate(currentPeriodEnd)}
+                    {formatDate(billingDate)}
                   </p>
                   {cancelAtPeriodEnd && (
                     <div className="mt-2 flex items-start gap-1.5 rounded-md bg-warning/10 px-2 py-1.5">
@@ -100,7 +112,9 @@ export function SubscriptionDetailsCard({
                   <CreditCard className="h-4 w-4" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Método de pagamento</p>
+                  <p className="text-sm font-medium text-foreground">
+                    Método de pagamento
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     Gerenciado via Stripe
                   </p>

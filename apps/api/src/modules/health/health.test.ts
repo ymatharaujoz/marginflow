@@ -60,6 +60,23 @@ describe("health endpoint", () => {
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
   });
 
+  it("allows patch preflight requests via cors", async () => {
+    const response = await app.inject({
+      method: "OPTIONS",
+      url: "/companies/company_1",
+      headers: {
+        origin: "http://localhost:3000",
+        "access-control-request-method": "PATCH",
+        "access-control-request-headers": "content-type",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(response.headers["access-control-allow-origin"]).toBe("http://localhost:3000");
+    expect(response.headers["access-control-allow-credentials"]).toBe("true");
+    expect(response.headers["access-control-allow-methods"]).toContain("PATCH");
+  });
+
   it("allows extra trusted origins via cors", async () => {
     await app.close();
     app = await buildApp({

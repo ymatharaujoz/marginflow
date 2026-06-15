@@ -22,10 +22,12 @@ function resolveNetLiquidSales(salesQuantity: number, returnsQuantity: number): 
   return Math.max(0, sales - cappedReturns);
 }
 
-function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow): {
+function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow, taxRateDefault: number): {
   netLiquidSales: number;
   revenue: number;
   totalProfit: number;
+  totalPackagingCost: number;
+  totalProductCost: number;
   unitProfit: number | null;
   contributionMarginRatio: number | null;
   roiRatio: number | null;
@@ -37,20 +39,22 @@ function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow): {
   const sellingPrice = toNumber(row.salePrice);
   const commissionRate = toNumber(row.commissionRate);
   const shippingFee = toNumber(row.shippingFee);
-  const taxRate = toNumber(row.taxRate);
   const packagingCost = toNumber(row.packagingCost);
   const unitCost = toNumber(row.unitCost);
   const advertising = toNumber(row.advertisingCost);
 
   const revenue = sellingPrice * netLiquidSales;
+  const totalTax = revenue * taxRateDefault;
+  const totalPackagingCost = packagingCost * netLiquidSales;
+  const totalProductCost = unitCost * netLiquidSales;
 
   const totalProfit =
     revenue
     - revenue * commissionRate
     - shippingFee * netLiquidSales
-    - revenue * taxRate
-    - packagingCost * netLiquidSales
-    - unitCost * netLiquidSales;
+    - totalTax
+    - totalPackagingCost
+    - totalProductCost;
 
   const unitProfit = netLiquidSales > 0 ? totalProfit / netLiquidSales : null;
   const contributionMarginRatio =
@@ -69,6 +73,8 @@ function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow): {
     netLiquidSales,
     revenue,
     roiRatio,
+    totalPackagingCost,
+    totalProductCost,
     totalProfit,
     unitProfit,
   };
@@ -330,7 +336,9 @@ function formatMoney(value: number): string {
 
 export function buildProductTableRows(data: ProductCatalogData): ProductTableRow[] {
   return data.monthlyPerformanceRows.map((row) => {
-    const financials = deriveRowFinancials(row);
+    const taxPct = toNumber(data.scope.taxRateDefault) * 100;
+    const taxRateDefault = taxPct / 100;
+    const financials = deriveRowFinancials(row, taxRateDefault);
     const sellingPrice = toNumber(row.salePrice);
 
     return {
@@ -349,7 +357,9 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
       sellingPrice,
       shipping: toNumber(row.shippingFee),
       sku: row.sku,
-      taxPct: toNumber(row.taxRate) * 100,
+      taxPct,
+      totalPackagingCost: financials.totalPackagingCost,
+      totalProductCost: financials.totalProductCost,
       unitCost: toNumber(row.unitCost),
     };
   });

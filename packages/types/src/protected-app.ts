@@ -47,6 +47,8 @@ export type BillingPendingCheckout = {
 export type BillingState = {
   organizationId: string | null;
   entitled: boolean;
+  trialEligible: boolean;
+  trialDays: number;
   status: BillingStateStatus;
   customer: {
     externalCustomerId: string;
@@ -56,6 +58,8 @@ export type BillingState = {
     cancelAtPeriodEnd: boolean;
     currentPeriodEnd: string | null;
     currentPeriodStart: string | null;
+    trialEnd: string | null;
+    trialStart: string | null;
     externalSubscriptionId: string | null;
     id: string;
     interval: string;

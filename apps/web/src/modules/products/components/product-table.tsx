@@ -15,8 +15,9 @@ import {
 import { Badge, Card, EmptyState } from "@marginflow/ui";
 import { Pagination } from "@/components/ui-premium/pagination";
 import { slideInUpVariants } from "@/lib/animations";
+import { ProductDetailsModal } from "./product-details-modal";
 import type { PaginationState, ProductTableRow } from "../types/products";
-import { formatMoney, formatMultiplier, formatNumber, formatPercent } from "../utils/formatters";
+import { formatMoney, formatNumber, formatPercent } from "../utils/formatters";
 
 const MotionTableRow = motion.tr;
 
@@ -38,13 +39,9 @@ type SortKey =
   | "shipping"
   | "taxPct"
   | "packagingCost"
+  | "totalProductCost"
   | "revenue"
-  | "totalProfit"
-  | "unitProfit"
-  | "contributionMarginRatio"
-  | "roiRatio"
-  | "minimumRoas"
-  | "actualRoas";
+  | "totalProfit";
 
 function compareSortValues(
   a: ProductTableRow[SortKey],
@@ -73,13 +70,20 @@ function compareSortValues(
 
 type SortDirection = "asc" | "desc" | null;
 
-const marketplaceOptions = [{ value: "mercadolivre", label: "Mercado Livre" }];
+const marketplaceOptions = [
+  { value: "mercadolivre", label: "Mercado Livre" },
+  { value: "shopee", label: "Shopee" },
+];
 
 function getChannelBadge(channel: string) {
   const normalized = channel.trim().toLowerCase();
 
   if (normalized === "mercadolivre") {
     return <Badge>MELI</Badge>;
+  }
+
+  if (normalized === "shopee") {
+    return <Badge>SHPE</Badge>;
   }
 
   return <Badge>{channel}</Badge>;
@@ -98,6 +102,7 @@ export function ProductTable({
   const [searchFilter, setSearchFilter] = useState("");
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedRow, setSelectedRow] = useState<ProductTableRow | null>(null);
 
   const handleSort = (key: SortKey) => {
     let direction: SortDirection = "asc";
@@ -150,6 +155,14 @@ export function ProductTable({
     setSelectedMarketplaces([]);
   };
 
+  const openDetails = (row: ProductTableRow) => {
+    setSelectedRow(row);
+  };
+
+  const closeDetails = () => {
+    setSelectedRow(null);
+  };
+
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortConfig?.key !== column) {
       return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
@@ -191,7 +204,7 @@ export function ProductTable({
             onClick={() => setShowFilters((value) => !value)}
             className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium transition-all duration-[var(--transition-fast)] ${
               showFilters || hasActiveFilters
-                ? "bg-accent text-white shadow-sm"
+                ? "bg-accent text-accent-foreground shadow-sm"
                 : "border border-border bg-surface-strong text-muted-foreground hover:border-border-strong hover:text-foreground"
             }`}
           >
@@ -254,7 +267,7 @@ export function ProductTable({
                         }
                         className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium transition-all duration-[var(--transition-fast)] ${
                           isSelected
-                            ? "bg-accent text-white shadow-sm"
+                            ? "bg-accent text-accent-foreground shadow-sm"
                             : "border border-border bg-background text-muted-foreground hover:border-border-strong hover:text-foreground"
                         }`}
                       >
@@ -285,7 +298,7 @@ export function ProductTable({
 
         <div className="relative -mx-6 min-w-0">
           <div className="overflow-x-auto px-6">
-            <table className="w-full min-w-[1580px] border-separate border-spacing-0">
+            <table className="w-full min-w-[1100px] border-separate border-spacing-0">
               <thead>
                 <tr className="border-b border-border bg-surface-strong/95">
                   <th
@@ -379,6 +392,15 @@ export function ProductTable({
                     </div>
                   </th>
                   <th
+                    onClick={() => handleSort("totalProductCost")}
+                    className="hidden px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[140px] whitespace-nowrap"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Custo Produto Total
+                      <SortIcon column="totalProductCost" />
+                    </div>
+                  </th>
+                  <th
                     onClick={() => handleSort("revenue")}
                     className="hidden px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 border-l border-l-border-strong min-w-[100px]"
                   >
@@ -396,51 +418,6 @@ export function ProductTable({
                       <SortIcon column="totalProfit" />
                     </div>
                   </th>
-                  <th
-                    onClick={() => handleSort("unitProfit")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 border-l border-l-border-strong min-w-[160px] whitespace-nowrap"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Lucro Unitário
-                      <SortIcon column="unitProfit" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("contributionMarginRatio")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[200px] whitespace-nowrap"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      Margem Contribuição
-                      <SortIcon column="contributionMarginRatio" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("roiRatio")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[90px]"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      ROI
-                      <SortIcon column="roiRatio" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("minimumRoas")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[150px] whitespace-nowrap"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      ROAS Mínimo
-                      <SortIcon column="minimumRoas" />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort("actualRoas")}
-                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[140px] whitespace-nowrap"
-                  >
-                    <div className="flex items-center justify-end gap-1">
-                      ROAS Real
-                      <SortIcon column="actualRoas" />
-                    </div>
-                  </th>
                 </tr>
               </thead>
 
@@ -451,7 +428,16 @@ export function ProductTable({
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.03 }}
-                    className="border-b border-border/50 hover:bg-surface-strong/30"
+                    className="cursor-pointer border-b border-border/50 outline-none transition-colors hover:bg-surface-strong/30 focus-visible:bg-accent/5 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/30"
+                    onClick={() => openDetails(row)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openDetails(row);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                   >
                     <td className="px-3 py-3 text-left">{getChannelBadge(row.channelLabel)}</td>
                     <td className="px-3 py-3 text-left">
@@ -482,40 +468,16 @@ export function ProductTable({
                       <span className="text-sm text-foreground">{formatPercent(row.taxPct)}</span>
                     </td>
                     <td className="px-3 py-3 text-right">
-                      <span className="text-sm text-foreground">{formatMoney(row.packagingCost)}</span>
+                      <span className="text-sm text-foreground">{formatMoney(row.totalPackagingCost)}</span>
+                    </td>
+                    <td className="hidden px-3 py-3 text-right">
+                      <span className="text-sm font-semibold text-foreground">{formatMoney(row.totalProductCost)}</span>
                     </td>
                     <td className="hidden px-3 py-3 text-right border-l border-l-border-strong">
                       <span className="text-sm font-semibold text-foreground">{formatMoney(row.revenue)}</span>
                     </td>
                     <td className="hidden px-3 py-3 text-right">
                       <span className="text-sm font-semibold text-foreground">{formatMoney(row.totalProfit)}</span>
-                    </td>
-                    <td className="px-3 py-3 text-right border-l border-l-border-strong">
-                      <span className="text-sm font-semibold text-foreground">{formatMoney(row.unitProfit)}</span>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <span className="text-sm font-semibold text-foreground">
-                        {formatPercent(
-                          row.contributionMarginRatio !== null && row.contributionMarginRatio !== undefined
-                            ? row.contributionMarginRatio * 100
-                            : null,
-                          { digits: 2 },
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <span className="text-sm font-semibold text-foreground">
-                        {formatPercent(
-                          row.roiRatio !== null && row.roiRatio !== undefined ? row.roiRatio * 100 : null,
-                          { digits: 2 },
-                        )}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <span className="text-sm font-semibold text-foreground">{formatMultiplier(row.minimumRoas)}</span>
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <span className="text-sm font-semibold text-foreground">{formatMultiplier(row.actualRoas)}</span>
                     </td>
                   </MotionTableRow>
                 ))}
@@ -543,6 +505,7 @@ export function ProductTable({
           </div>
         ) : null}
       </Card>
+      <ProductDetailsModal onClose={closeDetails} open={selectedRow !== null} row={selectedRow} />
     </motion.div>
   );
 }

@@ -5,6 +5,8 @@ export type Company = {
   name: string;
   code: string;
   isActive: boolean;
+  fixedCostDefault: DecimalString;
+  taxRateDefault: DecimalString;
   createdAt: string;
   updatedAt: string;
 };
@@ -13,6 +15,8 @@ export type CreateCompanyInput = {
   name: string;
   code: string;
   isActive?: boolean;
+  fixedCostDefault?: DecimalString;
+  taxRateDefault?: DecimalString;
 };
 
 export type UpdateCompanyInput = Partial<CreateCompanyInput>;
@@ -29,7 +33,6 @@ export type ProductMonthlyPerformanceInput = {
   salePrice: DecimalString;
   commissionRate: DecimalString;
   shippingFee: DecimalString;
-  taxRate: DecimalString;
   packagingCost: DecimalString;
   advertisingCost: DecimalString;
   notes?: string | null;

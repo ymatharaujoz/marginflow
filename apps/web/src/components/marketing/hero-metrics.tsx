@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
+import { MarketplaceLogosBar } from "./marketplace-icons";
 
 interface MetricCardProps {
   value: string;
@@ -114,7 +115,7 @@ function MetricCard({ value, label, suffix = "", prefix = "", delay, highlight =
         ease: [0.16, 1, 0.3, 1],
       }}
       whileHover={reduceMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border p-4 shadow-sm transition-all duration-300 ${
+      className={`group relative flex flex-col overflow-hidden rounded-xl border p-3 shadow-sm transition-all duration-300 ${
         highlight 
           ? "border-accent/20 bg-gradient-to-br from-accent/[0.04] to-surface hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5" 
           : "border-border bg-surface hover:border-accent/20 hover:shadow-md"
@@ -129,21 +130,21 @@ function MetricCard({ value, label, suffix = "", prefix = "", delay, highlight =
       )}
 
       <div className="relative flex flex-1 flex-col">
-        <p className={`text-xl font-bold tracking-tight md:text-2xl ${highlight ? "text-accent" : "text-foreground"}`}>
+        <p className={`text-lg font-bold tracking-tight md:text-xl ${highlight ? "text-accent" : "text-foreground"}`}>
           <AnimatedCounter value={value} prefix={prefix} suffix={suffix} />
         </p>
-        <p className="mt-2 flex-1 text-xs font-medium leading-relaxed text-muted-foreground">{label}</p>
+        <p className="mt-1.5 flex-1 text-[11px] font-medium leading-relaxed text-muted-foreground">{label}</p>
         
         {/* Mini indicator */}
         <motion.div 
-          className="mt-3 flex items-center gap-1.5"
+          className="mt-2 flex items-center gap-1.5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: delay + 0.5 }}
         >
           <div className={`h-1.5 w-1.5 rounded-full ${highlight ? "bg-accent" : "bg-success"} animate-pulse`} />
           <span className="text-[10px] font-medium text-muted-foreground/60">
-            {highlight ? "Tempo real" : "Atualizado"}
+            {highlight ? "Atualizado" : "Atualizado"}
           </span>
         </motion.div>
       </div>
@@ -164,8 +165,8 @@ interface HeroMetricsProps {
 const defaultMetrics = [
   { value: "18.4", label: "Aumento médio na margem de lucro", prefix: "+", suffix: "%", highlight: true },
   { value: "15", label: "Empresas usando a plataforma", suffix: "+", highlight: false },
-  { value: "3", label: "Marketplaces integrados", suffix: "+", highlight: false },
-  { value: "3", label: "Minutos para começar a usar", prefix: "", suffix: " min", highlight: false },
+  { value: "4", label: "Marketplaces integrados", suffix: "+", highlight: false },
+  { value: "5", label: "Minutos para começar a usar", prefix: "", suffix: " min", highlight: false },
 ];
 
 export function HeroMetrics({ metrics = defaultMetrics }: HeroMetricsProps) {
@@ -182,6 +183,7 @@ export function HeroMetrics({ metrics = defaultMetrics }: HeroMetricsProps) {
           delay={0.5 + index * 0.12}
         />
       ))}
+      <MarketplaceLogosBar />
     </div>
   );
 }

@@ -85,6 +85,8 @@ describe("readServerBillingState", () => {
               organizationId: "org_123",
               pendingCheckout: null,
               status: "inactive",
+              trialDays: 7,
+              trialEligible: false,
               subscription: {
                 cancelAtPeriodEnd: false,
                 currentPeriodEnd: null,
@@ -94,6 +96,8 @@ describe("readServerBillingState", () => {
                 interval: "monthly",
                 planCode: "marginflow",
                 status: "inactive",
+                trialEnd: null,
+                trialStart: null,
               },
             },
             error: null,
@@ -116,6 +120,8 @@ describe("readServerBillingState", () => {
       organizationId: "org_123",
       pendingCheckout: null,
       status: "inactive",
+      trialDays: 7,
+      trialEligible: false,
       subscription: {
         cancelAtPeriodEnd: false,
         currentPeriodEnd: null,
@@ -125,6 +131,8 @@ describe("readServerBillingState", () => {
         interval: "monthly",
         planCode: "marginflow",
         status: "inactive",
+        trialEnd: null,
+        trialStart: null,
       },
     });
     expect(global.fetch).toHaveBeenCalledWith(
@@ -132,7 +140,7 @@ describe("readServerBillingState", () => {
       expect.objectContaining({
         cache: "no-store",
         headers: {
-          cookie: "__Secure-better-auth.session_token=remote_session_token_123; better-auth.session_token=remote_session_token_123",
+          cookie: "marginflow_api_session=remote_session_token_123",
         },
       }),
     );

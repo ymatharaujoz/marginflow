@@ -8,7 +8,10 @@ function decimalField(label: string) {
   return z
     .string()
     .trim()
-    .regex(decimalPattern, `${label} must be a decimal amount with up to 2 places.`);
+    .regex(
+      decimalPattern,
+      `${label} must be a decimal amount with up to 2 places.`,
+    );
 }
 
 function decimalOrInfinityField(label: string) {
@@ -19,7 +22,10 @@ function decimalRateField(label: string) {
   return z
     .string()
     .trim()
-    .regex(decimalRatePattern, `${label} must be a decimal amount with up to 6 places.`);
+    .regex(
+      decimalRatePattern,
+      `${label} must be a decimal amount with up to 6 places.`,
+    );
 }
 
 function isoDateField(label: string) {
@@ -30,12 +36,20 @@ function isoDateField(label: string) {
 }
 
 function isoDateTimeField(label: string) {
-  return z.string().trim().min(1, `${label} must be a non-empty ISO date time.`);
+  return z
+    .string()
+    .trim()
+    .min(1, `${label} must be a non-empty ISO date time.`);
 }
 
 const integrationProviderSchema = z.enum(["mercadolivre", "shopee"]);
 const onboardingStatusSchema = z.enum(["complete", "organization_missing"]);
-const billingStateStatusSchema = z.enum(["active", "inactive", "no_checkout", "pending_onboarding"]);
+const billingStateStatusSchema = z.enum([
+  "active",
+  "inactive",
+  "no_checkout",
+  "pending_onboarding",
+]);
 const syncAvailabilityReasonSchema = z.enum([
   "available",
   "outside_window",
@@ -46,7 +60,10 @@ const syncAvailabilityReasonSchema = z.enum([
   "sync_in_progress",
   "window_already_used",
 ]);
-const syncWindowSlotSchema = z.enum(["morning", "afternoon", "evening"]).nullable();
+const syncWindowSlotSchema = z
+  .enum(["morning", "afternoon", "evening"])
+  .nullable();
+const syncRunOriginSchema = z.enum(["manual", "automatic"]);
 const syncedProductReviewStatusSchema = z.enum([
   "ignored",
   "imported_as_internal_product",
@@ -54,7 +71,12 @@ const syncedProductReviewStatusSchema = z.enum([
   "unreviewed",
 ]);
 const syncedProductSuggestedMatchReasonSchema = z.enum(["sku_exact"]);
-const productFinancialStateSchema = z.enum(["ready", "empty", "no-costs", "insufficient"]);
+const productFinancialStateSchema = z.enum([
+  "ready",
+  "empty",
+  "no-costs",
+  "insufficient",
+]);
 const productAnalyticsInsufficientReasonSchema = z.enum([
   "missing_cost",
   "missing_linked_marketplace_signal",
@@ -66,7 +88,10 @@ const productAnalyticsDataGapSchema = z.enum([
   "shipping_cost_unavailable",
   "tax_amount_unavailable",
 ]);
-const productAnalyticsDataSourceSchema = z.enum(["monthly_performance", "sync"]);
+const productAnalyticsDataSourceSchema = z.enum([
+  "monthly_performance",
+  "sync",
+]);
 
 export const dashboardSummaryMetricsSchema = z.object({
   totalAdCosts: decimalField("Total ad costs"),
@@ -125,6 +150,8 @@ export const billingPendingCheckoutSchema = z.object({
 export const billingStateSchema = z.object({
   organizationId: z.string().trim().min(1).nullable(),
   entitled: z.boolean(),
+  trialEligible: z.boolean(),
+  trialDays: z.number().int().positive(),
   status: billingStateStatusSchema,
   customer: z
     .object({
@@ -137,6 +164,8 @@ export const billingStateSchema = z.object({
       cancelAtPeriodEnd: z.boolean(),
       currentPeriodEnd: isoDateTimeField("Current period end").nullable(),
       currentPeriodStart: isoDateTimeField("Current period start").nullable(),
+      trialEnd: isoDateTimeField("Trial end").nullable(),
+      trialStart: isoDateTimeField("Trial start").nullable(),
       externalSubscriptionId: z.string().trim().min(1).nullable(),
       id: z.string().trim().min(1),
       interval: z.string().trim().min(1),
@@ -216,6 +245,7 @@ export const syncAvailabilitySchema = z.object({
 export const syncRunRecordSchema = z.object({
   id: z.string().trim().min(1),
   provider: integrationProviderSchema,
+  origin: syncRunOriginSchema,
   status: z.string().trim().min(1),
   windowKey: z.string().trim().min(1).nullable(),
   startedAt: z.string().trim().min(1).nullable(),
@@ -278,7 +308,6 @@ export const productFinanceDefaultsRecordSchema = z.object({
   id: z.string().trim().min(1),
   productId: z.string().trim().min(1),
   packagingCost: decimalField("Packaging cost"),
-  taxRate: decimalField("Tax rate"),
   advertisingCost: decimalField("Advertising cost"),
   createdAt: isoDateTimeField("Created at"),
   updatedAt: isoDateTimeField("Updated at"),
@@ -288,7 +317,9 @@ export const companyRecordSchema = z.object({
   id: z.string().trim().min(1),
   name: z.string().trim().min(1),
   code: z.string().trim().min(1),
+  fixedCostDefault: decimalField("Fixed cost default"),
   isActive: z.boolean(),
+  taxRateDefault: decimalRateField("Tax rate default"),
   createdAt: isoDateTimeField("Created at"),
   updatedAt: isoDateTimeField("Updated at"),
 });
@@ -409,7 +440,6 @@ export const productMonthlyPerformanceRowSchema = z.object({
   salePrice: decimalField("Sale price"),
   commissionRate: decimalRateField("Commission rate"),
   shippingFee: decimalField("Shipping fee"),
-  taxRate: decimalRateField("Tax rate"),
   packagingCost: decimalField("Packaging cost"),
   advertisingCost: decimalField("Advertising cost"),
   marketplaceCommission: decimalField("Marketplace commission").optional(),
@@ -444,10 +474,13 @@ export const productAnalyticsSnapshotSchema = z.object({
     companyId: z.string().trim().min(1).nullable(),
     companyRequired: z.boolean(),
     referenceMonth: isoDateField("Reference month"),
+    taxRateDefault: decimalRateField("Tax rate default"),
   }),
 });
 
-export function createApiSuccessResponseSchema<T extends z.ZodType>(dataSchema: T) {
+export function createApiSuccessResponseSchema<T extends z.ZodType>(
+  dataSchema: T,
+) {
   return z.object({
     data: dataSchema,
     error: z.null(),
@@ -457,38 +490,51 @@ export function createApiSuccessResponseSchema<T extends z.ZodType>(dataSchema: 
 export const dashboardSummaryApiResponseSchema = createApiSuccessResponseSchema(
   dashboardSummaryResponseSchema,
 );
-export const authStateApiResponseSchema = createApiSuccessResponseSchema(authStateSchema);
+export const authStateApiResponseSchema =
+  createApiSuccessResponseSchema(authStateSchema);
 export const exchangeAuthTicketResponseSchema = z.object({
   authState: authStateSchema,
   remoteSessionToken: z.string().trim().min(1),
 });
-export const exchangeAuthTicketApiResponseSchema = createApiSuccessResponseSchema(
-  exchangeAuthTicketResponseSchema,
-);
-export const billingStateApiResponseSchema = createApiSuccessResponseSchema(billingStateSchema);
+export const exchangeAuthTicketApiResponseSchema =
+  createApiSuccessResponseSchema(exchangeAuthTicketResponseSchema);
+export const billingStateApiResponseSchema =
+  createApiSuccessResponseSchema(billingStateSchema);
 export const dashboardChartsApiResponseSchema = createApiSuccessResponseSchema(
   dashboardChartsResponseSchema,
 );
-export const dashboardRecentSyncApiResponseSchema = createApiSuccessResponseSchema(
-  dashboardRecentSyncResponseSchema,
+export const dashboardRecentSyncApiResponseSchema =
+  createApiSuccessResponseSchema(dashboardRecentSyncResponseSchema);
+export const dashboardProfitabilityApiResponseSchema =
+  createApiSuccessResponseSchema(dashboardProfitabilityResponseSchema);
+export const productAnalyticsSnapshotApiResponseSchema =
+  createApiSuccessResponseSchema(productAnalyticsSnapshotSchema);
+export const completeOnboardingApiResponseSchema =
+  createApiSuccessResponseSchema(completeOnboardingResponseSchema);
+export const companiesApiResponseSchema = createApiSuccessResponseSchema(
+  z.array(companyRecordSchema),
 );
-export const dashboardProfitabilityApiResponseSchema = createApiSuccessResponseSchema(
-  dashboardProfitabilityResponseSchema,
-);
-export const productAnalyticsSnapshotApiResponseSchema = createApiSuccessResponseSchema(
-  productAnalyticsSnapshotSchema,
-);
-export const completeOnboardingApiResponseSchema = createApiSuccessResponseSchema(
-  completeOnboardingResponseSchema,
-);
-export const companiesApiResponseSchema = createApiSuccessResponseSchema(z.array(companyRecordSchema));
 
 export type AuthStateInput = z.infer<typeof authStateSchema>;
-export type ExchangeAuthTicketResponseInput = z.infer<typeof exchangeAuthTicketResponseSchema>;
+export type ExchangeAuthTicketResponseInput = z.infer<
+  typeof exchangeAuthTicketResponseSchema
+>;
 export type BillingStateInput = z.infer<typeof billingStateSchema>;
-export type DashboardSummaryResponseInput = z.infer<typeof dashboardSummaryResponseSchema>;
-export type DashboardChartsResponseInput = z.infer<typeof dashboardChartsResponseSchema>;
-export type DashboardRecentSyncResponseInput = z.infer<typeof dashboardRecentSyncResponseSchema>;
-export type DashboardProfitabilityResponseInput = z.infer<typeof dashboardProfitabilityResponseSchema>;
-export type ProductAnalyticsSnapshotInput = z.infer<typeof productAnalyticsSnapshotSchema>;
-export type CompleteOnboardingResponseInput = z.infer<typeof completeOnboardingResponseSchema>;
+export type DashboardSummaryResponseInput = z.infer<
+  typeof dashboardSummaryResponseSchema
+>;
+export type DashboardChartsResponseInput = z.infer<
+  typeof dashboardChartsResponseSchema
+>;
+export type DashboardRecentSyncResponseInput = z.infer<
+  typeof dashboardRecentSyncResponseSchema
+>;
+export type DashboardProfitabilityResponseInput = z.infer<
+  typeof dashboardProfitabilityResponseSchema
+>;
+export type ProductAnalyticsSnapshotInput = z.infer<
+  typeof productAnalyticsSnapshotSchema
+>;
+export type CompleteOnboardingResponseInput = z.infer<
+  typeof completeOnboardingResponseSchema
+>;

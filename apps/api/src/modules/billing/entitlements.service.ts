@@ -5,6 +5,7 @@ import { DATABASE_CLIENT } from "@/common/tokens";
 import type { BillingSnapshot } from "./billing.types";
 
 const ENTITLED_STATUSES = new Set(["active", "trialing"]);
+const TRIAL_DAYS = 7;
 
 function readPostgresErrorCode(error: unknown): string | undefined {
   let current: unknown = error;
@@ -35,7 +36,11 @@ function errorMessageChain(error: unknown): string {
     if (current instanceof Error) {
       parts.push(current.message);
       current = current.cause;
-    } else if (typeof current === "object" && current !== null && "message" in current) {
+    } else if (
+      typeof current === "object" &&
+      current !== null &&
+      "message" in current
+    ) {
       parts.push(String((current as { message: unknown }).message));
       current =
         "cause" in current ? (current as { cause?: unknown }).cause : undefined;
@@ -71,39 +76,52 @@ export class EntitlementsService {
     private readonly db: DatabaseClient,
   ) {}
 
-  async getBillingSnapshot(input: {
-    organizationId: string | null;
-    userId: string;
-  } | string): Promise<BillingSnapshot> {
+  async getBillingSnapshot(
+    input:
+      | {
+          organizationId: string | null;
+          userId: string;
+        }
+      | string,
+  ): Promise<BillingSnapshot> {
     if (typeof input === "string") {
       return this.getOrganizationSnapshot(input);
     }
 
-    const [customer, subscription, pendingCheckout] = await Promise.all([
-      input.organizationId
-        ? this.db.query.billingCustomers.findFirst({
-            where: (table, { and, eq }) =>
-              and(eq(table.organizationId, input.organizationId!), eq(table.provider, "stripe")),
-          })
-        : Promise.resolve(null),
-      input.organizationId
-        ? this.db.query.subscriptions.findFirst({
-            where: (table, { and, eq }) =>
-              and(
-                eq(table.organizationId, input.organizationId!),
-                eq(table.provider, "stripe"),
-                isNotNull(table.billingCustomerId),
-              ),
-            orderBy: (table, { desc }) => [desc(table.updatedAt)],
-          })
-        : Promise.resolve(null),
-      this.loadLatestPendingCheckoutForUser(input.userId),
-    ]);
+    const [customer, subscription, pendingCheckout, billingTrial] =
+      await Promise.all([
+        input.organizationId
+          ? this.db.query.billingCustomers.findFirst({
+              where: (table, { and, eq }) =>
+                and(
+                  eq(table.organizationId, input.organizationId!),
+                  eq(table.provider, "stripe"),
+                ),
+            })
+          : Promise.resolve(null),
+        input.organizationId
+          ? this.db.query.subscriptions.findFirst({
+              where: (table, { and, eq }) =>
+                and(
+                  eq(table.organizationId, input.organizationId!),
+                  eq(table.provider, "stripe"),
+                  isNotNull(table.billingCustomerId),
+                ),
+              orderBy: (table, { desc }) => [desc(table.updatedAt)],
+            })
+          : Promise.resolve(null),
+        this.loadLatestPendingCheckoutForUser(input.userId),
+        this.db.query.billingTrials.findFirst({
+          where: (table, { eq }) => eq(table.userId, input.userId),
+        }),
+      ]);
 
-    const entitled = subscription != null && ENTITLED_STATUSES.has(subscription.status);
+    const entitled =
+      subscription != null && ENTITLED_STATUSES.has(subscription.status);
     const hasConfirmedPendingCheckout =
       pendingCheckout != null &&
-      (pendingCheckout.status === "confirmed" || pendingCheckout.status === "completed") &&
+      (pendingCheckout.status === "confirmed" ||
+        pendingCheckout.status === "completed") &&
       Boolean(pendingCheckout.stripeSubscriptionId);
 
     let status: BillingSnapshot["status"];
@@ -121,6 +139,8 @@ export class EntitlementsService {
     return {
       organizationId: input.organizationId,
       entitled,
+      trialDays: TRIAL_DAYS,
+      trialEligible: !billingTrial?.redeemedAt,
       status,
       customer: customer
         ? {
@@ -132,12 +152,16 @@ export class EntitlementsService {
         ? {
             cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
             currentPeriodEnd: this.toIsoString(subscription.currentPeriodEnd),
-            currentPeriodStart: this.toIsoString(subscription.currentPeriodStart),
+            currentPeriodStart: this.toIsoString(
+              subscription.currentPeriodStart,
+            ),
             externalSubscriptionId: subscription.externalSubscriptionId,
             id: subscription.id,
             interval: subscription.interval,
             planCode: subscription.planCode,
             status: subscription.status,
+            trialEnd: this.toIsoString(subscription.trialEnd),
+            trialStart: this.toIsoString(subscription.trialStart),
           }
         : null,
       pendingCheckout: pendingCheckout
@@ -169,11 +193,16 @@ export class EntitlementsService {
     return snapshot;
   }
 
-  private async getOrganizationSnapshot(organizationId: string): Promise<BillingSnapshot> {
+  private async getOrganizationSnapshot(
+    organizationId: string,
+  ): Promise<BillingSnapshot> {
     const [customer, subscription] = await Promise.all([
       this.db.query.billingCustomers.findFirst({
         where: (table, { and, eq }) =>
-          and(eq(table.organizationId, organizationId), eq(table.provider, "stripe")),
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.provider, "stripe"),
+          ),
       }),
       this.db.query.subscriptions.findFirst({
         where: (table, { and, eq }) =>
@@ -188,8 +217,14 @@ export class EntitlementsService {
 
     return {
       organizationId,
-      entitled: subscription != null && ENTITLED_STATUSES.has(subscription.status),
-      status: subscription != null && ENTITLED_STATUSES.has(subscription.status) ? "active" : "inactive",
+      entitled:
+        subscription != null && ENTITLED_STATUSES.has(subscription.status),
+      trialDays: TRIAL_DAYS,
+      trialEligible: false,
+      status:
+        subscription != null && ENTITLED_STATUSES.has(subscription.status)
+          ? "active"
+          : "inactive",
       customer: customer
         ? {
             externalCustomerId: customer.externalCustomerId,
@@ -200,12 +235,16 @@ export class EntitlementsService {
         ? {
             cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
             currentPeriodEnd: this.toIsoString(subscription.currentPeriodEnd),
-            currentPeriodStart: this.toIsoString(subscription.currentPeriodStart),
+            currentPeriodStart: this.toIsoString(
+              subscription.currentPeriodStart,
+            ),
             externalSubscriptionId: subscription.externalSubscriptionId,
             id: subscription.id,
             interval: subscription.interval,
             planCode: subscription.planCode,
             status: subscription.status,
+            trialEnd: this.toIsoString(subscription.trialEnd),
+            trialStart: this.toIsoString(subscription.trialStart),
           }
         : null,
       pendingCheckout: null,

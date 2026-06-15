@@ -1,4 +1,5 @@
 import {
+  Headers,
   Controller,
   Get,
   Inject,
@@ -7,9 +8,11 @@ import {
   Body,
   Query,
   Res,
+  Req,
   UseGuards,
 } from "@nestjs/common";
-import type { FastifyReply } from "fastify";
+import type { RawBodyRequest } from "@nestjs/common";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
@@ -18,6 +21,9 @@ import {
   IntegrationProviderParamDto,
   LinkSyncedProductRequestDto,
   MercadoLivreCallbackQueryDto,
+  MercadoLivreNotificationDto,
+  ShopeeCallbackQueryDto,
+  ShopeeNotificationDto,
 } from "./integrations.dto";
 import { IntegrationsService } from "./integrations.service";
 
@@ -39,15 +45,16 @@ export class IntegrationsController {
     };
   }
 
-  @Post("mercadolivre/connect")
+  @Post(":provider/connect")
   @UseGuards(EntitlementGuard)
-  async createMercadoLivreConnectUrl(
+  async createConnectUrl(
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param() params: IntegrationProviderParamDto,
   ) {
     return {
       data: await this.integrationsService.createConnectUrl(
         authContext.organization!.id,
-        "mercadolivre",
+        params.provider,
       ),
       error: null,
     };
@@ -65,6 +72,58 @@ export class IntegrationsController {
     );
 
     return reply.send();
+  }
+
+  @Get("shopee/callback")
+  async handleShopeeCallback(
+    @Query() query: ShopeeCallbackQueryDto,
+    @Res() reply: FastifyReply,
+  ) {
+    reply.status(302);
+    reply.header("location", await this.integrationsService.handleShopeeCallback(query));
+    return reply.send();
+  }
+
+  @Post("shopee/webhook")
+  async handleShopeeWebhook(
+    @Body() body: ShopeeNotificationDto,
+    @Headers("authorization") authorization: string | undefined,
+    @Req() request: RawBodyRequest<FastifyRequest>,
+  ) {
+    return {
+      data: await this.integrationsService.handleShopeeNotification({
+        authorization: authorization ?? "",
+        body,
+        rawBody: request.rawBody ?? Buffer.from(JSON.stringify(body)),
+      }),
+      error: null,
+    };
+  }
+
+  @Post("mercadolivre/webhook")
+  async handleMercadoLivreWebhook(
+    @Body() body: MercadoLivreNotificationDto,
+  ) {
+    return {
+      data: await this.integrationsService.handleMercadoLivreNotification(
+        body,
+        "/integrations/mercadolivre/webhook",
+      ),
+      error: null,
+    };
+  }
+
+  @Post("mercadolivre/notifications")
+  async handleMercadoLivreNotificationAlias(
+    @Body() body: MercadoLivreNotificationDto,
+  ) {
+    return {
+      data: await this.integrationsService.handleMercadoLivreNotification(
+        body,
+        "/integrations/mercadolivre/notifications",
+      ),
+      error: null,
+    };
   }
 
   @Get(":provider/products")

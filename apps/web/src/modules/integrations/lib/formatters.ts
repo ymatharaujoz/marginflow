@@ -37,6 +37,10 @@ export function getSyncStatusLabel(canRun: boolean): string {
   return canRun ? "Disponível agora" : "Bloqueada";
 }
 
+export function formatSyncOrigin(origin: SyncRunRecord["origin"]): string {
+  return origin === "automatic" ? "AutomÃ¡tica" : "Manual";
+}
+
 const slotLabels: Record<string, string> = {
   morning: "Manhã",
   afternoon: "Tarde",

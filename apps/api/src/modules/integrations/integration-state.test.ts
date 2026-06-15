@@ -35,4 +35,23 @@ describe("integration-state", () => {
       "Invalid integration callback state.",
     );
   });
+
+  it("round-trips optional oauth metadata such as PKCE verifier", () => {
+    const state = createSignedIntegrationState(
+      {
+        codeVerifier: "verifier_123",
+        organizationId: "org_123",
+        provider: "mercadolivre",
+      },
+      "secret",
+    );
+
+    expect(readSignedIntegrationState(state, "secret")).toEqual(
+      expect.objectContaining({
+        codeVerifier: "verifier_123",
+        organizationId: "org_123",
+        provider: "mercadolivre",
+      }),
+    );
+  });
 });

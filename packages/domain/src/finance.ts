@@ -58,7 +58,7 @@ export type FinancialMonthlyPerformanceInput = {
   salePrice: DecimalString;
   commissionRate: DecimalString;
   shippingFee: DecimalString;
-  taxRate: DecimalString;
+  taxRateDefault: DecimalString;
   packagingCost: DecimalString;
   advertisingCost: DecimalString;
 };
@@ -828,7 +828,7 @@ function buildProductAggregateMap(snapshot: FinanceSnapshot) {
       const rowProductCost = parseMoney(row.unitCost) * BigInt(netSales);
       const commission = multiplyMoneyByRate(revenue, row.commissionRate);
       const rowShipping = parseMoney(row.shippingFee) * BigInt(netSales);
-      const rowTax = multiplyMoneyByRate(revenue, row.taxRate);
+      const rowTax = multiplyMoneyByRate(revenue, row.taxRateDefault);
       const rowPackaging = parseMoney(row.packagingCost) * BigInt(netSales);
       const advertising = parseMoney(row.advertisingCost);
 

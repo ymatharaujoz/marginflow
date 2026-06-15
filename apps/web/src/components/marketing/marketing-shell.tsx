@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
+import { BrandName } from "@/components/brand-name";
 import { MarketingBackdrop } from "@/components/marketing/marketing-backdrop";
 import { MarketingNavLinks } from "@/components/marketing/marketing-nav-links";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { resolveSiteConfig } from "@/lib/site";
-
-const brand = resolveSiteConfig();
 
 export function MarketingShell({
   children,
@@ -19,17 +18,13 @@ export function MarketingShell({
 
       <div className="relative z-10">
         {/* Header */}
-        <header className="fixed left-0 right-0 top-0 z-50 px-4 pt-4 sm:px-6 lg:px-8">
+        <header className="fixed left-0 right-0 top-0 z-50 px-4 pt-2 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-7xl">
-            <nav className="flex items-center justify-between rounded-2xl border border-border/50 bg-surface px-4 py-3 shadow-sm backdrop-blur-xl md:px-6">
+            <nav className="flex items-center justify-between rounded-2xl border border-border/50 bg-surface px-4 py-1.5 shadow-sm backdrop-blur-xl md:px-6">
               {/* Logo */}
               <Link href="/" className="group flex items-center gap-2.5">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-accent-strong text-sm font-bold text-white shadow-md transition-transform group-hover:scale-105">
-                  {brand.icon}
-                </span>
-                <span className="hidden text-base font-bold tracking-tight text-foreground sm:block">
-                  {brand.name}
-                </span>
+                <BrandLogo className="h-12 w-auto transition-transform group-hover:scale-105" />
+                <BrandName className="text-base font-bold tracking-tight" />
               </Link>
 
               {/* Navigation */}
@@ -52,7 +47,7 @@ export function MarketingShell({
         </header>
 
         {/* Spacer for fixed header */}
-        <div className="h-24" />
+        <div className="h-16" />
 
         {children}
 
@@ -62,10 +57,8 @@ export function MarketingShell({
             <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
               {/* Logo */}
               <Link href="/" className="flex items-center gap-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-accent-strong text-xs font-bold text-white">
-                  {brand.icon}
-                </span>
-                <span className="text-sm font-semibold text-foreground">{brand.name}</span>
+                <BrandLogo className="h-14 w-auto" />
+                <BrandName className="text-sm font-semibold" />
               </Link>
 
               {/* Links */}
@@ -75,7 +68,7 @@ export function MarketingShell({
 
               {/* Copyright */}
               <p className="text-xs text-muted-foreground">
-                &copy; {new Date().getFullYear()} {brand.name}. Todos os direitos reservados.
+                &copy; {new Date().getFullYear()} Lucreii. Todos os direitos reservados.
               </p>
             </div>
           </div>

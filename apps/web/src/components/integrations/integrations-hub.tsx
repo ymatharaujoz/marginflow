@@ -25,6 +25,7 @@ interface IntegrationsHubProps {
 }
 
 export function IntegrationsHub({ initialMessage, initialStatus, organizationName }: IntegrationsHubProps) {
+  const [syncProvider, setSyncProvider] = useState<IntegrationProviderSlug>("mercadolivre");
   // Estado de mensagens (vindas da URL ou ações do usuário)
   const [message, setMessage] = useState<string | null>(() => {
     if (!initialMessage) return null;
@@ -50,7 +51,7 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
     syncMutation,
     clearHistoryMutation,
     refetchAll,
-  } = useIntegrationsData({
+  } = useIntegrationsData(syncProvider, {
     onSyncSuccess: (data: RunSyncResponse) => {
       const n = data.run.counts.orders;
       setMessage(`Sincronização finalizada com ${n} pedido${n === 1 ? "" : "s"} importado${n === 1 ? "" : "s"}.`);
@@ -158,8 +159,8 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
   }
 
   const displayMessage = message ? translateApiMessage(message) || message : null;
-  const mercadoLivreConnection = integrationsQuery.data?.find((c) => c.provider === "mercadolivre");
-  const isConnected = mercadoLivreConnection?.status === "connected";
+  const activeConnection = integrationsQuery.data?.find((c) => c.provider === syncProvider);
+  const isConnected = activeConnection?.status === "connected";
   const lastCompletedRun = syncStatusQuery.data?.lastCompletedRun;
 
   return (
@@ -224,6 +225,25 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
           <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
             Status da Sincronização
           </h2>
+        </div>
+        <div className="flex w-fit rounded-lg border border-border bg-surface-strong p-1">
+          {([
+            ["mercadolivre", "Mercado Livre"],
+            ["shopee", "Shopee"],
+          ] as const).map(([provider, label]) => (
+            <button
+              key={provider}
+              type="button"
+              onClick={() => setSyncProvider(provider)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                syncProvider === provider
+                  ? "bg-accent text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
         <SyncStatusGrid
           syncStatus={syncStatusQuery.data}

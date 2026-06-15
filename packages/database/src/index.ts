@@ -18,17 +18,22 @@ export type NewVerification = typeof schema.verifications.$inferInsert;
 export type Organization = typeof schema.organizations.$inferSelect;
 export type NewOrganization = typeof schema.organizations.$inferInsert;
 export type OrganizationMember = typeof schema.organizationMembers.$inferSelect;
-export type NewOrganizationMember = typeof schema.organizationMembers.$inferInsert;
+export type NewOrganizationMember =
+  typeof schema.organizationMembers.$inferInsert;
 export type Company = typeof schema.companies.$inferSelect;
 export type NewCompany = typeof schema.companies.$inferInsert;
 export type BillingCustomer = typeof schema.billingCustomers.$inferSelect;
 export type NewBillingCustomer = typeof schema.billingCustomers.$inferInsert;
 export type Subscription = typeof schema.subscriptions.$inferSelect;
 export type NewSubscription = typeof schema.subscriptions.$inferInsert;
+export type BillingTrial = typeof schema.billingTrials.$inferSelect;
+export type NewBillingTrial = typeof schema.billingTrials.$inferInsert;
 export type PendingCheckout = typeof schema.pendingCheckouts.$inferSelect;
 export type NewPendingCheckout = typeof schema.pendingCheckouts.$inferInsert;
-export type MarketplaceConnection = typeof schema.marketplaceConnections.$inferSelect;
-export type NewMarketplaceConnection = typeof schema.marketplaceConnections.$inferInsert;
+export type MarketplaceConnection =
+  typeof schema.marketplaceConnections.$inferSelect;
+export type NewMarketplaceConnection =
+  typeof schema.marketplaceConnections.$inferInsert;
 export type SyncRun = typeof schema.syncRuns.$inferSelect;
 export type NewSyncRun = typeof schema.syncRuns.$inferInsert;
 export type ExternalProduct = typeof schema.externalProducts.$inferSelect;
@@ -36,19 +41,24 @@ export type NewExternalProduct = typeof schema.externalProducts.$inferInsert;
 export type ExternalOrder = typeof schema.externalOrders.$inferSelect;
 export type NewExternalOrder = typeof schema.externalOrders.$inferInsert;
 export type ExternalOrderItem = typeof schema.externalOrderItems.$inferSelect;
-export type NewExternalOrderItem = typeof schema.externalOrderItems.$inferInsert;
+export type NewExternalOrderItem =
+  typeof schema.externalOrderItems.$inferInsert;
 export type ExternalFee = typeof schema.externalFees.$inferSelect;
 export type NewExternalFee = typeof schema.externalFees.$inferInsert;
 export type FixedCost = typeof schema.fixedCosts.$inferSelect;
 export type NewFixedCost = typeof schema.fixedCosts.$inferInsert;
 export type Product = typeof schema.products.$inferSelect;
 export type NewProduct = typeof schema.products.$inferInsert;
-export type ProductFinanceDefaults = typeof schema.productFinanceDefaults.$inferSelect;
-export type NewProductFinanceDefaults = typeof schema.productFinanceDefaults.$inferInsert;
+export type ProductFinanceDefaults =
+  typeof schema.productFinanceDefaults.$inferSelect;
+export type NewProductFinanceDefaults =
+  typeof schema.productFinanceDefaults.$inferInsert;
 export type ProductCost = typeof schema.productCosts.$inferSelect;
 export type NewProductCost = typeof schema.productCosts.$inferInsert;
-export type ProductMonthlyPerformance = typeof schema.productMonthlyPerformance.$inferSelect;
-export type NewProductMonthlyPerformance = typeof schema.productMonthlyPerformance.$inferInsert;
+export type ProductMonthlyPerformance =
+  typeof schema.productMonthlyPerformance.$inferSelect;
+export type NewProductMonthlyPerformance =
+  typeof schema.productMonthlyPerformance.$inferInsert;
 export type AdCost = typeof schema.adCosts.$inferSelect;
 export type NewAdCost = typeof schema.adCosts.$inferInsert;
 export type ManualExpense = typeof schema.manualExpenses.$inferSelect;

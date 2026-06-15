@@ -6,11 +6,11 @@ const env = {
   API_HOST: "127.0.0.1",
   API_PORT: 4000,
   AUTH_TRUSTED_ORIGINS: undefined,
-  BETTER_AUTH_SECRET: "secret",
-  BETTER_AUTH_URL: "http://localhost:4000",
+  API_PUBLIC_BASE_URL: "http://localhost:4000",
   DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
-  GOOGLE_CLIENT_ID: "google-client-id",
-  GOOGLE_CLIENT_SECRET: "google-client-secret",
+  MERCADOLIVRE_CLIENT_ID: undefined,
+  MERCADOLIVRE_CLIENT_SECRET: undefined,
+  MERCADOLIVRE_REDIRECT_URI: undefined,
   STRIPE_SECRET_KEY: "stripe",
   STRIPE_WEBHOOK_SECRET: "webhook",
   STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -21,34 +21,37 @@ const env = {
 } as const;
 
 function createService({
-  authSession,
   membership = {
     id: "org_123",
     name: "Existing Org",
     role: "owner",
     slug: "existing-org",
   },
+  persistedSession,
 }: {
-  authSession?: {
-    session: { id: string; expiresAt: Date };
+  membership?: {
+    id: string;
+    name: string;
+    role: string;
+    slug: string;
+  } | null;
+  persistedSession?: {
+    expiresAt: Date | string;
+    id: string;
     user: {
       id: string;
       email: string;
       name: string;
       image?: string | null;
       emailVerified: boolean;
-    };
+    } | null;
   } | null;
-  membership?: {
-    id: string;
-    name: string;
-    role: string;
-    slug: string;
-  };
 } = {}) {
-  const auth = {
-    api: {
-      getSession: vi.fn().mockResolvedValue(authSession ?? null),
+  const db = {
+    query: {
+      sessions: {
+        findFirst: vi.fn().mockResolvedValue(persistedSession ?? null),
+      },
     },
   };
   const organizationProvisioningService = {
@@ -56,30 +59,29 @@ function createService({
   };
 
   return {
-    auth,
+    db,
     organizationProvisioningService,
-    service: new AuthService(auth as never, env, organizationProvisioningService as never),
+    service: new AuthService(db as never, organizationProvisioningService as never),
   };
 }
 
 describe("AuthService", () => {
-  it("returns null when Better Auth session is missing", async () => {
-    const { service } = createService();
+  it("returns null when api session cookie is missing", async () => {
+    const { db, service } = createService();
 
     const context = await service.resolveRequestContext({
       headers: new Headers(),
     });
 
+    expect(db.query.sessions.findFirst).not.toHaveBeenCalled();
     expect(context).toBeNull();
   });
 
-  it("hydrates auth context with nullable organization scope", async () => {
-    const { organizationProvisioningService, service } = createService({
-      authSession: {
-        session: {
-          expiresAt: new Date("2026-04-22T00:00:00.000Z"),
-          id: "session_123",
-        },
+  it("hydrates auth context from persisted internal session", async () => {
+    const { db, organizationProvisioningService, service } = createService({
+      persistedSession: {
+        expiresAt: "2099-04-22T00:00:00.000Z",
+        id: "session_123",
         user: {
           email: "owner@marginflow.local",
           emailVerified: true,
@@ -92,10 +94,11 @@ describe("AuthService", () => {
 
     const context = await service.resolveRequestContext({
       headers: new Headers({
-        cookie: "better-auth.session_token=token",
+        cookie: "marginflow_api_session=session_token_123",
       }),
     });
 
+    expect(db.query.sessions.findFirst).toHaveBeenCalled();
     expect(organizationProvisioningService.findDefaultOrganization).toHaveBeenCalledWith(
       "user_123",
     );
@@ -107,7 +110,7 @@ describe("AuthService", () => {
         slug: "existing-org",
       },
       session: {
-        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        expiresAt: new Date("2099-04-22T00:00:00.000Z"),
         id: "session_123",
       },
       user: {
@@ -122,11 +125,10 @@ describe("AuthService", () => {
 
   it("keeps authenticated users without organization during onboarding gap", async () => {
     const { service } = createService({
-      authSession: {
-        session: {
-          expiresAt: new Date("2026-04-22T00:00:00.000Z"),
-          id: "session_123",
-        },
+      membership: null,
+      persistedSession: {
+        expiresAt: "2099-04-22T00:00:00.000Z",
+        id: "session_123",
         user: {
           email: "owner@marginflow.local",
           emailVerified: true,
@@ -135,19 +137,18 @@ describe("AuthService", () => {
           name: "Mateus",
         },
       },
-      membership: null as never,
     });
 
     const context = await service.resolveRequestContext({
       headers: new Headers({
-        cookie: "better-auth.session_token=token",
+        cookie: "marginflow_api_session=session_token_123",
       }),
     });
 
     expect(context).toEqual({
       organization: null,
       session: {
-        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        expiresAt: new Date("2099-04-22T00:00:00.000Z"),
         id: "session_123",
       },
       user: {

@@ -125,6 +125,7 @@ export function readPublicEnv(source: Record<string, string | undefined> = proce
     NEXT_PUBLIC_API_BASE_URL:
       pickNonEmpty(source.NEXT_PUBLIC_API_BASE_URL) ??
       (useLocalDefaults ? DEFAULT_PUBLIC_API_BASE_URL : resolveProductionApiBaseUrl(source)),
+    NEXT_PUBLIC_WHATSAPP_PHONE: pickNonEmpty(source.NEXT_PUBLIC_WHATSAPP_PHONE),
     NEXT_PUBLIC_WHATSAPP_DEMO_URL: pickNonEmpty(source.NEXT_PUBLIC_WHATSAPP_DEMO_URL),
     NEXT_PUBLIC_APP_NAME: pickNonEmpty(source.NEXT_PUBLIC_APP_NAME),
     NEXT_PUBLIC_APP_ICON: pickNonEmpty(source.NEXT_PUBLIC_APP_ICON),
@@ -137,7 +138,7 @@ export function readPublicEnv(source: Record<string, string | undefined> = proce
 
     return {
       ...merged,
-      NEXT_PUBLIC_APP_NAME: merged.NEXT_PUBLIC_APP_NAME ?? "MarginFlow",
+      NEXT_PUBLIC_APP_NAME: merged.NEXT_PUBLIC_APP_NAME ?? "Lucreii",
       NEXT_PUBLIC_APP_ICON: merged.NEXT_PUBLIC_APP_ICON ?? "M",
       NEXT_PUBLIC_PRICE_MONTHLY_LABEL: merged.NEXT_PUBLIC_PRICE_MONTHLY_LABEL ?? "R$ 99",
       NEXT_PUBLIC_PRICE_ANNUAL_LABEL: merged.NEXT_PUBLIC_PRICE_ANNUAL_LABEL ?? "R$ 79",
@@ -166,6 +167,7 @@ export function getClientPublicEnv() {
     NEXT_PUBLIC_PRICE_ANNUAL_LABEL: process.env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL,
     NEXT_PUBLIC_PRICE_MONTHLY_LABEL: process.env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL,
     NEXT_PUBLIC_WHATSAPP_DEMO_URL: process.env.NEXT_PUBLIC_WHATSAPP_DEMO_URL,
+    NEXT_PUBLIC_WHATSAPP_PHONE: process.env.NEXT_PUBLIC_WHATSAPP_PHONE,
   });
 }
 

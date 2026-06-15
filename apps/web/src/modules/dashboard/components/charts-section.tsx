@@ -81,7 +81,7 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
               </div>
               <div>
                 <h3 className="text-xs font-semibold text-foreground">EVOLUÇÃO FINANCEIRA</h3>
-                <p className="text-[10px] text-muted-foreground">RECEITA BRUTA VS LUCRO</p>
+                <p className="text-[10px] text-muted-foreground">RECEITA VS LUCRO</p>
               </div>
             </div>
           </div>

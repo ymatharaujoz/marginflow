@@ -1,5 +1,6 @@
 import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { utils, write } from "xlsx";
 import { ProductsService } from "./products.service";
 
 vi.mock("@/modules/integrations/synced-products.read-model", () => ({
@@ -196,7 +197,6 @@ describe("ProductsService", () => {
       id: "defaults_1",
       packagingCost: "3.00",
       productId: "product_1",
-      taxRate: "0.120000",
       updatedAt: new Date("2026-05-14T10:02:00.000Z"),
     };
     const txInsert = vi
@@ -223,6 +223,13 @@ describe("ProductsService", () => {
         update: vi.fn(),
       }),
     );
+    db.query.companies.findMany.mockResolvedValue([
+      {
+        id: "company_1",
+        isActive: true,
+        taxRateDefault: "0.120000",
+      },
+    ]);
     financeService.materializeOrganizationMetrics = vi.fn().mockResolvedValue(undefined);
 
     await expect(
@@ -234,7 +241,6 @@ describe("ProductsService", () => {
         {
           initialFinance: {
             packagingCost: "3.00",
-            taxRate: "0.120000",
             unitCost: "80.00",
           },
           product: {
@@ -250,7 +256,6 @@ describe("ProductsService", () => {
         financeDefaults: expect.objectContaining({
           packagingCost: "3.00",
           productId: "product_1",
-          taxRate: "0.120000",
         }),
         product: expect.objectContaining({
           id: "product_1",
@@ -263,7 +268,7 @@ describe("ProductsService", () => {
         }),
       }),
     );
-    expect(db.query.companies.findFirst).not.toHaveBeenCalled();
+    expect(db.query.companies.findMany).toHaveBeenCalledOnce();
     expect(txInsert).toHaveBeenCalledTimes(3);
     expect(financeService.materializeOrganizationMetrics).toHaveBeenCalledWith("org_1");
   });
@@ -280,7 +285,6 @@ describe("ProductsService", () => {
         {
           initialFinance: {
             packagingCost: "3.00",
-            taxRate: "0.120000",
             unitCost: "80.00",
           },
           product: {
@@ -294,8 +298,9 @@ describe("ProductsService", () => {
     ).rejects.toThrow("SKU is required for manual product creation.");
   });
 
-  it("rejects manual product creation when tax rate is not fractional", async () => {
+  it("rejects manual product creation when no active company exists", async () => {
     const { db, service } = createService();
+    db.query.companies.findMany.mockResolvedValue([]);
 
     await expect(
       service.createManualProduct(
@@ -306,7 +311,6 @@ describe("ProductsService", () => {
         {
           initialFinance: {
             packagingCost: "3.00",
-            taxRate: "15",
             unitCost: "80.00",
           },
           product: {
@@ -317,9 +321,130 @@ describe("ProductsService", () => {
           },
         },
       ),
-    ).rejects.toThrow("Tax rate must be a decimal rate between 0 and 1.");
+    ).rejects.toThrow("Cadastre uma empresa ativa em /app antes de criar ou importar produtos.");
 
     expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects manual product creation when multiple active companies exist", async () => {
+    const { db, service } = createService();
+    db.query.companies.findMany.mockResolvedValue([
+      {
+        id: "company_1",
+        isActive: true,
+        taxRateDefault: "0.120000",
+      },
+      {
+        id: "company_2",
+        isActive: true,
+        taxRateDefault: "0.080000",
+      },
+    ]);
+
+    await expect(
+      service.createManualProduct(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        {
+          initialFinance: {
+            packagingCost: "3.00",
+            unitCost: "80.00",
+          },
+          product: {
+            isActive: true,
+            name: "Kit Mercado Livre",
+            sellingPrice: "149.90",
+            sku: "ML-001",
+          },
+        },
+      ),
+    ).rejects.toThrow("Mantenha apenas uma empresa ativa em /app antes de criar ou importar produtos.");
+
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it("imports spreadsheet rows without IMPOSTO and delegates tax resolution to manual creation", async () => {
+    const { db, service } = createService();
+    db.query.products.findMany.mockResolvedValue([]);
+    const createManualProductSpy = vi
+      .spyOn(service, "createManualProduct")
+      .mockResolvedValue({} as never);
+
+    const workbook = utils.book_new();
+    const worksheet = utils.json_to_sheet([
+      {
+        EMBALAGEM: 3,
+        "CUSTO UNITÁRIO": 80,
+        "PREÇO DE VENDA": 149.9,
+        PRODUTO: "Kit Mercado Livre",
+        SKU: " ml-001 ",
+        STATUS: 1,
+      },
+    ]);
+    utils.book_append_sheet(workbook, worksheet, "Produtos");
+    const fileBuffer = Buffer.from(write(workbook, { bookType: "xlsx", type: "buffer" }));
+
+    await expect(
+      service.importProducts(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        fileBuffer,
+      ),
+    ).resolves.toEqual({
+      errors: [],
+      imported: 1,
+    });
+
+    expect(createManualProductSpy).toHaveBeenCalledWith(
+      {
+        organizationId: "org_1",
+        userId: "user_1",
+      },
+      {
+        initialFinance: {
+          packagingCost: "3.00",
+          unitCost: "80.00",
+        },
+        product: {
+          isActive: true,
+          name: "Kit Mercado Livre",
+          sellingPrice: "149.90",
+          sku: "ML-001",
+        },
+      },
+    );
+  });
+
+  it("rejects spreadsheet using legacy IMPOSTO header set", async () => {
+    const { service } = createService();
+    const workbook = utils.book_new();
+    const worksheet = utils.json_to_sheet([
+      {
+        EMBALAGEM: 3,
+        IMPOSTO: 12,
+        "CUSTO UNITÁRIO": 80,
+        "PREÇO DE VENDA": 149.9,
+        PRODUTO: "Kit Mercado Livre",
+        SKU: "ML-001",
+        STATUS: 1,
+      },
+    ]);
+    utils.book_append_sheet(workbook, worksheet, "Produtos");
+    const fileBuffer = Buffer.from(write(workbook, { bookType: "xlsx", type: "buffer" }));
+
+    await expect(
+      service.importProducts(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        fileBuffer,
+      ),
+    ).rejects.toThrow("Colunas extras não suportadas: IMPOSTO");
   });
 
   it("rejects cross-organization product cost writes", async () => {
@@ -477,6 +602,7 @@ describe("ProductsService", () => {
     db.query.companies.findFirst.mockResolvedValue({
       id: "22222222-2222-4222-8222-222222222222",
       organizationId: "org_1",
+      taxRateDefault: "0.090000",
       userId: "user_1",
     });
     db.query.products.findMany.mockResolvedValue([product]);
@@ -514,7 +640,6 @@ describe("ProductsService", () => {
         salesQuantity: 3,
         shippingFee: "6.00",
         sku: "NB-1",
-        taxRate: "0.090000",
         unitCost: "25.00",
         updatedAt: new Date("2026-05-01T10:00:00.000Z"),
         userId: "user_1",
@@ -577,6 +702,7 @@ describe("ProductsService", () => {
       companyId: "22222222-2222-4222-8222-222222222222",
       companyRequired: false,
       referenceMonth: "2026-05-01",
+      taxRateDefault: "0.090000",
     });
     expect(snapshot.productRows).toEqual([
       expect.objectContaining({
@@ -603,7 +729,6 @@ describe("ProductsService", () => {
         salesQuantity: 3,
         shippingFee: "6.00",
         sku: "NB-1",
-        taxRate: "0.090000",
         unitCost: "25.00",
       },
     ]);
@@ -649,6 +774,7 @@ describe("ProductsService", () => {
       companyId: null,
       companyRequired: true,
       referenceMonth: expect.stringMatching(/^\d{4}-\d{2}-01$/),
+      taxRateDefault: "0",
     });
   });
 });

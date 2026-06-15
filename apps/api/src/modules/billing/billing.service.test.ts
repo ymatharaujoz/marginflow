@@ -1,5 +1,6 @@
 import {
   billingCustomers,
+  billingTrials,
   pendingCheckouts,
   subscriptionEvents,
   subscriptions,
@@ -45,6 +46,9 @@ function createInsertMock() {
       },
     ]),
   });
+  const insertTrialValues = vi.fn().mockReturnValue({
+    onConflictDoNothing: vi.fn().mockResolvedValue(undefined),
+  });
   const insert = vi.fn((table: unknown) => {
     if (table === subscriptions) {
       return {
@@ -70,6 +74,12 @@ function createInsertMock() {
       };
     }
 
+    if (table === billingTrials) {
+      return {
+        values: insertTrialValues,
+      };
+    }
+
     throw new Error("Unexpected insert target.");
   });
 
@@ -79,6 +89,7 @@ function createInsertMock() {
     insertEventValues,
     insertPendingCheckoutValues,
     insertSubscriptionValues,
+    insertTrialValues,
   };
 }
 
@@ -89,8 +100,11 @@ function createService() {
     insertEventValues,
     insertPendingCheckoutValues,
     insertSubscriptionValues,
-  } =
-    createInsertMock();
+    insertTrialValues,
+  } = createInsertMock();
+  const updateReturning = vi.fn().mockResolvedValue([{ id: "trial_123" }]);
+  const updateWhere = vi.fn().mockReturnValue({ returning: updateReturning });
+  const updateSet = vi.fn().mockReturnValue({ where: updateWhere });
   const db = {
     insert,
     query: {
@@ -103,13 +117,17 @@ function createService() {
       subscriptions: {
         findFirst: vi.fn(),
       },
+      billingTrials: {
+        findFirst: vi.fn(),
+      },
     },
-    update: vi.fn(),
+    update: vi.fn().mockReturnValue({ set: updateSet }),
   };
   const stripe = {
     checkout: {
       sessions: {
         create: vi.fn(),
+        expire: vi.fn(),
         retrieve: vi.fn(),
       },
     },
@@ -131,8 +149,10 @@ function createService() {
     insertEventValues,
     insertPendingCheckoutValues,
     insertSubscriptionValues,
+    insertTrialValues,
     service: new BillingService(db as never, stripe as never, env),
     stripe,
+    updateSet,
   };
 }
 
@@ -146,7 +166,18 @@ describe("BillingService", () => {
       provider: "stripe",
     };
     db.query.billingCustomers.findFirst.mockResolvedValue(existingCustomer);
-    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" } as Stripe.Response<Stripe.Customer>);
+    db.query.billingTrials.findFirst.mockResolvedValue({
+      checkoutSessionId: null,
+      email: "owner@marginflow.local",
+      id: "trial_123",
+      interval: null,
+      redeemedAt: null,
+      reservedUntil: null,
+      userId: "user_123",
+    });
+    stripe.customers.retrieve.mockResolvedValue({
+      id: "cus_123",
+    } as Stripe.Response<Stripe.Customer>);
     stripe.checkout.sessions.create.mockResolvedValue({
       id: "cs_123",
       url: "https://checkout.stripe.test/session",
@@ -192,6 +223,198 @@ describe("BillingService", () => {
           },
         ],
         mode: "subscription",
+        payment_method_collection: "always",
+        subscription_data: expect.objectContaining({
+          trial_period_days: 7,
+        }),
+      }),
+    );
+  });
+
+  it("reuses an open trial checkout for the same interval", async () => {
+    const { db, service, stripe } = createService();
+    db.query.billingCustomers.findFirst.mockResolvedValue({
+      externalCustomerId: "cus_123",
+      id: "billing_customer_123",
+      organizationId: "org_123",
+      provider: "stripe",
+    });
+    db.query.billingTrials.findFirst.mockResolvedValue({
+      checkoutSessionId: "cs_open",
+      email: "owner@marginflow.local",
+      id: "trial_123",
+      interval: "annual",
+      redeemedAt: null,
+      reservedUntil: new Date("2099-01-01T00:00:00.000Z"),
+      userId: "user_123",
+    });
+    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" });
+    stripe.checkout.sessions.retrieve.mockResolvedValue({
+      id: "cs_open",
+      status: "open",
+      url: "https://checkout.stripe.test/open",
+    });
+
+    await expect(
+      service.createCheckoutSession(
+        {
+          organization: {
+            id: "org_123",
+            name: "Org",
+            role: "owner",
+            slug: "org",
+          },
+          session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
+          user: {
+            email: "owner@marginflow.local",
+            emailVerified: true,
+            id: "user_123",
+            image: null,
+            name: "Owner",
+          },
+        },
+        "annual",
+      ),
+    ).resolves.toEqual({
+      checkoutUrl: "https://checkout.stripe.test/open",
+      sessionId: "cs_open",
+    });
+
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("creates an immediate subscription checkout after trial redemption", async () => {
+    const { db, service, stripe } = createService();
+    db.query.billingCustomers.findFirst.mockResolvedValue({
+      externalCustomerId: "cus_123",
+      id: "billing_customer_123",
+      organizationId: "org_123",
+      provider: "stripe",
+    });
+    db.query.billingTrials.findFirst.mockResolvedValue({
+      checkoutSessionId: "cs_previous",
+      email: "owner@marginflow.local",
+      id: "trial_123",
+      interval: "monthly",
+      redeemedAt: new Date("2026-06-01T00:00:00.000Z"),
+      reservedUntil: null,
+      userId: "user_123",
+    });
+    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_paid",
+      url: "https://checkout.stripe.test/paid",
+    });
+
+    await service.createCheckoutSession(
+      {
+        organization: {
+          id: "org_123",
+          name: "Org",
+          role: "owner",
+          slug: "org",
+        },
+        session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
+        user: {
+          email: "owner@marginflow.local",
+          emailVerified: true,
+          id: "user_123",
+          image: null,
+          name: "Owner",
+        },
+      },
+      "monthly",
+    );
+
+    expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_method_collection: "always",
+        subscription_data: expect.not.objectContaining({
+          trial_period_days: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("does not grant another trial when a reserved Checkout already completed", async () => {
+    const { db, service, stripe } = createService();
+    db.query.billingCustomers.findFirst.mockResolvedValue({
+      externalCustomerId: "cus_123",
+      id: "billing_customer_123",
+      organizationId: "org_123",
+      provider: "stripe",
+    });
+    db.query.billingTrials.findFirst.mockResolvedValue({
+      checkoutSessionId: "cs_complete",
+      email: "owner@marginflow.local",
+      id: "trial_123",
+      interval: "monthly",
+      redeemedAt: null,
+      reservedUntil: new Date("2099-01-01T00:00:00.000Z"),
+      userId: "user_123",
+    });
+    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" });
+    stripe.checkout.sessions.retrieve.mockResolvedValue({
+      id: "cs_complete",
+      status: "complete",
+      url: null,
+    });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_paid",
+      url: "https://checkout.stripe.test/paid",
+    });
+
+    await service.createCheckoutSession(
+      {
+        organization: {
+          id: "org_123",
+          name: "Org",
+          role: "owner",
+          slug: "org",
+        },
+        session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
+        user: {
+          email: "owner@marginflow.local",
+          emailVerified: true,
+          id: "user_123",
+          image: null,
+          name: "Owner",
+        },
+      },
+      "annual",
+    );
+
+    expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subscription_data: expect.not.objectContaining({
+          trial_period_days: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("releases an unredeemed trial reservation when Checkout expires", async () => {
+    const { service, stripe, updateSet } = createService();
+    stripe.webhooks.constructEvent.mockReturnValue({
+      created: 1_777_777_777,
+      data: {
+        object: {
+          id: "cs_expired",
+          metadata: {
+            userId: "user_123",
+          },
+        } as unknown as Stripe.Checkout.Session,
+      },
+      type: "checkout.session.expired",
+    });
+
+    await service.processWebhook(Buffer.from("{}"), "good_signature");
+
+    expect(updateSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkoutSessionId: null,
+        interval: null,
+        reservedUntil: null,
       }),
     );
   });
@@ -202,13 +425,14 @@ describe("BillingService", () => {
       throw new Error("Invalid signature");
     });
 
-    await expect(service.processWebhook(Buffer.from("{}"), "bad_signature")).rejects.toThrow(
-      "Invalid signature",
-    );
+    await expect(
+      service.processWebhook(Buffer.from("{}"), "bad_signature"),
+    ).rejects.toThrow("Invalid signature");
   });
 
   it("mirrors subscription state locally from Stripe subscription events", async () => {
-    const { db, insertEventValues, insertSubscriptionValues, service, stripe } = createService();
+    const { db, insertEventValues, insertSubscriptionValues, service, stripe } =
+      createService();
     db.query.billingCustomers.findFirst
       .mockResolvedValueOnce({
         externalCustomerId: "cus_123",
@@ -312,7 +536,9 @@ describe("BillingService", () => {
     } as unknown as Stripe.Response<Stripe.Subscription>);
 
     insertSubscriptionValues.mockReturnValueOnce({
-      returning: vi.fn().mockResolvedValue([{ id: "subscription_local_confirm" }]),
+      returning: vi
+        .fn()
+        .mockResolvedValue([{ id: "subscription_local_confirm" }]),
     });
 
     await service.confirmCheckoutSession(

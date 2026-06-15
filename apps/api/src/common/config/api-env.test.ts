@@ -11,10 +11,6 @@ describe("readApiEnv", () => {
         API_HOST: "127.0.0.1",
         API_PORT: "4000",
         API_DB_POOL_MAX: "5",
-        BETTER_AUTH_SECRET: "secret",
-        BETTER_AUTH_URL: "http://localhost:4000",
-        GOOGLE_CLIENT_ID: "google-client-id",
-        GOOGLE_CLIENT_SECRET: "google-client-secret",
         STRIPE_SECRET_KEY: "stripe",
         STRIPE_WEBHOOK_SECRET: "webhook",
         STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -25,29 +21,13 @@ describe("readApiEnv", () => {
     ).toThrow();
   });
 
-  it("requires Better Auth and Google oauth configuration", () => {
-    expect(() =>
-      readApiEnv({
-        API_HOST: "127.0.0.1",
-        API_PORT: "4000",
-        API_DB_POOL_MAX: "5",
-        DATABASE_URL: runtimeUrl,
-        NODE_ENV: "test",
-        WEB_APP_ORIGIN: "http://localhost:3000",
-      }),
-    ).toThrow();
-  });
-
-  it("parses DATABASE_URL when present", () => {
+  it("parses required internal auth runtime configuration without Google or Better Auth", () => {
     const env = readApiEnv({
       API_HOST: "127.0.0.1",
       API_PORT: "4000",
       API_DB_POOL_MAX: "12",
+      API_PUBLIC_BASE_URL: "http://localhost:4000",
       DATABASE_URL: runtimeUrl,
-      BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "http://localhost:4000",
-      GOOGLE_CLIENT_ID: "google-client-id",
-      GOOGLE_CLIENT_SECRET: "google-client-secret",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -57,23 +37,21 @@ describe("readApiEnv", () => {
     });
 
     expect(env.DATABASE_URL).toBe(runtimeUrl);
-    expect(env.BETTER_AUTH_URL).toBe("http://localhost:4000");
+    expect(env.API_PUBLIC_BASE_URL).toBe("http://localhost:4000");
     expect(env.API_DB_POOL_MAX).toBe(12);
-    expect(env.STRIPE_PRICE_MONTHLY).toBe("price_monthly");
-    expect(env.STRIPE_PRICE_ANNUAL).toBe("price_annual");
-    expect(env.BETTER_AUTH_API_KEY).toBeUndefined();
-    expect(env.MERCADOLIVRE_CLIENT_ID).toBeUndefined();
+    expect(env.AUTH_SESSION_SECRET).toBeUndefined();
+    expect(env.BETTER_AUTH_URL).toBeUndefined();
+    expect(env.GOOGLE_CLIENT_ID).toBeUndefined();
   });
 
-  it("accepts optional Better Auth infrastructure api key", () => {
+  it("accepts optional legacy Better Auth and Google config without requiring it", () => {
     const env = readApiEnv({
       API_HOST: "127.0.0.1",
       API_PORT: "4000",
       API_DB_POOL_MAX: "12",
       DATABASE_URL: runtimeUrl,
       BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "http://localhost:4000",
-      BETTER_AUTH_API_KEY: "better-auth-api-key",
+      BETTER_AUTH_URL: "http://localhost:4000/auth",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       STRIPE_SECRET_KEY: "stripe",
@@ -84,7 +62,9 @@ describe("readApiEnv", () => {
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
 
-    expect(env.BETTER_AUTH_API_KEY).toBe("better-auth-api-key");
+    expect(env.BETTER_AUTH_SECRET).toBe("secret");
+    expect(env.BETTER_AUTH_URL).toBe("http://localhost:4000/auth");
+    expect(env.GOOGLE_CLIENT_ID).toBe("google-client-id");
   });
 
   it("accepts optional Mercado Livre oauth configuration", () => {
@@ -93,13 +73,10 @@ describe("readApiEnv", () => {
       API_PORT: "4000",
       API_DB_POOL_MAX: "12",
       DATABASE_URL: runtimeUrl,
-      BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "http://localhost:4000",
-      GOOGLE_CLIENT_ID: "google-client-id",
-      GOOGLE_CLIENT_SECRET: "google-client-secret",
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
       MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
       MERCADOLIVRE_REDIRECT_URI: "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_USE_PKCE: "true",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -112,29 +89,7 @@ describe("readApiEnv", () => {
     expect(env.MERCADOLIVRE_REDIRECT_URI).toBe(
       "http://localhost:4000/integrations/mercadolivre/callback",
     );
-  });
-
-  it("accepts an optional public backend base url distinct from BETTER_AUTH_URL", () => {
-    const env = readApiEnv({
-      API_HOST: "127.0.0.1",
-      API_PORT: "4000",
-      API_DB_POOL_MAX: "12",
-      API_PUBLIC_BASE_URL: "https://marginflow-production.up.railway.app",
-      DATABASE_URL: runtimeUrl,
-      BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "https://marginflow-production.up.railway.app/auth",
-      GOOGLE_CLIENT_ID: "google-client-id",
-      GOOGLE_CLIENT_SECRET: "google-client-secret",
-      STRIPE_SECRET_KEY: "stripe",
-      STRIPE_WEBHOOK_SECRET: "webhook",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      NODE_ENV: "test",
-      WEB_APP_ORIGIN: "https://marginflow-web.vercel.app",
-    });
-
-    expect(env.API_PUBLIC_BASE_URL).toBe("https://marginflow-production.up.railway.app");
-    expect(env.BETTER_AUTH_URL).toBe("https://marginflow-production.up.railway.app/auth");
+    expect(env.MERCADOLIVRE_USE_PKCE).toBe(true);
   });
 
   it("parses SYNC_RELAX_GUARDS", () => {
@@ -143,10 +98,6 @@ describe("readApiEnv", () => {
       API_PORT: "4000",
       API_DB_POOL_MAX: "5",
       DATABASE_URL: runtimeUrl,
-      BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "http://localhost:4000",
-      GOOGLE_CLIENT_ID: "google-client-id",
-      GOOGLE_CLIENT_SECRET: "google-client-secret",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -168,10 +119,6 @@ describe("readApiEnv", () => {
       API_PORT: "4000",
       API_DB_POOL_MAX: "5",
       DATABASE_URL: runtimeUrl,
-      BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "http://localhost:4000",
-      GOOGLE_CLIENT_ID: "google-client-id",
-      GOOGLE_CLIENT_SECRET: "google-client-secret",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -186,5 +133,32 @@ describe("readApiEnv", () => {
       "https://marginflow.app",
       "https://admin.marginflow.app",
     ]);
+  });
+
+  it("reports warning when Mercado Livre callback host differs from API public host in local flow", async () => {
+    const { readMercadoLivreOauthWarnings } = await import("./api-env");
+    const env = readApiEnv({
+      API_HOST: "127.0.0.1",
+      API_PORT: "4000",
+      API_DB_POOL_MAX: "5",
+      API_PUBLIC_BASE_URL: "http://localhost:4000",
+      DATABASE_URL: runtimeUrl,
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI: "https://demo.ngrok-free.dev/integrations/mercadolivre/callback",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_ANNUAL: "price_annual",
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    expect(readMercadoLivreOauthWarnings(env)).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("callback host"),
+        expect.stringContaining("Fluxo local Mercado Livre detectado"),
+      ]),
+    );
   });
 });

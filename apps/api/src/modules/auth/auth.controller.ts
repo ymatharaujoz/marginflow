@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Inject, Post, UseGuards } from "@nestjs/common";
 import { z } from "zod";
 import { AuthGuard } from "./auth.guard";
 import { AuthExchangeService } from "./auth-exchange.service";
@@ -16,7 +16,10 @@ class ExchangeAuthTicketDto {
 
 @Controller("auth-state")
 export class AuthStateController {
-  constructor(private readonly authExchangeService: AuthExchangeService) {}
+  constructor(
+    @Inject(AuthExchangeService)
+    private readonly authExchangeService: AuthExchangeService,
+  ) {}
 
   @Get("me")
   @UseGuards(AuthGuard)

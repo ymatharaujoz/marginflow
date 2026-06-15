@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus, DollarSign, Percent, Scale, Settings2, PiggyBank } from "lucide-react";
+import type { Company, DashboardProfitabilityResponse, DashboardSummaryResponse } from "@marginflow/types";
+import { ApiClientError, apiClient } from "@/lib/api/client";
 import { containerVariants, itemVariants } from "@/lib/animations";
+import { Card, Button, Input } from "@marginflow/ui";
+import {
+  buildCompanyDefaultsPatch,
+  formatCurrencyInput,
+} from "./company-finance-defaults";
 import { formatMoney, formatPercent } from "../utils/formatters";
-import type { DashboardProfitabilityResponse, DashboardSummaryResponse } from "@marginflow/types";
 
 interface DashboardFinancialIndicatorsProps {
+  activeCompany: Company | null;
   data: DashboardProfitabilityResponse;
   summary?: DashboardSummaryResponse;
 }
@@ -60,7 +67,7 @@ function IndicatorCard({ label, value, subValue, icon, variant = "default", tren
       `}
     >
       <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span
               className={`
@@ -94,18 +101,37 @@ function IndicatorCard({ label, value, subValue, icon, variant = "default", tren
 }
 
 function parseDecimal(value: string): number {
-  return parseFloat(value) || 0;
+  return Number.parseFloat(value) || 0;
 }
 
 function normalizeNumber(value: string | number | undefined | null): number {
   if (value === undefined || value === null) return 0;
-  const parsed = typeof value === "string" ? parseFloat(value) : value;
+  const parsed = typeof value === "string" ? Number.parseFloat(value) : value;
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export function DashboardFinancialIndicators({ data, summary }: DashboardFinancialIndicatorsProps) {
+export function DashboardFinancialIndicators({
+  activeCompany,
+  data,
+  summary,
+}: DashboardFinancialIndicatorsProps) {
   const [fixedCost, setFixedCost] = useState<number>(0);
+  const [taxPercent, setTaxPercent] = useState<number>(0);
+  const [fixedCostInput, setFixedCostInput] = useState("0,00");
+  const [taxPercentInput, setTaxPercentInput] = useState("0,00");
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const nextFixedCost = activeCompany ? Number.parseFloat(activeCompany.fixedCostDefault) || 0 : 0;
+    const nextTaxPercent = activeCompany ? (Number.parseFloat(activeCompany.taxRateDefault) || 0) * 100 : 0;
+
+    setFixedCost(nextFixedCost);
+    setTaxPercent(nextTaxPercent);
+    setFixedCostInput(formatCurrencyInput(nextFixedCost));
+    setTaxPercentInput(formatCurrencyInput(nextTaxPercent));
+  }, [activeCompany]);
 
   const financials = useMemo(() => {
     let totalRevenue = 0;
@@ -123,20 +149,61 @@ export function DashboardFinancialIndicators({ data, summary }: DashboardFinanci
     const netProfit = totalProfit - fixedCost - totalAdSpend;
 
     return {
-      totalRevenue,
-      totalProfit,
-      totalAdSpend,
       averageMargin,
       breakEvenPoint,
       netProfit,
+      totalAdSpend,
+      totalProfit,
+      totalRevenue,
     };
   }, [data.products, fixedCost]);
 
-  const handleFixedCostChange = useCallback((value: string) => {
-    const digits = value.replace(/\D/g, "");
-    const numeric = parseFloat(digits) / 100;
-    setFixedCost(Number.isFinite(numeric) ? numeric : 0);
-  }, []);
+  const cancelEditing = useCallback(() => {
+    setFixedCostInput(formatCurrencyInput(fixedCost));
+    setTaxPercentInput(formatCurrencyInput(taxPercent));
+    setFeedbackMessage(null);
+    setIsEditing(false);
+  }, [fixedCost, taxPercent]);
+
+  const saveCompanyDefaults = useCallback(async () => {
+    if (!activeCompany) {
+      setFeedbackMessage("Nenhuma empresa ativa disponível para salvar");
+      setIsEditing(false);
+      return;
+    }
+
+    setIsSaving(true);
+    setFeedbackMessage(null);
+
+    try {
+      const patch = buildCompanyDefaultsPatch({
+        fixedCostInput,
+        taxPercentInput,
+      });
+      const response = await apiClient.patch<{ data: Company; error: null }>(`/companies/${activeCompany.id}`, {
+        body: patch,
+      });
+      const nextFixedCost = Number.parseFloat(response.data.fixedCostDefault) || 0;
+      const nextTaxPercent = (Number.parseFloat(response.data.taxRateDefault) || 0) * 100;
+
+      setFixedCost(nextFixedCost);
+      setTaxPercent(nextTaxPercent);
+      setFixedCostInput(formatCurrencyInput(nextFixedCost));
+      setTaxPercentInput(formatCurrencyInput(nextTaxPercent));
+      setFeedbackMessage("Valores salvos.");
+      setIsEditing(false);
+    } catch (error) {
+      setFeedbackMessage(
+        error instanceof ApiClientError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Não foi possivel salvar os valores da empresa",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }, [activeCompany, fixedCostInput, taxPercentInput]);
 
   const getNetProfitVariant = (): IndicatorCardProps["variant"] => {
     if (financials.netProfit > 0) return "success";
@@ -161,13 +228,6 @@ export function DashboardFinancialIndicators({ data, summary }: DashboardFinanci
       };
     }
     return { direction: "neutral" as const, value: "Break-even" };
-  };
-
-  const formatCurrencyInput = (value: number): string => {
-    return value.toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
   };
 
   const revenue = summary ? normalizeNumber(summary.summary.grossRevenue) : financials.totalRevenue;
@@ -239,59 +299,152 @@ export function DashboardFinancialIndicators({ data, summary }: DashboardFinanci
         />
       </div>
 
-      <motion.div
-        variants={itemVariants}
-        className="flex items-center justify-between rounded-lg border border-border/50 bg-surface px-4 py-3"
-      >
-        <div className="flex items-center gap-2">
-          <Settings2 className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">Custo Fixo</span>
-        </div>
+      <motion.div variants={itemVariants}>
+        <Card variant="default" padding="md">
+          <div className="flex flex-col gap-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[var(--radius-md)] bg-accent/10">
+                    <Settings2 className="h-4 w-4 text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Custo e Imposto</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {activeCompany
+                        ? `${activeCompany.name}`
+                        : "Nenhuma empresa ativa disponivel"}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-        {isEditing ? (
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                R$
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                defaultValue={formatCurrencyInput(fixedCost)}
-                onBlur={(e) => {
-                  handleFixedCostChange(e.target.value);
-                  setIsEditing(false);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleFixedCostChange(e.currentTarget.value);
-                    setIsEditing(false);
-                  }
-                  if (e.key === "Escape") {
-                    setIsEditing(false);
-                  }
-                }}
-                autoFocus
-                className="h-9 w-36 rounded-md border border-border bg-background pl-7 pr-3 text-right text-sm font-medium tabular-nums text-foreground shadow-sm transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                placeholder="0,00"
-              />
+              {!isEditing && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!activeCompany}
+                  onClick={() => {
+                    setFeedbackMessage(null);
+                    setFixedCostInput("");
+                    setTaxPercentInput("");
+                    setIsEditing(true);
+                  }}
+                >
+                  <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+                  Editar
+                </Button>
+              )}
             </div>
-            <button
-              onClick={() => setIsEditing(false)}
-              className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              Cancelar
-            </button>
+
+            {isEditing ? (
+              <div className="flex flex-col gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <DollarSign className="h-3.5 w-3.5" />
+                      Custo Fixo
+                    </label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">
+                        R$
+                      </span>
+                      <Input
+                        autoFocus
+                        className="pl-9 text-right text-base font-semibold tabular-nums"
+                        inputMode="decimal"
+                        onChange={(event) => setFixedCostInput(event.target.value)}
+                        placeholder="0,00"
+                        type="text"
+                        value={fixedCostInput}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Valor de custos operacionais fixos
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <Percent className="h-3.5 w-3.5" />
+                      Imposto
+                    </label>
+                    <div className="relative">
+                      <Input
+                        className="pr-9 text-right text-base font-semibold tabular-nums"
+                        inputMode="decimal"
+                        onChange={(event) => setTaxPercentInput(event.target.value)}
+                        placeholder="0,00"
+                        type="text"
+                        value={taxPercentInput}
+                      />
+                      <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted-foreground">
+                        %
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Alíquota de impostos sobre os produtos
+                    </p>
+                  </div>
+                </div>
+
+                {feedbackMessage && (
+                  <p className="text-xs font-medium text-muted-foreground">{feedbackMessage}</p>
+                )}
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={isSaving}
+                    onClick={cancelEditing}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    loading={isSaving}
+                    onClick={() => {
+                      void saveCompanyDefaults();
+                    }}
+                  >
+                    Salvar alterações
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border/60 bg-surface-strong px-4 py-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-foreground/5">
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Custo Fixo
+                    </p>
+                    <p className="text-lg font-semibold tracking-tight text-foreground tabular-nums">
+                      {formatMoney(fixedCost)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-[var(--radius-md)] border border-border/60 bg-surface-strong px-4 py-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-sm)] bg-foreground/5">
+                    <Percent className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Imposto
+                    </p>
+                    <p className="text-lg font-semibold tracking-tight text-foreground tabular-nums">
+                      {formatCurrencyInput(taxPercent)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        ) : (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="group flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-semibold tabular-nums text-foreground transition-colors hover:bg-muted hover:text-accent"
-          >
-            {formatMoney(fixedCost)}
-            <Settings2 className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-          </button>
-        )}
+        </Card>
       </motion.div>
     </motion.div>
   );

@@ -4,8 +4,8 @@ import { motion } from "framer-motion";
 import { RefreshCw, Clock, Calendar, CheckCircle2, Ban, Activity } from "lucide-react";
 import { Card, Skeleton } from "@marginflow/ui";
 import { containerVariants, itemVariants, hoverTransition } from "@/lib/animations";
-import { translateApiMessage, translateSyncWindowLabel } from "@/lib/pt-br/api-ui";
-import { formatDateTime } from "../lib/formatters";
+import { translateApiMessage } from "@/lib/pt-br/api-ui";
+import { formatDateTime, formatSyncOrigin } from "../lib/formatters";
 import type { SyncStatusResponse, SyncRunRecord } from "../types/integrations";
 
 interface SyncStatusGridProps {
@@ -33,6 +33,7 @@ export function SyncStatusGrid({ syncStatus, lastRun, isLoading }: SyncStatusGri
   const nextWindow = syncStatus.availability.nextAvailableAt;
   const lastSync = syncStatus.availability.lastSuccessfulSyncAt;
   const isActive = !!syncStatus.activeRun;
+  const isMercadoLivre = syncStatus.availability.provider === "mercadolivre";
 
   const cards = [
     {
@@ -42,18 +43,28 @@ export function SyncStatusGrid({ syncStatus, lastRun, isLoading }: SyncStatusGri
       iconBg: canRun ? "bg-success/10" : "bg-muted/20",
       label: "Status",
       value: canRun ? "Disponível" : "Bloqueada",
-      description: canRun ? "Pronto para sincronizar" : translateApiMessage(syncStatus.availability.message) || "Aguarde",
+      description: canRun
+        ? "Pronto para sincronizar"
+        : translateApiMessage(syncStatus.availability.message) || "Aguarde",
       borderColor: canRun ? "border-success/30" : "border-border",
-      accentColor: canRun ? "success" : "neutral" as const,
+      accentColor: canRun ? "success" : ("neutral" as const),
     },
     {
-      key: "window",
+      key: "mode",
       icon: Calendar,
       iconColor: "text-accent",
       iconBg: "bg-accent/10",
-      label: "Janela Atual",
-      value: translateSyncWindowLabel(syncStatus.availability.currentWindowLabel),
-      description: canRun ? "Pode sincronizar agora" : nextWindow ? `Próxima: ${formatDateTime(nextWindow)}` : "-",
+      label: isMercadoLivre ? "Modo" : "Janela Atual",
+      value: isMercadoLivre
+        ? "Automático + manual"
+        : (syncStatus.availability.currentWindowLabel ?? "Encerrado"),
+      description: isMercadoLivre
+        ? "Novas vendas disparam sincronização automaticamente"
+        : canRun
+          ? "Pode sincronizar agora"
+          : nextWindow
+            ? `Próxima: ${formatDateTime(nextWindow)}`
+            : "-",
       borderColor: "border-accent/30",
       accentColor: "accent" as const,
     },
@@ -65,10 +76,10 @@ export function SyncStatusGrid({ syncStatus, lastRun, isLoading }: SyncStatusGri
       label: "Última Sincronização",
       value: lastSync ? formatDateTime(lastSync) : "Nunca",
       description: lastRun
-        ? `${lastRun.counts.orders} pedidos importados`
+        ? `${lastRun.counts.orders} pedidos importados · ${formatSyncOrigin(lastRun.origin)}`
         : "Nenhuma sincronização realizada",
       borderColor: lastSync ? "border-border" : "border-warning/30",
-      accentColor: lastSync ? "neutral" : "warning" as const,
+      accentColor: lastSync ? ("neutral" as const) : ("warning" as const),
     },
     {
       key: "active",
@@ -79,10 +90,10 @@ export function SyncStatusGrid({ syncStatus, lastRun, isLoading }: SyncStatusGri
       label: "Execução Ativa",
       value: isActive ? "Em andamento" : "Nenhuma",
       description: isActive
-        ? `Iniciada ${formatDateTime(syncStatus.activeRun!.startedAt)}`
+        ? `${formatSyncOrigin(syncStatus.activeRun!.origin)} · iniciada ${formatDateTime(syncStatus.activeRun!.startedAt)}`
         : "Sistema aguardando",
       borderColor: isActive ? "border-accent/30" : "border-success/30",
-      accentColor: isActive ? "accent" : "success" as const,
+      accentColor: isActive ? ("accent" as const) : ("success" as const),
     },
   ];
 
@@ -109,19 +120,25 @@ export function SyncStatusGrid({ syncStatus, lastRun, isLoading }: SyncStatusGri
               padding="none"
               className={`relative h-full overflow-hidden border p-5 shadow-[var(--shadow-xs)] transition-all hover:shadow-[var(--shadow-sm)] ${card.borderColor}`}
             >
-              {/* Top accent — relative ao Card para não herdar largura do motion.div (transform) */}
               <div
                 aria-hidden
                 className={`pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 ${
-                  card.accentColor === "success" ? "bg-success" :
-                  card.accentColor === "accent" ? "bg-accent" :
-                  card.accentColor === "warning" ? "bg-warning" :
-                  "bg-muted"
+                  card.accentColor === "success"
+                    ? "bg-success"
+                    : card.accentColor === "accent"
+                      ? "bg-accent"
+                      : card.accentColor === "warning"
+                        ? "bg-warning"
+                        : "bg-muted"
                 }`}
               />
               <div className="flex items-start gap-3">
-                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${card.iconBg}`}>
-                  <Icon className={`h-4.5 w-4.5 ${card.iconColor} ${card.isSpinning ? "animate-spin" : ""}`} />
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] ${card.iconBg}`}
+                >
+                  <Icon
+                    className={`h-4.5 w-4.5 ${card.iconColor} ${card.isSpinning ? "animate-spin" : ""}`}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

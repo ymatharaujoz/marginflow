@@ -8,6 +8,7 @@ import type {
   DashboardSummaryCard,
   DashboardSummaryMetrics,
   DashboardSummaryResponse,
+  IntegrationProviderSlug,
 } from "@marginflow/types";
 import { FinanceService } from "@/modules/finance/finance.service";
 import { SyncService } from "@/modules/sync/sync.service";
@@ -60,8 +61,11 @@ export class DashboardService {
     private readonly syncService: SyncService,
   ) {}
 
-  async readSummary(organizationId: string): Promise<DashboardSummaryResponse> {
-    const summary = await this.financeService.readSummaryMetrics(organizationId);
+  async readSummary(
+    organizationId: string,
+    provider?: IntegrationProviderSlug,
+  ): Promise<DashboardSummaryResponse> {
+    const summary = await this.financeService.readSummaryMetrics(organizationId, provider);
 
     return {
       cards: createSummaryCards(summary),
@@ -69,8 +73,8 @@ export class DashboardService {
     };
   }
 
-  async readCharts(organizationId: string): Promise<DashboardChartsResponse> {
-    const readModel = await this.financeService.buildDashboardReadModel(organizationId);
+  async readCharts(organizationId: string, provider?: IntegrationProviderSlug): Promise<DashboardChartsResponse> {
+    const readModel = await this.financeService.buildDashboardReadModel(organizationId, provider);
 
     return {
       channels: readModel.channels.map<DashboardChannelChartRow>((row) => ({
@@ -89,12 +93,18 @@ export class DashboardService {
     };
   }
 
-  async readRecentSync(organizationId: string): Promise<DashboardRecentSyncResponse> {
-    return this.syncService.getStatus(organizationId, "mercadolivre");
+  async readRecentSync(
+    organizationId: string,
+    provider: IntegrationProviderSlug = "mercadolivre",
+  ): Promise<DashboardRecentSyncResponse> {
+    return this.syncService.getStatus(organizationId, provider);
   }
 
-  async readProfitability(organizationId: string): Promise<DashboardProfitabilityResponse> {
-    const readModel = await this.financeService.buildDashboardReadModel(organizationId);
+  async readProfitability(
+    organizationId: string,
+    provider?: IntegrationProviderSlug,
+  ): Promise<DashboardProfitabilityResponse> {
+    const readModel = await this.financeService.buildDashboardReadModel(organizationId, provider);
 
     return {
       channels: readModel.channels,

@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const ticket = url.searchParams.get("ticket");
   const nextPath = sanitizeNextPath(url.searchParams.get("next"));
   const exchangeEndpoint = `${getWebEnv().NEXT_PUBLIC_API_BASE_URL}/auth-state/exchange-ticket`;
-  const signInUrl = new URL("/sign-in?auth_error=oauth_complete_failed", url);
+  const signInUrl = new URL("/sign-in?auth_error=auth_handoff_failed", url);
 
   if (!ticket) {
     console.error("[marginflow/web] Auth completion missing ticket.", {

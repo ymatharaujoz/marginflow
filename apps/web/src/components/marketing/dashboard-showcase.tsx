@@ -213,6 +213,7 @@ function AIInsightsCard() {
     "Sua margem no Mercado Livre está 12% acima da média do mercado",
     "3 produtos estão com margem negativa e precisam de atenção",
     "O ticket médio cresceu 8% em relação ao mês anterior",
+    "TikTok e Shein estão no roadmap de integrações e chegam em breve",
   ];
 
   return (
@@ -276,11 +277,11 @@ export function DashboardShowcase() {
             Dashboard
           </span>
           <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground md:text-4xl lg:text-5xl">
-            Seu negócio em números reais
+            Seu negócio em números reais.
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
             Não adivinhe. Veja lucro real, margem por produto, comparativo entre canais e insights 
-            automáticos — tudo atualizado em tempo real
+            automáticos — tudo atualizado em tempo real.
           </p>
         </motion.div>
 

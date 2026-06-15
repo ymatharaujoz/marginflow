@@ -15,7 +15,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
-import { Button, Badge, Card } from "@marginflow/ui";
+import { Button, Card } from "@marginflow/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { containerVariants, itemVariants, fadeInVariants } from "@/lib/animations";
 import { translateConnectionUiStatus } from "@/lib/pt-br/api-ui";
@@ -55,7 +55,7 @@ const marketplaceMeta: Record<
   },
   shopee: {
     name: "Shopee",
-    description: "Integração em desenvolvimento",
+    description: "Sincronize pedidos, produtos, taxas e frete automaticamente.",
     brandColor: "#EE4D2D",
     brandColorSoft: "rgba(238, 77, 45, 0.12)",
     icon: (
@@ -254,10 +254,10 @@ function EmptyMarketplaceCard({ meta }: { meta: (typeof marketplaceMeta)["shopee
         </div>
         <div>
           <h3 className="text-base font-semibold text-foreground">{meta.name}</h3>
-          <Badge variant="neutral" className="mt-1.5 text-[10px]">
-            <Sparkles className="mr-1 h-3 w-3" />
+          <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-border bg-surface-strong px-2 py-0.5 text-[10px] font-medium text-foreground-soft dark:bg-foreground/12 dark:text-foreground dark:border-foreground/20">
+            <Sparkles className="h-3 w-3" />
             Em breve
-          </Badge>
+          </span>
         </div>
       </div>
       <p className="text-sm leading-relaxed text-muted-foreground">{meta.description}</p>

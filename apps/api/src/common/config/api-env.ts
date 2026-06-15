@@ -15,14 +15,20 @@ const apiEnvSchema = z.object({
   API_DB_POOL_MAX: z.coerce.number().int().positive().max(50).default(10),
   API_PUBLIC_BASE_URL: z.string().url().optional(),
   DATABASE_URL: z.string().url(),
-  BETTER_AUTH_SECRET: z.string().min(1),
-  BETTER_AUTH_URL: z.string().url(),
+  AUTH_SESSION_SECRET: z.string().min(1).optional(),
+  BETTER_AUTH_SECRET: z.string().min(1).optional(),
+  BETTER_AUTH_URL: z.string().url().optional(),
   BETTER_AUTH_API_KEY: z.string().min(1).optional(),
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
   MERCADOLIVRE_CLIENT_ID: z.string().min(1).optional(),
   MERCADOLIVRE_CLIENT_SECRET: z.string().min(1).optional(),
   MERCADOLIVRE_REDIRECT_URI: z.string().url().optional(),
+  MERCADOLIVRE_USE_PKCE: z.preprocess(parseEnvBool, z.boolean()).optional(),
+  SHOPEE_PARTNER_ID: z.coerce.number().int().positive().optional(),
+  SHOPEE_PARTNER_KEY: z.string().min(1).optional(),
+  SHOPEE_REDIRECT_URI: z.string().url().optional(),
+  SHOPEE_WEBHOOK_URL: z.string().url().optional(),
   WEB_APP_ORIGIN: z.string().url().default("http://localhost:3000"),
   AUTH_TRUSTED_ORIGINS: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().min(1),
@@ -48,14 +54,20 @@ export function readApiEnv(
     API_DB_POOL_MAX: source.API_DB_POOL_MAX,
     API_PUBLIC_BASE_URL: source.API_PUBLIC_BASE_URL,
     DATABASE_URL: source.DATABASE_URL,
+    AUTH_SESSION_SECRET: source.AUTH_SESSION_SECRET,
     BETTER_AUTH_SECRET: source.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL: source.BETTER_AUTH_URL ?? source.NEXT_PUBLIC_API_BASE_URL,
+    BETTER_AUTH_URL: source.BETTER_AUTH_URL,
     BETTER_AUTH_API_KEY: source.BETTER_AUTH_API_KEY,
     GOOGLE_CLIENT_ID: source.GOOGLE_CLIENT_ID,
     GOOGLE_CLIENT_SECRET: source.GOOGLE_CLIENT_SECRET,
     MERCADOLIVRE_CLIENT_ID: source.MERCADOLIVRE_CLIENT_ID,
     MERCADOLIVRE_CLIENT_SECRET: source.MERCADOLIVRE_CLIENT_SECRET,
     MERCADOLIVRE_REDIRECT_URI: source.MERCADOLIVRE_REDIRECT_URI,
+    MERCADOLIVRE_USE_PKCE: source.MERCADOLIVRE_USE_PKCE,
+    SHOPEE_PARTNER_ID: source.SHOPEE_PARTNER_ID,
+    SHOPEE_PARTNER_KEY: source.SHOPEE_PARTNER_KEY,
+    SHOPEE_REDIRECT_URI: source.SHOPEE_REDIRECT_URI,
+    SHOPEE_WEBHOOK_URL: source.SHOPEE_WEBHOOK_URL,
     WEB_APP_ORIGIN: source.WEB_APP_ORIGIN ?? source.NEXT_PUBLIC_APP_URL,
     AUTH_TRUSTED_ORIGINS: source.AUTH_TRUSTED_ORIGINS,
     STRIPE_SECRET_KEY: source.STRIPE_SECRET_KEY,
@@ -73,4 +85,36 @@ export function readTrustedOriginList(env: ApiRuntimeEnv) {
     .filter(Boolean);
 
   return Array.from(new Set([env.WEB_APP_ORIGIN, ...(configuredOrigins ?? [])]));
+}
+
+export function readMercadoLivreOauthWarnings(env: ApiRuntimeEnv) {
+  if (!env.MERCADOLIVRE_CLIENT_ID || !env.MERCADOLIVRE_CLIENT_SECRET) {
+    return [];
+  }
+
+  const warnings: string[] = [];
+  const callbackUrl = new URL(
+    env.MERCADOLIVRE_REDIRECT_URI ??
+      `${(env.API_PUBLIC_BASE_URL ?? env.BETTER_AUTH_URL ?? "http://localhost:4000").replace(/\/$/, "")}/integrations/mercadolivre/callback`,
+  );
+  const apiUrl = new URL(env.API_PUBLIC_BASE_URL ?? env.BETTER_AUTH_URL ?? "http://localhost:4000");
+  const webUrl = new URL(env.WEB_APP_ORIGIN);
+
+  if (callbackUrl.host !== apiUrl.host) {
+    warnings.push(
+      `Mercado Livre callback host (${callbackUrl.host}) difere do host publico da API (${apiUrl.host}). Isso so funciona se esse host publico encaminhar para esta API.`,
+    );
+  }
+
+  if (
+    (webUrl.hostname === "localhost" || webUrl.hostname === "127.0.0.1") &&
+    callbackUrl.hostname !== "localhost" &&
+    callbackUrl.hostname !== "127.0.0.1"
+  ) {
+    warnings.push(
+      "Fluxo local Mercado Livre detectado: web em localhost com callback publico. Verifique se o dominio do tunnel aponta para a API local e se a mesma callback esta cadastrada no app do Mercado Livre.",
+    );
+  }
+
+  return warnings;
 }

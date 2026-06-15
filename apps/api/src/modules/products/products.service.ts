@@ -88,14 +88,6 @@ function normalizeComparableSku(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
-function assertFractionalRate(value: string, fieldName: string) {
-  if (!/^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/.test(value)) {
-    throw new BadRequestException({
-      message: `${fieldName} must be a decimal rate between 0 and 1.`,
-    });
-  }
-}
-
 @Injectable()
 export class ProductsService {
   constructor(
@@ -163,8 +155,7 @@ export class ProductsService {
     if (!normalizedSku) {
       throw new BadRequestException("SKU is required for manual product creation.");
     }
-
-    assertFractionalRate(input.initialFinance.taxRate, "Tax rate");
+    await this.resolveSingleActiveCompanyTaxRate(context);
 
     const result = await this.db.transaction(async (tx) => {
       const [createdProduct] = await tx
@@ -196,7 +187,6 @@ export class ProductsService {
         .values({
           packagingCost: input.initialFinance.packagingCost,
           productId: createdProduct.id,
-          taxRate: input.initialFinance.taxRate,
         })
         .returning();
 
@@ -237,7 +227,7 @@ export class ProductsService {
       throw new BadRequestException("A planilha pode ter no máximo 50 produtos");
     }
 
-    const requiredColumns = ["PRODUTO", "SKU", "PREÇO DE VENDA", "CUSTO UNITÁRIO", "EMBALAGEM", "IMPOSTO", "STATUS"];
+    const requiredColumns = ["PRODUTO", "SKU", "PREÇO DE VENDA", "CUSTO UNITÁRIO", "EMBALAGEM", "STATUS"];
     const normalizedRows = rawRows.map((row) => {
       const normalized: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(row)) {
@@ -249,6 +239,10 @@ export class ProductsService {
     const missingColumns = requiredColumns.filter((col) => !(col in normalizedRows[0]));
     if (missingColumns.length > 0) {
       throw new BadRequestException(`Colunas obrigatórias não encontradas: ${missingColumns.join(", ")}`);
+    }
+    const extraColumns = Object.keys(normalizedRows[0] ?? {}).filter((col) => !requiredColumns.includes(col));
+    if (extraColumns.length > 0) {
+      throw new BadRequestException(`Colunas extras não suportadas: ${extraColumns.join(", ")}`);
     }
 
     const existingSkus = new Set(
@@ -265,7 +259,7 @@ export class ProductsService {
     const errors: Array<{ row: number; message: string }> = [];
     const validRows: Array<{
       product: { name: string; sku: string; sellingPrice: string; isActive: boolean };
-      initialFinance: { unitCost: string; packagingCost: string; taxRate: string };
+      initialFinance: { unitCost: string; packagingCost: string };
     }> = [];
     const seenSkus = new Set<string>();
 
@@ -298,7 +292,6 @@ export class ProductsService {
       validRows.push({
         initialFinance: {
           packagingCost: Number(data.EMBALAGEM).toFixed(2),
-          taxRate: (Number(data.IMPOSTO) / 100).toFixed(6),
           unitCost: Number(data["CUSTO UNITÁRIO"]).toFixed(2),
         },
         product: {
@@ -315,6 +308,32 @@ export class ProductsService {
     }
 
     return { errors, imported: validRows.length };
+  }
+
+  private async resolveSingleActiveCompanyTaxRate(context: TenantContext): Promise<string> {
+    const companyRows = await this.db.query.companies.findMany({
+      columns: {
+        id: true,
+        isActive: true,
+        taxRateDefault: true,
+      },
+      where: (table) =>
+        and(
+          eq(table.organizationId, context.organizationId),
+          eq(table.userId, context.userId),
+        ),
+    });
+    const activeCompanies = companyRows.filter((company) => company.isActive);
+
+    if (activeCompanies.length === 0) {
+      throw new BadRequestException("Cadastre uma empresa ativa em /app antes de criar ou importar produtos.");
+    }
+
+    if (activeCompanies.length > 1) {
+      throw new BadRequestException("Mantenha apenas uma empresa ativa em /app antes de criar ou importar produtos.");
+    }
+
+    return String(activeCompanies[0]?.taxRateDefault ?? "0");
   }
 
   async updateProduct(
@@ -552,16 +571,22 @@ export class ProductsService {
     const enrichedFinanceSnapshot = {
       ...financeSnapshot,
       monthlyPerformance: monthlyPerformanceRows.map((row) =>
-        this.toFinancialMonthlyPerformance(row, rawProductRows),
+        this.toFinancialMonthlyPerformance(row, rawProductRows, scope.taxRateDefault),
       ),
     };
 
-    const syncedProducts = await listSyncedProductsReadModel({
-      db: this.db,
-      organizationId: context.organizationId,
-      productsList: rawProductRows,
-      providerSlug: "mercadolivre",
-    });
+    const syncedProducts = (
+      await Promise.all(
+        (["mercadolivre", "shopee"] as const).map((providerSlug) =>
+          listSyncedProductsReadModel({
+            db: this.db,
+            organizationId: context.organizationId,
+            productsList: rawProductRows,
+            providerSlug,
+          }),
+        ),
+      )
+    ).flat();
     const linkedMarketplaceSignalsByProductId = Object.fromEntries(
       syncedProducts
         .filter((product) => product.linkedProduct?.id)
@@ -570,11 +595,11 @@ export class ProductsService {
     const channelWhenUnknownByProductId: Record<string, string> = {};
     for (const sp of syncedProducts) {
       if (sp.linkedProduct?.id) {
-        channelWhenUnknownByProductId[sp.linkedProduct.id] = "mercadolivre";
+        channelWhenUnknownByProductId[sp.linkedProduct.id] = sp.provider;
         continue;
       }
       for (const match of sp.suggestedMatches) {
-        channelWhenUnknownByProductId[match.productId] = "mercadolivre";
+        channelWhenUnknownByProductId[match.productId] = sp.provider;
       }
     }
     const productRows = buildProductAnalyticsMetrics(enrichedFinanceSnapshot, {
@@ -707,12 +732,13 @@ export class ProductsService {
     const referenceMonth = query.referenceMonth ?? getSaoPauloCurrentReferenceMonth();
 
     if (query.companyId) {
-      await this.ensureCompanyAccess(context, query.companyId);
+      const company = await this.ensureCompanyAccess(context, query.companyId);
 
       return {
         companyId: query.companyId,
         companyRequired: false,
         referenceMonth,
+        taxRateDefault: String(company.taxRateDefault),
       };
     }
 
@@ -721,11 +747,13 @@ export class ProductsService {
         and(eq(table.organizationId, context.organizationId), eq(table.userId, context.userId)),
     });
     const activeCompanyCount = companies.filter((company) => company.isActive).length;
+    const activeCompany = companies.find((company) => company.isActive);
 
     return {
       companyId: null,
       companyRequired: activeCompanyCount === 0,
       referenceMonth,
+      taxRateDefault: String(activeCompany?.taxRateDefault ?? "0"),
     };
   }
 
@@ -772,6 +800,7 @@ export class ProductsService {
   private toFinancialMonthlyPerformance(
     row: ProductMonthlyPerformance,
     productRows: Product[],
+    taxRateDefault: string,
   ): FinancialMonthlyPerformanceInput {
     const matchedProduct = productRows.find(
       (product) => normalizeComparableSku(product.sku) === normalizeComparableSku(row.sku),
@@ -789,7 +818,7 @@ export class ProductsService {
       salesQuantity: row.salesQuantity,
       shippingFee: String(row.shippingFee),
       sku: row.sku,
-      taxRate: String(row.taxRate),
+      taxRateDefault,
       unitCost: String(row.unitCost),
     };
   }
@@ -810,7 +839,6 @@ export class ProductsService {
       salesQuantity: row.salesQuantity,
       shippingFee: String(row.shippingFee),
       sku: row.sku,
-      taxRate: String(row.taxRate),
       unitCost: String(row.unitCost),
     };
   }
@@ -914,7 +942,6 @@ export class ProductsService {
       id: row.id,
       packagingCost: String(row.packagingCost),
       productId: row.productId,
-      taxRate: String(row.taxRate),
       updatedAt: row.updatedAt.toISOString(),
     };
   }

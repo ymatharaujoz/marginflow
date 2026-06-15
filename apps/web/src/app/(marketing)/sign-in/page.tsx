@@ -8,7 +8,7 @@ import { createPageMetadata, resolveSiteConfig, sitePageTitle } from "@/lib/site
 const brand = resolveSiteConfig();
 
 export const metadata = createPageMetadata({
-  description: `Comece seu workspace ${brand.name} com login Google e acesso protegido ao app.`,
+  description: `Comece seu workspace ${brand.name} com e-mail e senha e acesso protegido ao app.`,
   path: "/sign-in",
   title: sitePageTitle("Entrar"),
 });
@@ -34,22 +34,14 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
 
   return (
     <main className="relative flex min-h-[calc(100vh-6rem)] flex-col overflow-hidden">
-      {/* Particle canvas overlay on the original light background */}
       <ParticleCanvas />
 
-      {/* Content */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-12 md:py-16">
         <SignInPanel
           initialErrorMessage={resolveAuthErrorMessage(resolvedSearchParams?.auth_error)}
         />
       </div>
 
-      {/* Footer note */}
-      <div className="relative z-10 mx-auto max-w-sm px-4 pb-10 pt-2">
-        <p className="text-center text-[11px] leading-relaxed text-muted-foreground/90">
-          Uso empresarial: recomendamos entrar com o mesmo domínio de e-mail que sua equipe utiliza, quando possível.
-        </p>
-      </div>
     </main>
   );
 }

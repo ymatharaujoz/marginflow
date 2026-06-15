@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, X, ChevronDown } from "lucide-react";
 import { Avatar } from "@marginflow/ui";
-import { PUBLIC_BRAND } from "@/lib/public-branding";
+import { BrandLogo } from "@/components/brand-logo";
+import { BrandName } from "@/components/brand-name";
 
 const DashboardIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -149,12 +150,8 @@ export function AppSidebar({
           )}
           aria-label="Alternar menu lateral"
         >
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-br from-accent to-accent-strong text-xs font-bold text-white shadow-[0_2px_8px_rgba(14,122,111,0.25)]"
-          >
-            {PUBLIC_BRAND.icon}
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <BrandLogo className="h-14 w-auto" />
           </motion.div>
           <AnimatePresence>
             {!collapsed && (
@@ -165,7 +162,7 @@ export function AppSidebar({
                 transition={{ duration: 0.2 }}
                 className="text-sm font-bold tracking-tight"
               >
-                {PUBLIC_BRAND.name}
+                <BrandName />
               </motion.span>
             )}
           </AnimatePresence>

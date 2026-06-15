@@ -53,16 +53,18 @@ export function readSignedWebAuthSession(
 }
 
 export function buildRemoteAuthCookieHeader(remoteSessionToken: string) {
-  return [
-    `__Secure-better-auth.session_token=${remoteSessionToken}`,
-    `better-auth.session_token=${remoteSessionToken}`,
-  ].join("; ");
+  return `marginflow_api_session=${remoteSessionToken}`;
 }
 
 export function getWebSessionSecret(source: Record<string, string | undefined> = process.env) {
   const explicitSecret = source.WEB_SESSION_SECRET?.trim();
   if (explicitSecret) {
     return explicitSecret;
+  }
+
+  const authSessionSecret = source.AUTH_SESSION_SECRET?.trim();
+  if (authSessionSecret) {
+    return authSessionSecret;
   }
 
   const fallbackSecret = source.BETTER_AUTH_SECRET?.trim();

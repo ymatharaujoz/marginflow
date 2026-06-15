@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { BrandLogo } from "@/components/brand-logo";
+import { BrandName } from "@/components/brand-name";
 import { SignOutButton } from "@/components/auth/sign-out-button";
-import { PUBLIC_BRAND } from "@/lib/public-branding";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type MinimalHeaderProps = {
   user: {
@@ -18,24 +19,20 @@ export function MinimalHeader({ user }: MinimalHeaderProps) {
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-[min(100%,1440px)] items-center justify-between px-6 sm:px-8 md:px-10 lg:px-12 xl:px-14">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-3">
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-gradient-to-br from-accent to-accent-strong text-xs font-bold text-white shadow-[0_2px_8px_rgba(14,122,111,0.25)]"
-          >
-            {PUBLIC_BRAND.icon}
-          </motion.div>
-          <span className="text-sm font-bold tracking-tight text-foreground">
-            {PUBLIC_BRAND.name}
-          </span>
+        <Link
+          href="/"
+          className="group flex items-center gap-2.5 transition-transform"
+        >
+          <BrandLogo className="h-12 w-auto transition-transform group-hover:scale-105" />
+          <BrandName className="text-base font-bold tracking-tight" />
         </Link>
 
-        {/* User Info + Sign Out */}
-        <div className="flex items-center gap-4">
+        {/* User Info + Theme Toggle + Sign Out */}
+        <div className="flex items-center gap-3">
           <span className="hidden text-sm text-muted-foreground sm:block">
             {user.email}
           </span>
+          <ThemeToggle />
           <SignOutButton />
         </div>
       </div>

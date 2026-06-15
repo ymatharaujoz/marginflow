@@ -28,18 +28,32 @@ function optionalNotesField() {
     .or(z.literal("").transform(() => null));
 }
 
+const companyCodeField = z
+  .string()
+  .trim()
+  .min(2)
+  .max(12)
+  .transform((value) => value.toUpperCase());
+
+const companyNameField = z.string().trim().min(2).max(255);
+
 export const companyFormSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(2)
-    .max(12)
-    .transform((value) => value.toUpperCase()),
+  code: companyCodeField,
+  fixedCostDefault: moneyField("Fixed cost default").default("0"),
   isActive: z.boolean().default(true),
-  name: z.string().trim().min(2).max(255),
+  name: companyNameField,
+  taxRateDefault: rateField("Tax rate default").default("0"),
 });
 
-export const companyUpdateSchema = companyFormSchema.partial().refine(
+export const companyUpdateSchema = z
+  .object({
+    code: companyCodeField.optional(),
+    fixedCostDefault: moneyField("Fixed cost default").optional(),
+    isActive: z.boolean().optional(),
+    name: companyNameField.optional(),
+    taxRateDefault: rateField("Tax rate default").optional(),
+  })
+  .refine(
   (value) => Object.keys(value).length > 0,
   "At least one company field must be provided.",
 );
@@ -71,7 +85,6 @@ const performanceBaseSchema = z.object({
   salesQuantity: z.number().int().min(0),
   shippingFee: moneyField("Shipping fee"),
   sku: z.string().trim().min(1).max(128),
-  taxRate: rateField("Tax rate"),
   unitCost: moneyField("Unit cost"),
 });
 

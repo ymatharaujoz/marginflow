@@ -52,7 +52,6 @@ export const productUpdateSchema = productFormSchema.partial().refine(
 export const productManualCreateSchema = z.object({
   initialFinance: z.object({
     packagingCost: decimalField("Packaging cost"),
-    taxRate: decimalRateField("Tax rate"),
     unitCost: decimalField("Unit cost"),
   }),
   product: z.object({
@@ -130,7 +129,6 @@ export const productImportRowSchema = z.object({
   "PREÇO DE VENDA": z.coerce.number().nonnegative("Preço de venda deve ser >= 0"),
   "CUSTO UNITÁRIO": z.coerce.number().nonnegative("Custo unitário deve ser >= 0"),
   EMBALAGEM: z.coerce.number().nonnegative("Embalagem deve ser >= 0"),
-  IMPOSTO: z.coerce.number().min(0, "Imposto deve ser >= 0").max(100, "Imposto deve ser <= 100"),
   STATUS: z.coerce.number().refine((v) => v === 0 || v === 1, "STATUS deve ser 0 ou 1"),
 });
 

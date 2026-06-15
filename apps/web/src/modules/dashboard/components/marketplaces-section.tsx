@@ -13,6 +13,7 @@ import { formatMoney } from "../utils/formatters";
 interface MarketplacesSectionProps {
   data?: DashboardChartsResponse;
   recentSync?: DashboardRecentSyncResponse;
+  recentSyncProvider?: "mercadolivre" | "shopee" | null;
   className?: string;
 }
 
@@ -21,6 +22,13 @@ const marketplaceIcons = {
     <img
       src="/icons/mercado-libre-icon.svg"
       alt="Mercado Livre"
+      className="h-8 w-auto"
+    />
+  ),
+  shopee: (
+    <img
+      src="/icons/shopee-icon.svg"
+      alt="Shopee"
       className="h-8 w-auto"
     />
   ),
@@ -66,19 +74,45 @@ function getMarketplaceStatus(recentSync?: DashboardRecentSyncResponse) {
   return { status: "inactive" as const, label: "Não verificado" };
 }
 
-export function MarketplacesSection({ data, recentSync, className = "" }: MarketplacesSectionProps) {
+export function MarketplacesSection({
+  data,
+  recentSync,
+  recentSyncProvider,
+  className = "",
+}: MarketplacesSectionProps) {
   const mlChannel = data?.channels.find((channel) => channel.channel.toLowerCase().includes("mercado"));
+  const shopeeChannel = data?.channels.find((channel) => channel.channel.toLowerCase() === "shopee");
   const statusBadge = useMemo(() => getMarketplaceStatus(recentSync), [recentSync]);
+  const statusProvider = recentSyncProvider ?? "mercadolivre";
 
-  const marketplace = {
-    id: "mercadolivre",
-    name: "Mercado Livre",
-    slug: "mercadolivre" as const,
-    isConnected: statusBadge.status === "active" || statusBadge.status === "warning",
-    revenue: mlChannel ? formatMoney(mlChannel.grossRevenue) : undefined,
-    orders: mlChannel?.unitsSold ?? undefined,
-    href: "/app/integrations",
-  };
+  const marketplaces = [
+    {
+      id: "mercadolivre",
+      name: "Mercado Livre",
+      slug: "mercadolivre" as const,
+      status:
+        statusProvider === "mercadolivre"
+          ? statusBadge
+          : mlChannel
+            ? { status: "active" as const, label: "Com dados" }
+            : { status: "error" as const, label: "Desconectado" },
+      revenue: mlChannel ? formatMoney(mlChannel.grossRevenue) : undefined,
+      orders: mlChannel?.unitsSold,
+    },
+    {
+      id: "shopee",
+      name: "Shopee",
+      slug: "shopee" as const,
+      status:
+        statusProvider === "shopee"
+          ? statusBadge
+          : shopeeChannel
+            ? { status: "active" as const, label: "Com dados" }
+            : { status: "error" as const, label: "Desconectado" },
+      revenue: shopeeChannel ? formatMoney(shopeeChannel.grossRevenue) : undefined,
+      orders: shopeeChannel?.unitsSold,
+    },
+  ];
 
   return (
     <motion.div variants={slideInUpVariants}>
@@ -97,30 +131,43 @@ export function MarketplacesSection({ data, recentSync, className = "" }: Market
           </Link>
         </div>
 
-        <motion.div
-          whileHover={{ y: -1 }}
-          className="group flex items-center gap-3 rounded-lg border border-border bg-surface-strong p-3 transition-all hover:border-border-strong hover:shadow-[var(--shadow-sm)]"
-        >
-          <div className="shrink-0">{marketplaceIcons[marketplace.slug]}</div>
-
-          <div className="min-w-0 flex-1">
-            <h4 className="truncate text-xs font-semibold text-foreground">{marketplace.name}</h4>
-            <StatusBadge status={statusBadge.status} label={statusBadge.label} className="mt-0.5" />
-          </div>
-
-          {marketplace.isConnected && (marketplace.revenue || marketplace.orders) && (
-            <div className="shrink-0 text-right">
-              {marketplace.revenue && <p className="text-xs font-semibold text-foreground">{marketplace.revenue}</p>}
-              {marketplace.orders !== undefined && (
-                <p className="text-[10px] text-muted-foreground">{marketplace.orders} unid.</p>
+        <div className="space-y-2">
+          {marketplaces.map((marketplace) => (
+            <motion.div
+              key={marketplace.id}
+              whileHover={{ y: -1 }}
+              className="group flex items-center gap-3 rounded-lg border border-border bg-surface-strong p-3 transition-all hover:border-border-strong hover:shadow-[var(--shadow-sm)]"
+            >
+              <div className="flex h-8 w-12 shrink-0 items-center justify-center">
+                {marketplaceIcons[marketplace.slug]}
+              </div>
+              <div className="min-w-0 flex-1">
+                <h4 className="truncate text-xs font-semibold text-foreground">{marketplace.name}</h4>
+                <StatusBadge
+                  status={marketplace.status.status}
+                  label={marketplace.status.label}
+                  className="mt-0.5"
+                />
+              </div>
+              {(marketplace.revenue || marketplace.orders !== undefined) && (
+                <div className="shrink-0 text-right">
+                  {marketplace.revenue && (
+                    <p className="text-xs font-semibold text-foreground">{marketplace.revenue}</p>
+                  )}
+                  {marketplace.orders !== undefined && (
+                    <p className="text-[10px] text-muted-foreground">{marketplace.orders} unid.</p>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-
-          <Link href={marketplace.href} className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
-            <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-accent" />
-          </Link>
-        </motion.div>
+              <Link
+                href="/app/integrations"
+                className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-accent" />
+              </Link>
+            </motion.div>
+          ))}
+        </div>
       </Card>
     </motion.div>
   );

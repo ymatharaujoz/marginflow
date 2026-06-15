@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { BillingPanel } from "@/components/billing/billing-panel";
-import { hasSubscriptionForProtectedApp } from "@/lib/protected-app-route";
+import { hasManageableBillingSubscription } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
 
@@ -23,7 +23,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   }
 
   // Com assinatura ativa: redireciona para gerenciamento
-  if (hasSubscriptionForProtectedApp(billingState)) {
+  if (hasManageableBillingSubscription(billingState)) {
     redirect("/app/billing/manage");
   }
 
@@ -34,6 +34,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           checkoutSessionId={resolvedSearchParams?.session_id ?? null}
           checkoutState={resolvedSearchParams?.checkout ?? null}
           organizationName={authState.organization?.name ?? authState.user.name}
+          trialDays={billingState?.trialDays ?? 7}
+          trialEligible={billingState?.trialEligible ?? false}
         />
       </div>
     </div>

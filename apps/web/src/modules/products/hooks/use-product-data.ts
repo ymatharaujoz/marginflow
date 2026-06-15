@@ -97,7 +97,7 @@ export async function fetchProductCatalog(input?: { referenceMonth?: string }): 
 }
 
 const DEFAULT_PAGE_SIZE = 10;
-const REFERENCE_MONTH_HISTORY = 48;
+const REFERENCE_MONTH_HISTORY = 6;
 
 export function useProductData() {
   const queryClient = useQueryClient();

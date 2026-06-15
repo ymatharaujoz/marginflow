@@ -45,10 +45,12 @@ describe("FinanceInputsService", () => {
       {
         code: "MELI",
         createdAt: new Date("2026-05-09T10:00:00.000Z"),
+        fixedCostDefault: "1500.00",
         id: "company_1",
         isActive: true,
         name: "Mercado Livre",
         organizationId: "org_123",
+        taxRateDefault: "0.120000",
         updatedAt: new Date("2026-05-09T10:00:00.000Z"),
         userId: "user_123",
       },
@@ -60,14 +62,104 @@ describe("FinanceInputsService", () => {
       {
         code: "MELI",
         createdAt: "2026-05-09T10:00:00.000Z",
+        fixedCostDefault: "1500.00",
         id: "company_1",
         isActive: true,
         name: "Mercado Livre",
+        taxRateDefault: "0.120000",
         updatedAt: "2026-05-09T10:00:00.000Z",
       },
     ]);
     expect(result[0]).not.toHaveProperty("organizationId");
     expect(result[0]).not.toHaveProperty("userId");
+  });
+
+  it("creates companies with default finance values when fields are omitted", async () => {
+    const { db, service } = createService();
+    const valuesMock = vi.fn().mockReturnValue({
+      returning: vi.fn().mockResolvedValue([
+        {
+          code: "MELI",
+          createdAt: new Date("2026-05-09T10:00:00.000Z"),
+          fixedCostDefault: "0",
+          id: "company_1",
+          isActive: true,
+          name: "Mercado Livre",
+          organizationId: "org_123",
+          taxRateDefault: "0",
+          updatedAt: new Date("2026-05-09T10:00:00.000Z"),
+          userId: "user_123",
+        },
+      ]),
+    });
+    db.insert.mockReturnValue({
+      values: valuesMock,
+    });
+
+    const result = await service.createCompany(context, {
+      code: "meli",
+      name: "Mercado Livre",
+    });
+
+    expect(valuesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "MELI",
+        fixedCostDefault: "0",
+        taxRateDefault: "0",
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        fixedCostDefault: "0",
+        taxRateDefault: "0",
+      }),
+    );
+  });
+
+  it("updates only provided company finance defaults", async () => {
+    const { db, service } = createService();
+    const setMock = vi.fn().mockReturnValue({
+      where: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([
+          {
+            code: "MELI",
+            createdAt: new Date("2026-05-09T10:00:00.000Z"),
+            fixedCostDefault: "1750.00",
+            id: "company_1",
+            isActive: true,
+            name: "Mercado Livre",
+            organizationId: "org_123",
+            taxRateDefault: "0.090000",
+            updatedAt: new Date("2026-05-09T11:00:00.000Z"),
+            userId: "user_123",
+          },
+        ]),
+      }),
+    });
+    db.query.companies.findFirst.mockResolvedValue({
+      id: "company_1",
+      organizationId: "org_123",
+      userId: "user_123",
+    });
+    db.update.mockReturnValue({
+      set: setMock,
+    });
+
+    const result = await service.updateCompany(context, "company_1", {
+      fixedCostDefault: "1750.00",
+      taxRateDefault: "0.090000",
+    });
+
+    expect(setMock).toHaveBeenCalledWith({
+      fixedCostDefault: "1750.00",
+      taxRateDefault: "0.090000",
+    });
+    expect(result).toEqual(
+      expect.objectContaining({
+        fixedCostDefault: "1750.00",
+        taxRateDefault: "0.090000",
+      }),
+    );
   });
 
   it("returns public monthly performance records without tenant internals", async () => {
@@ -95,7 +187,6 @@ describe("FinanceInputsService", () => {
         salesQuantity: 10,
         shippingFee: "5.00",
         sku: "SKU-1",
-        taxRate: "0.04",
         unitCost: "30.00",
         updatedAt: new Date("2026-05-09T10:00:00.000Z"),
         userId: "user_123",
@@ -123,7 +214,6 @@ describe("FinanceInputsService", () => {
       salesQuantity: 10,
       shippingFee: "5.00",
       sku: "SKU-1",
-      taxRate: "0.04",
       unitCost: "30.00",
       updatedAt: "2026-05-09T10:00:00.000Z",
     });

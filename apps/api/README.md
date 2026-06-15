@@ -59,6 +59,7 @@ Optional only when Mercado Livre integration is enabled:
 - `MERCADOLIVRE_CLIENT_ID`
 - `MERCADOLIVRE_CLIENT_SECRET`
 - `MERCADOLIVRE_REDIRECT_URI`
+- `MERCADOLIVRE_USE_PKCE`
 
 Optional local/testing helper:
 
@@ -66,6 +67,25 @@ Optional local/testing helper:
 
 `DATABASE_URL` should target pooled/runtime Postgres credentials. `DATABASE_MIGRATION_URL` should target direct or migration-safe credentials for Drizzle tooling.
 `BETTER_AUTH_URL` should point at the direct public Better Auth surface on Railway, such as `https://marginflow-production.up.railway.app/auth`. `API_PUBLIC_BASE_URL` should remain the raw public backend base, such as the same Railway URL without `/auth`.
+
+## Mercado Livre local flow
+
+Recommended local setup for OAuth verification:
+
+- `WEB_APP_ORIGIN=http://localhost:3000`
+- `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`
+- `BETTER_AUTH_URL=http://localhost:4000/auth`
+- `API_PUBLIC_BASE_URL=http://localhost:4000` when you want strict local parity
+- `MERCADOLIVRE_REDIRECT_URI=https://<your-ngrok-domain>/integrations/mercadolivre/callback`
+
+Notes:
+
+- the ngrok domain must forward to the local API on port `4000`
+- configure OAuth callback in Mercado Livre as `https://<your-ngrok-domain>/integrations/mercadolivre/callback`
+- configure Mercado Livre sales notifications webhook as `https://<your-ngrok-domain>/integrations/mercadolivre/webhook`
+- the API also accepts `https://<your-ngrok-domain>/integrations/mercadolivre/notifications` as a compatibility alias for webhook notifications
+- if the Mercado Livre app has PKCE enabled, set `MERCADOLIVRE_USE_PKCE=true`
+- startup now warns when the callback host differs from the effective public API host so local tunnel mismatches are easier to spot
 
 ## Docs
 
@@ -79,3 +99,17 @@ It covers:
 - deploy order
 - post-deploy validation
 - troubleshooting
+### Shopee Open Platform
+
+Configure estas variáveis no serviço da API no Railway:
+
+```env
+SHOPEE_PARTNER_ID=123456
+SHOPEE_PARTNER_KEY=secret
+SHOPEE_REDIRECT_URI=https://api.example.com/integrations/shopee/callback
+SHOPEE_WEBHOOK_URL=https://api.example.com/integrations/shopee/webhook
+```
+
+Cadastre exatamente as mesmas URLs no app Shopee Open Platform. Habilite pelo menos
+`order_status_push` e as permissões de Order e Payment/Escrow. A V1 usa push automático
+e sincronização manual; não requer Cron, worker ou Redis.

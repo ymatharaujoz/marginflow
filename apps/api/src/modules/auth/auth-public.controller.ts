@@ -1,0 +1,122 @@
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Inject,
+  Post,
+  Req,
+  Res,
+} from "@nestjs/common";
+import type { FastifyReply, FastifyRequest } from "fastify";
+import {
+  signInWithPasswordSchema,
+  signUpWithPasswordSchema,
+} from "@marginflow/validation";
+import {
+  buildClearApiSessionCookie,
+  buildSetApiSessionCookie,
+  buildAbsoluteRequestUrl,
+} from "./auth-http";
+import { AuthService } from "./auth.service";
+
+class SignUpWithPasswordDto {
+  static schema = signUpWithPasswordSchema;
+
+  email!: string;
+  name!: string;
+  password!: string;
+}
+
+class SignInWithPasswordDto {
+  static schema = signInWithPasswordSchema;
+
+  email!: string;
+  password!: string;
+}
+
+@Controller("auth")
+export class AuthPublicController {
+  constructor(
+    @Inject(AuthService)
+    private readonly authService: AuthService,
+  ) {}
+
+  @Post("sign-up")
+  async signUp(
+    @Body() body: SignUpWithPasswordDto,
+    @Req() request: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ) {
+    const result = await this.authService.signUp(body, {
+      ipAddress: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
+    const secure = buildAbsoluteRequestUrl(request).protocol === "https:";
+
+    reply
+      .header(
+        "set-cookie",
+        buildSetApiSessionCookie({
+          expiresAt: result.expiresAt,
+          secure,
+          sessionToken: result.sessionToken,
+        }),
+      )
+      .status(201);
+
+    return reply.send({
+      data: {
+        sessionId: result.sessionId,
+      },
+      error: null,
+    });
+  }
+
+  @Post("sign-in")
+  @HttpCode(200)
+  async signIn(
+    @Body() body: SignInWithPasswordDto,
+    @Req() request: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ) {
+    const result = await this.authService.signIn(body, {
+      ipAddress: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
+    const secure = buildAbsoluteRequestUrl(request).protocol === "https:";
+
+    reply.header(
+      "set-cookie",
+      buildSetApiSessionCookie({
+        expiresAt: result.expiresAt,
+        secure,
+        sessionToken: result.sessionToken,
+      }),
+    );
+
+    return reply.send({
+      data: {
+        sessionId: result.sessionId,
+      },
+      error: null,
+    });
+  }
+
+  @Post("sign-out")
+  @HttpCode(200)
+  async signOut(
+    @Req() request: FastifyRequest,
+    @Res() reply: FastifyReply,
+  ) {
+    await this.authService.signOut({
+      headers: request.headers,
+    });
+    const secure = buildAbsoluteRequestUrl(request).protocol === "https:";
+    reply.header("set-cookie", buildClearApiSessionCookie({ secure }));
+
+    return reply.send({
+      data: { success: true },
+      error: null,
+    });
+  }
+}

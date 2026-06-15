@@ -53,7 +53,6 @@ const snapshot: ProductAnalyticsSnapshot = {
       salesQuantity: 2,
       shippingFee: "12.00",
       sku: "ABC-1",
-      taxRate: "0.090000",
       unitCost: "25.00",
     },
     {
@@ -69,7 +68,6 @@ const snapshot: ProductAnalyticsSnapshot = {
       salesQuantity: 0,
       shippingFee: "0.00",
       sku: "XYZ-1",
-      taxRate: "0.000000",
       unitCost: "0.00",
     },
   ],
@@ -142,6 +140,7 @@ const snapshot: ProductAnalyticsSnapshot = {
     companyId: "company_1",
     companyRequired: false,
     referenceMonth: "2026-05-01",
+    taxRateDefault: "0.090000",
   },
   products: [
     {
@@ -218,7 +217,7 @@ describe("products foundation helpers", () => {
   });
 
   it("maps analytics rows without local sales simulation or heuristic costs", () => {
-    expect(buildProductTableRows(snapshot)).toEqual([
+      expect(buildProductTableRows(snapshot)).toEqual([
       expect.objectContaining({
         actualRoas: 10,
         adSpend: 10,
@@ -234,6 +233,8 @@ describe("products foundation helpers", () => {
         roiRatio: 1.6,
         shipping: 12,
         taxPct: 9,
+        totalPackagingCost: 4,
+        totalProductCost: 25,
         totalProfit: 40,
         unitCost: 25,
         unitProfit: 40,
@@ -249,7 +250,9 @@ describe("products foundation helpers", () => {
         netLiquidSales: 0,
         revenue: 0,
         roiRatio: null,
-        taxPct: 0,
+        taxPct: 9,
+        totalPackagingCost: 0,
+        totalProductCost: 0,
         totalProfit: 0,
         unitCost: 0,
         unitProfit: null,

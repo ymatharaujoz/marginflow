@@ -56,7 +56,6 @@ describe("SyncPerformanceMaterializerService", () => {
         financeDefaults: {
           advertisingCost: "15.00",
           packagingCost: "2.00",
-          taxRate: "0.070000",
         },
         id: "product_1",
         isActive: true,
@@ -78,6 +77,7 @@ describe("SyncPerformanceMaterializerService", () => {
       {
         fees: [
           { amount: "15.00", feeType: "marketplace_commission" },
+          { amount: "2.90", feeType: "fixed_fee" },
           { amount: "6.00", feeType: "shipping_cost" },
         ],
         items: [
@@ -141,7 +141,7 @@ describe("SyncPerformanceMaterializerService", () => {
       expect.objectContaining({
         advertisingCost: "15.00",
         channel: "mercadolivre",
-        commissionRate: "0.051700",
+        commissionRate: "0.061700",
         companyId: "company_1",
         packagingCost: "2.00",
         productName: "Produto ML",
@@ -151,7 +151,6 @@ describe("SyncPerformanceMaterializerService", () => {
         salesQuantity: 2,
         shippingFee: "2.07",
         sku: "SKU-1",
-        taxRate: "0.070000",
         unitCost: "35.00",
         userId: "user_1",
       }),
@@ -176,7 +175,6 @@ describe("SyncPerformanceMaterializerService", () => {
         financeDefaults: {
           advertisingCost: "9.00",
           packagingCost: "1.50",
-          taxRate: "0.030000",
         },
         id: "product_1",
         isActive: true,
@@ -343,5 +341,54 @@ describe("SyncPerformanceMaterializerService", () => {
         shippingFee: "0.00",
       }),
     );
+  });
+
+  it("does not materialize unpaid Shopee orders as sales", async () => {
+    const { db, service } = createService();
+    const insertedRows: Array<Record<string, unknown>> = [];
+
+    db.query.companies.findMany.mockResolvedValue([{ id: "company_1" }]);
+    db.query.products.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-06-01T10:00:00.000Z"),
+        financeDefaults: null,
+        id: "product_1",
+        isActive: true,
+        name: "Produto Shopee",
+        organizationId: "org_1",
+        productCosts: [],
+        sellingPrice: "100.00",
+        sku: "SKU-1",
+        updatedAt: new Date("2026-06-01T10:00:00.000Z"),
+      },
+    ]);
+    db.query.externalOrders.findMany.mockResolvedValue([
+      {
+        fees: [{ amount: "15.00", feeType: "marketplace_commission" }],
+        items: [
+          {
+            externalProduct: { sku: "SKU-1" },
+            quantity: 1,
+            totalPrice: "100.00",
+          },
+        ],
+        metadata: { paid: false },
+        orderedAt: "2026-06-12T12:00:00.000Z",
+        status: "UNPAID",
+      },
+    ]);
+    db.transaction.mockImplementation(
+      async (callback: (tx: { insert: ReturnType<typeof createTxInsertMock> }) => Promise<unknown>) =>
+        callback({ insert: createTxInsertMock(insertedRows) }),
+    );
+
+    await service.materializeForSync({
+      organizationId: "org_1",
+      providerSlug: "shopee",
+      syncRunId: "sync_1",
+      userId: "user_1",
+    });
+
+    expect(insertedRows).toHaveLength(0);
   });
 });

@@ -4,6 +4,10 @@ const COMPANY_REQUIRED_MESSAGE =
   "Cadastre uma empresa ativa antes de salvar um produto manual com custos e impostos mensais.";
 const COMPANY_SELECTION_MESSAGE =
   "Selecione a empresa que deve receber os custos e impostos mensais deste produto.";
+const CATALOG_COMPANY_REQUIRED_MESSAGE =
+  "Cadastre uma empresa ativa em /app antes de criar ou importar produtos.";
+const CATALOG_SINGLE_ACTIVE_COMPANY_MESSAGE =
+  "Mantenha apenas uma empresa ativa em /app antes de criar ou importar produtos.";
 
 export function getActiveCompanies(companies: Company[]) {
   return companies.filter((company) => company.isActive);
@@ -46,6 +50,18 @@ export function getManualProductCompanyValidationMessage(input: {
 
   if (!activeCompanies.some((company) => company.id === input.companyId.trim())) {
     return "Selecione uma empresa ativa para continuar.";
+  }
+
+  return null;
+}
+
+export function getCatalogCompanyRequirementMessage(activeCompanyCount: number) {
+  if (activeCompanyCount === 0) {
+    return CATALOG_COMPANY_REQUIRED_MESSAGE;
+  }
+
+  if (activeCompanyCount > 1) {
+    return CATALOG_SINGLE_ACTIVE_COMPANY_MESSAGE;
   }
 
   return null;

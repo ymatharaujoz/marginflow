@@ -3,6 +3,7 @@ import type { IntegrationProviderSlug } from "@marginflow/types";
 import { IntegrationProviderError } from "./integrations.types";
 
 type SignedStatePayload = {
+  codeVerifier?: string;
   issuedAt: number;
   nonce: string;
   organizationId: string;
@@ -25,12 +26,14 @@ function signPayload(value: string, secret: string) {
 
 export function createSignedIntegrationState(
   input: {
+    codeVerifier?: string;
     organizationId: string;
     provider: IntegrationProviderSlug;
   },
   secret: string,
 ) {
   const payload: SignedStatePayload = {
+    codeVerifier: input.codeVerifier,
     issuedAt: Date.now(),
     nonce: randomUUID(),
     organizationId: input.organizationId,

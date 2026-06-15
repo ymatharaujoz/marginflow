@@ -96,10 +96,11 @@ describe("dashboard controller", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/dashboard/summary",
+      url: "/dashboard/summary?provider=shopee",
     });
 
     expect(response.statusCode).toBe(200);
+    expect(dashboardService.readSummary).toHaveBeenCalledWith("org_123", "shopee");
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         cards: [],

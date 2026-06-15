@@ -43,9 +43,9 @@ describe("web auth session", () => {
     });
   });
 
-  it("builds the remote Better Auth cookie header from mirrored session token", () => {
+  it("builds the internal api auth cookie header from mirrored session token", () => {
     expect(buildRemoteAuthCookieHeader("remote_session_token_123")).toBe(
-      "__Secure-better-auth.session_token=remote_session_token_123; better-auth.session_token=remote_session_token_123",
+      "marginflow_api_session=remote_session_token_123",
     );
   });
 });

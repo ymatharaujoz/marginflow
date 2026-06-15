@@ -12,6 +12,8 @@ export type BillingStateStatus = (typeof BILLING_STATE_STATUSES)[number];
 export type BillingSnapshot = {
   organizationId: string | null;
   entitled: boolean;
+  trialEligible?: boolean;
+  trialDays?: number;
   status?: BillingStateStatus;
   customer: {
     externalCustomerId: string;
@@ -21,6 +23,8 @@ export type BillingSnapshot = {
     cancelAtPeriodEnd: boolean;
     currentPeriodEnd: string | null;
     currentPeriodStart: string | null;
+    trialEnd?: string | null;
+    trialStart?: string | null;
     externalSubscriptionId: string | null;
     id: string;
     interval: string;

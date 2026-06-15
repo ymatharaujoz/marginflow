@@ -31,9 +31,12 @@ export type SyncImportCounts = {
   fees: number;
 };
 
+export type SyncRunOrigin = "manual" | "automatic";
+
 export type SyncRunRecord = {
   id: string;
   provider: IntegrationProviderSlug;
+  origin: SyncRunOrigin;
   status: string;
   windowKey: string | null;
   startedAt: string | null;

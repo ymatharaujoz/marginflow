@@ -28,7 +28,8 @@ import type {
   DashboardReadModel,
   DashboardSummaryMetrics,
 } from "@marginflow/types";
-import { desc, eq } from "drizzle-orm";
+import type { IntegrationProviderSlug } from "@marginflow/types";
+import { and, desc, eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 
 type ProductCostRow = Pick<ProductCost, "amount" | "createdAt" | "effectiveFrom">;
@@ -105,7 +106,10 @@ export class FinanceService {
     private readonly db: DatabaseClient,
   ) {}
 
-  async buildFinanceSnapshot(organizationId: string): Promise<FinanceSnapshot> {
+  async buildFinanceSnapshot(
+    organizationId: string,
+    provider?: IntegrationProviderSlug,
+  ): Promise<FinanceSnapshot> {
     const [productRows, orderRows, adCostRows, expenseRows, externalProductRows] = await Promise.all([
       this.db.query.products.findMany({
         orderBy: (table) => [desc(table.createdAt)],
@@ -118,7 +122,10 @@ export class FinanceService {
       }),
       this.db.query.externalOrders.findMany({
         orderBy: (table) => [desc(table.orderedAt), desc(table.createdAt)],
-        where: (table) => eq(table.organizationId, organizationId),
+        where: (table) =>
+          provider
+            ? and(eq(table.organizationId, organizationId), eq(table.provider, provider))
+            : eq(table.organizationId, organizationId),
         with: {
           fees: true,
           items: true,
@@ -126,7 +133,10 @@ export class FinanceService {
       }),
       this.db.query.adCosts.findMany({
         orderBy: (table) => [desc(table.spentAt), desc(table.createdAt)],
-        where: (table) => eq(table.organizationId, organizationId),
+        where: (table) =>
+          provider
+            ? and(eq(table.organizationId, organizationId), eq(table.channel, provider))
+            : eq(table.organizationId, organizationId),
       }),
       this.db.query.manualExpenses.findMany({
         orderBy: (table) => [desc(table.incurredAt), desc(table.createdAt)],
@@ -152,7 +162,7 @@ export class FinanceService {
       productId: row.productId,
       spentAt: toMetricDate(row.spentAt),
     }));
-    const manualExpenses = expenseRows.map<FinancialManualExpenseInput>((row) => ({
+    const manualExpenses = (provider ? [] : expenseRows).map<FinancialManualExpenseInput>((row) => ({
       amount: String(row.amount),
       category: row.category,
       id: row.id,
@@ -167,8 +177,11 @@ export class FinanceService {
     };
   }
 
-  async buildDashboardReadModel(organizationId: string): Promise<DashboardReadModel> {
-    const snapshot = await this.buildFinanceSnapshot(organizationId);
+  async buildDashboardReadModel(
+    organizationId: string,
+    provider?: IntegrationProviderSlug,
+  ): Promise<DashboardReadModel> {
+    const snapshot = await this.buildFinanceSnapshot(organizationId, provider);
     const overview = buildFinanceOverview(snapshot);
     const productProfitability = buildProductProfitabilityMetrics(snapshot);
 
@@ -215,8 +228,11 @@ export class FinanceService {
     };
   }
 
-  async readSummaryMetrics(organizationId: string): Promise<DashboardSummaryMetrics> {
-    return (await this.buildDashboardReadModel(organizationId)).summary;
+  async readSummaryMetrics(
+    organizationId: string,
+    provider?: IntegrationProviderSlug,
+  ): Promise<DashboardSummaryMetrics> {
+    return (await this.buildDashboardReadModel(organizationId, provider)).summary;
   }
 
   async readDailyMetrics(organizationId: string): Promise<DashboardDailyMetricPoint[]> {

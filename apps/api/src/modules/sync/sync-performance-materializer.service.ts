@@ -18,7 +18,7 @@ import { normalizeSku, selectLatestProductCost } from "@/modules/finance/finance
 
 type TenantContext = {
   organizationId: string;
-  userId: string;
+  userId: string | null;
 };
 
 type ProductRowWithFinance = Product & {
@@ -139,6 +139,19 @@ function isExplicitReturnMarker(order: Pick<ExternalOrder, "status" | "metadata"
   });
 }
 
+function isExplicitlyUnpaid(order: Pick<ExternalOrder, "status" | "metadata">) {
+  if (
+    order.metadata &&
+    typeof order.metadata === "object" &&
+    "paid" in order.metadata &&
+    order.metadata.paid === false
+  ) {
+    return true;
+  }
+
+  return order.status.trim().toLowerCase() === "unpaid";
+}
+
 function sumFeeAmounts(fees: ExternalFee[], feeType: string) {
   return fees.reduce((sum, fee) => {
     if (fee.feeType !== feeType) {
@@ -160,13 +173,13 @@ export class SyncPerformanceMaterializerService {
     organizationId: string;
     providerSlug: string;
     syncRunId: string;
-    userId: string;
+    userId: string | null;
   }) {
-    const context = {
+    const activeCompany = await this.resolveActiveCompany({
       organizationId: input.organizationId,
       userId: input.userId,
-    } satisfies TenantContext;
-    const activeCompany = await this.resolveActiveCompany(context);
+    });
+    const materializationUserId = input.userId ?? activeCompany.userId;
     const [orders, productsList] = await Promise.all([
       this.readOrdersForProvider(input.organizationId, input.providerSlug),
       this.readProductsForOrganization(input.organizationId),
@@ -181,13 +194,14 @@ export class SyncPerformanceMaterializerService {
     for (const order of orders) {
       const referenceMonth = firstDayOfMonth(order.orderedAt);
 
-      if (!referenceMonth || order.items.length === 0) {
+      if (!referenceMonth || order.items.length === 0 || isExplicitlyUnpaid(order)) {
         continue;
       }
 
       const itemWeights = order.items.map((item) => parseMoney(String(item.totalPrice)));
       const commissionAllocations = allocateProportionally(
-        sumFeeAmounts(order.fees, "marketplace_commission"),
+        sumFeeAmounts(order.fees, "marketplace_commission") +
+          sumFeeAmounts(order.fees, "fixed_fee"),
         itemWeights,
       );
       const shippingAllocations = allocateProportionally(
@@ -268,7 +282,6 @@ export class SyncPerformanceMaterializerService {
             salesQuantity: aggregate.salesQuantity,
             shippingFee,
             sku: normalizeSku(aggregate.product.sku) ?? aggregate.product.id,
-            taxRate: aggregate.product.financeDefaults?.taxRate ?? "0",
             unitCost: selectLatestProductCost(
               aggregate.product.productCosts.map((cost) => ({
                 amount: String(cost.amount),
@@ -276,7 +289,7 @@ export class SyncPerformanceMaterializerService {
                 effectiveFrom: cost.effectiveFrom,
               })),
             ),
-            userId: input.userId,
+            userId: materializationUserId,
           })
           .onConflictDoUpdate({
             set: {
@@ -306,16 +319,20 @@ export class SyncPerformanceMaterializerService {
       where: (table) =>
         and(
           eq(table.organizationId, context.organizationId),
-          eq(table.userId, context.userId),
           eq(table.isActive, true),
+          ...(context.userId ? [eq(table.userId, context.userId)] : []),
         ),
     });
 
     if (activeCompanies.length !== 1) {
       throw new BadRequestException(
         activeCompanies.length === 0
-          ? "Sync performance materialization requires exactly one active company for the authenticated user."
-          : "Sync performance materialization could not resolve a single active company for the authenticated user.",
+          ? context.userId
+            ? "Sync performance materialization requires exactly one active company for the authenticated user."
+            : "Sync performance materialization requires exactly one active company for the organization during automatic sync."
+          : context.userId
+            ? "Sync performance materialization could not resolve a single active company for the authenticated user."
+            : "Sync performance materialization could not resolve a single active company for the organization during automatic sync.",
       );
     }
 

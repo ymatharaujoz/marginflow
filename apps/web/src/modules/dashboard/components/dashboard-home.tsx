@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { RefreshCw, AlertCircle } from "lucide-react";
+import type { Company, IntegrationProviderSlug } from "@marginflow/types";
 import { Card, EmptyState, Skeleton, Button } from "@marginflow/ui";
 import { ApiClientError } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
@@ -16,6 +18,7 @@ import { ProductsTable } from "./products-table";
 import { useDashboardData } from "../hooks/use-dashboard-data";
 
 interface DashboardHomeProps {
+  activeCompany: Company | null;
   organizationName: string;
 }
 
@@ -65,7 +68,8 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
-export function DashboardHome({ organizationName }: DashboardHomeProps) {
+export function DashboardHome({ activeCompany, organizationName }: DashboardHomeProps) {
+  const [providerFilter, setProviderFilter] = useState<IntegrationProviderSlug | null>(null);
   const {
     summaryQuery,
     chartsQuery,
@@ -75,9 +79,8 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
     error,
     financialState,
     businessStatus,
-    lastSyncDate,
     refetchAll,
-  } = useDashboardData();
+  } = useDashboardData(providerFilter);
 
   if (isLoading) {
     return <LoadingDashboard />;
@@ -92,13 +95,35 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
       <DashboardHeader
         organizationName={organizationName}
         businessStatus={businessStatus}
-        lastSyncDate={lastSyncDate}
-        recentSync={recentSyncQuery.data}
       />
+
+      <hr className="border-border" />
+
+      <div className="flex w-fit rounded-lg border border-border bg-surface-strong p-1">
+        {([
+          [null, "Todos"],
+          ["mercadolivre", "Mercado Livre"],
+          ["shopee", "Shopee"],
+        ] as const).map(([provider, label]) => (
+          <button
+            key={provider ?? "all"}
+            type="button"
+            onClick={() => setProviderFilter(provider)}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              providerFilter === provider
+                ? "bg-accent text-white"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       {profitabilityQuery.data && (
         <section>
           <DashboardFinancialIndicators
+            activeCompany={activeCompany}
             data={profitabilityQuery.data}
             summary={summaryQuery.data ?? undefined}
           />
@@ -109,7 +134,11 @@ export function DashboardHome({ organizationName }: DashboardHomeProps) {
         <section className="grid items-stretch gap-4 lg:grid-cols-[1fr_300px]">
           <ChartsSection data={chartsQuery.data} />
           <div className="flex flex-col gap-3">
-            <MarketplacesSection data={chartsQuery.data} recentSync={recentSyncQuery.data} />
+            <MarketplacesSection
+              data={chartsQuery.data}
+              recentSync={recentSyncQuery.data}
+              recentSyncProvider={providerFilter}
+            />
             {summaryQuery.data && <InsightsSection data={summaryQuery.data} className="flex-1" />}
           </div>
         </section>

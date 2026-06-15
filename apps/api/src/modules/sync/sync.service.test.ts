@@ -93,7 +93,7 @@ describe("SyncService", () => {
     vi.useRealTimers();
   });
 
-  it("blocks the current window after a successful sync already exists", async () => {
+  it("keeps Mercado Livre available after a successful sync in the same window", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
     const { db, service } = createService();
 
@@ -130,13 +130,26 @@ describe("SyncService", () => {
 
     const status = await service.getStatus("org_123", "mercadolivre");
 
-    expect(status.availability.canRun).toBe(false);
-    expect(status.availability.reason).toBe("window_already_used");
+    expect(status.availability.canRun).toBe(true);
+    expect(status.availability.reason).toBe("available");
+    expect(status.availability.currentWindowKey).toBeNull();
   });
 
-  it("allows the current window again when SYNC_RELAX_GUARDS is enabled outside production", async () => {
+  it("allows the current window again for non-Mercado Livre providers when SYNC_RELAX_GUARDS is enabled outside production", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
     const { db, service } = createService({ SYNC_RELAX_GUARDS: true, NODE_ENV: "development" });
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        createAuthorization: vi.fn(),
+        disconnect: vi.fn(),
+        displayName: "Shopee",
+        exchangeCode: vi.fn(),
+        isConfigured: () => true,
+        provider: "shopee" as const,
+        supportsSync: () => true,
+        syncOrders: vi.fn(),
+      },
+    ];
 
     db.query.marketplaceConnections.findFirst.mockResolvedValue({
       accessToken: "token",
@@ -146,7 +159,7 @@ describe("SyncService", () => {
       lastSyncedAt: new Date("2026-05-01T12:05:00.000Z"),
       metadata: {},
       organizationId: "org_123",
-      provider: "mercadolivre",
+      provider: "shopee",
       refreshToken: "refresh",
       status: "connected",
       tokenExpiresAt: new Date("2026-05-03T11:00:00.000Z"),
@@ -162,22 +175,34 @@ describe("SyncService", () => {
         marketplaceConnectionId: "conn_123",
         metadata: {},
         organizationId: "org_123",
-        provider: "mercadolivre",
+        provider: "shopee",
         startedAt: new Date("2026-05-01T12:01:00.000Z"),
         status: "completed",
         updatedAt: new Date("2026-05-01T12:05:00.000Z"),
         windowKey: "2026-05-01:morning",
       });
 
-    const status = await service.getStatus("org_123", "mercadolivre");
+    const status = await service.getStatus("org_123", "shopee");
 
     expect(status.availability.canRun).toBe(true);
     expect(status.availability.reason).toBe("available");
   });
 
-  it("ignores SYNC_RELAX_GUARDS when NODE_ENV is production", async () => {
+  it("keeps Shopee manual sync available without daily windows", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
     const { db, service } = createService({ SYNC_RELAX_GUARDS: true, NODE_ENV: "production" });
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        createAuthorization: vi.fn(),
+        disconnect: vi.fn(),
+        displayName: "Shopee",
+        exchangeCode: vi.fn(),
+        isConfigured: () => true,
+        provider: "shopee" as const,
+        supportsSync: () => true,
+        syncOrders: vi.fn(),
+      },
+    ];
 
     db.query.marketplaceConnections.findFirst.mockResolvedValue({
       accessToken: "token",
@@ -187,7 +212,7 @@ describe("SyncService", () => {
       lastSyncedAt: new Date("2026-05-01T12:05:00.000Z"),
       metadata: {},
       organizationId: "org_123",
-      provider: "mercadolivre",
+      provider: "shopee",
       refreshToken: "refresh",
       status: "connected",
       tokenExpiresAt: new Date("2026-05-03T11:00:00.000Z"),
@@ -203,17 +228,18 @@ describe("SyncService", () => {
         marketplaceConnectionId: "conn_123",
         metadata: {},
         organizationId: "org_123",
-        provider: "mercadolivre",
+        provider: "shopee",
         startedAt: new Date("2026-05-01T12:01:00.000Z"),
         status: "completed",
         updatedAt: new Date("2026-05-01T12:05:00.000Z"),
         windowKey: "2026-05-01:morning",
       });
 
-    const status = await service.getStatus("org_123", "mercadolivre");
+    const status = await service.getStatus("org_123", "shopee");
 
-    expect(status.availability.canRun).toBe(false);
-    expect(status.availability.reason).toBe("window_already_used");
+    expect(status.availability.canRun).toBe(true);
+    expect(status.availability.reason).toBe("available");
+    expect(status.availability.currentWindowKey).toBeNull();
   });
 
   it("runs a sync, stores imported data, and materializes finance metrics", async () => {
@@ -298,6 +324,7 @@ describe("SyncService", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         createdAt: new Date("2026-05-01T12:35:00.000Z"),
         errorSummary: null,
@@ -320,7 +347,7 @@ describe("SyncService", () => {
         startedAt: new Date("2026-05-01T12:31:00.000Z"),
         status: "completed",
         updatedAt: new Date("2026-05-01T12:35:00.000Z"),
-        windowKey: "2026-05-01:morning",
+        windowKey: null,
       });
     db.insert = createInsertMock([
       [
@@ -336,7 +363,7 @@ describe("SyncService", () => {
           startedAt: null,
           status: "pending",
           updatedAt: new Date("2026-05-01T12:30:00.000Z"),
-          windowKey: "2026-05-01:morning",
+          windowKey: null,
         },
       ],
     ]);
@@ -359,7 +386,7 @@ describe("SyncService", () => {
       startedAt: new Date("2026-05-01T12:31:00.000Z"),
       status: "completed",
       updatedAt: new Date("2026-05-01T12:35:00.000Z"),
-      windowKey: "2026-05-01:morning",
+      windowKey: null,
     });
 
     const response = await service.runSync("org_123", "user_123", "mercadolivre");
@@ -373,7 +400,46 @@ describe("SyncService", () => {
     });
     expect(financeService.materializeOrganizationMetrics).toHaveBeenCalledWith("org_123");
     expect(response.run.counts.orders).toBe(1);
-    expect(response.availability.reason).toBe("window_already_used");
+    expect(response.run.origin).toBe("manual");
+    expect(response.availability.reason).toBe("available");
+  });
+
+  it("keeps an expired Shopee connection available when it can refresh the token", async () => {
+    vi.setSystemTime(new Date("2026-06-12T12:30:00.000Z"));
+    const { db, service } = createService();
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        createAuthorization: vi.fn(),
+        disconnect: vi.fn(),
+        displayName: "Shopee",
+        exchangeCode: vi.fn(),
+        isConfigured: () => true,
+        provider: "shopee" as const,
+        refreshAccessToken: vi.fn(),
+        supportsSync: () => true,
+        syncOrders: vi.fn(),
+      },
+    ];
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "expired-token",
+      createdAt: new Date("2026-06-01T10:00:00.000Z"),
+      externalAccountId: "987654",
+      id: "conn_1",
+      lastSyncedAt: null,
+      metadata: {},
+      organizationId: "org_123",
+      provider: "shopee",
+      refreshToken: "refresh-token",
+      status: "connected",
+      tokenExpiresAt: new Date("2026-06-12T11:00:00.000Z"),
+      updatedAt: new Date("2026-06-01T10:00:00.000Z"),
+    });
+    db.query.syncRuns.findFirst.mockResolvedValue(null);
+
+    const status = await service.getStatus("org_123", "shopee");
+
+    expect(status.availability.canRun).toBe(true);
+    expect(status.availability.reason).toBe("available");
   });
 
   it("clears non-processing sync history for provider", async () => {
@@ -483,5 +549,89 @@ describe("SyncService", () => {
       BadRequestException,
     );
     expect(financeService.materializeOrganizationMetrics).not.toHaveBeenCalled();
+  });
+
+  it("ignores Mercado Livre notifications without user_id", async () => {
+    const { service } = createService();
+
+    await expect(
+      service.handleMercadoLivreNotification({
+        resource: "/orders/123",
+        topic: "orders_v2",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        reason: "missing_user_id",
+        status: "ignored",
+      }),
+    );
+  });
+
+  it("marks a pending automatic rerun when a Mercado Livre sync is already processing", async () => {
+    const { db, service } = createService();
+
+    db.query.marketplaceConnections.findFirst
+      .mockResolvedValueOnce({
+        accessToken: "token",
+        createdAt: new Date("2026-05-01T11:00:00.000Z"),
+        externalAccountId: "seller_123",
+        id: "conn_123",
+        lastSyncedAt: null,
+        metadata: {},
+        organizationId: "org_123",
+        provider: "mercadolivre",
+        refreshToken: "refresh",
+        status: "connected",
+        tokenExpiresAt: new Date("2030-05-03T11:00:00.000Z"),
+        updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+      })
+      .mockResolvedValueOnce({
+        accessToken: "token",
+        createdAt: new Date("2026-05-01T11:00:00.000Z"),
+        externalAccountId: "seller_123",
+        id: "conn_123",
+        lastSyncedAt: null,
+        metadata: {},
+        organizationId: "org_123",
+        provider: "mercadolivre",
+        refreshToken: "refresh",
+        status: "connected",
+        tokenExpiresAt: new Date("2030-05-03T11:00:00.000Z"),
+        updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+      });
+    db.query.syncRuns.findFirst.mockResolvedValueOnce({
+      createdAt: new Date("2026-05-01T12:05:00.000Z"),
+      errorSummary: null,
+      finishedAt: null,
+      id: "sync_processing",
+      marketplaceConnectionId: "conn_123",
+      metadata: {},
+      organizationId: "org_123",
+      provider: "mercadolivre",
+      startedAt: new Date("2026-05-01T12:01:00.000Z"),
+      status: "processing",
+      updatedAt: new Date("2026-05-01T12:05:00.000Z"),
+      windowKey: null,
+    });
+    db.update.mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+    });
+
+    await expect(
+      service.handleMercadoLivreNotification({
+        resource: "/orders/123",
+        topic: "orders_v2",
+        userId: "seller_123",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        reason: "active_run_pending_rerun",
+        status: "rerun_marked",
+      }),
+    );
+
+    expect(db.update).toHaveBeenCalledTimes(1);
   });
 });

@@ -5,6 +5,11 @@ export type IntegrationProviderAuthorization = {
   authorizationUrl: string;
 };
 
+export type IntegrationProviderCallbackInput = {
+  codeVerifier?: string;
+  externalAccountId?: string;
+};
+
 export type IntegrationProviderCallbackResult = {
   accessToken: string;
   connectedAccountId: string;
@@ -14,7 +19,14 @@ export type IntegrationProviderCallbackResult = {
   tokenExpiresAt: Date | null;
 };
 
+export type IntegrationProviderTokenRefreshResult = {
+  accessToken: string;
+  refreshToken: string;
+  tokenExpiresAt: Date;
+};
+
 export type IntegrationProviderContext = {
+  codeVerifier?: string;
   organizationId: string;
   state: string;
 };
@@ -72,10 +84,21 @@ export type IntegrationProvider = {
   readonly provider: IntegrationProviderSlug;
   createAuthorization(input: IntegrationProviderContext): Promise<IntegrationProviderAuthorization>;
   disconnect(connection: MarketplaceConnection | null): Promise<void>;
-  exchangeCode(code: string): Promise<IntegrationProviderCallbackResult>;
+  exchangeCode(
+    code: string,
+    input?: IntegrationProviderCallbackInput,
+  ): Promise<IntegrationProviderCallbackResult>;
   isConfigured(): boolean;
+  refreshAccessToken?(
+    connection: MarketplaceConnection,
+  ): Promise<IntegrationProviderTokenRefreshResult>;
   supportsSync(): boolean;
   syncOrders(input: IntegrationSyncContext): Promise<IntegrationSyncResult>;
+  verifyWebhookSignature?(input: {
+    authorization: string;
+    callbackUrl: string;
+    rawBody: Buffer;
+  }): boolean;
 };
 
 export class IntegrationProviderError extends Error {

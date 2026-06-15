@@ -76,7 +76,7 @@ interface Testimonial {
 const testimonials: Testimonial[] = [
   {
     quote:
-      "Aumentamos nossa margem em 23% no primeiro trimestre usando o MarginFlow. Finalmente conseguimos ver onde estávamos perdendo dinheiro",
+      "Aumentamos nossa margem em 23% no primeiro trimestre usando o Lucreii. Finalmente conseguimos ver onde estávamos perdendo dinheiro",
     author: "Carlos Silva",
     role: "CFO",
     company: "",
@@ -91,7 +91,7 @@ const testimonials: Testimonial[] = [
     role: "CEO",
     company: "",
     initials: "AP",
-    color: "#2563eb",
+    color: "#0e7a6f",
     rating: 5,
   },
   {
@@ -101,7 +101,7 @@ const testimonials: Testimonial[] = [
     role: "Fundador",
     company: "",
     initials: "RC",
-    color: "#dc2626",
+    color: "#0e7a6f",
     rating: 5,
   },
 ];
@@ -157,7 +157,7 @@ export function SocialProof() {
             Empresários que transformaram seus resultados
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Veja como sellers profissionais estão usando o MarginFlow para escalar seus negócios
+            Veja como sellers profissionais estão usando o Lucreii para escalar seus negócios
           </p>
         </motion.div>
 
@@ -234,7 +234,7 @@ export function SocialProof() {
         >
           <p className="text-sm text-muted-foreground">
             Junte-se a mais de <span className="font-semibold text-foreground">15 empresas</span> que já estão
-            tomando decisões baseadas em dados reais
+            tomando decisões baseadas em dados reais.
           </p>
         </motion.div>
       </div>

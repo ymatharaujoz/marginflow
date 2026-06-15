@@ -64,6 +64,27 @@
       "when": 1779501600000,
       "tag": "0008_auth_exchange_tickets",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1779835200000,
+      "tag": "0009_company_finance_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780920000000,
+      "tag": "0010_globalize_company_tax",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781481600000,
+      "tag": "0011_billing_trials",
+      "breakpoints": true
     }
   ]
 }

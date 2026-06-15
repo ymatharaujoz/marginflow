@@ -194,7 +194,6 @@ describe("products controller", () => {
         id: "defaults_1",
         packagingCost: "3.00",
         productId: "product_1",
-        taxRate: "0.120000",
         updatedAt: "2026-05-14T10:00:00.000Z",
       },
       product: {
@@ -226,7 +225,6 @@ describe("products controller", () => {
       payload: {
         initialFinance: {
           packagingCost: "3.00",
-          taxRate: "0.120000",
           unitCost: "80.00",
         },
         product: {
@@ -244,7 +242,6 @@ describe("products controller", () => {
       data: expect.objectContaining({
         financeDefaults: expect.objectContaining({
           productId: "product_1",
-          taxRate: "0.120000",
         }),
         product: expect.objectContaining({
           id: "product_1",
@@ -255,7 +252,7 @@ describe("products controller", () => {
     });
   });
 
-  it("rejects manual products when tax rate bypasses the frontend contract", async () => {
+  it("rejects manual products when initial finance omits required cost fields", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
       organization: {
         id: "org_123",
@@ -289,8 +286,6 @@ describe("products controller", () => {
       payload: {
         initialFinance: {
           packagingCost: "3.00",
-          taxRate: "15",
-          unitCost: "80.00",
         },
         product: {
           isActive: true,
@@ -385,7 +380,6 @@ describe("products controller", () => {
           salesQuantity: 2,
           shippingFee: "0.00",
           sku: "NB-1",
-          taxRate: "0.000000",
           unitCost: "80.00",
         },
       ],
@@ -428,6 +422,7 @@ describe("products controller", () => {
         companyId: "11111111-1111-4111-8111-111111111111",
         companyRequired: false,
         referenceMonth: "2026-05-01",
+        taxRateDefault: "0.000000",
       },
       syncedProducts: [
         {
@@ -580,7 +575,6 @@ describe("products controller", () => {
       payload: {
         initialFinance: {
           packagingCost: "3.00",
-          taxRate: "0.120000",
           unitCost: "80.00",
         },
         product: {

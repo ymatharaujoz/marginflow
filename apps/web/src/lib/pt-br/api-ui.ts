@@ -24,6 +24,8 @@ const API_MESSAGES_BASE: Record<string, string> = {
     "A sincronização fica indisponível durante a madrugada. A próxima janela diária abre às 06:00.",
 
   "Mercado Livre connected successfully.": "Mercado Livre conectado com sucesso.",
+  "Mercado Livre auto-sync is active. New sales also trigger synchronization automatically.":
+    "A sincronizaÃ§Ã£o automÃ¡tica do Mercado Livre estÃ¡ ativa. Novas vendas tambÃ©m disparam sincronizaÃ§Ã£o automaticamente.",
 
   "No marketplace account is connected yet.":
     "Nenhuma conta do marketplace está conectada ainda",
@@ -142,6 +144,16 @@ const SYNC_RUN_STATUS_PT = addIdentityPtKeys(SYNC_RUN_STATUS_BASE);
 export function translateSyncRunStatus(status: string): string {
   const trimmed = status.trim();
   return SYNC_RUN_STATUS_PT[trimmed] ?? "Status desconhecido";
+}
+
+const SYNC_RUN_ORIGIN_PT: Record<string, string> = {
+  automatic: "AutomÃ¡tica",
+  manual: "Manual",
+};
+
+export function translateSyncRunOrigin(origin: string): string {
+  const trimmed = origin.trim();
+  return SYNC_RUN_ORIGIN_PT[trimmed] ?? "Desconhecida";
 }
 
 const DASHBOARD_CARD_LABEL_BASE: Record<string, string> = {

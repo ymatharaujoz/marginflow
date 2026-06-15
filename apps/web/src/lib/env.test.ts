@@ -15,7 +15,7 @@ describe("readPublicEnv", () => {
     });
 
     expect(env.NEXT_PUBLIC_API_BASE_URL).toBe("http://localhost:4000");
-    expect(env.NEXT_PUBLIC_APP_NAME).toBe("MarginFlow");
+    expect(env.NEXT_PUBLIC_APP_NAME).toBe("Lucreii");
     expect(env.NEXT_PUBLIC_APP_ICON).toBe("M");
     expect(env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL).toBe("R$ 99");
     expect(env.NEXT_PUBLIC_PRICE_ANNUAL_LABEL).toBe("R$ 79");
@@ -27,7 +27,7 @@ describe("readPublicEnv", () => {
 
     expect(env.NEXT_PUBLIC_APP_URL).toBe("http://localhost:3000");
     expect(env.NEXT_PUBLIC_API_BASE_URL).toBe("http://localhost:4000");
-    expect(env.NEXT_PUBLIC_APP_NAME).toBe("MarginFlow");
+    expect(env.NEXT_PUBLIC_APP_NAME).toBe("Lucreii");
     expect(env.NEXT_PUBLIC_PRICE_MONTHLY_LABEL).toBe("R$ 99");
   });
 
@@ -95,6 +95,28 @@ describe("readPublicEnv", () => {
         NEXT_PUBLIC_APP_URL: "http://localhost:3000",
         NEXT_PUBLIC_API_BASE_URL: "http://localhost:4000",
         NEXT_PUBLIC_WHATSAPP_DEMO_URL: "not-a-url",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts optional whatsapp phone number", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    const env = readPublicEnv({
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:4000",
+      NEXT_PUBLIC_WHATSAPP_PHONE: "5511999999999",
+    });
+
+    expect(env.NEXT_PUBLIC_WHATSAPP_PHONE).toBe("5511999999999");
+  });
+
+  it("rejects invalid whatsapp phone number when set", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    expect(() =>
+      readPublicEnv({
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+        NEXT_PUBLIC_API_BASE_URL: "http://localhost:4000",
+        NEXT_PUBLIC_WHATSAPP_PHONE: "+55 11 99999-9999",
       }),
     ).toThrow();
   });

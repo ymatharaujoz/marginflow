@@ -3,9 +3,12 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
+  UnauthorizedException,
 } from "@nestjs/common";
+import { randomBytes } from "node:crypto";
 import {
   externalProducts,
   marketplaceConnections,
@@ -23,6 +26,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
 import { ProductsService } from "@/modules/products/products.service";
+import { SyncService } from "@/modules/sync/sync.service";
 import {
   createSignedIntegrationState,
   readSignedIntegrationState,
@@ -39,6 +43,29 @@ type CallbackQuery = {
   error?: string;
   error_description?: string;
   state?: string;
+};
+
+type MercadoLivreNotification = {
+  _id?: string;
+  application_id?: string | number;
+  attempts?: number;
+  resource?: string;
+  sent?: string;
+  topic?: string;
+  user_id?: string | number;
+};
+
+type ShopeeCallbackQuery = {
+  code?: string;
+  shop_id?: string | number;
+  state?: string;
+};
+
+type ShopeeNotification = {
+  code?: number;
+  data?: Record<string, unknown>;
+  shop_id?: string | number;
+  timestamp?: number;
 };
 
 type ExternalProductOrderItemRow = Awaited<
@@ -78,16 +105,27 @@ function toDecimalString(value: number | string | null | undefined) {
 @Injectable()
 export class IntegrationsService {
   private readonly providers: IntegrationProvider[];
+  private readonly logger = new Logger(IntegrationsService.name);
 
   constructor(
     @Inject(DATABASE_CLIENT)
     private readonly db: DatabaseClient,
     @Inject(ProductsService)
     private readonly productsService: ProductsService,
+    @Inject(SyncService)
+    private readonly syncService: SyncService,
     @Inject(API_RUNTIME_ENV)
     private readonly env: ApiRuntimeEnv,
   ) {
     this.providers = createIntegrationProviders(env);
+  }
+
+  private getStateSecret() {
+    return this.env.AUTH_SESSION_SECRET ?? this.env.BETTER_AUTH_SECRET ?? this.env.STRIPE_WEBHOOK_SECRET;
+  }
+
+  private createCodeVerifier() {
+    return randomBytes(32).toString("base64url");
   }
 
   async listConnections(organizationId: string): Promise<IntegrationConnectionRecord[]> {
@@ -108,17 +146,29 @@ export class IntegrationsService {
     const provider = this.getProvider(providerSlug);
 
     try {
+      const codeVerifier =
+        providerSlug === "mercadolivre" && this.env.MERCADOLIVRE_USE_PKCE
+          ? this.createCodeVerifier()
+          : undefined;
       const state = createSignedIntegrationState(
         {
+          codeVerifier,
           organizationId,
           provider: providerSlug,
         },
-        this.env.BETTER_AUTH_SECRET,
+        this.getStateSecret(),
       );
       const authorization = await provider.createAuthorization({
+        codeVerifier,
         organizationId,
         state,
       });
+      const callbackHost =
+        providerSlug === "mercadolivre" ? new URL(this.getMercadoLivreRedirectUri()).host : "n/a";
+
+      this.logger.log(
+        `Starting ${providerSlug} authorization flow (callbackHost=${callbackHost}, statePresent=${state ? "yes" : "no"}, pkce=${codeVerifier ? "enabled" : "disabled"})`,
+      );
 
       return {
         authorizationUrl: authorization.authorizationUrl,
@@ -133,6 +183,9 @@ export class IntegrationsService {
     const baseRedirect = `${this.env.WEB_APP_ORIGIN.replace(/\/$/, "")}/app/integrations`;
 
     try {
+      this.logger.log(
+        `Mercado Livre callback received (hasCode=${query.code ? "yes" : "no"}, hasError=${query.error ? "yes" : "no"}, hasState=${query.state ? "yes" : "no"})`,
+      );
       if (query.error) {
         throw new IntegrationProviderError(
           query.error_description?.trim() ||
@@ -148,7 +201,7 @@ export class IntegrationsService {
         );
       }
 
-      const state = readSignedIntegrationState(query.state, this.env.BETTER_AUTH_SECRET);
+      const state = readSignedIntegrationState(query.state, this.getStateSecret());
 
       if (state.provider !== "mercadolivre") {
         throw new IntegrationProviderError(
@@ -158,7 +211,9 @@ export class IntegrationsService {
       }
 
       const provider = this.getProvider("mercadolivre");
-      const connection = await provider.exchangeCode(query.code);
+      const connection = await provider.exchangeCode(query.code, {
+        codeVerifier: state.codeVerifier,
+      });
 
       await this.db
         .insert(marketplaceConnections)
@@ -213,6 +268,136 @@ export class IntegrationsService {
         status: "error",
       });
     }
+  }
+
+  async handleShopeeCallback(query: ShopeeCallbackQuery) {
+    const baseRedirect = `${this.env.WEB_APP_ORIGIN.replace(/\/$/, "")}/app/integrations`;
+
+    try {
+      if (!query.code || !query.state || query.shop_id === undefined) {
+        throw new IntegrationProviderError(
+          "A resposta da Shopee não incluiu code, shop_id e state obrigatórios",
+          "callback_invalid",
+        );
+      }
+
+      const state = readSignedIntegrationState(query.state, this.getStateSecret());
+      if (state.provider !== "shopee") {
+        throw new IntegrationProviderError(
+          "O state retornado não corresponde ao provedor esperado (Shopee)",
+          "callback_invalid",
+        );
+      }
+
+      const provider = this.getProvider("shopee");
+      const connection = await provider.exchangeCode(query.code, {
+        externalAccountId: String(query.shop_id),
+      });
+
+      await this.db
+        .insert(marketplaceConnections)
+        .values({
+          accessToken: connection.accessToken,
+          externalAccountId: connection.connectedAccountId,
+          metadata: {
+            ...connection.metadata,
+            connectedAccountLabel: connection.connectedAccountLabel,
+          },
+          organizationId: state.organizationId,
+          provider: "shopee",
+          refreshToken: connection.refreshToken,
+          status: "connected",
+          tokenExpiresAt: connection.tokenExpiresAt,
+        })
+        .onConflictDoUpdate({
+          set: {
+            accessToken: connection.accessToken,
+            externalAccountId: connection.connectedAccountId,
+            lastSyncedAt: null,
+            metadata: {
+              ...connection.metadata,
+              connectedAccountLabel: connection.connectedAccountLabel,
+            },
+            refreshToken: connection.refreshToken,
+            status: "connected",
+            tokenExpiresAt: connection.tokenExpiresAt,
+            updatedAt: new Date(),
+          },
+          target: [
+            marketplaceConnections.organizationId,
+            marketplaceConnections.provider,
+          ],
+        });
+
+      return this.buildRedirectUrl(baseRedirect, {
+        provider: "shopee",
+        status: "success",
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Falha ao conectar a Shopee";
+      return this.buildRedirectUrl(baseRedirect, {
+        message,
+        provider: "shopee",
+        status: "error",
+      });
+    }
+  }
+
+  async handleShopeeNotification(input: {
+    authorization: string;
+    body: ShopeeNotification;
+    rawBody: Buffer;
+  }) {
+    const provider = this.getProvider("shopee");
+    const callbackUrl =
+      this.env.SHOPEE_WEBHOOK_URL ??
+      `${(this.env.API_PUBLIC_BASE_URL ?? this.env.BETTER_AUTH_URL ?? "http://localhost:4000").replace(/\/$/, "")}/integrations/shopee/webhook`;
+
+    if (
+      !provider.verifyWebhookSignature ||
+      !provider.verifyWebhookSignature({
+        authorization: input.authorization,
+        callbackUrl,
+        rawBody: input.rawBody,
+      })
+    ) {
+      throw new UnauthorizedException("Assinatura do webhook Shopee inválida");
+    }
+
+    return this.syncService.handleShopeeNotification({
+      code: input.body.code,
+      data: input.body.data,
+      shopId: input.body.shop_id,
+      timestamp: input.body.timestamp,
+    });
+  }
+
+  async handleMercadoLivreNotification(
+    body: MercadoLivreNotification,
+    route = "/integrations/mercadolivre/webhook",
+  ) {
+    const result = await this.syncService.handleMercadoLivreNotification({
+      applicationId: body.application_id,
+      attempts: body.attempts,
+      notificationId: body._id,
+      resource: body.resource,
+      sent: body.sent,
+      topic: body.topic,
+      userId: body.user_id,
+    });
+
+    this.logger.log(
+      `Mercado Livre notification received: route=${route} topic=${body.topic ?? "unknown"} resource=${body.resource ?? "unknown"} userId=${body.user_id ?? "unknown"} status=${result.status} reason=${result.reason}`,
+    );
+
+    if (result.status !== "started" && result.status !== "rerun_marked") {
+      this.logger.log(
+        `Ignored Mercado Livre notification: route=${route} reason=${result.reason ?? "unknown"} topic=${result.summary.topic ?? "unknown"} resource=${result.summary.resource ?? "unknown"} userId=${result.summary.userId ?? "unknown"} summary=${JSON.stringify(result.summary)}`,
+      );
+    }
+
+    return result;
   }
 
   async disconnectProvider(
@@ -451,10 +636,22 @@ export class IntegrationsService {
     return provider;
   }
 
+  private getMercadoLivreRedirectUri() {
+    const apiBaseUrl =
+      this.env.API_PUBLIC_BASE_URL ??
+      this.env.BETTER_AUTH_URL ??
+      "http://localhost:4000";
+
+    return (
+      this.env.MERCADOLIVRE_REDIRECT_URI ??
+      `${apiBaseUrl.replace(/\/$/, "")}/integrations/mercadolivre/callback`
+    );
+  }
+
   private assertSyncProductProvider(providerSlug: IntegrationProviderSlug) {
-    if (providerSlug !== "mercadolivre") {
+    if (providerSlug !== "mercadolivre" && providerSlug !== "shopee") {
       throw new BadRequestException(
-        "Por enquanto, só há produtos sincronizados do Mercado Livre neste workspace",
+        "Marketplace não suporta produtos sincronizados",
       );
     }
   }
@@ -546,8 +743,9 @@ export class IntegrationsService {
     }
 
     const expired = isExpired(row.tokenExpiresAt);
-    const connected = row.status === "connected" && !expired;
-    const needsReconnect = row.status === "connected" && expired;
+    const canRefresh = Boolean(provider.refreshAccessToken && row.refreshToken);
+    const connected = row.status === "connected" && (!expired || canRefresh);
+    const needsReconnect = row.status === "connected" && expired && !canRefresh;
 
     return {
       connectAvailable: provider.isConfigured(),

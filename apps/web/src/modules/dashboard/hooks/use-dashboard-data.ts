@@ -6,6 +6,7 @@ import type {
   DashboardProfitabilityResponse,
   DashboardRecentSyncResponse,
   DashboardSummaryResponse,
+  IntegrationProviderSlug,
 } from "@marginflow/types";
 import {
   dashboardChartsApiResponseSchema,
@@ -21,47 +22,69 @@ const dashboardChartsQueryKey = ["dashboard-charts"] as const;
 const dashboardRecentSyncQueryKey = ["dashboard-recent-sync"] as const;
 const dashboardProfitabilityQueryKey = ["dashboard-profitability"] as const;
 
-export async function fetchDashboardSummary(_legacyUseMockData?: boolean): Promise<DashboardSummaryResponse> {
-  return apiClient.getValidatedData("/dashboard/summary", dashboardSummaryApiResponseSchema);
+function dashboardUrl(path: string, provider?: IntegrationProviderSlug | null) {
+  return provider ? `${path}?provider=${provider}` : path;
 }
 
-export async function fetchDashboardCharts(_legacyUseMockData?: boolean): Promise<DashboardChartsResponse> {
-  return apiClient.getValidatedData("/dashboard/charts", dashboardChartsApiResponseSchema);
-}
-
-export async function fetchDashboardRecentSync(_legacyUseMockData?: boolean): Promise<DashboardRecentSyncResponse> {
-  return apiClient.getValidatedData("/dashboard/recent-sync", dashboardRecentSyncApiResponseSchema);
-}
-
-export async function fetchDashboardProfitability(_legacyUseMockData?: boolean): Promise<DashboardProfitabilityResponse> {
+export async function fetchDashboardSummary(
+  providerOrLegacy?: IntegrationProviderSlug | boolean | null,
+): Promise<DashboardSummaryResponse> {
+  const provider = typeof providerOrLegacy === "string" ? providerOrLegacy : null;
   return apiClient.getValidatedData(
-    "/dashboard/profitability",
+    dashboardUrl("/dashboard/summary", provider),
+    dashboardSummaryApiResponseSchema,
+  );
+}
+
+export async function fetchDashboardCharts(
+  provider?: IntegrationProviderSlug | null,
+): Promise<DashboardChartsResponse> {
+  return apiClient.getValidatedData(
+    dashboardUrl("/dashboard/charts", provider),
+    dashboardChartsApiResponseSchema,
+  );
+}
+
+export async function fetchDashboardRecentSync(
+  provider?: IntegrationProviderSlug | null,
+): Promise<DashboardRecentSyncResponse> {
+  return apiClient.getValidatedData(
+    dashboardUrl("/dashboard/recent-sync", provider),
+    dashboardRecentSyncApiResponseSchema,
+  );
+}
+
+export async function fetchDashboardProfitability(
+  provider?: IntegrationProviderSlug | null,
+): Promise<DashboardProfitabilityResponse> {
+  return apiClient.getValidatedData(
+    dashboardUrl("/dashboard/profitability", provider),
     dashboardProfitabilityApiResponseSchema,
   );
 }
 
-export function useDashboardData() {
+export function useDashboardData(provider: IntegrationProviderSlug | null = null) {
   const summaryQuery = useQuery({
-    queryFn: () => fetchDashboardSummary(),
-    queryKey: dashboardSummaryQueryKey,
+    queryFn: () => fetchDashboardSummary(provider),
+    queryKey: [...dashboardSummaryQueryKey, provider],
     retry: 2,
   });
 
   const chartsQuery = useQuery({
-    queryFn: () => fetchDashboardCharts(),
-    queryKey: dashboardChartsQueryKey,
+    queryFn: () => fetchDashboardCharts(provider),
+    queryKey: [...dashboardChartsQueryKey, provider],
     retry: 2,
   });
 
   const recentSyncQuery = useQuery({
-    queryFn: () => fetchDashboardRecentSync(),
-    queryKey: dashboardRecentSyncQueryKey,
+    queryFn: () => fetchDashboardRecentSync(provider),
+    queryKey: [...dashboardRecentSyncQueryKey, provider],
     retry: 1,
   });
 
   const profitabilityQuery = useQuery({
-    queryFn: () => fetchDashboardProfitability(),
-    queryKey: dashboardProfitabilityQueryKey,
+    queryFn: () => fetchDashboardProfitability(provider),
+    queryKey: [...dashboardProfitabilityQueryKey, provider],
     retry: 2,
   });
 

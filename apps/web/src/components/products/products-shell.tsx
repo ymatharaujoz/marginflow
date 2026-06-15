@@ -3,8 +3,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Package, Loader2, Upload, CheckCircle2, AlertCircle, AlertTriangle, FileWarning, FileSpreadsheet } from "lucide-react";
-import { Badge, Button, Card, Modal } from "@marginflow/ui";
+import { motion, type Variants } from "framer-motion";
+import { Package, Loader2, Upload, CheckCircle2, AlertCircle, AlertTriangle, FileWarning, FileSpreadsheet, Tag, DollarSign } from "lucide-react";
+import { Badge, Button, Card, Input, Modal, cn } from "@marginflow/ui";
 import type {
   AdCostFormValues,
   AdCostRecord,
@@ -26,6 +27,7 @@ import {
 import type { ProductInsight } from "@/modules/products";
 import { ProductsActionsProvider } from "./products-actions-context";
 import type { FeedbackTone, SyncedProductMutationInput } from "./products-actions-context";
+import { getCatalogCompanyRequirementMessage } from "./manual-product-company-state";
 
 type ManualProductFormState = {
   isActive: boolean;
@@ -33,7 +35,6 @@ type ManualProductFormState = {
   packagingCost: string;
   sellingPrice: string;
   sku: string;
-  taxRate: string;
   unitCost: string;
 };
 
@@ -50,7 +51,6 @@ const initialManualProductForm: ManualProductFormState = {
   packagingCost: "",
   sellingPrice: "",
   sku: "",
-  taxRate: "0",
   unitCost: "",
 };
 
@@ -112,7 +112,7 @@ function CurrencyInput({
 
   return (
     <input
-      className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-background pl-9 pr-3.5 text-sm text-foreground transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+      className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-surface-strong pl-9 pr-3.5 text-sm text-foreground transition-all duration-[var(--transition-fast)] placeholder:text-muted hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
       inputMode="decimal"
       onBlur={handleBlur}
       onChange={(e) => setText(e.target.value)}
@@ -121,6 +121,92 @@ function CurrencyInput({
       type="text"
       value={text}
     />
+  );
+}
+
+type FormSectionProps = {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  variants?: Variants;
+};
+
+function FormSection({ title, description, icon, children, variants }: FormSectionProps) {
+  return (
+    <motion.div
+      variants={variants}
+      initial={variants ? undefined : { opacity: 0, y: 12 }}
+      animate={variants ? undefined : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="rounded-[var(--radius-lg)] border border-border/40 bg-gradient-to-br from-surface/90 via-surface-strong/40 to-background/20 p-5 shadow-[var(--shadow-xs)]"
+    >
+      <div className="mb-4 flex items-center gap-2.5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 ring-1 ring-accent/20">
+          {icon}
+        </div>
+        <div>
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent">
+            {title}
+          </h3>
+          <p className="text-[11px] text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {children}
+    </motion.div>
+  );
+}
+
+type PremiumSwitchProps = {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  variants?: Variants;
+};
+
+function PremiumSwitch({ checked, onChange, icon, title, description, variants }: PremiumSwitchProps) {
+  return (
+    <motion.div
+      variants={variants}
+      initial={variants ? undefined : { opacity: 0, y: 12 }}
+      animate={variants ? undefined : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="flex items-center justify-between rounded-[var(--radius-lg)] border border-border/40 bg-gradient-to-br from-surface/90 via-surface-strong/40 to-background/20 p-4 shadow-[var(--shadow-xs)]"
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-200",
+            checked ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
+          )}
+        >
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">{title}</p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={cn(
+          "relative h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-strong",
+          checked ? "bg-accent" : "bg-muted-foreground/30"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
+            checked ? "translate-x-5" : "translate-x-0"
+          )}
+        />
+      </button>
+    </motion.div>
   );
 }
 
@@ -150,43 +236,22 @@ const initialManualExpenseForm: ManualExpenseFormValues = {
   notes: null,
 };
 
-const wholeNumberPattern = /^\d+$/;
-
-export function normalizeManualProductTaxRateInput(value: string) {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return "";
-  }
-  return wholeNumberPattern.test(trimmed) ? trimmed : null;
-}
-
-export function isManualProductTaxRateValid(value: string) {
-  return (
-    wholeNumberPattern.test(value) &&
-    Number(value) >= 0 &&
-    Number(value) <= 100
-  );
-}
-
-export function convertManualProductTaxRateToFraction(value: string) {
-  const normalized = normalizeManualProductTaxRateInput(value);
-  if (!normalized || !isManualProductTaxRateValid(normalized)) {
-    return null;
-  }
-  return (Number(normalized) / 100).toFixed(6);
-}
-
 function normalizeTextInput(value: string) {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
 }
 
 interface ProductsShellProps {
+  activeCompanyCount?: number;
   organizationName: string;
   children: React.ReactNode;
 }
 
-export function ProductsShell({ organizationName, children }: ProductsShellProps) {
+export function ProductsShell({
+  activeCompanyCount = 1,
+  organizationName,
+  children,
+}: ProductsShellProps) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
@@ -220,6 +285,7 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
   const [linkSelections, setLinkSelections] = useState<Record<string, string>>({});
   const [availableProducts, setAvailableProducts] = useState<ProductListItem[]>([]);
   const [availableSyncedProducts, setAvailableSyncedProducts] = useState<SyncedProductRecord[]>([]);
+  const catalogCompanyRequirementMessage = getCatalogCompanyRequirementMessage(activeCompanyCount);
 
   async function refreshCatalog(message?: string, tone: FeedbackTone = "neutral") {
     await queryClient.invalidateQueries({ queryKey: productCatalogQueryKey });
@@ -233,6 +299,16 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
     setFeedbackMessage(error instanceof ApiClientError ? error.message : fallback);
     setFeedbackTone("critical");
   }
+
+  const blockCatalogCreationIfCompanyRuleFails = useCallback(() => {
+    if (!catalogCompanyRequirementMessage) {
+      return false;
+    }
+
+    setFeedbackMessage(catalogCompanyRequirementMessage);
+    setFeedbackTone("critical");
+    return true;
+  }, [catalogCompanyRequirementMessage]);
 
   const productMutation = useMutation({
     mutationFn: async () => {
@@ -357,15 +433,13 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
 
   const manualProductMutation = useMutation({
     mutationFn: async () => {
-      const normalizedTaxRate = convertManualProductTaxRateToFraction(manualProductForm.taxRate);
-      if (!normalizedTaxRate) {
-        throw new Error("Informe um imposto inteiro entre 0 e 100.");
+      if (blockCatalogCreationIfCompanyRuleFails()) {
+        throw new Error(catalogCompanyRequirementMessage ?? "Empresa ativa inválida.");
       }
       return apiClient.post<{ data: ProductManualCreateResult; error: null }>("/products/manual", {
         body: {
           initialFinance: {
             packagingCost: manualProductForm.packagingCost,
-            taxRate: normalizedTaxRate,
             unitCost: manualProductForm.unitCost,
           },
           product: {
@@ -389,6 +463,9 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
 
   const importProductsMutation = useMutation({
     mutationFn: async (file: File) => {
+      if (blockCatalogCreationIfCompanyRuleFails()) {
+        throw new Error(catalogCompanyRequirementMessage ?? "Empresa ativa inválida.");
+      }
       const formData = new FormData();
       formData.append("file", file);
       return apiClient.post<{ data: { imported: number; errors: Array<{ row: number; message: string }> }; error: null }>(
@@ -408,11 +485,17 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
   });
 
   const handleImportProducts = useCallback(() => {
+    if (blockCatalogCreationIfCompanyRuleFails()) {
+      return;
+    }
     setShowImportInstructionsModal(true);
-  }, []);
+  }, [blockCatalogCreationIfCompanyRuleFails]);
 
   const handleAddProduct = useCallback(
     (_context?: { companyId: string | null; referenceMonth: string }) => {
+      if (blockCatalogCreationIfCompanyRuleFails()) {
+        return;
+      }
       setFeedbackMessage(null);
       setEditingProductId(null);
       setProductForm(initialProductForm);
@@ -425,7 +508,7 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
       setShowManualProductModal(true);
       setManualProductForm(initialManualProductForm);
     },
-    []
+    [blockCatalogCreationIfCompanyRuleFails]
   );
 
   async function fetchProductsForSelect() {
@@ -1077,7 +1160,6 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
                   { label: "PREÇO DE VENDA", desc: "Valor de venda" },
                   { label: "CUSTO UNITÁRIO", desc: "Custo de cada unidade" },
                   { label: "EMBALAGEM", desc: "Custo da embalagem" },
-                  { label: "IMPOSTO", desc: "Porcentagem de imposto do produto" },
                   { label: "STATUS", desc: "1 para ativo, 0 para inativo" },
                 ].map((col) => (
                   <div
@@ -1217,6 +1299,7 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
         </Modal>
 
         <Modal
+          className="w-[92vw] max-w-2xl"
           onClose={() => {
             if (!manualProductMutation.isPending) {
               setShowManualProductModal(false);
@@ -1225,78 +1308,101 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
           open={showManualProductModal}
           title="Novo produto"
         >
-          <div className="space-y-5">
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: { staggerChildren: 0.08 },
+              },
+            }}
+            className="space-y-5 pt-5 pb-2"
+          >
             {feedbackMessage ? (
-              <div
-                className={`rounded-lg border px-3 py-2.5 text-sm ${
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 12 },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.35, ease: "easeOut" },
+                  },
+                }}
+                className={`rounded-lg border px-3.5 py-2.5 text-sm ${
                   feedbackTone === "critical"
                     ? "border-error/20 bg-error-soft text-error"
                     : "border-warning/20 bg-warning-soft/30 text-foreground"
                 }`}
               >
                 {feedbackMessage}
-              </div>
+              </motion.div>
             ) : null}
 
             <form
-              className="space-y-6"
+              className="space-y-5"
               onSubmit={(event) => {
                 event.preventDefault();
                 setFeedbackMessage(null);
                 manualProductMutation.mutate();
               }}
             >
-              {/* Identificação */}
-              <div className="space-y-3 border-b border-border/50 pb-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Identificação</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Informações básicas do produto no catálogo
-                  </p>
+              <FormSection
+                variants={{
+                  hidden: { opacity: 0, y: 12 },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.35, ease: "easeOut" },
+                  },
+                }}
+                title="Identificação"
+                description="Informações básicas do produto no catálogo"
+                icon={<Tag className="h-4 w-4 text-accent" />}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="Nome"
+                    onChange={(e) =>
+                      setManualProductForm((current) => ({
+                        ...current,
+                        name: e.target.value,
+                      }))
+                    }
+                    placeholder="Smartphone Galaxy A54"
+                    required
+                    value={manualProductForm.name}
+                  />
+                  <Input
+                    label="SKU"
+                    onChange={(e) =>
+                      setManualProductForm((current) => ({
+                        ...current,
+                        sku: e.target.value.trim(),
+                      }))
+                    }
+                    placeholder="CEL-SMG-A54-001"
+                    required
+                    value={manualProductForm.sku}
+                  />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Nome</span>
-                    <input
-                      className="h-10 rounded-[var(--radius-md)] border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                      onChange={(e) =>
-                        setManualProductForm((current) => ({
-                          ...current,
-                          name: e.target.value,
-                        }))
-                      }
-                      placeholder="Ex: Smartphone Galaxy A54"
-                      required
-                      value={manualProductForm.name}
-                    />
-                  </label>
-                  <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">SKU</span>
-                    <input
-                      className="h-10 rounded-[var(--radius-md)] border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                      onChange={(e) =>
-                        setManualProductForm((current) => ({
-                          ...current,
-                          sku: e.target.value.trim(),
-                        }))
-                      }
-                      placeholder="Ex: CEL-SMG-A54-001"
-                      required
-                      value={manualProductForm.sku}
-                    />
-                  </label>
-                </div>
-              </div>
+              </FormSection>
 
-              {/* Precos, custos e impostos */}
-              <div className="space-y-3 border-b border-border/50 pb-4">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Preços e custos</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Valores e taxas que compõem o custo total do produto
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
+              <FormSection
+                variants={{
+                  hidden: { opacity: 0, y: 12 },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.35, ease: "easeOut" },
+                  },
+                }}
+                title="Preços e custos"
+                description="Valores diretos do produto"
+                icon={<DollarSign className="h-4 w-4 text-accent" />}
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
                   <label className="grid gap-1.5 text-sm">
                     <span className="font-medium text-foreground">Preço de venda</span>
                     <div className="relative">
@@ -1354,85 +1460,41 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
                       />
                     </div>
                   </label>
-                  <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Imposto (%)</span>
-                    <input
-                      className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-background px-3.5 text-sm text-foreground placeholder:text-muted-foreground/60 transition-all hover:border-border-strong focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-                      inputMode="numeric"
-                      max="100"
-                      min="0"
-                      onChange={(event) => {
-                        const nextValue = normalizeManualProductTaxRateInput(
-                          event.target.value
-                        );
-                        if (nextValue === null) {
-                          return;
-                        }
-                        if (nextValue.length > 0 && Number(nextValue) > 100) {
-                          return;
-                        }
-                        setManualProductForm((current) => ({
-                          ...current,
-                          taxRate: nextValue,
-                        }));
-                      }}
-                      pattern="[0-9]*"
-                      placeholder="Ex: 15 para 15%"
-                      required
-                      title="Informe um percentual inteiro entre 0 e 100."
-                      value={manualProductForm.taxRate}
-                    />
-                  </label>
                 </div>
-              </div>
+              </FormSection>
 
-              {/* Configuracoes */}
-              <div className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-background px-3.5 py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-lg ${
-                      manualProductForm.isActive ? "bg-success/10" : "bg-muted"
-                    }`}
-                  >
-                    <Package
-                      className={`h-4 w-4 ${
-                        manualProductForm.isActive
-                          ? "text-success"
-                          : "text-muted-foreground"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Produto ativo</p>
-                    <p className="text-xs text-muted-foreground">
-                      Inativos não aparecem nos relatórios
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setManualProductForm((current) => ({
-                      ...current,
-                      isActive: !current.isActive,
-                    }))
-                  }
-                  className={`relative h-6 w-11 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20 ${
-                    manualProductForm.isActive ? "bg-accent" : "bg-muted-foreground/30"
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-                      manualProductForm.isActive
-                        ? "left-1 translate-x-5"
-                        : "left-1"
-                    }`}
-                  />
-                </button>
-              </div>
+              <PremiumSwitch
+                variants={{
+                  hidden: { opacity: 0, y: 12 },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.35, ease: "easeOut" },
+                  },
+                }}
+                checked={manualProductForm.isActive}
+                onChange={(checked) =>
+                  setManualProductForm((current) => ({
+                    ...current,
+                    isActive: checked,
+                  }))
+                }
+                icon={<Package className="h-4 w-4" />}
+                title="Produto ativo"
+                description="Inativos não aparecem nos relatórios"
+              />
 
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/50">
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 12 },
+                  visible: {
+                    opacity: 1,
+                    y: 0,
+                    transition: { duration: 0.35, ease: "easeOut" },
+                  },
+                }}
+                className="flex items-center justify-end gap-3 border-t border-border/50 pt-5 pb-5"
+              >
                 <Button
                   onClick={() => setShowManualProductModal(false)}
                   type="button"
@@ -1440,11 +1502,7 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
                 >
                   Cancelar
                 </Button>
-                <Button
-                  className="text-white"
-                  disabled={manualProductMutation.isPending}
-                  type="submit"
-                >
+                <Button disabled={manualProductMutation.isPending} type="submit">
                   {manualProductMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1454,9 +1512,9 @@ export function ProductsShell({ organizationName, children }: ProductsShellProps
                     "Salvar produto"
                   )}
                 </Button>
-              </div>
+              </motion.div>
             </form>
-          </div>
+          </motion.div>
         </Modal>
 
         {renderForms()}

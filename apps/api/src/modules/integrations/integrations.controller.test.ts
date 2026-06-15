@@ -147,6 +147,35 @@ describe("integrations controller", () => {
     });
   });
 
+  it("returns the Shopee connect URL", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: { id: "org_123", name: "Org", role: "owner", slug: "org" },
+      session: { expiresAt: new Date("2026-07-22T00:00:00.000Z"), id: "session_123" },
+      user: {
+        email: "owner@marginflow.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(integrationsService, "createConnectUrl").mockResolvedValueOnce({
+      authorizationUrl: "https://partner.shopeemobile.com/api/v2/shop/auth_partner",
+      provider: "shopee",
+    });
+
+    const response = await app.inject({ method: "POST", url: "/integrations/shopee/connect" });
+
+    expect(response.statusCode).toBe(201);
+    expect(integrationsService.createConnectUrl).toHaveBeenCalledWith("org_123", "shopee");
+  });
+
   it("redirects callback requests back to the app surface", async () => {
     vi.spyOn(integrationsService, "handleMercadoLivreCallback").mockResolvedValueOnce(
       "http://localhost:3000/app/integrations?provider=mercadolivre&status=success",
@@ -161,6 +190,130 @@ describe("integrations controller", () => {
     expect(response.headers.location).toBe(
       "http://localhost:3000/app/integrations?provider=mercadolivre&status=success",
     );
+  });
+
+  it("redirects Shopee callback requests back to the app surface", async () => {
+    vi.spyOn(integrationsService, "handleShopeeCallback").mockResolvedValueOnce(
+      "http://localhost:3000/app/integrations?provider=shopee&status=success",
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/integrations/shopee/callback?code=abc&shop_id=987654&state=signed",
+    });
+
+    expect(response.statusCode).toBe(302);
+    expect(integrationsService.handleShopeeCallback).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "abc", shop_id: "987654", state: "signed" }),
+    );
+  });
+
+  it("accepts Shopee order push notifications without authentication", async () => {
+    vi.spyOn(integrationsService, "handleShopeeNotification").mockResolvedValueOnce({
+      accepted: true,
+      reason: "started",
+      status: "started",
+    } as never);
+
+    const response = await app.inject({
+      headers: { authorization: "signed-push" },
+      method: "POST",
+      payload: {
+        code: 3,
+        data: { ordersn: "ORDER-1", status: "READY_TO_SHIP" },
+        shop_id: 987654,
+        timestamp: 1718184000,
+      },
+      url: "/integrations/shopee/webhook",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(integrationsService.handleShopeeNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authorization: "signed-push",
+        rawBody: expect.any(Buffer),
+      }),
+    );
+  });
+
+  it("accepts Mercado Livre webhook notifications without authentication", async () => {
+    vi.spyOn(integrationsService, "handleMercadoLivreNotification").mockResolvedValueOnce({
+      accepted: true,
+      reason: "started",
+      status: "started",
+      summary: {
+        applicationId: "123",
+        attempts: 1,
+        notificationId: "notif_1",
+        resource: "/orders/200",
+        sent: "2026-06-08T12:00:00.000Z",
+        topic: "orders_v2",
+        userId: "456",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        _id: "notif_1",
+        application_id: 123,
+        attempts: 1,
+        resource: "/orders/200",
+        sent: "2026-06-08T12:00:00.000Z",
+        topic: "orders_v2",
+        user_id: 456,
+      },
+      url: "/integrations/mercadolivre/webhook",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        accepted: true,
+        status: "started",
+      }),
+      error: null,
+    });
+  });
+
+  it("accepts Mercado Livre notification alias requests without authentication", async () => {
+    vi.spyOn(integrationsService, "handleMercadoLivreNotification").mockResolvedValueOnce({
+      accepted: true,
+      reason: "started",
+      status: "started",
+      summary: {
+        applicationId: "123",
+        attempts: 1,
+        notificationId: "notif_2",
+        resource: "/orders/201",
+        sent: "2026-06-08T12:01:00.000Z",
+        topic: "orders_v2",
+        userId: "456",
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        _id: "notif_2",
+        application_id: 123,
+        attempts: 1,
+        resource: "/orders/201",
+        sent: "2026-06-08T12:01:00.000Z",
+        topic: "orders_v2",
+        user_id: 456,
+      },
+      url: "/integrations/mercadolivre/notifications",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        accepted: true,
+        status: "started",
+      }),
+      error: null,
+    });
   });
 
   it("lists synced Mercado Livre products for authenticated entitled requests", async () => {

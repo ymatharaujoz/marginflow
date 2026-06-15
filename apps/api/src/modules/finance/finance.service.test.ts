@@ -318,9 +318,40 @@ describe("FinanceService", () => {
         }),
       }),
     ]);
-    expect(db.select).toHaveBeenCalledTimes(1);
-    expect(externalProductsSelectFrom).toHaveBeenCalledTimes(1);
-    expect(externalProductsSelectWhere).toHaveBeenCalledTimes(1);
+
+    const allOrderRows = await db.query.externalOrders.findMany.mock.results[0]?.value;
+    const allAdCostRows = await db.query.adCosts.findMany.mock.results[0]?.value;
+    db.query.externalOrders.findMany.mockResolvedValueOnce(
+      allOrderRows.filter((order: { provider: string }) => order.provider === "shopee"),
+    );
+    db.query.adCosts.findMany.mockResolvedValueOnce(
+      allAdCostRows.filter((adCost: { channel: string }) => adCost.channel === "shopee"),
+    );
+
+    const shopeeReadModel = await service.buildDashboardReadModel("org_123", "shopee");
+
+    expect(shopeeReadModel.summary).toEqual(
+      expect.objectContaining({
+        grossRevenue: "50.00",
+        netProfit: "42.00",
+        totalAdCosts: "3.00",
+        totalFees: "5.00",
+        totalManualExpenses: "0.00",
+      }),
+    );
+    expect(shopeeReadModel.channels).toEqual([
+      expect.objectContaining({
+        channel: "shopee",
+      }),
+    ]);
+    expect(shopeeReadModel.daily).toEqual([
+      expect.objectContaining({
+        metricDate: "2026-04-29",
+      }),
+    ]);
+    expect(db.select).toHaveBeenCalledTimes(2);
+    expect(externalProductsSelectFrom).toHaveBeenCalledTimes(2);
+    expect(externalProductsSelectWhere).toHaveBeenCalledTimes(2);
   });
 
   it("falls back to legacy external product columns when review-link fields are missing", async () => {

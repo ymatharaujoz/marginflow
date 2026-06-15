@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { ManageSubscriptionPanel } from "@/components/billing/manage-subscription-panel";
-import { hasSubscriptionForProtectedApp } from "@/lib/protected-app-route";
+import { hasManageableBillingSubscription } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
 
@@ -19,7 +19,7 @@ export default async function ManageBillingPage() {
   }
 
   // Sem assinatura: redireciona para checkout
-  if (!hasSubscriptionForProtectedApp(billingState)) {
+  if (!hasManageableBillingSubscription(billingState)) {
     redirect("/app/billing");
   }
 

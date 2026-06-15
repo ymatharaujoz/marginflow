@@ -1,34 +1,26 @@
 import { DynamicModule, Global, Module } from "@nestjs/common";
-import type { DatabaseClient } from "@marginflow/database";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
-import { AUTH_INSTANCE, DATABASE_CLIENT } from "@/common/tokens";
+import { AuthPublicController } from "./auth-public.controller";
 import { AuthStateController } from "./auth.controller";
 import { AuthExchangeService } from "./auth-exchange.service";
 import { AuthGuard } from "./auth.guard";
 import { AuthService } from "./auth.service";
-import { buildBetterAuth } from "./better-auth.provider";
 import { OrganizationProvisioningService } from "./organization-provisioning.service";
 
 @Global()
 @Module({})
 export class AuthModule {
-  static register(env: ApiRuntimeEnv): DynamicModule {
+  static register(_env: ApiRuntimeEnv): DynamicModule {
     return {
       module: AuthModule,
-      controllers: [AuthStateController],
+      controllers: [AuthPublicController, AuthStateController],
       providers: [
-        {
-          provide: AUTH_INSTANCE,
-          inject: [DATABASE_CLIENT],
-          useFactory: (db: DatabaseClient) => buildBetterAuth(db, env),
-        },
         OrganizationProvisioningService,
         AuthService,
         AuthExchangeService,
         AuthGuard,
       ],
       exports: [
-        AUTH_INSTANCE,
         AuthExchangeService,
         AuthGuard,
         AuthService,

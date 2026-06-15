@@ -1,8 +1,10 @@
+import { createHash } from "node:crypto";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import {
   IntegrationProviderError,
   type IntegrationProvider,
   type IntegrationProviderAuthorization,
+  type IntegrationProviderCallbackInput,
   type IntegrationProviderCallbackResult,
   type IntegrationProviderContext,
   type IntegrationSyncContext,
@@ -107,6 +109,31 @@ async function parseProviderResponse(response: Response) {
   return response.text();
 }
 
+function sanitizeProviderPayload(payload: unknown) {
+  if (typeof payload === "string") {
+    return payload;
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (/(token|secret|password)/i.test(key)) {
+      sanitized[key] = "[redacted]";
+      continue;
+    }
+    sanitized[key] = value;
+  }
+
+  return sanitized;
+}
+
+function buildCodeChallenge(codeVerifier: string) {
+  return createHash("sha256").update(codeVerifier).digest("base64url");
+}
+
 export class MercadoLivreProvider implements IntegrationProvider {
   readonly displayName = "Mercado Livre";
   readonly provider = "mercadolivre" as const;
@@ -137,12 +164,27 @@ export class MercadoLivreProvider implements IntegrationProvider {
     url.searchParams.set("response_type", "code");
     url.searchParams.set("state", input.state);
 
+    if (this.env.MERCADOLIVRE_USE_PKCE) {
+      if (!input.codeVerifier) {
+        throw new IntegrationProviderError(
+          "PKCE do Mercado Livre está habilitado, mas o code_verifier não foi gerado.",
+          "callback_invalid",
+        );
+      }
+
+      url.searchParams.set("code_challenge", buildCodeChallenge(input.codeVerifier));
+      url.searchParams.set("code_challenge_method", "S256");
+    }
+
     return {
       authorizationUrl: url.toString(),
     };
   }
 
-  async exchangeCode(code: string): Promise<IntegrationProviderCallbackResult> {
+  async exchangeCode(
+    code: string,
+    input: IntegrationProviderCallbackInput = {},
+  ): Promise<IntegrationProviderCallbackResult> {
     if (!this.isConfigured()) {
       throw new IntegrationProviderError(
         "Mercado Livre is not configured in the API environment.",
@@ -150,14 +192,27 @@ export class MercadoLivreProvider implements IntegrationProvider {
       );
     }
 
+    if (this.env.MERCADOLIVRE_USE_PKCE && !input.codeVerifier) {
+      throw new IntegrationProviderError(
+        "PKCE do Mercado Livre está habilitado, mas o code_verifier do callback não foi encontrado.",
+        "callback_invalid",
+      );
+    }
+
+    const tokenRequestBody = new URLSearchParams({
+      client_id: this.env.MERCADOLIVRE_CLIENT_ID ?? "",
+      client_secret: this.env.MERCADOLIVRE_CLIENT_SECRET ?? "",
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: this.getRedirectUri(),
+    });
+
+    if (input.codeVerifier) {
+      tokenRequestBody.set("code_verifier", input.codeVerifier);
+    }
+
     const tokenResponse = await fetch("https://api.mercadolibre.com/oauth/token", {
-      body: new URLSearchParams({
-        client_id: this.env.MERCADOLIVRE_CLIENT_ID ?? "",
-        client_secret: this.env.MERCADOLIVRE_CLIENT_SECRET ?? "",
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: this.getRedirectUri(),
-      }),
+      body: tokenRequestBody,
       headers: {
         accept: "application/json",
         "content-type": "application/x-www-form-urlencoded",
@@ -173,10 +228,8 @@ export class MercadoLivreProvider implements IntegrationProvider {
       throw new IntegrationProviderError(
         `Mercado Livre token exchange failed.${
           typeof tokenPayload === "string"
-            ? ` ${tokenPayload}`
-            : tokenPayload && "message" in tokenPayload && typeof tokenPayload.message === "string"
-              ? ` ${tokenPayload.message}`
-              : ""
+            ? ` status=${tokenResponse.status} payload=${tokenPayload}`
+            : ` status=${tokenResponse.status} payload=${JSON.stringify(sanitizeProviderPayload(tokenPayload))}`
         }`,
         "remote_request_failed",
       );
@@ -196,7 +249,9 @@ export class MercadoLivreProvider implements IntegrationProvider {
     if (!profileResponse.ok || typeof profilePayload === "string" || !profilePayload.id) {
       throw new IntegrationProviderError(
         `Mercado Livre account lookup failed.${
-          typeof profilePayload === "string" ? ` ${profilePayload}` : ""
+          typeof profilePayload === "string"
+            ? ` status=${profileResponse.status} payload=${profilePayload}`
+            : ` status=${profileResponse.status} payload=${JSON.stringify(sanitizeProviderPayload(profilePayload))}`
         }`,
         "remote_request_failed",
       );
@@ -525,9 +580,14 @@ export class MercadoLivreProvider implements IntegrationProvider {
   }
 
   private getRedirectUri() {
+    const apiBaseUrl =
+      this.env.API_PUBLIC_BASE_URL ??
+      this.env.BETTER_AUTH_URL ??
+      "http://localhost:4000";
+
     return (
       this.env.MERCADOLIVRE_REDIRECT_URI ??
-      `${(this.env.API_PUBLIC_BASE_URL ?? this.env.BETTER_AUTH_URL).replace(/\/$/, "")}/integrations/mercadolivre/callback`
+      `${apiBaseUrl.replace(/\/$/, "")}/integrations/mercadolivre/callback`
     );
   }
 }

@@ -14,25 +14,21 @@ import type {
 import { apiClient } from "@/lib/api/client";
 
 const integrationsQueryKey = ["integrations"] as const;
-const syncProvider: IntegrationProviderSlug = "mercadolivre";
-const syncStatusQueryKey = ["sync-status", syncProvider] as const;
-const syncHistoryQueryKey = ["sync-history", syncProvider] as const;
-
 async function fetchIntegrations(): Promise<IntegrationConnectionRecord[]> {
   const response = await apiClient.get<{ data: IntegrationConnectionRecord[]; error: null }>("/integrations");
   return response.data;
 }
 
-async function fetchSyncStatus(): Promise<SyncStatusResponse> {
+async function fetchSyncStatus(provider: IntegrationProviderSlug): Promise<SyncStatusResponse> {
   const response = await apiClient.get<{ data: SyncStatusResponse; error: null }>(
-    `/sync/status?provider=${syncProvider}`,
+    `/sync/status?provider=${provider}`,
   );
   return response.data;
 }
 
-async function fetchSyncHistory(): Promise<SyncRunRecord[]> {
+async function fetchSyncHistory(provider: IntegrationProviderSlug): Promise<SyncRunRecord[]> {
   const response = await apiClient.get<{ data: SyncRunRecord[]; error: null }>(
-    `/sync/history?provider=${syncProvider}`,
+    `/sync/history?provider=${provider}`,
   );
   return response.data;
 }
@@ -42,7 +38,10 @@ export interface UseIntegrationsDataOptions {
   onSyncSuccess?: (data: RunSyncResponse) => void;
 }
 
-export function useIntegrationsData(options: UseIntegrationsDataOptions = {}) {
+export function useIntegrationsData(
+  syncProvider: IntegrationProviderSlug,
+  options: UseIntegrationsDataOptions = {},
+) {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -52,13 +51,13 @@ export function useIntegrationsData(options: UseIntegrationsDataOptions = {}) {
   });
 
   const syncStatusQuery = useQuery({
-    queryFn: fetchSyncStatus,
-    queryKey: syncStatusQueryKey,
+    queryFn: () => fetchSyncStatus(syncProvider),
+    queryKey: ["sync-status", syncProvider],
   });
 
   const syncHistoryQuery = useQuery({
-    queryFn: fetchSyncHistory,
-    queryKey: syncHistoryQueryKey,
+    queryFn: () => fetchSyncHistory(syncProvider),
+    queryKey: ["sync-history", syncProvider],
   });
 
   const connectMutation = useMutation({
@@ -82,8 +81,8 @@ export function useIntegrationsData(options: UseIntegrationsDataOptions = {}) {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
-      await queryClient.invalidateQueries({ queryKey: syncStatusQueryKey });
-      await queryClient.invalidateQueries({ queryKey: syncHistoryQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["sync-status"] });
+      await queryClient.invalidateQueries({ queryKey: ["sync-history"] });
     },
   });
 
@@ -97,8 +96,8 @@ export function useIntegrationsData(options: UseIntegrationsDataOptions = {}) {
     onSuccess: async (data) => {
       options.onSyncSuccess?.(data);
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
-      await queryClient.invalidateQueries({ queryKey: syncStatusQueryKey });
-      await queryClient.invalidateQueries({ queryKey: syncHistoryQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["sync-status", syncProvider] });
+      await queryClient.invalidateQueries({ queryKey: ["sync-history", syncProvider] });
       router.refresh();
     },
   });
@@ -114,8 +113,8 @@ export function useIntegrationsData(options: UseIntegrationsDataOptions = {}) {
       return response.data;
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: syncStatusQueryKey });
-      await queryClient.invalidateQueries({ queryKey: syncHistoryQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["sync-status", syncProvider] });
+      await queryClient.invalidateQueries({ queryKey: ["sync-history", syncProvider] });
       router.refresh();
     },
   });
@@ -126,7 +125,7 @@ export function useIntegrationsData(options: UseIntegrationsDataOptions = {}) {
     syncHistoryQuery.refetch();
   };
 
-  const mercadoLivreConnection = integrationsQuery.data?.find((c) => c.provider === syncProvider);
+  const activeConnection = integrationsQuery.data?.find((c) => c.provider === syncProvider);
 
   return {
     integrationsQuery: {
@@ -161,7 +160,7 @@ export function useIntegrationsData(options: UseIntegrationsDataOptions = {}) {
       mutate: clearHistoryMutation.mutate,
     },
     refetchAll,
-    mercadoLivreConnection,
+    activeConnection,
     syncProvider,
   };
 }

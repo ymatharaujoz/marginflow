@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import SignInPage from "./page";
+import SignInPage, { metadata } from "./page";
 
 const redirectMock = vi.hoisted(() => vi.fn());
 const readServerAuthStateMock = vi.hoisted(() => vi.fn());
@@ -33,18 +33,22 @@ vi.mock("@/lib/server-auth", () => ({
 }));
 
 describe("SignInPage", () => {
-  it("renders the sign-in panel when soft auth lookup returns null", async () => {
+  it("exposes metadata copy for internal email/password auth", () => {
+    expect(String(metadata.description ?? "")).toContain("e-mail e senha");
+  });
+
+  it("renders sign-in panel when soft auth lookup returns null", async () => {
     readServerAuthStateMock.mockResolvedValueOnce(null);
 
     const result = await SignInPage({
       searchParams: Promise.resolve({
-        auth_error: "oauth_start_failed",
+        auth_error: "auth_handoff_failed",
       }),
     });
     const markup = renderToStaticMarkup(result);
 
     expect(readServerAuthStateMock).toHaveBeenCalledWith({ mode: "soft" });
-    expect(resolveAuthErrorMessageMock).toHaveBeenCalledWith("oauth_start_failed");
+    expect(resolveAuthErrorMessageMock).toHaveBeenCalledWith("auth_handoff_failed");
     expect(redirectMock).not.toHaveBeenCalled();
     expect(markup).toContain("sign-in-panel");
     expect(signInPanelMock).toHaveBeenCalledWith(
@@ -55,7 +59,7 @@ describe("SignInPage", () => {
     );
   });
 
-  it("redirects authenticated users to the app", async () => {
+  it("redirects authenticated users to app", async () => {
     readServerAuthStateMock.mockResolvedValueOnce({
       organization: {
         id: "org_123",

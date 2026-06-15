@@ -2,6 +2,7 @@ import type { InputHTMLAttributes } from "react";
 import { cn } from "./utils";
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
+  endAdornment?: React.ReactNode;
   error?: string;
   helperText?: string;
   label?: string;
@@ -9,6 +10,7 @@ export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
 
 export function Input({
   className,
+  endAdornment,
   error,
   helperText,
   id,
@@ -27,18 +29,26 @@ export function Input({
           {label}
         </label>
       )}
-      <input
-        className={cn(
-          "h-10 w-full rounded-[var(--radius-md)] border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)]",
-          error
-            ? "border-error focus:outline-2 focus:outline-error/30"
-            : "border-border hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20",
-          "disabled:cursor-not-allowed disabled:opacity-50",
-          className,
+      <div className="relative">
+        <input
+          className={cn(
+            "h-10 w-full rounded-[var(--radius-md)] border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)]",
+            endAdornment ? "pr-10" : undefined,
+            error
+              ? "border-error focus:outline-2 focus:outline-error/30"
+              : "border-border hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            className,
+          )}
+          id={inputId}
+          {...props}
+        />
+        {endAdornment && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+            {endAdornment}
+          </div>
         )}
-        id={inputId}
-        {...props}
-      />
+      </div>
       {(error || helperText) && (
         <p
           className={cn(

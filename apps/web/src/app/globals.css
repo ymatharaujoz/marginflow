@@ -413,6 +413,28 @@ h4 {
 
 /* ─── Reduced motion ─── */
 
+.mf-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.mf-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.mf-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mf-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: var(--radius-full);
+}
+
+.mf-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

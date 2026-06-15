@@ -5,8 +5,12 @@ import { History, Trash2, AlertCircle } from "lucide-react";
 import { Button, Skeleton } from "@marginflow/ui";
 import { fadeInVariants } from "@/lib/animations";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
-import { translateSyncRunStatus } from "@/lib/pt-br/api-ui";
-import { formatStartedParts, formatSyncDuration, formatWindowKey } from "../lib/formatters";
+import { translateSyncRunOrigin, translateSyncRunStatus } from "@/lib/pt-br/api-ui";
+import {
+  formatStartedParts,
+  formatSyncDuration,
+  formatWindowKey,
+} from "../lib/formatters";
 import type { SyncRunRecord } from "../types/integrations";
 
 interface SyncHistorySectionProps {
@@ -21,7 +25,7 @@ function mapRunStatusToBadge(
 ): "success" | "error" | "pending" | "inactive" | "warning" {
   if (status === "completed") return "success";
   if (status === "failed") return "error";
-  if (status === "running" || status === "pending") return "pending";
+  if (status === "running" || status === "pending" || status === "processing") return "pending";
   return "inactive";
 }
 
@@ -40,7 +44,9 @@ function ImportSummary({ run }: { run: SyncRunRecord }) {
           key={k}
           className="inline-flex items-baseline gap-1 rounded-md border border-border/70 bg-background px-2 py-0.5 shadow-[var(--shadow-xs)]"
         >
-          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{k}</span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {k}
+          </span>
           <span className="tabular-nums text-xs font-semibold text-foreground">{v}</span>
         </span>
       ))}
@@ -66,7 +72,7 @@ export function SyncHistorySection({
         <div className="overflow-hidden rounded-[var(--radius-lg)] border border-border bg-background shadow-[var(--shadow-xs)]">
           <div className="border-b border-border bg-surface-strong/90 px-5 py-3">
             <div className="flex gap-8">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
                 <Skeleton key={i} className="h-3 w-16" />
               ))}
             </div>
@@ -75,6 +81,7 @@ export function SyncHistorySection({
             {[1, 2, 3].map((i) => (
               <div key={i} className="flex gap-8 px-5 py-4">
                 <Skeleton className="h-6 w-24" />
+                <Skeleton className="h-6 w-20" />
                 <Skeleton className="h-6 w-12" />
                 <Skeleton className="h-10 w-28" />
                 <Skeleton className="h-6 w-20" />
@@ -125,16 +132,20 @@ export function SyncHistorySection({
             </div>
             <p className="text-sm font-medium text-foreground">Nenhuma sincronização ainda</p>
             <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-              Quando você rodar uma sincronização, cada execução aparecerá aqui com status, horário e volumes importados
+              Quando você rodar uma sincronização, cada execução aparecerá aqui com status,
+              origem, horário e volumes importados
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse text-sm">
+            <table className="w-full min-w-[860px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-strong/95">
                   <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     Status
+                  </th>
+                  <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Origem
                   </th>
                   <th className="whitespace-nowrap px-5 py-3.5 text-left text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                     Marketplace
@@ -173,15 +184,24 @@ export function SyncHistorySection({
                         />
                       </td>
                       <td className="align-top px-5 py-4">
+                        <span className="inline-flex rounded-md border border-border/70 bg-muted/20 px-2 py-1 text-[11px] font-medium text-foreground">
+                          {translateSyncRunOrigin(run.origin)}
+                        </span>
+                      </td>
+                      <td className="align-top px-5 py-4">
                         <span className="inline-flex rounded-md border border-border/70 bg-muted/20 px-2 py-1 font-mono text-[11px] font-medium text-foreground">
                           {run.provider === "mercadolivre" ? "MELI" : "SHPE"}
                         </span>
                       </td>
                       <td className="align-top px-5 py-4">
                         <div className="flex flex-col gap-0.5">
-                          <span className="font-medium leading-tight text-foreground">{started.dateLine}</span>
+                          <span className="font-medium leading-tight text-foreground">
+                            {started.dateLine}
+                          </span>
                           {started.timeLine ? (
-                            <span className="text-xs tabular-nums text-muted-foreground">{started.timeLine}</span>
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              {started.timeLine}
+                            </span>
                           ) : null}
                           {run.finishedAt ? (
                             <span className="mt-1 text-[11px] text-muted-foreground">
@@ -199,7 +219,9 @@ export function SyncHistorySection({
                         </span>
                       </td>
                       <td className="align-top px-5 py-4 text-right">
-                        <span className="tabular-nums text-sm font-medium text-foreground">{duration}</span>
+                        <span className="tabular-nums text-sm font-medium text-foreground">
+                          {duration}
+                        </span>
                       </td>
                       <td className="align-top px-5 py-4">
                         <div className="flex flex-col gap-2">
@@ -207,7 +229,9 @@ export function SyncHistorySection({
                           {run.errorSummary ? (
                             <div className="flex gap-1.5 rounded-md border border-error/20 bg-error-soft/50 px-2 py-1.5">
                               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" />
-                              <p className="text-[11px] leading-snug text-error">{run.errorSummary}</p>
+                              <p className="text-[11px] leading-snug text-error">
+                                {run.errorSummary}
+                              </p>
                             </div>
                           ) : null}
                         </div>
