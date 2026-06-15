@@ -537,7 +537,7 @@ export function LandingPage() {
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                7 dias grátis — sem cartão de crédito
+                7 dias grátis — Cancele quando quiser
               </motion.p>
 
               {/* Headline */}
@@ -786,7 +786,7 @@ export function LandingPage() {
             </div>
 
             <p className="mt-6 text-sm text-muted-foreground">
-              Configuração em 5 minutos. Cancele quando quiser. Sem cartão de crédito.
+              Configuração em 5 minutos. Cancele quando quiser.
             </p>
           </motion.div>
         </div>
