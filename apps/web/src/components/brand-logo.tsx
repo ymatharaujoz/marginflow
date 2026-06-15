@@ -1,26 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getInitialTheme, type AppTheme } from "@/lib/theme";
 import { BrandLogoLight } from "./brand-logo-light";
 import { BrandLogoDark } from "./brand-logo-dark";
-
-function getInitialTheme(): "light" | "dark" {
-  if (typeof window === "undefined") return "light";
-  try {
-    const stored = window.localStorage.getItem("theme") as "light" | "dark" | null;
-    if (stored) return stored;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
 
 type BrandLogoProps = {
   className?: string;
 };
 
 export function BrandLogo({ className }: BrandLogoProps) {
-  const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
+  const [theme, setTheme] = useState<AppTheme>(getInitialTheme);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { getInitialTheme, type AppTheme } from "@/lib/theme";
 
 // ==========================================
 // MERCADO LIVRE — wordmark + handshake symbol (tight viewBox in public SVGs)
@@ -14,19 +15,8 @@ const tiktokIconSrc = "/icons/tiktok-icon.svg";
 const sheinIconSrc = "/icons/shein-icon.svg";
 const sheinIconDarkSrc = "/icons/shein-icon-dark.svg";
 
-function getInitialTheme(): "light" | "dark" {
-  if (typeof window === "undefined") return "light";
-  try {
-    const stored = window.localStorage.getItem("theme") as "light" | "dark" | null;
-    if (stored) return stored;
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  } catch {
-    return "light";
-  }
-}
-
 function useSheinThemeIcon() {
-  const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
+  const [theme, setTheme] = useState<AppTheme>(getInitialTheme);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
