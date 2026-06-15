@@ -12,7 +12,7 @@ import {
   sessions,
   users,
   type DatabaseClient,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import { and, eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import { AUTH_SESSION_TTL_MS, createAuthSessionToken, readApiSessionTokenFromCookieHeader } from "./auth-http";

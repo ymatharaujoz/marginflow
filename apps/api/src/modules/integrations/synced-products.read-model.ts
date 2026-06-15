@@ -9,14 +9,14 @@ import {
   type ExternalOrderItem,
   type ExternalProduct,
   type Product,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import type {
   IntegrationProviderSlug,
   SyncedProductLinkedProduct,
   SyncedProductRecord,
   SyncedProductReviewStatus,
   SyncedProductSuggestedMatch,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 type ExternalProductOrderItemRow = ExternalOrderItem & {

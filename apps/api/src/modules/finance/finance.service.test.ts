@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { dailyMetrics, productMetrics } from "@marginflow/database";
+import { dailyMetrics, productMetrics } from "@lucreii/database";
 import { FinanceService, normalizeSku, selectLatestProductCost, toMetricDate } from "./finance.service";
 
 type TransactionMock = {

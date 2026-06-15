@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type { FastifyRequest } from "fastify";
 
-export const API_AUTH_SESSION_COOKIE_NAME = "marginflow_api_session";
+export const API_AUTH_SESSION_COOKIE_NAME = "lucreii_api_session";
 export const AUTH_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function readHeaderValue(value: string | string[] | undefined) {

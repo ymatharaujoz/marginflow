@@ -1,13 +1,13 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import type { DatabaseClient } from "@marginflow/database";
+import type { DatabaseClient } from "@lucreii/database";
 import {
   billingCustomers,
   billingTrials,
   pendingCheckouts,
   subscriptionEvents,
   subscriptions,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import Stripe from "stripe";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import {
@@ -18,7 +18,7 @@ import {
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import type { BillingInterval } from "./billing.types";
 
-const PLAN_CODE = "marginflow";
+const PLAN_CODE = "lucreii";
 const TRIAL_DAYS = 7;
 const CHECKOUT_RESERVATION_MS = 24 * 60 * 60 * 1000;
 

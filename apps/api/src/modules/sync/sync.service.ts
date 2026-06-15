@@ -17,7 +17,7 @@ import {
   type DatabaseClient,
   type MarketplaceConnection,
   type SyncRun,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import type {
   ClearSyncHistoryResponse,
   IntegrationProviderSlug,
@@ -27,7 +27,7 @@ import type {
   SyncRunOrigin,
   SyncRunRecord,
   SyncStatusResponse,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";

@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, Button } from "@marginflow/ui";
+import { Card, Button } from "@lucreii/ui";
 import { useProductsActions } from "./products-actions-context";
 
 function SectionHeader({

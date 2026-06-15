@@ -21,6 +21,21 @@ export type IntegrationConnectionRecord = {
   disconnectLabel: string | null;
 };
 
+export type MarketplaceCatalogImportIssue = {
+  externalProductId: string;
+  message: string;
+  sku: string;
+};
+
+export type MarketplaceCatalogImportResult = {
+  conflicts: MarketplaceCatalogImportIssue[];
+  created: number;
+  errors: MarketplaceCatalogImportIssue[];
+  found: number;
+  unchanged: number;
+  updated: number;
+};
+
 export type IntegrationConnectResponse = {
   authorizationUrl: string;
   provider: IntegrationProviderSlug;

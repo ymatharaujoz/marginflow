@@ -71,7 +71,7 @@ describe("OrganizationProvisioningService", () => {
     });
 
     const organization = await service.ensureDefaultOrganization({
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       emailVerified: true,
       id: "user_123",
       image: null,
@@ -91,7 +91,7 @@ describe("OrganizationProvisioningService", () => {
     const { db, insertMembershipValues, insertOrganizationValues, service } = createService();
 
     const organization = await service.ensureDefaultOrganization({
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       emailVerified: true,
       id: "user_123",
       image: null,

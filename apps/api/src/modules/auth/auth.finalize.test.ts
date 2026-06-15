@@ -14,7 +14,7 @@ describe("auth finalize route", () => {
       API_PORT: 4000,
       API_PUBLIC_BASE_URL: "http://localhost:4000",
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -36,16 +36,16 @@ describe("auth finalize route", () => {
     vi.spyOn(authService, "resolveRequestContext").mockResolvedValueOnce({
       organization: {
         id: "org_123",
-        name: "MarginFlow",
+        name: "Lucreii",
         role: "owner",
-        slug: "marginflow",
+        slug: "lucreii",
       },
       session: {
         expiresAt: new Date("2026-12-31T00:00:00.000Z"),
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
@@ -56,7 +56,7 @@ describe("auth finalize route", () => {
 
     const response = await app.inject({
       headers: {
-        cookie: "marginflow_api_session=remote_session_token_123",
+        cookie: "lucreii_api_session=remote_session_token_123",
       },
       method: "GET",
       url: "/auth/finalize?next=%2Fapp",

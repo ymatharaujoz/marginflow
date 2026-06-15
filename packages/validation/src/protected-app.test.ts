@@ -2,9 +2,43 @@ import { describe, expect, it } from "vitest";
 import {
   dashboardProfitabilityApiResponseSchema,
   productAnalyticsSnapshotApiResponseSchema,
+  productListItemSchema,
 } from "./protected-app";
 
-describe("@marginflow/validation protected app schemas", () => {
+describe("@lucreii/validation protected app schemas", () => {
+  it("accepts product image galleries and cover image URLs", () => {
+    const result = productListItemSchema.safeParse({
+      coverImageUrl: "https://http2.mlstatic.com/cover.jpg",
+      createdAt: "2026-06-15T10:00:00.000Z",
+      financeDefaults: null,
+      id: "product-1",
+      images: [
+        {
+          externalIdentifier: "PIC-1",
+          id: "image-1",
+          position: 0,
+          productId: "product-1",
+          source: "mercadolivre",
+          url: "https://http2.mlstatic.com/cover.jpg",
+        },
+      ],
+      isActive: true,
+      latestCost: null,
+      name: "Produto",
+      organizationId: "org-1",
+      sellingPrice: "10.00",
+      sku: "SKU-1",
+      updatedAt: "2026-06-15T10:00:00.000Z",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.coverImageUrl).toBe(
+        "https://http2.mlstatic.com/cover.jpg",
+      );
+      expect(result.data.images).toHaveLength(1);
+    }
+  });
   it("accepts full dashboard profitability payloads with explicit analytic fields", () => {
     const result = dashboardProfitabilityApiResponseSchema.safeParse({
       data: {
@@ -208,7 +242,8 @@ describe("@marginflow/validation protected app schemas", () => {
             currentWindowLabel: "Tarde",
             currentWindowSlot: "afternoon",
             lastSuccessfulSyncAt: "2026-05-12T19:00:00.000Z",
-            message: "This daily sync window was already used. Wait for the next window to open.",
+            message:
+              "This daily sync window was already used. Wait for the next window to open.",
             nextAvailableAt: "2026-05-13T18:00:00.000Z",
             provider: "mercadolivre",
             reason: "window_already_used",

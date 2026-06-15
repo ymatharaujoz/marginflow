@@ -1,5 +1,5 @@
 {
-  "name": "@marginflow/api",
+  "name": "@lucreii/api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,10 +14,10 @@
   "dependencies": {
     "@fastify/cors": "^11.1.0",
     "@fastify/multipart": "^10.0.0",
-    "@marginflow/database": "workspace:*",
-    "@marginflow/domain": "workspace:*",
-    "@marginflow/types": "workspace:*",
-    "@marginflow/validation": "workspace:*",
+    "@lucreii/database": "workspace:*",
+    "@lucreii/domain": "workspace:*",
+    "@lucreii/types": "workspace:*",
+    "@lucreii/validation": "workspace:*",
     "@nestjs/common": "^11.1.8",
     "@nestjs/core": "^11.1.8",
     "@nestjs/platform-fastify": "^11.1.8",

@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
-import { Button, Input } from "@marginflow/ui";
+import { Button, Input } from "@lucreii/ui";
 import { authClient } from "@/lib/auth-client";
 import { submitPasswordAuth } from "@/lib/auth-flow";
 import { getClientPublicEnv } from "@/lib/env";

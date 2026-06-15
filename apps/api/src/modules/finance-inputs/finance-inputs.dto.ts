@@ -7,7 +7,7 @@ import {
   performanceFiltersSchema,
   performanceFormSchema,
   performanceUpdateSchema,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 import type {
   CompanyFormInput,
   CompanyUpdateInput,
@@ -17,7 +17,7 @@ import type {
   PerformanceFiltersInput,
   ProductMonthlyPerformanceFormInput,
   ProductMonthlyPerformanceUpdateInput,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 
 export class CreateCompanyRequestDto implements CompanyFormInput {
   static schema = companyFormSchema;

@@ -1,28 +1,28 @@
 # API App
 
-NestJS + Fastify backend for MarginFlow.
+NestJS + Fastify backend for Lucreii.
 
 ## Local commands
 
-- `corepack pnpm --filter @marginflow/api dev`
-- `corepack pnpm --filter @marginflow/api build`
-- `corepack pnpm --filter @marginflow/api start`
-- `corepack pnpm --filter @marginflow/api test`
+- `corepack pnpm --filter @lucreii/api dev`
+- `corepack pnpm --filter @lucreii/api build`
+- `corepack pnpm --filter @lucreii/api start`
+- `corepack pnpm --filter @lucreii/api test`
 - `corepack pnpm ngrok:mercadolivre:callback`
 - `corepack pnpm ngrok:mercadolivre:callback:url`
 
 ## Local environment loading
 
-Local runtime keeps reading `.env`, `.env.local`, and development overrides from the monorepo root.
-`apps/api/.env.example` is only a deploy template/reference for Railway.
+Local runtime reads `.env`, `.env.local`, and development overrides from `apps/api`.
+`apps/api/.env.example` is the deploy template/reference for Railway.
 
 ## Railway deploy baseline
 
 This app is deployed as its own Railway service while still using the monorepo root for install/build.
 
 - Config file: `/apps/api/railway.toml`
-- Build command: `corepack enable && corepack pnpm install --frozen-lockfile && corepack pnpm --filter @marginflow/api build`
-- Start command: `corepack pnpm --filter @marginflow/api start`
+- Build command: `corepack enable && corepack pnpm install --frozen-lockfile && corepack pnpm --filter @lucreii/api build`
+- Start command: `corepack pnpm --filter @lucreii/api start`
 - Health check path: `/health`
 
 Important:
@@ -33,6 +33,9 @@ Important:
 
 ## Runtime environment
 
+All API envs live in `apps/api/.env` locally and are configured directly in Railway in production.
+`NEXT_PUBLIC_*` variables belong to `apps/web` and are **not** read by the API.
+
 Required in production:
 
 - `DATABASE_URL`
@@ -42,28 +45,33 @@ Required in production:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `WEB_APP_ORIGIN`
+- `AUTH_TRUSTED_ORIGINS`
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET`
 - `STRIPE_PRICE_MONTHLY`
 - `STRIPE_PRICE_ANNUAL`
+- `NODE_ENV=production`
 
 Optional but recommended:
 
 - `DATABASE_MIGRATION_URL`
 - `API_DB_POOL_MAX`
-- `AUTH_TRUSTED_ORIGINS`
 - `BETTER_AUTH_API_KEY` (required if you want Better Auth Dashboard / ownership verification)
 
-Optional only when Mercado Livre integration is enabled:
+Optional marketplace integrations:
 
 - `MERCADOLIVRE_CLIENT_ID`
 - `MERCADOLIVRE_CLIENT_SECRET`
 - `MERCADOLIVRE_REDIRECT_URI`
 - `MERCADOLIVRE_USE_PKCE`
+- `SHOPEE_PARTNER_ID`
+- `SHOPEE_PARTNER_KEY`
+- `SHOPEE_REDIRECT_URI`
+- `SHOPEE_WEBHOOK_URL`
 
 Optional local/testing helper:
 
-- `SYNC_RELAX_GUARDS`
+- `SYNC_RELAX_GUARDS` (ignored when `NODE_ENV=production`)
 
 `DATABASE_URL` should target pooled/runtime Postgres credentials. `DATABASE_MIGRATION_URL` should target direct or migration-safe credentials for Drizzle tooling.
 `BETTER_AUTH_URL` should point at the direct public Better Auth surface on Railway, such as `https://marginflow-production.up.railway.app/auth`. `API_PUBLIC_BASE_URL` should remain the raw public backend base, such as the same Railway URL without `/auth`.
@@ -89,7 +97,7 @@ Notes:
 
 ## Docs
 
-Unified deploy guide lives at [docs/deploy-railway-vercel.md](/C:/Users/ymath/OneDrive/Documentos/Projects/marginflow/docs/deploy-railway-vercel.md).
+Unified deploy guide lives at [docs/deploy-railway-vercel.md](/C:/Users/ymath/OneDrive/Documentos/Projects/lucreii/docs/deploy-railway-vercel.md).
 
 It covers:
 

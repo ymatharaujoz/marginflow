@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { readPublicEnv } from "@/lib/env";
 
 /** Canonical URL fallback when `NEXT_PUBLIC_APP_URL` is invalid. */
-export const SITE_DOMAIN_FALLBACK = "https://marginflow.vercel.app";
+export const SITE_DOMAIN_FALLBACK = "https://lucreii.vercel.app";
 
 export function resolveSiteConfig(source: Record<string, string | undefined> = process.env) {
   const env = readPublicEnv(source);

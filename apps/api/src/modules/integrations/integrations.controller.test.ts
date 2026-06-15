@@ -22,7 +22,7 @@ describe("integrations controller", () => {
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000",
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
@@ -39,7 +39,10 @@ describe("integrations controller", () => {
     billingService = app.get(BillingService);
     entitlementsService = app.get(EntitlementsService);
     integrationsService = app.get(IntegrationsService);
-    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
+    vi.spyOn(
+      billingService,
+      "reconcileOrganizationSubscriptionWithStripe",
+    ).mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -59,14 +62,17 @@ describe("integrations controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
@@ -114,21 +120,25 @@ describe("integrations controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
       subscription: null,
     });
     vi.spyOn(integrationsService, "createConnectUrl").mockResolvedValueOnce({
-      authorizationUrl: "https://auth.mercadolivre.com.br/authorization?state=abc",
+      authorizationUrl:
+        "https://auth.mercadolivre.com.br/authorization?state=abc",
       provider: "mercadolivre",
     });
 
@@ -140,7 +150,8 @@ describe("integrations controller", () => {
     expect(response.statusCode).toBe(201);
     expect(response.json()).toEqual({
       data: {
-        authorizationUrl: "https://auth.mercadolivre.com.br/authorization?state=abc",
+        authorizationUrl:
+          "https://auth.mercadolivre.com.br/authorization?state=abc",
         provider: "mercadolivre",
       },
       error: null,
@@ -150,34 +161,50 @@ describe("integrations controller", () => {
   it("returns the Shopee connect URL", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
       organization: { id: "org_123", name: "Org", role: "owner", slug: "org" },
-      session: { expiresAt: new Date("2026-07-22T00:00:00.000Z"), id: "session_123" },
+      session: {
+        expiresAt: new Date("2026-07-22T00:00:00.000Z"),
+        id: "session_123",
+      },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
       subscription: null,
     });
     vi.spyOn(integrationsService, "createConnectUrl").mockResolvedValueOnce({
-      authorizationUrl: "https://partner.shopeemobile.com/api/v2/shop/auth_partner",
+      authorizationUrl:
+        "https://partner.shopeemobile.com/api/v2/shop/auth_partner",
       provider: "shopee",
     });
 
-    const response = await app.inject({ method: "POST", url: "/integrations/shopee/connect" });
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/shopee/connect",
+    });
 
     expect(response.statusCode).toBe(201);
-    expect(integrationsService.createConnectUrl).toHaveBeenCalledWith("org_123", "shopee");
+    expect(integrationsService.createConnectUrl).toHaveBeenCalledWith(
+      "org_123",
+      "shopee",
+    );
   });
 
   it("redirects callback requests back to the app surface", async () => {
-    vi.spyOn(integrationsService, "handleMercadoLivreCallback").mockResolvedValueOnce(
+    vi.spyOn(
+      integrationsService,
+      "handleMercadoLivreCallback",
+    ).mockResolvedValueOnce(
       "http://localhost:3000/app/integrations?provider=mercadolivre&status=success",
     );
 
@@ -204,12 +231,19 @@ describe("integrations controller", () => {
 
     expect(response.statusCode).toBe(302);
     expect(integrationsService.handleShopeeCallback).toHaveBeenCalledWith(
-      expect.objectContaining({ code: "abc", shop_id: "987654", state: "signed" }),
+      expect.objectContaining({
+        code: "abc",
+        shop_id: "987654",
+        state: "signed",
+      }),
     );
   });
 
   it("accepts Shopee order push notifications without authentication", async () => {
-    vi.spyOn(integrationsService, "handleShopeeNotification").mockResolvedValueOnce({
+    vi.spyOn(
+      integrationsService,
+      "handleShopeeNotification",
+    ).mockResolvedValueOnce({
       accepted: true,
       reason: "started",
       status: "started",
@@ -237,7 +271,10 @@ describe("integrations controller", () => {
   });
 
   it("accepts Mercado Livre webhook notifications without authentication", async () => {
-    vi.spyOn(integrationsService, "handleMercadoLivreNotification").mockResolvedValueOnce({
+    vi.spyOn(
+      integrationsService,
+      "handleMercadoLivreNotification",
+    ).mockResolvedValueOnce({
       accepted: true,
       reason: "started",
       status: "started",
@@ -277,7 +314,10 @@ describe("integrations controller", () => {
   });
 
   it("accepts Mercado Livre notification alias requests without authentication", async () => {
-    vi.spyOn(integrationsService, "handleMercadoLivreNotification").mockResolvedValueOnce({
+    vi.spyOn(
+      integrationsService,
+      "handleMercadoLivreNotification",
+    ).mockResolvedValueOnce({
       accepted: true,
       reason: "started",
       status: "started",
@@ -329,14 +369,17 @@ describe("integrations controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
@@ -371,7 +414,12 @@ describe("integrations controller", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      data: [expect.objectContaining({ externalProductId: "MLB-1", reviewStatus: "unreviewed" })],
+      data: [
+        expect.objectContaining({
+          externalProductId: "MLB-1",
+          reviewStatus: "unreviewed",
+        }),
+      ],
       error: null,
     });
   });
@@ -387,5 +435,69 @@ describe("integrations controller", () => {
     });
 
     expect(response.statusCode).toBe(401);
+  });
+
+  it("imports the connected Mercado Livre catalog", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Lucreii",
+        role: "owner",
+        slug: "lucreii",
+      },
+      session: {
+        expiresAt: new Date("2026-06-16T10:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(
+      integrationsService,
+      "importMercadoLivreCatalog",
+    ).mockResolvedValueOnce({
+      conflicts: [],
+      created: 2,
+      errors: [],
+      found: 3,
+      unchanged: 0,
+      updated: 1,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/mercadolivre/catalog/import",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({
+      data: {
+        conflicts: [],
+        created: 2,
+        errors: [],
+        found: 3,
+        unchanged: 0,
+        updated: 1,
+      },
+      error: null,
+    });
+    expect(integrationsService.importMercadoLivreCatalog).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      userId: "user_123",
+    });
   });
 });

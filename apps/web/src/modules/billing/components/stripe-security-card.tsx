@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Shield, Lock, CheckCircle } from "lucide-react";
-import { Card } from "@marginflow/ui";
+import { Card } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 
 function StripeLogo({ className }: { className?: string }) {

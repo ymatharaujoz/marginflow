@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Package, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react";
-import { Card, EmptyState, Badge } from "@marginflow/ui";
+import { Card, EmptyState, Badge } from "@lucreii/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { slideInUpVariants } from "@/lib/animations";
-import type { DashboardProfitabilityResponse } from "@marginflow/types";
+import type { DashboardProfitabilityResponse } from "@lucreii/types";
 import { buildDashboardProductRows } from "../calculations/product-rows";
 import { formatMoney, formatPercent, formatNumber } from "../utils/formatters";
 

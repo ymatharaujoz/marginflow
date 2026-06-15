@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Building2, Link2, AlertCircle, ArrowRight } from "lucide-react";
-import { Button, Card } from "@marginflow/ui";
+import { Button, Card } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 
 interface OrganizationSetupCardProps {
@@ -62,7 +62,7 @@ export function OrganizationSetupCard({
 
   const displayName = name.trim() || suggestedName;
   const displaySlug = slug || generateSlug(displayName);
-  const previewUrl = `marginflow.com/app/${displaySlug}`;
+  const previewUrl = `lucreii.com/app/${displaySlug}`;
   const nameError = showErrors && name.trim().length < 2;
 
   return (
@@ -128,7 +128,7 @@ export function OrganizationSetupCard({
               </label>
               <div className="relative">
                 <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 pr-2">
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">marginflow.com/app/</span>
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">lucreii.com/app/</span>
                 </div>
                 <input
                   type="text"

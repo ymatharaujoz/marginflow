@@ -1,4 +1,4 @@
-import type { DashboardSummaryResponse } from "@marginflow/types";
+import type { DashboardSummaryResponse } from "@lucreii/types";
 import { parseProtectedNumber } from "@/lib/protected-numbers";
 import type { DashboardInsight } from "../types/dashboard";
 import { formatMoney } from "../utils/formatters";

@@ -85,6 +85,13 @@
       "when": 1781481600000,
       "tag": "0011_billing_trials",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781510400000,
+      "tag": "0012_product_images",
+      "breakpoints": true
     }
   ]
 }

@@ -6,7 +6,7 @@ import {
   readRuntimeDatabaseUrl,
 } from "./database-url";
 
-describe("@marginflow/database database URL helpers", () => {
+describe("@lucreii/database database URL helpers", () => {
   const pooledUrl =
     "postgresql://postgres.project-ref:runtime-pass@aws-0-us-east-1.pooler.supabase.com:6543/postgres";
   const directUrl =

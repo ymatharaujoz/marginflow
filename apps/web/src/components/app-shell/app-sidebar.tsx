@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, X, ChevronDown } from "lucide-react";
-import { Avatar } from "@marginflow/ui";
+import { Avatar } from "@lucreii/ui";
 import { BrandLogo } from "@/components/brand-logo";
 import { BrandName } from "@/components/brand-name";
 

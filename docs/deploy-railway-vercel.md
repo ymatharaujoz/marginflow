@@ -1,4 +1,4 @@
-# Deploy do MarginFlow: Web na Vercel, Auth/API no Railway
+# Deploy do Lucreii: Web na Vercel, Auth/API no Railway
 
 ## Resumo
 
@@ -9,16 +9,21 @@ Arquitetura atual:
 - browser e SSR do web chamam API Railway direto
 - Railway e dono de Better Auth + Google OAuth
 - Vercel mantem apenas sessao SSR espelhada first-party
+- cada app tem seu proprio `.env` e `.env.example`; envs nao sao mais compartilhadas pela raiz
 
 ## Valores canonicos de producao
 
-- Web `NEXT_PUBLIC_APP_URL=https://marginflow-web.vercel.app`
-- Web `NEXT_PUBLIC_API_BASE_URL=https://marginflow-production.up.railway.app`
-- Web `WEB_SESSION_SECRET=<segredo forte>`
-- API `BETTER_AUTH_URL=https://marginflow-production.up.railway.app/auth`
-- API `API_PUBLIC_BASE_URL=https://marginflow-production.up.railway.app`
-- API `WEB_APP_ORIGIN=https://marginflow-web.vercel.app`
-- API `AUTH_TRUSTED_ORIGINS=https://marginflow-web.vercel.app`
+- Web (Vercel):
+  - `NEXT_PUBLIC_APP_URL=https://marginflow-web.vercel.app`
+  - `NEXT_PUBLIC_API_BASE_URL=https://marginflow-production.up.railway.app`
+  - `WEB_SESSION_SECRET=<segredo forte>`
+- API (Railway):
+  - `BETTER_AUTH_URL=https://marginflow-production.up.railway.app/auth`
+  - `API_PUBLIC_BASE_URL=https://marginflow-production.up.railway.app`
+  - `WEB_APP_ORIGIN=https://marginflow-web.vercel.app`
+  - `AUTH_TRUSTED_ORIGINS=https://marginflow-web.vercel.app`
+
+> A API nao usa `NEXT_PUBLIC_APP_URL` como fallback. Configure `WEB_APP_ORIGIN` explicitamente no Railway.
 
 Google OAuth:
 
@@ -36,6 +41,8 @@ Google OAuth:
 ## Variaveis obrigatorias
 
 ### Railway API
+
+Configure diretamente no servico `apps/api` do Railway:
 
 - `DATABASE_URL`
 - `BETTER_AUTH_SECRET`
@@ -56,15 +63,34 @@ Opcional:
 - `BETTER_AUTH_API_KEY`
 - `DATABASE_MIGRATION_URL`
 - `API_DB_POOL_MAX`
+- `API_HOST`
+- `API_PORT` (Railway injeta `PORT`; `API_PORT` tambem e aceito)
 - `MERCADOLIVRE_CLIENT_ID`
 - `MERCADOLIVRE_CLIENT_SECRET`
 - `MERCADOLIVRE_REDIRECT_URI`
+- `MERCADOLIVRE_USE_PKCE`
+- `SHOPEE_PARTNER_ID`
+- `SHOPEE_PARTNER_KEY`
+- `SHOPEE_REDIRECT_URI`
+- `SHOPEE_WEBHOOK_URL`
+- `SYNC_RELAX_GUARDS` (ignorado em producao)
 
 ### Vercel Web
+
+Configure no projeto `apps/web` da Vercel:
 
 - `NEXT_PUBLIC_APP_URL`
 - `NEXT_PUBLIC_API_BASE_URL`
 - `WEB_SESSION_SECRET`
+
+Opcional:
+
+- `NEXT_PUBLIC_APP_NAME`
+- `NEXT_PUBLIC_APP_ICON`
+- `NEXT_PUBLIC_PRICE_MONTHLY_LABEL`
+- `NEXT_PUBLIC_PRICE_ANNUAL_LABEL`
+- `NEXT_PUBLIC_WHATSAPP_PHONE`
+- `NEXT_PUBLIC_WHATSAPP_DEMO_URL`
 
 ## Ordem de deploy
 
@@ -107,6 +133,6 @@ Verificar:
 
 Verificar:
 
-- cookie local `marginflow.web_session` esta sendo criado
+- cookie local `lucreii.web_session` esta sendo criado
 - payload trocado inclui `remoteSessionToken`
 - chamadas SSR do web para Railway enviam `better-auth.session_token`

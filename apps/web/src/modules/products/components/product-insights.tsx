@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Sparkles, Lightbulb } from "lucide-react";
-import { Card, cn } from "@marginflow/ui";
+import { Card, cn } from "@lucreii/ui";
 import { InsightCard } from "@/components/ui-premium/insight-card";
 import { containerVariants } from "@/lib/animations";
 import type { ProductInsight } from "../types/products";

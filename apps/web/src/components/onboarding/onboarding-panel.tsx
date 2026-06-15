@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import type { Company, CompleteOnboardingResponse } from "@marginflow/types";
+import type { Company, CompleteOnboardingResponse } from "@lucreii/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { containerVariants } from "@/lib/animations";
 import {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { productImportRowSchema, productManualCreateSchema } from "./products";
 
-describe("@marginflow/validation product schemas", () => {
+describe("@lucreii/validation product schemas", () => {
   it("accepts manual product creation without tax rate", () => {
     const result = productManualCreateSchema.safeParse({
       initialFinance: {

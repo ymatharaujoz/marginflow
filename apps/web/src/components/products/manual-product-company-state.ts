@@ -1,4 +1,4 @@
-import type { Company } from "@marginflow/types";
+import type { Company } from "@lucreii/types";
 
 const COMPANY_REQUIRED_MESSAGE =
   "Cadastre uma empresa ativa antes de salvar um produto manual com custos e impostos mensais.";

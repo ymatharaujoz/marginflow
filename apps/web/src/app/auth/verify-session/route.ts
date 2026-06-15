@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const authSession = await readServerWebAuthSession();
 
   if (authSession) {
-    console.info("[marginflow/web] Mirrored web session verified after OAuth handoff.", {
+    console.info("[lucreii/web] Mirrored web session verified after OAuth handoff.", {
       nextPath,
       origin: url.origin,
       path: url.pathname,
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     return response;
   }
 
-  console.error("[marginflow/web] Mirrored web session missing after OAuth handoff.", {
+  console.error("[lucreii/web] Mirrored web session missing after OAuth handoff.", {
     nextPath,
     origin: url.origin,
     path: url.pathname,

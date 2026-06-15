@@ -22,7 +22,7 @@ describe("products controller", () => {
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000",
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       NODE_ENV: "test",
@@ -37,7 +37,10 @@ describe("products controller", () => {
     billingService = app.get(BillingService);
     entitlementsService = app.get(EntitlementsService);
     productsService = app.get(ProductsService);
-    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
+    vi.spyOn(
+      billingService,
+      "reconcileOrganizationSubscriptionWithStripe",
+    ).mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -57,14 +60,17 @@ describe("products controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
@@ -72,9 +78,11 @@ describe("products controller", () => {
     });
     vi.spyOn(productsService, "listProducts").mockResolvedValueOnce([
       {
+        coverImageUrl: null,
         createdAt: "2026-04-28T10:00:00.000Z",
         financeDefaults: null,
         id: "product_1",
+        images: [],
         isActive: true,
         latestCost: null,
         name: "Notebook",
@@ -116,22 +124,27 @@ describe("products controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
       subscription: null,
     });
     vi.spyOn(productsService, "createProduct").mockResolvedValueOnce({
+      coverImageUrl: null,
       createdAt: "2026-04-28T10:00:00.000Z",
       id: "product_1",
+      images: [],
       isActive: true,
       name: "Notebook",
       organizationId: "org_123",
@@ -174,14 +187,17 @@ describe("products controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
@@ -197,8 +213,10 @@ describe("products controller", () => {
         updatedAt: "2026-05-14T10:00:00.000Z",
       },
       product: {
+        coverImageUrl: null,
         createdAt: "2026-05-14T10:00:00.000Z",
         id: "product_1",
+        images: [],
         isActive: true,
         name: "Kit Mercado Livre",
         organizationId: "org_123",
@@ -265,20 +283,26 @@ describe("products controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
       subscription: null,
     });
-    const createManualProductSpy = vi.spyOn(productsService, "createManualProduct");
+    const createManualProductSpy = vi.spyOn(
+      productsService,
+      "createManualProduct",
+    );
     createManualProductSpy.mockClear();
 
     const response = await app.inject({
@@ -322,14 +346,17 @@ describe("products controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
@@ -514,14 +541,17 @@ describe("products controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
@@ -556,14 +586,17 @@ describe("products controller", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",

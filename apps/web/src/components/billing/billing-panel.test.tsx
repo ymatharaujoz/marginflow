@@ -20,7 +20,7 @@ describe("BillingPanel", () => {
       createElement(BillingPanel, {
         checkoutSessionId: null,
         checkoutState: null,
-        organizationName: "MarginFlow",
+        organizationName: "Lucreii",
         trialDays: 7,
         trialEligible: true,
       }),
@@ -37,7 +37,7 @@ describe("BillingPanel", () => {
       createElement(BillingPanel, {
         checkoutSessionId: null,
         checkoutState: null,
-        organizationName: "MarginFlow",
+        organizationName: "Lucreii",
         trialDays: 7,
         trialEligible: false,
       }),

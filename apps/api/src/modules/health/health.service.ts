@@ -13,7 +13,7 @@ export class HealthService {
     return {
       data: {
         corsOrigin: this.env.WEB_APP_ORIGIN,
-        service: "marginflow-api",
+        service: "lucreii-api",
         status: "ok" as const,
         timestamp: new Date().toISOString(),
       },

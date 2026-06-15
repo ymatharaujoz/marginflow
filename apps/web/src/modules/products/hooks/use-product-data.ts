@@ -2,8 +2,8 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useCallback } from "react";
-import type { ProductAnalyticsSnapshot } from "@marginflow/types";
-import { productAnalyticsSnapshotApiResponseSchema } from "@marginflow/validation";
+import type { ProductAnalyticsSnapshot } from "@lucreii/types";
+import { productAnalyticsSnapshotApiResponseSchema } from "@lucreii/validation";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import type { ProductCatalogData, PaginationState } from "../types/products";
 import {

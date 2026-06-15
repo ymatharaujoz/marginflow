@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { RefreshCw, Clock, CheckCircle2, AlertCircle } from "lucide-react";
-import { Card, Button } from "@marginflow/ui";
+import { Card, Button } from "@lucreii/ui";
 import { fadeInVariants } from "@/lib/animations";
 import { translateApiMessage } from "@/lib/pt-br/api-ui";
 import { formatDateTime, formatSyncOrigin } from "../lib/formatters";

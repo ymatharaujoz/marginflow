@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@marginflow/ui";
+import { Skeleton } from "@lucreii/ui";
 
 interface LoadingIntegrationsProps {
   cardCount?: number;

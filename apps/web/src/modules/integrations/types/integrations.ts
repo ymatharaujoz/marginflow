@@ -3,7 +3,7 @@ import type {
   IntegrationProviderSlug,
   SyncRunRecord,
   SyncStatusResponse,
-} from "@marginflow/types";
+} from "@lucreii/types";
 
 export type { IntegrationConnectionRecord, IntegrationProviderSlug, SyncRunRecord, SyncStatusResponse };
 

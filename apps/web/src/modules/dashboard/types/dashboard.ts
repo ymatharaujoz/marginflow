@@ -3,7 +3,7 @@ import type {
   DashboardProfitabilityResponse,
   DashboardRecentSyncResponse,
   DashboardSummaryResponse,
-} from "@marginflow/types";
+} from "@lucreii/types";
 
 export type DashboardPeriod = "7d" | "30d" | "90d" | "12m";
 

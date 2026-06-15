@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
-import { Card } from "@marginflow/ui";
+import { Card } from "@lucreii/ui";
 import { InsightCard } from "@/components/ui-premium/insight-card";
 import { containerVariants } from "@/lib/animations";
-import type { DashboardSummaryResponse } from "@marginflow/types";
+import type { DashboardSummaryResponse } from "@lucreii/types";
 import { buildDashboardInsights } from "../calculations/insights";
 
 interface InsightsSectionProps {

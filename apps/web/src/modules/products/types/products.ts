@@ -2,7 +2,7 @@ import type {
   ProductAnalyticsCatalogStats,
   ProductAnalyticsSnapshot,
   ProductFinancialState,
-} from "@marginflow/types";
+} from "@lucreii/types";
 
 export type ProductCatalogData = ProductAnalyticsSnapshot;
 

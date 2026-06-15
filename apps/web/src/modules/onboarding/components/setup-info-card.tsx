@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Zap, Link2, BarChart3, ArrowUpRight, Building2, Package } from "lucide-react";
-import { Card } from "@marginflow/ui";
+import { Card } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 
 const organizationFeatures = [

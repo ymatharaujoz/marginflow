@@ -115,7 +115,7 @@ export function ManageSubscriptionPanel({
               <p className="text-sm text-muted-foreground">
                 Precisa de ajuda?{" "}
                 <a
-                  href="mailto:suporte@marginflow.com"
+                  href="mailto:suporte@lucreii.com"
                   className="font-medium text-accent hover:underline"
                 >
                   Entre em contato com o suporte

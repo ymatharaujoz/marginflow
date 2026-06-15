@@ -46,13 +46,13 @@ describe("submitPasswordAuth", () => {
       locationAssign,
       mode: "sign-in",
       values: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         password: "password123",
       },
     });
 
     expect(signInEmail).toHaveBeenCalledWith({
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       password: "password123",
       rememberMe: true,
     });
@@ -85,7 +85,7 @@ describe("submitPasswordAuth", () => {
       locationAssign,
       mode: "sign-up",
       values: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         name: "Mateus",
         password: "password123",
         confirmPassword: "password123",
@@ -93,7 +93,7 @@ describe("submitPasswordAuth", () => {
     });
 
     expect(signUpEmail).toHaveBeenCalledWith({
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       name: "Mateus",
       password: "password123",
     });
@@ -123,7 +123,7 @@ describe("submitPasswordAuth", () => {
       locationAssign: vi.fn(),
       mode: "sign-in",
       values: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         password: "password123",
       },
     });

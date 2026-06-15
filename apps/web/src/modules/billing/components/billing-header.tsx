@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { CreditCard, AlertCircle } from "lucide-react";
-import { Badge } from "@marginflow/ui";
+import { Badge } from "@lucreii/ui";
 import { fadeInVariants } from "@/lib/animations";
 
 interface BillingHeaderProps {

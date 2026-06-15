@@ -4,13 +4,27 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
-import { Package, Loader2, Upload, CheckCircle2, AlertCircle, AlertTriangle, FileWarning, FileSpreadsheet, Tag, DollarSign } from "lucide-react";
-import { Badge, Button, Card, Input, Modal, cn } from "@marginflow/ui";
+import {
+  Package,
+  Loader2,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  FileWarning,
+  FileSpreadsheet,
+  Store,
+  Tag,
+  DollarSign,
+} from "lucide-react";
+import { Badge, Button, Card, Input, Modal, cn } from "@lucreii/ui";
 import type {
   AdCostFormValues,
   AdCostRecord,
   ManualExpenseFormValues,
   ManualExpenseRecord,
+  IntegrationConnectionRecord,
+  MarketplaceCatalogImportResult,
   ProductCostFormValues,
   ProductCostRecord,
   ProductFormValues,
@@ -18,7 +32,7 @@ import type {
   ProductManualCreateResult,
   SyncedProductActionResult,
   SyncedProductRecord,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import {
   fetchProductCatalog,
@@ -26,7 +40,10 @@ import {
 } from "@/modules/products";
 import type { ProductInsight } from "@/modules/products";
 import { ProductsActionsProvider } from "./products-actions-context";
-import type { FeedbackTone, SyncedProductMutationInput } from "./products-actions-context";
+import type {
+  FeedbackTone,
+  SyncedProductMutationInput,
+} from "./products-actions-context";
 import { getCatalogCompanyRequirementMessage } from "./manual-product-company-state";
 
 type ManualProductFormState = {
@@ -83,7 +100,7 @@ function CurrencyInput({
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         })
-      : ""
+      : "",
   );
 
   useEffect(() => {
@@ -93,7 +110,7 @@ function CurrencyInput({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })
-        : ""
+        : "",
     );
   }, [value]);
 
@@ -106,7 +123,7 @@ function CurrencyInput({
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })
-        : ""
+        : "",
     );
   };
 
@@ -132,7 +149,13 @@ type FormSectionProps = {
   variants?: Variants;
 };
 
-function FormSection({ title, description, icon, children, variants }: FormSectionProps) {
+function FormSection({
+  title,
+  description,
+  icon,
+  children,
+  variants,
+}: FormSectionProps) {
   return (
     <motion.div
       variants={variants}
@@ -166,7 +189,14 @@ type PremiumSwitchProps = {
   variants?: Variants;
 };
 
-function PremiumSwitch({ checked, onChange, icon, title, description, variants }: PremiumSwitchProps) {
+function PremiumSwitch({
+  checked,
+  onChange,
+  icon,
+  title,
+  description,
+  variants,
+}: PremiumSwitchProps) {
   return (
     <motion.div
       variants={variants}
@@ -179,7 +209,9 @@ function PremiumSwitch({ checked, onChange, icon, title, description, variants }
         <div
           className={cn(
             "flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-200",
-            checked ? "bg-accent/10 text-accent" : "bg-muted text-muted-foreground"
+            checked
+              ? "bg-accent/10 text-accent"
+              : "bg-muted text-muted-foreground",
           )}
         >
           {icon}
@@ -196,13 +228,13 @@ function PremiumSwitch({ checked, onChange, icon, title, description, variants }
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 focus-visible:ring-offset-2 focus-visible:ring-offset-surface-strong",
-          checked ? "bg-accent" : "bg-muted-foreground/30"
+          checked ? "bg-accent" : "bg-muted-foreground/30",
         )}
       >
         <span
           className={cn(
             "absolute top-1 left-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200",
-            checked ? "translate-x-5" : "translate-x-0"
+            checked ? "translate-x-5" : "translate-x-0",
           )}
         />
       </button>
@@ -266,7 +298,18 @@ export function ProductsShell({
   const [showSyncedProducts, setShowSyncedProducts] = useState(false);
   const [showSyncedReviewPanel, setShowSyncedReviewPanel] = useState(false);
   const [showManualProductModal, setShowManualProductModal] = useState(false);
-  const [showImportInstructionsModal, setShowImportInstructionsModal] = useState(false);
+  const [showImportInstructionsModal, setShowImportInstructionsModal] =
+    useState(false);
+  const [
+    showSpreadsheetInstructionsModal,
+    setShowSpreadsheetInstructionsModal,
+  ] = useState(false);
+  const [showMercadoLivreConfirmation, setShowMercadoLivreConfirmation] =
+    useState(false);
+  const [mercadoLivreConnection, setMercadoLivreConnection] =
+    useState<IntegrationConnectionRecord | null>(null);
+  const [marketplaceImportResult, setMarketplaceImportResult] =
+    useState<MarketplaceCatalogImportResult | null>(null);
   const [importResult, setImportResult] = useState<{
     imported: number;
     errors: Array<{ row: number; message: string }>;
@@ -274,20 +317,40 @@ export function ProductsShell({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [productForm, setProductForm] = useState(initialProductForm);
-  const [manualProductForm, setManualProductForm] = useState(initialManualProductForm);
+  const [manualProductForm, setManualProductForm] = useState(
+    initialManualProductForm,
+  );
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [productCostForm, setProductCostForm] = useState(initialProductCostForm);
-  const [editingProductCostId, setEditingProductCostId] = useState<string | null>(null);
+  const [productCostForm, setProductCostForm] = useState(
+    initialProductCostForm,
+  );
+  const [editingProductCostId, setEditingProductCostId] = useState<
+    string | null
+  >(null);
   const [adCostForm, setAdCostForm] = useState(initialAdCostForm);
   const [editingAdCostId, setEditingAdCostId] = useState<string | null>(null);
-  const [manualExpenseForm, setManualExpenseForm] = useState(initialManualExpenseForm);
-  const [editingManualExpenseId, setEditingManualExpenseId] = useState<string | null>(null);
-  const [linkSelections, setLinkSelections] = useState<Record<string, string>>({});
-  const [availableProducts, setAvailableProducts] = useState<ProductListItem[]>([]);
-  const [availableSyncedProducts, setAvailableSyncedProducts] = useState<SyncedProductRecord[]>([]);
-  const catalogCompanyRequirementMessage = getCatalogCompanyRequirementMessage(activeCompanyCount);
+  const [manualExpenseForm, setManualExpenseForm] = useState(
+    initialManualExpenseForm,
+  );
+  const [editingManualExpenseId, setEditingManualExpenseId] = useState<
+    string | null
+  >(null);
+  const [linkSelections, setLinkSelections] = useState<Record<string, string>>(
+    {},
+  );
+  const [availableProducts, setAvailableProducts] = useState<ProductListItem[]>(
+    [],
+  );
+  const [availableSyncedProducts, setAvailableSyncedProducts] = useState<
+    SyncedProductRecord[]
+  >([]);
+  const catalogCompanyRequirementMessage =
+    getCatalogCompanyRequirementMessage(activeCompanyCount);
 
-  async function refreshCatalog(message?: string, tone: FeedbackTone = "neutral") {
+  async function refreshCatalog(
+    message?: string,
+    tone: FeedbackTone = "neutral",
+  ) {
     await queryClient.invalidateQueries({ queryKey: productCatalogQueryKey });
     if (message) {
       setFeedbackMessage(message);
@@ -296,7 +359,9 @@ export function ProductsShell({
   }
 
   function setCriticalFeedback(error: unknown, fallback: string) {
-    setFeedbackMessage(error instanceof ApiClientError ? error.message : fallback);
+    setFeedbackMessage(
+      error instanceof ApiClientError ? error.message : fallback,
+    );
     setFeedbackTone("critical");
   }
 
@@ -315,12 +380,15 @@ export function ProductsShell({
       if (editingProductId) {
         return apiClient.patch<{ data: ProductListItem; error: null }>(
           `/products/${editingProductId}`,
-          { body: productForm }
+          { body: productForm },
         );
       }
-      return apiClient.post<{ data: ProductListItem; error: null }>("/products", {
-        body: productForm,
-      });
+      return apiClient.post<{ data: ProductListItem; error: null }>(
+        "/products",
+        {
+          body: productForm,
+        },
+      );
     },
     onError: (error) => {
       setCriticalFeedback(error, "Nao foi possivel processar o produto.");
@@ -329,7 +397,9 @@ export function ProductsShell({
       setEditingProductId(null);
       setProductForm(initialProductForm);
       setShowProductForm(false);
-      await refreshCatalog(editingProductId ? "Produto atualizado." : "Produto criado.");
+      await refreshCatalog(
+        editingProductId ? "Produto atualizado." : "Produto criado.",
+      );
     },
   });
 
@@ -338,22 +408,30 @@ export function ProductsShell({
       if (editingProductCostId) {
         return apiClient.patch<{ data: ProductCostRecord; error: null }>(
           `/costs/products/${editingProductCostId}`,
-          { body: productCostForm }
+          { body: productCostForm },
         );
       }
-      return apiClient.post<{ data: ProductCostRecord; error: null }>("/costs/products", {
-        body: productCostForm,
-      });
+      return apiClient.post<{ data: ProductCostRecord; error: null }>(
+        "/costs/products",
+        {
+          body: productCostForm,
+        },
+      );
     },
     onError: (error) => {
-      setCriticalFeedback(error, "Nao foi possivel processar o custo do produto.");
+      setCriticalFeedback(
+        error,
+        "Nao foi possivel processar o custo do produto.",
+      );
     },
     onSuccess: async () => {
       setEditingProductCostId(null);
       setProductCostForm(initialProductCostForm);
       setShowCostForm(false);
       await refreshCatalog(
-        editingProductCostId ? "Custo do produto atualizado." : "Custo do produto criado."
+        editingProductCostId
+          ? "Custo do produto atualizado."
+          : "Custo do produto criado.",
       );
     },
   });
@@ -363,7 +441,7 @@ export function ProductsShell({
       if (editingAdCostId) {
         return apiClient.patch<{ data: AdCostRecord; error: null }>(
           `/costs/ads/${editingAdCostId}`,
-          { body: adCostForm }
+          { body: adCostForm },
         );
       }
       return apiClient.post<{ data: AdCostRecord; error: null }>("/costs/ads", {
@@ -371,14 +449,19 @@ export function ProductsShell({
       });
     },
     onError: (error) => {
-      setCriticalFeedback(error, "Nao foi possivel processar o custo em anuncios.");
+      setCriticalFeedback(
+        error,
+        "Nao foi possivel processar o custo em anuncios.",
+      );
     },
     onSuccess: async () => {
       setEditingAdCostId(null);
       setAdCostForm(initialAdCostForm);
       setShowAdCostForm(false);
       await refreshCatalog(
-        editingAdCostId ? "Custo em anuncios atualizado." : "Custo em anuncios criado."
+        editingAdCostId
+          ? "Custo em anuncios atualizado."
+          : "Custo em anuncios criado.",
       );
     },
   });
@@ -388,12 +471,15 @@ export function ProductsShell({
       if (editingManualExpenseId) {
         return apiClient.patch<{ data: ManualExpenseRecord; error: null }>(
           `/costs/expenses/${editingManualExpenseId}`,
-          { body: manualExpenseForm }
+          { body: manualExpenseForm },
         );
       }
-      return apiClient.post<{ data: ManualExpenseRecord; error: null }>("/costs/expenses", {
-        body: manualExpenseForm,
-      });
+      return apiClient.post<{ data: ManualExpenseRecord; error: null }>(
+        "/costs/expenses",
+        {
+          body: manualExpenseForm,
+        },
+      );
     },
     onError: (error) => {
       setCriticalFeedback(error, "Nao foi possivel processar a despesa.");
@@ -402,7 +488,9 @@ export function ProductsShell({
       setEditingManualExpenseId(null);
       setManualExpenseForm(initialManualExpenseForm);
       setShowExpenseForm(false);
-      await refreshCatalog(editingManualExpenseId ? "Despesa atualizada." : "Despesa criada.");
+      await refreshCatalog(
+        editingManualExpenseId ? "Despesa atualizada." : "Despesa criada.",
+      );
     },
   });
 
@@ -410,21 +498,24 @@ export function ProductsShell({
     mutationFn: async (input: SyncedProductMutationInput) => {
       if (input.action === "import") {
         return apiClient.post<{ data: SyncedProductActionResult; error: null }>(
-          `/integrations/mercadolivre/products/${input.externalProductId}/import`
+          `/integrations/mercadolivre/products/${input.externalProductId}/import`,
         );
       }
       if (input.action === "ignore") {
         return apiClient.post<{ data: SyncedProductActionResult; error: null }>(
-          `/integrations/mercadolivre/products/${input.externalProductId}/ignore`
+          `/integrations/mercadolivre/products/${input.externalProductId}/ignore`,
         );
       }
       return apiClient.post<{ data: SyncedProductActionResult; error: null }>(
         `/integrations/mercadolivre/products/${input.externalProductId}/link`,
-        { body: { productId: input.productId } }
+        { body: { productId: input.productId } },
       );
     },
     onError: (error) => {
-      setCriticalFeedback(error, "Nao foi possivel revisar o produto sincronizado.");
+      setCriticalFeedback(
+        error,
+        "Nao foi possivel revisar o produto sincronizado.",
+      );
     },
     onSuccess: async (response) => {
       await refreshCatalog(response.data.message);
@@ -434,25 +525,33 @@ export function ProductsShell({
   const manualProductMutation = useMutation({
     mutationFn: async () => {
       if (blockCatalogCreationIfCompanyRuleFails()) {
-        throw new Error(catalogCompanyRequirementMessage ?? "Empresa ativa inválida.");
+        throw new Error(
+          catalogCompanyRequirementMessage ?? "Empresa ativa inválida.",
+        );
       }
-      return apiClient.post<{ data: ProductManualCreateResult; error: null }>("/products/manual", {
-        body: {
-          initialFinance: {
-            packagingCost: manualProductForm.packagingCost,
-            unitCost: manualProductForm.unitCost,
-          },
-          product: {
-            isActive: manualProductForm.isActive,
-            name: manualProductForm.name,
-            sellingPrice: manualProductForm.sellingPrice,
-            sku: manualProductForm.sku,
+      return apiClient.post<{ data: ProductManualCreateResult; error: null }>(
+        "/products/manual",
+        {
+          body: {
+            initialFinance: {
+              packagingCost: manualProductForm.packagingCost,
+              unitCost: manualProductForm.unitCost,
+            },
+            product: {
+              isActive: manualProductForm.isActive,
+              name: manualProductForm.name,
+              sellingPrice: manualProductForm.sellingPrice,
+              sku: manualProductForm.sku,
+            },
           },
         },
-      });
+      );
     },
     onError: (error) => {
-      setCriticalFeedback(error, "Nao foi possivel cadastrar o produto manual.");
+      setCriticalFeedback(
+        error,
+        "Nao foi possivel cadastrar o produto manual.",
+      );
     },
     onSuccess: async () => {
       setShowManualProductModal(false);
@@ -464,23 +563,90 @@ export function ProductsShell({
   const importProductsMutation = useMutation({
     mutationFn: async (file: File) => {
       if (blockCatalogCreationIfCompanyRuleFails()) {
-        throw new Error(catalogCompanyRequirementMessage ?? "Empresa ativa inválida.");
+        throw new Error(
+          catalogCompanyRequirementMessage ?? "Empresa ativa inválida.",
+        );
       }
       const formData = new FormData();
       formData.append("file", file);
-      return apiClient.post<{ data: { imported: number; errors: Array<{ row: number; message: string }> }; error: null }>(
-        "/products/import",
-        { body: formData },
-      );
+      return apiClient.post<{
+        data: {
+          imported: number;
+          errors: Array<{ row: number; message: string }>;
+        };
+        error: null;
+      }>("/products/import", { body: formData });
     },
     onError: (error) => {
-      setImportResult({ imported: 0, errors: [{ row: 0, message: error instanceof ApiClientError ? error.message : "Erro ao importar planilha." }] });
+      setImportResult({
+        imported: 0,
+        errors: [
+          {
+            row: 0,
+            message:
+              error instanceof ApiClientError
+                ? error.message
+                : "Erro ao importar planilha.",
+          },
+        ],
+      });
     },
     onSuccess: async (response) => {
       setImportResult(response.data);
       if (response.data.imported > 0) {
-        await queryClient.invalidateQueries({ queryKey: productCatalogQueryKey });
+        await queryClient.invalidateQueries({
+          queryKey: productCatalogQueryKey,
+        });
       }
+    },
+  });
+
+  const importSourcesMutation = useMutation({
+    mutationFn: () =>
+      apiClient.get<{ data: IntegrationConnectionRecord[]; error: null }>(
+        "/integrations",
+      ),
+    onError: (error) => {
+      setCriticalFeedback(error, "Nao foi possivel consultar as integracoes.");
+    },
+    onSuccess: (response) => {
+      setMercadoLivreConnection(
+        response.data.find(
+          (connection) => connection.provider === "mercadolivre",
+        ) ?? null,
+      );
+    },
+  });
+
+  const marketplaceCatalogImportMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post<{ data: MarketplaceCatalogImportResult; error: null }>(
+        "/integrations/mercadolivre/catalog/import",
+      ),
+    onError: (error) => {
+      setShowMercadoLivreConfirmation(false);
+      setMarketplaceImportResult({
+        conflicts: [],
+        created: 0,
+        errors: [
+          {
+            externalProductId: "catalog",
+            message:
+              error instanceof ApiClientError
+                ? error.message
+                : "Erro ao importar catalogo do Mercado Livre.",
+            sku: "",
+          },
+        ],
+        found: 0,
+        unchanged: 0,
+        updated: 0,
+      });
+    },
+    onSuccess: async (response) => {
+      setShowMercadoLivreConfirmation(false);
+      setMarketplaceImportResult(response.data);
+      await queryClient.invalidateQueries({ queryKey: productCatalogQueryKey });
     },
   });
 
@@ -489,7 +655,8 @@ export function ProductsShell({
       return;
     }
     setShowImportInstructionsModal(true);
-  }, [blockCatalogCreationIfCompanyRuleFails]);
+    importSourcesMutation.mutate();
+  }, [blockCatalogCreationIfCompanyRuleFails, importSourcesMutation]);
 
   const handleAddProduct = useCallback(
     (_context?: { companyId: string | null; referenceMonth: string }) => {
@@ -508,11 +675,14 @@ export function ProductsShell({
       setShowManualProductModal(true);
       setManualProductForm(initialManualProductForm);
     },
-    [blockCatalogCreationIfCompanyRuleFails]
+    [blockCatalogCreationIfCompanyRuleFails],
   );
 
   async function fetchProductsForSelect() {
-    const response = await apiClient.get<{ data: ProductListItem[]; error: null }>("/products");
+    const response = await apiClient.get<{
+      data: ProductListItem[];
+      error: null;
+    }>("/products");
     const products = response.data ?? [];
     setAvailableProducts(products);
     return products;
@@ -538,11 +708,13 @@ export function ProductsShell({
         acc[item.externalProductId] =
           item.linkedProduct?.id ?? item.suggestedMatches[0]?.productId ?? "";
         return acc;
-      }, {})
+      }, {}),
     );
   }, []);
 
-  const [productOptions, setProductOptions] = useState<Array<{ label: string; value: string }>>([]);
+  const [productOptions, setProductOptions] = useState<
+    Array<{ label: string; value: string }>
+  >([]);
 
   // Atualizar productOptions quando availableProducts mudar
   useEffect(() => {
@@ -550,7 +722,7 @@ export function ProductsShell({
       availableProducts.map((product) => ({
         label: `${product.name}${product.isActive ? "" : " (arquivado)"}`,
         value: product.id,
-      }))
+      })),
     );
   }, [availableProducts]);
 
@@ -558,7 +730,8 @@ export function ProductsShell({
     void fetchProductsForSelect();
   }
 
-  const selectedProductId = productCostForm.productId || productOptions[0]?.value || "";
+  const selectedProductId =
+    productCostForm.productId || productOptions[0]?.value || "";
 
   const contextValue = {
     handleAddProduct,
@@ -603,7 +776,9 @@ export function ProductsShell({
         {showProductForm && (
           <Card>
             <div className="space-y-1.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Produto</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent">
+                Produto
+              </p>
               <h2 className="text-lg font-semibold text-foreground">
                 {editingProductId ? "Editar produto" : "Criar produto"}
               </h2>
@@ -620,11 +795,16 @@ export function ProductsShell({
               }}
             >
               <label className="grid gap-1.5 text-sm">
-                <span className="font-medium text-foreground">Nome do produto</span>
+                <span className="font-medium text-foreground">
+                  Nome do produto
+                </span>
                 <input
                   className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
                   onChange={(event) =>
-                    setProductForm((current) => ({ ...current, name: event.target.value }))
+                    setProductForm((current) => ({
+                      ...current,
+                      name: event.target.value,
+                    }))
                   }
                   required
                   value={productForm.name}
@@ -644,7 +824,9 @@ export function ProductsShell({
                 />
               </label>
               <label className="grid gap-1.5 text-sm">
-                <span className="font-medium text-foreground">Preco de venda</span>
+                <span className="font-medium text-foreground">
+                  Preco de venda
+                </span>
                 <input
                   className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
                   onChange={(event) =>
@@ -699,12 +881,17 @@ export function ProductsShell({
         {showCostForm && (
           <Card>
             <div className="space-y-1.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Formulario de custo</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent">
+                Formulario de custo
+              </p>
               <h2 className="text-lg font-semibold text-foreground">
-                {editingProductCostId ? "Editar custo do produto" : "Criar custo do produto"}
+                {editingProductCostId
+                  ? "Editar custo do produto"
+                  : "Criar custo do produto"}
               </h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Cada lancamento fica gravado separadamente para manter conciliacoes futuras.
+                Cada lancamento fica gravado separadamente para manter
+                conciliacoes futuras.
               </p>
             </div>
             <form
@@ -733,11 +920,17 @@ export function ProductsShell({
                           {option.label}
                         </option>
                       ))
-                    : [<option key="empty" value="">Crie um produto primeiro</option>]}
+                    : [
+                        <option key="empty" value="">
+                          Crie um produto primeiro
+                        </option>,
+                      ]}
                 </select>
               </label>
               <label className="grid gap-1.5 text-sm">
-                <span className="font-medium text-foreground">Tipo de custo</span>
+                <span className="font-medium text-foreground">
+                  Tipo de custo
+                </span>
                 <input
                   className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
                   onChange={(event) =>
@@ -779,7 +972,9 @@ export function ProductsShell({
                 />
               </label>
               <label className="grid gap-1.5 text-sm">
-                <span className="font-medium text-foreground">Inicio da vigencia</span>
+                <span className="font-medium text-foreground">
+                  Inicio da vigencia
+                </span>
                 <input
                   className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
                   onChange={(event) =>
@@ -807,7 +1002,9 @@ export function ProductsShell({
               </label>
               <div className="flex flex-wrap gap-3">
                 <Button
-                  disabled={productCostMutation.isPending || productOptions.length === 0}
+                  disabled={
+                    productCostMutation.isPending || productOptions.length === 0
+                  }
                   type="submit"
                 >
                   {productCostMutation.isPending
@@ -839,12 +1036,17 @@ export function ProductsShell({
         {showAdCostForm && (
           <Card>
             <div className="space-y-1.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Formulario de anuncio</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent">
+                Formulario de anuncio
+              </p>
               <h2 className="text-lg font-semibold text-foreground">
-                {editingAdCostId ? "Editar gasto em anuncio" : "Registrar gasto em anuncio"}
+                {editingAdCostId
+                  ? "Editar gasto em anuncio"
+                  : "Registrar gasto em anuncio"}
               </h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Use para registrar investimento em canal antes dos marketplaces entregarem dados detalhados de anuncios.
+                Use para registrar investimento em canal antes dos marketplaces
+                entregarem dados detalhados de anuncios.
               </p>
             </div>
             <form
@@ -856,7 +1058,9 @@ export function ProductsShell({
               }}
             >
               <label className="grid gap-1.5 text-sm">
-                <span className="font-medium text-foreground">Produto vinculado</span>
+                <span className="font-medium text-foreground">
+                  Produto vinculado
+                </span>
                 <select
                   className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3 text-sm text-foreground transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
                   onChange={(event) =>
@@ -918,7 +1122,9 @@ export function ProductsShell({
                 />
               </label>
               <label className="grid gap-1.5 text-sm">
-                <span className="font-medium text-foreground">Data do gasto</span>
+                <span className="font-medium text-foreground">
+                  Data do gasto
+                </span>
                 <input
                   className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
                   onChange={(event) =>
@@ -972,12 +1178,15 @@ export function ProductsShell({
         {showExpenseForm && (
           <Card>
             <div className="space-y-1.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Formulario de despesa</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent">
+                Formulario de despesa
+              </p>
               <h2 className="text-lg font-semibold text-foreground">
                 {editingManualExpenseId ? "Editar despesa" : "Nova despesa"}
               </h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Registre custos fixos ou eventuais ate que fluxos mais avancados de contabilidade entrem no produto.
+                Registre custos fixos ou eventuais ate que fluxos mais avancados
+                de contabilidade entrem no produto.
               </p>
             </div>
             <form
@@ -1031,7 +1240,9 @@ export function ProductsShell({
                 />
               </label>
               <label className="grid gap-1.5 text-sm">
-                <span className="font-medium text-foreground">Data da competencia</span>
+                <span className="font-medium text-foreground">
+                  Data da competencia
+                </span>
                 <input
                   className="h-10 rounded-[var(--radius-md)] border border-border bg-surface-strong px-3.5 text-sm text-foreground placeholder:text-muted transition-all duration-[var(--transition-fast)] hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20"
                   onChange={(event) =>
@@ -1058,7 +1269,10 @@ export function ProductsShell({
                 />
               </label>
               <div className="flex flex-wrap gap-3">
-                <Button disabled={manualExpenseMutation.isPending} type="submit">
+                <Button
+                  disabled={manualExpenseMutation.isPending}
+                  type="submit"
+                >
                   {manualExpenseMutation.isPending
                     ? "Salvando..."
                     : editingManualExpenseId
@@ -1085,10 +1299,17 @@ export function ProductsShell({
         {showSyncedProducts && (
           <Card>
             <div className="space-y-1.5">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Mercado Livre</p>
-              <h2 className="text-lg font-semibold text-foreground">Produtos sincronizados para revisao</h2>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent">
+                Mercado Livre
+              </p>
+              <h2 className="text-lg font-semibold text-foreground">
+                Produtos sincronizados para revisao
+              </h2>
               <p className="max-w-2xl text-sm text-muted-foreground">
-                Itens sincronizados do Mercado Livre chegam primeiro como candidatos de revisao. Voce decide se vira um novo produto interno, um vinculo com um produto existente ou fica ignorado por enquanto.
+                Itens sincronizados do Mercado Livre chegam primeiro como
+                candidatos de revisao. Voce decide se vira um novo produto
+                interno, um vinculo com um produto existente ou fica ignorado
+                por enquanto.
               </p>
             </div>
             <div className="mt-6">
@@ -1101,7 +1322,8 @@ export function ProductsShell({
                 Voltar ao catalogo
               </Button>
               <p className="rounded-[var(--radius-md)] border border-border bg-background-soft px-4 py-3 text-sm text-muted-foreground">
-                Use a pagina de Integracoes para revisar produtos sincronizados em detalhe.
+                Use a pagina de Integracoes para revisar produtos sincronizados
+                em detalhe.
               </p>
             </div>
           </Card>
@@ -1131,12 +1353,91 @@ export function ProductsShell({
 
         <Modal
           onClose={() => {
-            if (!importProductsMutation.isPending) {
+            if (!importSourcesMutation.isPending) {
               setShowImportInstructionsModal(false);
             }
           }}
           open={showImportInstructionsModal}
           title="Importar produtos"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Escolha de onde os produtos serao importados.
+            </p>
+            <button
+              className="flex w-full items-start gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4 text-left transition-colors hover:border-accent/40 hover:bg-accent/5 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={importSourcesMutation.isPending}
+              onClick={() => {
+                if (mercadoLivreConnection?.status === "connected") {
+                  setShowImportInstructionsModal(false);
+                  setShowMercadoLivreConfirmation(true);
+                  return;
+                }
+                setShowImportInstructionsModal(false);
+                router.push("/app/integrations");
+              }}
+              type="button"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/10">
+                <Store className="h-5 w-5 text-warning" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    Mercado Livre
+                  </p>
+                  <Badge
+                    variant={
+                      mercadoLivreConnection?.status === "connected"
+                        ? "success"
+                        : "neutral"
+                    }
+                  >
+                    {importSourcesMutation.isPending
+                      ? "Consultando"
+                      : mercadoLivreConnection?.status === "connected"
+                        ? "Conectado"
+                        : "Conectar"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Importa anuncios ativos e pausados, variacoes, precos e fotos
+                  sem duplicar produtos.
+                </p>
+              </div>
+            </button>
+
+            <button
+              className="flex w-full items-start gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4 text-left transition-colors hover:border-accent/40 hover:bg-accent/5"
+              onClick={() => {
+                setShowImportInstructionsModal(false);
+                setShowSpreadsheetInstructionsModal(true);
+              }}
+              type="button"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10">
+                <FileSpreadsheet className="h-5 w-5 text-accent" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Planilha Excel
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Mantem o fluxo atual de importacao por arquivo .xlsx.
+                </p>
+              </div>
+            </button>
+          </div>
+        </Modal>
+
+        <Modal
+          onClose={() => {
+            if (!importProductsMutation.isPending) {
+              setShowSpreadsheetInstructionsModal(false);
+            }
+          }}
+          open={showSpreadsheetInstructionsModal}
+          title="Importar por planilha"
         >
           <div className="space-y-5">
             <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4">
@@ -1144,15 +1445,20 @@ export function ProductsShell({
                 <FileSpreadsheet className="h-5 w-5 text-accent" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">Arquivo .XLSX</p>
+                <p className="text-sm font-semibold text-foreground">
+                  Arquivo .XLSX
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  A planilha deve estar no formato Excel (.xlsx) e conter as colunas na ordem exata abaixo, sem cabeçalhos adicionais
+                  A planilha deve estar no formato Excel (.xlsx) e conter as
+                  colunas na ordem exata abaixo, sem cabeçalhos adicionais
                 </p>
               </div>
             </div>
 
             <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Colunas obrigatórias</p>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent">
+                Colunas obrigatórias
+              </p>
               <div className="grid gap-2">
                 {[
                   { label: "PRODUTO", desc: "Nome do produto" },
@@ -1166,8 +1472,12 @@ export function ProductsShell({
                     key={col.label}
                     className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-surface-strong/50 px-3.5 py-2.5"
                   >
-                    <span className="text-sm font-semibold text-foreground">{col.label}</span>
-                    <span className="text-xs text-muted-foreground">{col.desc}</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {col.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {col.desc}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -1175,7 +1485,7 @@ export function ProductsShell({
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <Button
-                onClick={() => setShowImportInstructionsModal(false)}
+                onClick={() => setShowSpreadsheetInstructionsModal(false)}
                 type="button"
                 variant="secondary"
               >
@@ -1184,7 +1494,7 @@ export function ProductsShell({
               <Button
                 className="text-white"
                 onClick={() => {
-                  setShowImportInstructionsModal(false);
+                  setShowSpreadsheetInstructionsModal(false);
                   fileInputRef.current?.click();
                 }}
                 type="button"
@@ -1197,7 +1507,129 @@ export function ProductsShell({
         </Modal>
 
         <Modal
-          className={importResult && importResult.errors.length > 0 ? "max-w-xl" : undefined}
+          onClose={() => {
+            if (!marketplaceCatalogImportMutation.isPending) {
+              setShowMercadoLivreConfirmation(false);
+            }
+          }}
+          open={showMercadoLivreConfirmation}
+          title="Importar do Mercado Livre"
+        >
+          <div className="space-y-5">
+            <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4">
+              <p className="text-sm font-semibold text-foreground">
+                Importar todos os anuncios elegiveis?
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Anuncios ativos e pausados serao importados. Produtos com SKU
+                existente serao vinculados e atualizados. Variacoes viram itens
+                separados e as fotos permanecem hospedadas pelo Mercado Livre.
+              </p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                disabled={marketplaceCatalogImportMutation.isPending}
+                onClick={() => setShowMercadoLivreConfirmation(false)}
+                variant="secondary"
+              >
+                Cancelar
+              </Button>
+              <Button
+                disabled={marketplaceCatalogImportMutation.isPending}
+                onClick={() => marketplaceCatalogImportMutation.mutate()}
+              >
+                {marketplaceCatalogImportMutation.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Importando catalogo...
+                  </>
+                ) : (
+                  "Importar catalogo"
+                )}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          className="max-w-xl"
+          onClose={() => {
+            if (!marketplaceCatalogImportMutation.isPending) {
+              setMarketplaceImportResult(null);
+              setShowMercadoLivreConfirmation(false);
+            }
+          }}
+          open={marketplaceImportResult !== null}
+          title="Resultado da importacao"
+        >
+          {marketplaceImportResult ? (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {[
+                  ["Encontrados", marketplaceImportResult.found],
+                  ["Criados", marketplaceImportResult.created],
+                  ["Atualizados", marketplaceImportResult.updated],
+                  ["Sem alteracao", marketplaceImportResult.unchanged],
+                  ["Conflitos", marketplaceImportResult.conflicts.length],
+                  ["Erros", marketplaceImportResult.errors.length],
+                ].map(([label, value]) => (
+                  <div
+                    className="rounded-[var(--radius-lg)] border border-border bg-surface p-3"
+                    key={label}
+                  >
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className="mt-1 text-xl font-semibold text-foreground">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {[
+                ...marketplaceImportResult.conflicts,
+                ...marketplaceImportResult.errors,
+              ].length > 0 ? (
+                <div className="max-h-56 space-y-2 overflow-y-auto">
+                  {[
+                    ...marketplaceImportResult.conflicts,
+                    ...marketplaceImportResult.errors,
+                  ].map((issue) => (
+                    <div
+                      className="rounded-[var(--radius-md)] border border-warning/20 bg-warning/5 p-3"
+                      key={`${issue.externalProductId}:${issue.message}`}
+                    >
+                      <p className="text-xs font-semibold text-foreground">
+                        {issue.sku || issue.externalProductId}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {issue.message}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => {
+                    setMarketplaceImportResult(null);
+                    setShowMercadoLivreConfirmation(false);
+                  }}
+                  variant="secondary"
+                >
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </Modal>
+
+        <Modal
+          className={
+            importResult && importResult.errors.length > 0
+              ? "max-w-xl"
+              : undefined
+          }
           onClose={() => {
             if (!importProductsMutation.isPending) {
               setImportResult(null);
@@ -1210,7 +1642,9 @@ export function ProductsShell({
             {importProductsMutation.isPending ? (
               <div className="flex flex-col items-center gap-3 py-6">
                 <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                <p className="text-sm text-muted-foreground">Importando produtos...</p>
+                <p className="text-sm text-muted-foreground">
+                  Importando produtos...
+                </p>
               </div>
             ) : importResult ? (
               <>
@@ -1224,7 +1658,9 @@ export function ProductsShell({
                 >
                   <div
                     className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                      importResult.imported > 0 ? "bg-success/10" : "bg-warning/10"
+                      importResult.imported > 0
+                        ? "bg-success/10"
+                        : "bg-warning/10"
                     }`}
                   >
                     {importResult.imported > 0 ? (
@@ -1267,7 +1703,9 @@ export function ProductsShell({
                           </p>
                         </div>
                       </div>
-                      <Badge variant="error">{importResult.errors.length}</Badge>
+                      <Badge variant="error">
+                        {importResult.errors.length}
+                      </Badge>
                     </div>
 
                     <div className="max-h-64 overflow-y-auto rounded-[var(--radius-xl)] border border-error/10 bg-surface p-2 shadow-[var(--shadow-sm)]">
@@ -1289,7 +1727,10 @@ export function ProductsShell({
                 )}
 
                 <div className="flex justify-end pt-2">
-                  <Button onClick={() => setImportResult(null)} variant="secondary">
+                  <Button
+                    onClick={() => setImportResult(null)}
+                    variant="secondary"
+                  >
                     Fechar
                   </Button>
                 </div>
@@ -1404,7 +1845,9 @@ export function ProductsShell({
               >
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Preço de venda</span>
+                    <span className="font-medium text-foreground">
+                      Preço de venda
+                    </span>
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                         R$
@@ -1423,7 +1866,9 @@ export function ProductsShell({
                     </div>
                   </label>
                   <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Custo unitário</span>
+                    <span className="font-medium text-foreground">
+                      Custo unitário
+                    </span>
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                         R$
@@ -1442,7 +1887,9 @@ export function ProductsShell({
                     </div>
                   </label>
                   <label className="grid gap-1.5 text-sm">
-                    <span className="font-medium text-foreground">Embalagem</span>
+                    <span className="font-medium text-foreground">
+                      Embalagem
+                    </span>
                     <div className="relative">
                       <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                         R$
@@ -1502,7 +1949,10 @@ export function ProductsShell({
                 >
                   Cancelar
                 </Button>
-                <Button disabled={manualProductMutation.isPending} type="submit">
+                <Button
+                  disabled={manualProductMutation.isPending}
+                  type="submit"
+                >
                   {manualProductMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

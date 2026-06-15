@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button, Card, Container } from "@marginflow/ui";
+import { Button, Card, Container } from "@lucreii/ui";
 
 export default function NotFound() {
   return (

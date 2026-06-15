@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ProductAnalyticsSnapshot } from "@marginflow/types";
+import type { ProductAnalyticsSnapshot } from "@lucreii/types";
 import {
   buildCatalogStats,
   buildProductInsights,
@@ -144,9 +144,11 @@ const snapshot: ProductAnalyticsSnapshot = {
   },
   products: [
     {
+      coverImageUrl: null,
       createdAt: "2026-05-01T10:00:00.000Z",
       financeDefaults: null,
       id: "product_1",
+      images: [],
       isActive: true,
       latestCost: {
         amount: "25.00",
@@ -167,9 +169,11 @@ const snapshot: ProductAnalyticsSnapshot = {
       updatedAt: "2026-05-01T10:00:00.000Z",
     },
     {
+      coverImageUrl: null,
       createdAt: "2026-05-01T10:00:00.000Z",
       financeDefaults: null,
       id: "product_2",
+      images: [],
       isActive: true,
       latestCost: null,
       name: "Product Two",
@@ -217,7 +221,7 @@ describe("products foundation helpers", () => {
   });
 
   it("maps analytics rows without local sales simulation or heuristic costs", () => {
-      expect(buildProductTableRows(snapshot)).toEqual([
+    expect(buildProductTableRows(snapshot)).toEqual([
       expect.objectContaining({
         actualRoas: 10,
         adSpend: 10,

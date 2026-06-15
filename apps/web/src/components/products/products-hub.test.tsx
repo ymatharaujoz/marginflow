@@ -32,7 +32,7 @@ describe("ProductsHub", () => {
   });
 
   it("renders the shell wrapper with fallback message", () => {
-    const markup = renderToStaticMarkup(<ProductsHub organizationName="MarginFlow" />);
+    const markup = renderToStaticMarkup(<ProductsHub organizationName="Lucreii" />);
     expect(markup).toContain("Selecione uma secao no menu para continuar.");
   });
 });

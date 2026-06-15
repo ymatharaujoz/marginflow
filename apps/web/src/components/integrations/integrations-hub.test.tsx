@@ -97,7 +97,7 @@ describe("IntegrationsHub", () => {
       <IntegrationsHub
         initialMessage={null}
         initialStatus="success"
-        organizationName="MarginFlow"
+        organizationName="Lucreii"
       />,
     );
 
@@ -129,7 +129,7 @@ describe("IntegrationsHub", () => {
     });
 
     const markup = renderToStaticMarkup(
-      <IntegrationsHub initialMessage={null} initialStatus={null} organizationName="MarginFlow" />,
+      <IntegrationsHub initialMessage={null} initialStatus={null} organizationName="Lucreii" />,
     );
 
     expect(markup).toContain("Erro ao carregar dados");

@@ -49,6 +49,8 @@ export type FixedCost = typeof schema.fixedCosts.$inferSelect;
 export type NewFixedCost = typeof schema.fixedCosts.$inferInsert;
 export type Product = typeof schema.products.$inferSelect;
 export type NewProduct = typeof schema.products.$inferInsert;
+export type ProductImage = typeof schema.productImages.$inferSelect;
+export type NewProductImage = typeof schema.productImages.$inferInsert;
 export type ProductFinanceDefaults =
   typeof schema.productFinanceDefaults.$inferSelect;
 export type NewProductFinanceDefaults =

@@ -1,11 +1,11 @@
 import type {
   SignInWithPasswordInput,
   SignUpWithPasswordFormInput,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 import {
   signInWithPasswordSchema,
   signUpWithPasswordFormSchema,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 import { buildAuthFinalizeUrl } from "./auth-client";
 import { resolveAuthInlineErrorMessage } from "./auth-errors";
 

@@ -7,7 +7,7 @@ vi.mock("@/lib/server-session", () => ({
 }));
 
 vi.mock("@/lib/web-auth-session", () => ({
-  WEB_AUTH_SESSION_COOKIE_NAME: "marginflow.web_session",
+  WEB_AUTH_SESSION_COOKIE_NAME: "lucreii.web_session",
 }));
 
 describe("GET /auth/verify-session", () => {
@@ -47,6 +47,6 @@ describe("GET /auth/verify-session", () => {
     expect(response.headers.get("location")).toBe(
       "https://marginflow-web.vercel.app/sign-in?auth_error=web_session_not_persisted",
     );
-    expect(response.headers.get("set-cookie")).toContain("marginflow.web_session=;");
+    expect(response.headers.get("set-cookie")).toContain("lucreii.web_session=;");
   });
 });

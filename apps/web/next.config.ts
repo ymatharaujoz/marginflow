@@ -5,21 +5,15 @@ import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
 
 const webRoot = dirname(fileURLToPath(import.meta.url));
-const monorepoRoot = resolve(webRoot, "..", "..");
-const requiredPublicEnvKeys = ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_API_BASE_URL"] as const;
+const requiredPublicEnvKeys = [
+  "NEXT_PUBLIC_APP_URL",
+  "NEXT_PUBLIC_API_BASE_URL",
+] as const;
 
 function loadIfExists(filePath: string, override: boolean) {
   if (existsSync(filePath)) {
     loadDotenv({ path: filePath, override });
   }
-}
-
-loadIfExists(resolve(monorepoRoot, ".env"), false);
-loadIfExists(resolve(monorepoRoot, ".env.local"), true);
-const nodeEnv = process.env.NODE_ENV ?? "development";
-if (nodeEnv === "development") {
-  loadIfExists(resolve(monorepoRoot, ".env.development"), true);
-  loadIfExists(resolve(monorepoRoot, ".env.development.local"), true);
 }
 
 loadIfExists(resolve(webRoot, ".env"), false);
@@ -30,20 +24,33 @@ if (nodeEnv === "development") {
 }
 
 if (nodeEnv === "production") {
-  const missingKeys = requiredPublicEnvKeys.filter((key) => !process.env[key]?.trim());
+  const missingKeys = requiredPublicEnvKeys.filter(
+    (key) => !process.env[key]?.trim(),
+  );
   if (missingKeys.length > 0) {
-    console.error("[marginflow/web] Missing required public environment variables during Next.js production startup.", {
-      missingKeys,
-      nodeEnv,
-      vercelEnv: process.env.VERCEL_ENV,
-      vercelProjectProductionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL,
-      vercelUrl: process.env.VERCEL_URL,
-      rootDirectory: "apps/web",
-    });
+    console.error(
+      "[lucreii/web] Missing required public environment variables during Next.js production startup.",
+      {
+        missingKeys,
+        nodeEnv,
+        vercelEnv: process.env.VERCEL_ENV,
+        vercelProjectProductionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+        vercelUrl: process.env.VERCEL_URL,
+        rootDirectory: "apps/web",
+      },
+    );
   }
 }
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        hostname: "**.mlstatic.com",
+        protocol: "https",
+      },
+    ],
+  },
   reactStrictMode: true,
 };
 

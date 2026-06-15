@@ -10,7 +10,7 @@ describe("health endpoint", () => {
       API_DB_POOL_MAX: 5,
       API_HOST: "127.0.0.1",
       API_PORT: 4000,
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",
@@ -39,7 +39,7 @@ describe("health endpoint", () => {
     expect(response.json()).toEqual({
       data: expect.objectContaining({
         corsOrigin: "http://localhost:3000",
-        service: "marginflow-api",
+        service: "lucreii-api",
         status: "ok",
       }),
       error: null,
@@ -83,7 +83,7 @@ describe("health endpoint", () => {
       API_DB_POOL_MAX: 5,
       API_HOST: "127.0.0.1",
       API_PORT: 4000,
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
       GOOGLE_CLIENT_ID: "google-client-id",
@@ -95,19 +95,19 @@ describe("health endpoint", () => {
       NODE_ENV: "test",
       SYNC_RELAX_GUARDS: false,
       WEB_APP_ORIGIN: "http://localhost:3000",
-      AUTH_TRUSTED_ORIGINS: "https://admin.marginflow.app",
+      AUTH_TRUSTED_ORIGINS: "https://admin.lucreii.app",
     });
 
     const response = await app.inject({
       method: "OPTIONS",
       url: "/health",
       headers: {
-        origin: "https://admin.marginflow.app",
+        origin: "https://admin.lucreii.app",
         "access-control-request-method": "GET",
       },
     });
 
-    expect(response.headers["access-control-allow-origin"]).toBe("https://admin.marginflow.app");
+    expect(response.headers["access-control-allow-origin"]).toBe("https://admin.lucreii.app");
     expect(response.headers["access-control-allow-credentials"]).toBe("true");
   });
 });

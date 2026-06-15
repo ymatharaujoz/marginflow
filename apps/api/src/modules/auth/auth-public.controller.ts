@@ -11,7 +11,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import {
   signInWithPasswordSchema,
   signUpWithPasswordSchema,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 import {
   buildClearApiSessionCookie,
   buildSetApiSessionCookie,

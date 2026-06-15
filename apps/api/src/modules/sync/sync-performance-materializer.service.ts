@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
-import { divideMoney, parseMoney } from "@marginflow/domain";
+import { divideMoney, parseMoney } from "@lucreii/domain";
 import {
   productMonthlyPerformance,
   type Company,
@@ -11,7 +11,7 @@ import {
   type Product,
   type ProductCost,
   type ProductFinanceDefaults,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import { and, eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import { normalizeSku, selectLatestProductCost } from "@/modules/finance/finance.service";

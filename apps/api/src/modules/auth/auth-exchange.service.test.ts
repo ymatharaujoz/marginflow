@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { authExchangeTickets } from "@marginflow/database";
+import { authExchangeTickets } from "@lucreii/database";
 import { AuthExchangeService } from "./auth-exchange.service";
 
 function createService() {
@@ -101,7 +101,7 @@ describe("AuthExchangeService", () => {
       expiresAt: new Date("2026-12-31T00:00:00.000Z"),
       id: "session_123",
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
@@ -110,9 +110,9 @@ describe("AuthExchangeService", () => {
     });
     organizationProvisioningService.findDefaultOrganization.mockResolvedValue({
       id: "org_123",
-      name: "MarginFlow",
+      name: "Lucreii",
       role: "owner",
-      slug: "marginflow",
+      slug: "lucreii",
     });
 
     const payload = await service.consumeTicket("ticket_123");
@@ -125,16 +125,16 @@ describe("AuthExchangeService", () => {
         onboardingStatus: "complete",
         organization: {
           id: "org_123",
-          name: "MarginFlow",
+          name: "Lucreii",
           role: "owner",
-          slug: "marginflow",
+          slug: "lucreii",
         },
         session: {
           expiresAt: "2026-12-31T00:00:00.000Z",
           id: "session_123",
         },
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_123",
           image: null,
@@ -159,7 +159,7 @@ describe("AuthExchangeService", () => {
       expiresAt: "2026-12-31T00:00:00.000Z",
       id: "session_123",
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
@@ -179,7 +179,7 @@ describe("AuthExchangeService", () => {
           id: "session_123",
         },
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_123",
           image: null,

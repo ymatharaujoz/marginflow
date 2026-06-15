@@ -4,7 +4,7 @@ import {
   Inject,
   Injectable,
 } from "@nestjs/common";
-import type { DatabaseClient } from "@marginflow/database";
+import type { DatabaseClient } from "@lucreii/database";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import { OrganizationProvisioningService } from "@/modules/auth/organization-provisioning.service";

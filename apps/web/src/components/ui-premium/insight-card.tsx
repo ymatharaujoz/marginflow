@@ -9,7 +9,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { slideInLeftVariants } from "@/lib/animations";
-import { Badge } from "@marginflow/ui";
+import { Badge } from "@lucreii/ui";
 
 type InsightType = "growth" | "alert" | "tip" | "info" | "ai";
 type Priority = "high" | "medium" | "low";

@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { RefreshCw, Clock, Calendar, CheckCircle2, Ban, Activity } from "lucide-react";
-import { Card, Skeleton } from "@marginflow/ui";
+import { Card, Skeleton } from "@lucreii/ui";
 import { containerVariants, itemVariants, hoverTransition } from "@/lib/animations";
 import { translateApiMessage } from "@/lib/pt-br/api-ui";
 import { formatDateTime, formatSyncOrigin } from "../lib/formatters";

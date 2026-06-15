@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { History, Trash2, AlertCircle } from "lucide-react";
-import { Button, Skeleton } from "@marginflow/ui";
+import { Button, Skeleton } from "@lucreii/ui";
 import { fadeInVariants } from "@/lib/animations";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { translateSyncRunOrigin, translateSyncRunStatus } from "@/lib/pt-br/api-ui";

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Skeleton } from "@marginflow/ui";
+import { Skeleton } from "@lucreii/ui";
 
 interface SkeletonGridProps {
   rows?: number;

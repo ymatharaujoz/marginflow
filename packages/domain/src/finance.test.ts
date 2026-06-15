@@ -12,7 +12,7 @@ import {
   calculateNetRevenue,
 } from "./finance";
 
-describe("@marginflow/domain finance formulas", () => {
+describe("@lucreii/domain finance formulas", () => {
   it("calculates the core finance formulas deterministically", () => {
     expect(calculateGrossRevenue(["100.00", "55.25", "4.75"])).toBe("160.00");
     expect(
@@ -63,7 +63,7 @@ describe("@marginflow/domain finance formulas", () => {
   });
 });
 
-describe("@marginflow/domain finance overview", () => {
+describe("@lucreii/domain finance overview", () => {
   const snapshot = {
     adCosts: [
       {

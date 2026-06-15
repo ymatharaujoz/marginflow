@@ -5,7 +5,7 @@ import {
   Module,
   OnApplicationShutdown,
 } from "@nestjs/common";
-import { createDatabaseRuntime, type DatabaseRuntime } from "@marginflow/database";
+import { createDatabaseRuntime, type DatabaseRuntime } from "@lucreii/database";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { DATABASE_CLIENT, DATABASE_RUNTIME } from "@/common/tokens";
 

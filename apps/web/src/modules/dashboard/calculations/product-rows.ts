@@ -1,4 +1,4 @@
-import type { DashboardProfitabilityResponse } from "@marginflow/types";
+import type { DashboardProfitabilityResponse } from "@lucreii/types";
 import type { DashboardProductDetailRow } from "../types/dashboard";
 import { getProductHealthStatus } from "./product-health";
 import { normalizeNumber } from "../utils/formatters";

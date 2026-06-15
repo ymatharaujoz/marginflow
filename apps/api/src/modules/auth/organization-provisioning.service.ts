@@ -4,7 +4,7 @@ import {
   type DatabaseClient,
   organizationMembers,
   organizations,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import { DATABASE_CLIENT } from "@/common/tokens";
 
 type AuthUser = {

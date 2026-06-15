@@ -4,10 +4,10 @@ import { useMemo } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
-import { Card } from "@marginflow/ui";
+import { Card } from "@lucreii/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { slideInUpVariants } from "@/lib/animations";
-import type { DashboardChartsResponse, DashboardRecentSyncResponse } from "@marginflow/types";
+import type { DashboardChartsResponse, DashboardRecentSyncResponse } from "@lucreii/types";
 import { formatMoney } from "../utils/formatters";
 
 interface MarketplacesSectionProps {

@@ -4,7 +4,7 @@ import {
   pendingCheckouts,
   subscriptionEvents,
   subscriptions,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { BillingService } from "./billing.service";
@@ -16,7 +16,7 @@ const env = {
   AUTH_TRUSTED_ORIGINS: undefined,
   BETTER_AUTH_SECRET: "secret",
   BETTER_AUTH_URL: "http://localhost:4000",
-  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
   GOOGLE_CLIENT_ID: "google-client-id",
   GOOGLE_CLIENT_SECRET: "google-client-secret",
   NODE_ENV: "test",
@@ -168,7 +168,7 @@ describe("BillingService", () => {
     db.query.billingCustomers.findFirst.mockResolvedValue(existingCustomer);
     db.query.billingTrials.findFirst.mockResolvedValue({
       checkoutSessionId: null,
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       id: "trial_123",
       interval: null,
       redeemedAt: null,
@@ -188,16 +188,16 @@ describe("BillingService", () => {
         {
           organization: {
             id: "org_123",
-            name: "MarginFlow Org",
+            name: "Lucreii Org",
             role: "owner",
-            slug: "marginflow-org",
+            slug: "lucreii-org",
           },
           session: {
             expiresAt: new Date("2026-04-23T00:00:00.000Z"),
             id: "session_123",
           },
           user: {
-            email: "owner@marginflow.local",
+            email: "owner@lucreii.local",
             emailVerified: true,
             id: "user_123",
             image: null,
@@ -241,7 +241,7 @@ describe("BillingService", () => {
     });
     db.query.billingTrials.findFirst.mockResolvedValue({
       checkoutSessionId: "cs_open",
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       id: "trial_123",
       interval: "annual",
       redeemedAt: null,
@@ -266,7 +266,7 @@ describe("BillingService", () => {
           },
           session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
           user: {
-            email: "owner@marginflow.local",
+            email: "owner@lucreii.local",
             emailVerified: true,
             id: "user_123",
             image: null,
@@ -293,7 +293,7 @@ describe("BillingService", () => {
     });
     db.query.billingTrials.findFirst.mockResolvedValue({
       checkoutSessionId: "cs_previous",
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       id: "trial_123",
       interval: "monthly",
       redeemedAt: new Date("2026-06-01T00:00:00.000Z"),
@@ -316,7 +316,7 @@ describe("BillingService", () => {
         },
         session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_123",
           image: null,
@@ -346,7 +346,7 @@ describe("BillingService", () => {
     });
     db.query.billingTrials.findFirst.mockResolvedValue({
       checkoutSessionId: "cs_complete",
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       id: "trial_123",
       interval: "monthly",
       redeemedAt: null,
@@ -374,7 +374,7 @@ describe("BillingService", () => {
         },
         session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_123",
           image: null,
@@ -482,7 +482,7 @@ describe("BillingService", () => {
         externalSubscriptionId: "sub_123",
         interval: "monthly",
         organizationId: "org_123",
-        planCode: "marginflow",
+        planCode: "lucreii",
         status: "active",
       }),
     );
@@ -554,7 +554,7 @@ describe("BillingService", () => {
           id: "session_confirm",
         },
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_888",
           image: null,

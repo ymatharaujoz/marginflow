@@ -16,7 +16,7 @@ import {
   ErrorState,
   useIntegrationsData,
 } from "@/modules/integrations";
-import type { IntegrationProviderSlug, RunSyncResponse } from "@marginflow/types";
+import type { IntegrationProviderSlug, RunSyncResponse } from "@lucreii/types";
 
 interface IntegrationsHubProps {
   initialMessage: string | null;

@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import {
   RefreshCw,
@@ -15,7 +17,16 @@ import {
   ArrowRight,
   ChevronDown,
 } from "lucide-react";
-import { Card, Skeleton, Button, Badge, EmptyState, Dropdown } from "@marginflow/ui";
+import {
+  Card,
+  Skeleton,
+  Button,
+  Badge,
+  EmptyState,
+  Dropdown,
+  Modal,
+} from "@lucreii/ui";
+import type { ProductListItem } from "@lucreii/types";
 import { ApiClientError } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
@@ -34,7 +45,10 @@ import type { CatalogStats, ProductMarketplaceNotice } from "../types/products";
 interface ProductsHomeProps {
   organizationName: string;
   view?: "catalog" | "performance";
-  onAddProduct?: (context: { companyId: string | null; referenceMonth: string }) => void;
+  onAddProduct?: (context: {
+    companyId: string | null;
+    referenceMonth: string;
+  }) => void;
   onImportProducts?: () => void;
 }
 
@@ -49,7 +63,8 @@ function LoadingState() {
 }
 
 function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
-  const isUnauthorized = error instanceof ApiClientError && error.status === 401;
+  const isUnauthorized =
+    error instanceof ApiClientError && error.status === 401;
 
   return (
     <motion.div
@@ -102,7 +117,13 @@ const emptyCatalogBenefits = [
   },
 ];
 
-function EmptyCatalogState({ onAdd, onImport }: { onAdd?: () => void; onImport?: () => void }) {
+function EmptyCatalogState({
+  onAdd,
+  onImport,
+}: {
+  onAdd?: () => void;
+  onImport?: () => void;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -123,8 +144,8 @@ function EmptyCatalogState({ onAdd, onImport }: { onAdd?: () => void; onImport?:
           Construa seu catálogo
         </h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          Cadastre seu primeiro produto para começar a controlar custos, margens e
-          lucratividade real de cada item
+          Cadastre seu primeiro produto para começar a controlar custos, margens
+          e lucratividade real de cada item
         </p>
 
         <div className="mx-auto mt-8 grid max-w-lg gap-3 sm:grid-cols-3">
@@ -153,7 +174,12 @@ function EmptyCatalogState({ onAdd, onImport }: { onAdd?: () => void; onImport?:
               Criar primeiro produto
               <ArrowRight className="h-4 w-4 opacity-70" />
             </Button>
-            <Button size="lg" variant="secondary" className="gap-2 px-6 text-sm" onClick={onImport}>
+            <Button
+              size="lg"
+              variant="secondary"
+              className="gap-2 px-6 text-sm"
+              onClick={onImport}
+            >
               <Upload className="h-4 w-4" />
               Importar produtos
             </Button>
@@ -168,24 +194,38 @@ function EmptyCatalogState({ onAdd, onImport }: { onAdd?: () => void; onImport?:
   );
 }
 
-function NoCostsState({ stats, onAdd }: { stats: CatalogStats } & { onAdd?: () => void }) {
+function NoCostsState({
+  stats,
+  onAdd,
+}: { stats: CatalogStats } & { onAdd?: () => void }) {
   return (
     <motion.div variants={fadeInVariants} initial="hidden" animate="visible">
-      <Card variant="outlined" className="border-warning/20 bg-warning-soft/30 p-6">
+      <Card
+        variant="outlined"
+        className="border-warning/20 bg-warning-soft/30 p-6"
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/10">
               <Package className="h-5 w-5 text-warning" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Cadastre custos de produto</h3>
+              <h3 className="text-sm font-semibold text-foreground">
+                Cadastre custos de produto
+              </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Você tem {stats.totalProducts} produto{stats.totalProducts > 1 ? "s" : ""} mas nenhum
-                custo registrado. Os custos são essenciais para calcular margens e lucratividade.
+                Você tem {stats.totalProducts} produto
+                {stats.totalProducts > 1 ? "s" : ""} mas nenhum custo
+                registrado. Os custos são essenciais para calcular margens e
+                lucratividade.
               </p>
             </div>
           </div>
-          <Button variant="secondary" className="gap-2 shrink-0" onClick={onAdd}>
+          <Button
+            variant="secondary"
+            className="gap-2 shrink-0"
+            onClick={onAdd}
+          >
             <Plus className="h-4 w-4" />
             Adicionar custo
           </Button>
@@ -211,7 +251,9 @@ function MarketplaceNoticeCard({
     <Card variant="outlined" className={`p-5 ${toneClasses}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold text-foreground">{notice.title}</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {notice.title}
+          </h3>
           <p className="text-sm text-muted-foreground">{notice.description}</p>
         </div>
         {notice.actionLabel && notice.href ? (
@@ -240,7 +282,9 @@ function ReferenceMonthToolbar({
 
   return (
     <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-strong px-3 py-2 shadow-sm">
-      <span className="text-xs font-semibold uppercase tracking-wider text-accent">Mês</span>
+      <span className="text-xs font-semibold uppercase tracking-wider text-accent">
+        Mês
+      </span>
       <Dropdown
         align="left"
         items={items}
@@ -262,11 +306,109 @@ function formatProductDate(dateIso: string) {
   }).format(new Date(dateIso));
 }
 
+function ProductImagePreview({
+  alt,
+  className,
+  url,
+}: {
+  alt: string;
+  className: string;
+  url: string | null;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (!url || failed) {
+    return (
+      <div
+        aria-label={`Sem foto para ${alt}`}
+        className={`flex items-center justify-center bg-surface-strong text-muted-foreground ${className}`}
+      >
+        <Package className="h-5 w-5" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative overflow-hidden bg-surface-strong ${className}`}>
+      <Image
+        alt={alt}
+        className="object-cover"
+        fill
+        onError={() => setFailed(true)}
+        sizes="(max-width: 640px) 80px, 160px"
+        src={url}
+      />
+    </div>
+  );
+}
+
+function CatalogProductDetailsModal({
+  onClose,
+  product,
+}: {
+  onClose: () => void;
+  product: ProductListItem | null;
+}) {
+  return (
+    <Modal
+      className="w-[92vw] max-w-3xl"
+      onClose={onClose}
+      open={product !== null}
+      title={product?.name ?? "Produto"}
+    >
+      {product ? (
+        <div className="space-y-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {product.images.length > 0 ? (
+              product.images.map((image) => (
+                <ProductImagePreview
+                  alt={product.name}
+                  className="aspect-square rounded-[var(--radius-lg)]"
+                  key={image.id}
+                  url={image.url}
+                />
+              ))
+            ) : (
+              <ProductImagePreview
+                alt={product.name}
+                className="aspect-square rounded-[var(--radius-lg)]"
+                url={null}
+              />
+            )}
+          </div>
+          <div className="grid gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4 sm:grid-cols-3">
+            <div>
+              <p className="text-xs text-muted-foreground">SKU</p>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {product.sku ?? "Sem SKU"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Preco</p>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {formatMoney(Number(product.sellingPrice))}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Status</p>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {product.isActive ? "Ativo" : "Arquivado"}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </Modal>
+  );
+}
+
 function CatalogProductsTable({
   products,
 }: {
   products: ReturnType<typeof useProductData>["products"];
 }) {
+  const [selectedProduct, setSelectedProduct] =
+    useState<ProductListItem | null>(null);
   if (products.length === 0) {
     return (
       <Card padding="lg">
@@ -282,8 +424,12 @@ function CatalogProductsTable({
   return (
     <Card padding="lg">
       <div className="mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Produtos do catálogo</h3>
-        <p className="text-xs text-muted-foreground">Itens cadastrados manualmente ou importados</p>
+        <h3 className="text-sm font-semibold text-foreground">
+          Produtos do catálogo
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Itens cadastrados manualmente ou importados
+        </p>
       </div>
 
       <div className="overflow-x-auto">
@@ -315,14 +461,31 @@ function CatalogProductsTable({
           </thead>
           <tbody>
             {products.map((product) => (
-              <tr key={product.id} className="border-b border-border/50 hover:bg-surface-strong/30">
-                <td className="px-3 py-3 text-sm font-medium text-foreground">{product.name}</td>
-                <td className="px-3 py-3 text-sm text-muted-foreground">{product.sku ?? "Sem SKU"}</td>
+              <tr
+                className="cursor-pointer border-b border-border/50 hover:bg-surface-strong/30"
+                key={product.id}
+                onClick={() => setSelectedProduct(product)}
+              >
+                <td className="px-3 py-3 text-sm font-medium text-foreground">
+                  <div className="flex items-center gap-3">
+                    <ProductImagePreview
+                      alt={product.name}
+                      className="h-10 w-10 shrink-0 rounded-[var(--radius-md)]"
+                      url={product.coverImageUrl}
+                    />
+                    <span>{product.name}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-3 text-sm text-muted-foreground">
+                  {product.sku ?? "Sem SKU"}
+                </td>
                 <td className="px-3 py-3 text-right text-sm text-foreground">
                   {formatMoney(Number(product.sellingPrice))}
                 </td>
                 <td className="px-3 py-3 text-right text-sm text-foreground">
-                  {product.latestCost ? formatMoney(Number(product.latestCost.amount)) : "Sem custo"}
+                  {product.latestCost
+                    ? formatMoney(Number(product.latestCost.amount))
+                    : "Sem custo"}
                 </td>
                 <td className="px-3 py-3 text-right text-sm text-foreground">
                   {product.financeDefaults
@@ -348,6 +511,10 @@ function CatalogProductsTable({
           </tbody>
         </table>
       </div>
+      <CatalogProductDetailsModal
+        onClose={() => setSelectedProduct(null)}
+        product={selectedProduct}
+      />
     </Card>
   );
 }
@@ -426,19 +593,32 @@ export function ProductsHome({
 
   if (financialState === "empty") {
     return (
-      <motion.div variants={fadeInVariants} initial="hidden" animate="visible" className="space-y-6">
+      <motion.div
+        variants={fadeInVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-6"
+      >
         <ProductHeader organizationName={organizationName} stats={stats} />
         {marketplaceNotice ? (
           <MarketplaceNoticeCard notice={marketplaceNotice} />
         ) : null}
-        <EmptyCatalogState onAdd={handleAddProduct} onImport={onImportProducts} />
+        <EmptyCatalogState
+          onAdd={handleAddProduct}
+          onImport={onImportProducts}
+        />
       </motion.div>
     );
   }
 
   if (financialState === "no-costs" && stats) {
     return (
-      <motion.div variants={fadeInVariants} initial="hidden" animate="visible" className="space-y-6">
+      <motion.div
+        variants={fadeInVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-6"
+      >
         <ProductHeader organizationName={organizationName} stats={stats} />
         {marketplaceNotice ? (
           <MarketplaceNoticeCard notice={marketplaceNotice} />
@@ -449,7 +629,12 @@ export function ProductsHome({
   }
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6">
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <ProductHeader organizationName={organizationName} stats={stats} />
         {topActions}
@@ -472,7 +657,11 @@ export function ProductsHome({
         {view === "catalog" ? (
           <CatalogProductsTable products={data?.products ?? []} />
         ) : (
-          <ProductTable rows={rows} pagination={pagination} onPageChange={goToPage} />
+          <ProductTable
+            rows={rows}
+            pagination={pagination}
+            onPageChange={goToPage}
+          />
         )}
       </section>
     </motion.div>

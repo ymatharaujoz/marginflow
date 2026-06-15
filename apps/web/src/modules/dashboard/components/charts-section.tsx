@@ -15,9 +15,9 @@ import {
   Cell,
 } from "recharts";
 import { TrendingUp, BarChart3 } from "lucide-react";
-import { Card } from "@marginflow/ui";
+import { Card } from "@lucreii/ui";
 import { slideInUpVariants, containerVariants } from "@/lib/animations";
-import type { DashboardChartsResponse } from "@marginflow/types";
+import type { DashboardChartsResponse } from "@lucreii/types";
 import { formatMetricDate, formatMoneyCompact, formatProviderLabel } from "../utils/formatters";
 
 interface ChartsSectionProps {

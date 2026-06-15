@@ -15,7 +15,7 @@ describe("public auth routes", () => {
       API_PORT: 4000,
       API_PUBLIC_BASE_URL: "http://localhost:4000",
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -42,7 +42,7 @@ describe("public auth routes", () => {
       method: "POST",
       url: "/auth/sign-up",
       payload: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         name: "Mateus",
         password: "password123",
       },
@@ -55,7 +55,7 @@ describe("public auth routes", () => {
       },
       error: null,
     });
-    expect(response.headers["set-cookie"]).toContain("marginflow_api_session=session_token_123");
+    expect(response.headers["set-cookie"]).toContain("lucreii_api_session=session_token_123");
   });
 
   it("sets internal session cookie on sign-in", async () => {
@@ -70,7 +70,7 @@ describe("public auth routes", () => {
       method: "POST",
       url: "/auth/sign-in",
       payload: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         password: "password123",
       },
     });
@@ -82,7 +82,7 @@ describe("public auth routes", () => {
       },
       error: null,
     });
-    expect(response.headers["set-cookie"]).toContain("marginflow_api_session=session_token_123");
+    expect(response.headers["set-cookie"]).toContain("lucreii_api_session=session_token_123");
   });
 
   it("clears internal session cookie on sign-out", async () => {
@@ -91,7 +91,7 @@ describe("public auth routes", () => {
 
     const response = await app.inject({
       headers: {
-        cookie: "marginflow_api_session=session_token_123",
+        cookie: "lucreii_api_session=session_token_123",
       },
       method: "POST",
       url: "/auth/sign-out",
@@ -104,7 +104,7 @@ describe("public auth routes", () => {
       },
       error: null,
     });
-    expect(response.headers["set-cookie"]).toContain("marginflow_api_session=;");
+    expect(response.headers["set-cookie"]).toContain("lucreii_api_session=;");
   });
 
   it("redeems auth exchange ticket even when constructor metadata is unavailable", async () => {
@@ -117,7 +117,7 @@ describe("public auth routes", () => {
       API_PORT: 4000,
       API_PUBLIC_BASE_URL: "http://localhost:4000",
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -152,7 +152,7 @@ describe("public auth routes", () => {
               expiresAt: new Date("2026-12-31T00:00:00.000Z"),
               id: "session_123",
               user: {
-                email: "owner@marginflow.local",
+                email: "owner@lucreii.local",
                 emailVerified: true,
                 id: "user_123",
                 image: null,
@@ -179,9 +179,9 @@ describe("public auth routes", () => {
       };
       vi.spyOn(organizationProvisioningService, "findDefaultOrganization").mockResolvedValueOnce({
         id: "org_123",
-        name: "MarginFlow",
+        name: "Lucreii",
         role: "owner",
-        slug: "marginflow",
+        slug: "lucreii",
       });
 
       const response = await isolatedApp.inject({
@@ -199,16 +199,16 @@ describe("public auth routes", () => {
             onboardingStatus: "complete",
             organization: {
               id: "org_123",
-              name: "MarginFlow",
+              name: "Lucreii",
               role: "owner",
-              slug: "marginflow",
+              slug: "lucreii",
             },
             session: {
               expiresAt: "2026-12-31T00:00:00.000Z",
               id: "session_123",
             },
             user: {
-              email: "owner@marginflow.local",
+              email: "owner@lucreii.local",
               emailVerified: true,
               id: "user_123",
               image: null,

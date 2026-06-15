@@ -15,16 +15,16 @@ function buildCookieValue() {
         onboardingStatus: "complete",
         organization: {
           id: "org_123",
-          name: "MarginFlow",
+          name: "Lucreii",
           role: "owner",
-          slug: "marginflow",
+          slug: "lucreii",
         },
         session: {
           expiresAt: "2026-04-22T00:00:00.000Z",
           id: "session_123",
         },
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_123",
           image: null,
@@ -33,7 +33,7 @@ function buildCookieValue() {
       },
       remoteSessionToken: "remote_session_token_123",
     },
-    "marginflow-web-session-dev-secret",
+    "lucreii-web-session-dev-secret",
   );
 }
 
@@ -94,7 +94,7 @@ describe("readServerBillingState", () => {
                 externalSubscriptionId: null,
                 id: "subscription_123",
                 interval: "monthly",
-                planCode: "marginflow",
+                planCode: "lucreii",
                 status: "inactive",
                 trialEnd: null,
                 trialStart: null,
@@ -129,7 +129,7 @@ describe("readServerBillingState", () => {
         externalSubscriptionId: null,
         id: "subscription_123",
         interval: "monthly",
-        planCode: "marginflow",
+        planCode: "lucreii",
         status: "inactive",
         trialEnd: null,
         trialStart: null,
@@ -140,7 +140,7 @@ describe("readServerBillingState", () => {
       expect.objectContaining({
         cache: "no-store",
         headers: {
-          cookie: "marginflow_api_session=remote_session_token_123",
+          cookie: "lucreii_api_session=remote_session_token_123",
         },
       }),
     );

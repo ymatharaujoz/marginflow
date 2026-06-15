@@ -36,9 +36,9 @@ describe("AppHomePage", () => {
     readServerAuthStateMock.mockResolvedValueOnce({
       organization: {
         id: "org_123",
-        name: "MarginFlow",
+        name: "Lucreii",
         role: "owner",
-        slug: "marginflow",
+        slug: "lucreii",
       },
       user: {
         name: "Mateus",
@@ -74,7 +74,7 @@ describe("AppHomePage", () => {
           id: "company_1",
           taxRateDefault: "0.120000",
         }),
-        organizationName: "MarginFlow",
+        organizationName: "Lucreii",
       }),
       undefined,
     );
@@ -84,9 +84,9 @@ describe("AppHomePage", () => {
     readServerAuthStateMock.mockResolvedValueOnce({
       organization: {
         id: "org_123",
-        name: "MarginFlow",
+        name: "Lucreii",
         role: "owner",
-        slug: "marginflow",
+        slug: "lucreii",
       },
       user: {
         name: "Mateus",

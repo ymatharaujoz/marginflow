@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AuthState } from "@marginflow/types";
+import type { AuthState } from "@lucreii/types";
 import {
   buildRemoteAuthCookieHeader,
   createSignedWebAuthSession,
@@ -10,16 +10,16 @@ const authState: AuthState = {
   onboardingStatus: "complete",
   organization: {
     id: "org_123",
-    name: "MarginFlow",
+    name: "Lucreii",
     role: "owner",
-    slug: "marginflow",
+    slug: "lucreii",
   },
   session: {
     expiresAt: "2026-12-31T00:00:00.000Z",
     id: "session_123",
   },
   user: {
-    email: "owner@marginflow.local",
+    email: "owner@lucreii.local",
     emailVerified: true,
     id: "user_123",
     image: null,
@@ -45,7 +45,7 @@ describe("web auth session", () => {
 
   it("builds the internal api auth cookie header from mirrored session token", () => {
     expect(buildRemoteAuthCookieHeader("remote_session_token_123")).toBe(
-      "marginflow_api_session=remote_session_token_123",
+      "lucreii_api_session=remote_session_token_123",
     );
   });
 });

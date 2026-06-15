@@ -133,7 +133,7 @@ describe("readPublicEnv", () => {
 
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "[marginflow/web] Missing required public environment variables in production.",
+      "[lucreii/web] Missing required public environment variables in production.",
       expect.objectContaining({
         missingKeys: ["NEXT_PUBLIC_APP_URL", "NEXT_PUBLIC_API_BASE_URL"],
         nodeEnv: "production",

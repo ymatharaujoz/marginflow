@@ -49,7 +49,9 @@ export type ManualExpenseFormValues = {
 };
 
 export type ProductRecord = {
+  coverImageUrl: string | null;
   id: string;
+  images: ProductImageRecord[];
   organizationId: string;
   name: string;
   sku: string | null;
@@ -57,6 +59,15 @@ export type ProductRecord = {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ProductImageRecord = {
+  externalIdentifier: string | null;
+  id: string;
+  position: number;
+  productId: string;
+  source: string;
+  url: string;
 };
 
 export type ProductCostRecord = {

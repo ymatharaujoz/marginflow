@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { RefreshCw, AlertCircle } from "lucide-react";
-import { Card, Button } from "@marginflow/ui";
+import { Card, Button } from "@lucreii/ui";
 import { ApiClientError } from "@/lib/api/client";
 
 interface ErrorStateProps {

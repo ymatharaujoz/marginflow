@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
-import { authExchangeTickets, sessions } from "@marginflow/database";
+import { authExchangeTickets, sessions } from "@lucreii/database";
 import { eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import { OrganizationProvisioningService } from "./organization-provisioning.service";
@@ -74,7 +74,7 @@ export class AuthExchangeService {
 
     await this.db.insert(authExchangeTickets).values(insertValues);
 
-    console.info("[marginflow/api] Auth exchange ticket created.", {
+    console.info("[lucreii/api] Auth exchange ticket created.", {
       hasOrganizationId: Boolean(input.organizationId),
       sessionId: input.sessionId,
       userId: input.userId,
@@ -90,7 +90,7 @@ export class AuthExchangeService {
       });
 
       if (!record || record.usedAt || toDate(record.expiresAt).getTime() <= Date.now()) {
-        console.warn("[marginflow/api] Auth exchange ticket rejected.", {
+        console.warn("[lucreii/api] Auth exchange ticket rejected.", {
           code: !record ? "ticket_not_found" : record.usedAt ? "ticket_already_used" : "ticket_expired",
         });
         throw new UnauthorizedException("Invalid or expired auth exchange ticket.");
@@ -104,7 +104,7 @@ export class AuthExchangeService {
       });
 
       if (!persistedSession?.user || toDate(persistedSession.expiresAt).getTime() <= Date.now()) {
-        console.warn("[marginflow/api] Auth exchange ticket rejected.", {
+        console.warn("[lucreii/api] Auth exchange ticket rejected.", {
           code: !persistedSession?.user ? "remote_session_missing" : "remote_session_expired",
           sessionId: record.sessionId,
           userId: record.userId,
@@ -119,7 +119,7 @@ export class AuthExchangeService {
         })
         .where(eq(authExchangeTickets.id, record.id));
 
-      console.info("[marginflow/api] Auth exchange ticket consumed.", {
+      console.info("[lucreii/api] Auth exchange ticket consumed.", {
         sessionId: record.sessionId,
         userId: record.userId,
       });

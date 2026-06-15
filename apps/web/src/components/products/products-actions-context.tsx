@@ -6,7 +6,7 @@ import type {
   ProductListItem,
   SyncedProductActionResult,
   SyncedProductRecord,
-} from "@marginflow/types";
+} from "@lucreii/types";
 
 
 export type FeedbackTone = "critical" | "neutral";

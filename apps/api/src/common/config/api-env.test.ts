@@ -125,13 +125,13 @@ describe("readApiEnv", () => {
       STRIPE_PRICE_ANNUAL: "price_annual",
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
-      AUTH_TRUSTED_ORIGINS: "http://localhost:3000, https://marginflow.app, https://admin.marginflow.app ",
+      AUTH_TRUSTED_ORIGINS: "http://localhost:3000, https://lucreii.app, https://admin.lucreii.app ",
     });
 
     expect(readTrustedOriginList(env)).toEqual([
       "http://localhost:3000",
-      "https://marginflow.app",
-      "https://admin.marginflow.app",
+      "https://lucreii.app",
+      "https://admin.lucreii.app",
     ]);
   });
 

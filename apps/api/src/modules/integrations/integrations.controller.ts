@@ -40,7 +40,9 @@ export class IntegrationsController {
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,
   ) {
     return {
-      data: await this.integrationsService.listConnections(authContext.organization!.id),
+      data: await this.integrationsService.listConnections(
+        authContext.organization!.id,
+      ),
       error: null,
     };
   }
@@ -80,7 +82,10 @@ export class IntegrationsController {
     @Res() reply: FastifyReply,
   ) {
     reply.status(302);
-    reply.header("location", await this.integrationsService.handleShopeeCallback(query));
+    reply.header(
+      "location",
+      await this.integrationsService.handleShopeeCallback(query),
+    );
     return reply.send();
   }
 
@@ -101,9 +106,7 @@ export class IntegrationsController {
   }
 
   @Post("mercadolivre/webhook")
-  async handleMercadoLivreWebhook(
-    @Body() body: MercadoLivreNotificationDto,
-  ) {
+  async handleMercadoLivreWebhook(@Body() body: MercadoLivreNotificationDto) {
     return {
       data: await this.integrationsService.handleMercadoLivreNotification(
         body,
@@ -137,6 +140,20 @@ export class IntegrationsController {
         authContext.organization!.id,
         params.provider,
       ),
+      error: null,
+    };
+  }
+
+  @Post("mercadolivre/catalog/import")
+  @UseGuards(EntitlementGuard)
+  async importMercadoLivreCatalog(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+  ) {
+    return {
+      data: await this.integrationsService.importMercadoLivreCatalog({
+        organizationId: authContext.organization!.id,
+        userId: authContext.user.id,
+      }),
       error: null,
     };
   }

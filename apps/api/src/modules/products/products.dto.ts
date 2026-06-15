@@ -9,7 +9,7 @@ import {
   productAnalyticsQuerySchema,
   productManualCreateSchema,
   productUpdateSchema,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 import type {
   AdCostFormInput,
   AdCostUpdateInput,
@@ -21,7 +21,7 @@ import type {
   ProductFormInput,
   ProductManualCreateInput,
   ProductUpdateInput,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 
 export class CreateProductRequestDto implements ProductFormInput {
   static schema = productFormSchema;

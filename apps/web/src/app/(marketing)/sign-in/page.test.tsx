@@ -63,12 +63,12 @@ describe("SignInPage", () => {
     readServerAuthStateMock.mockResolvedValueOnce({
       organization: {
         id: "org_123",
-        name: "MarginFlow",
+        name: "Lucreii",
         role: "owner",
-        slug: "marginflow",
+        slug: "lucreii",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,

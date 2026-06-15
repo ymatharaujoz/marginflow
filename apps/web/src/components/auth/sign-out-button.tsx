@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@marginflow/ui";
+import { Button } from "@lucreii/ui";
 import { authClient } from "@/lib/auth-client";
 
 export function SignOutButton() {

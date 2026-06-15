@@ -7,13 +7,13 @@ import type {
   DashboardRecentSyncResponse,
   DashboardSummaryResponse,
   IntegrationProviderSlug,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import {
   dashboardChartsApiResponseSchema,
   dashboardProfitabilityApiResponseSchema,
   dashboardRecentSyncApiResponseSchema,
   dashboardSummaryApiResponseSchema,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { deriveBusinessStatus, determineDashboardFinancialState } from "../calculations/financial-state";
 

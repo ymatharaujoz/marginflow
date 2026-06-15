@@ -5,7 +5,7 @@ import {
   signUpWithPasswordSchema,
 } from "./auth";
 
-describe("@marginflow/validation auth schemas", () => {
+describe("@lucreii/validation auth schemas", () => {
   it("rejects invalid sign-in payloads", () => {
     const result = signInWithPasswordSchema.safeParse({
       email: "invalid",
@@ -21,7 +21,7 @@ describe("@marginflow/validation auth schemas", () => {
 
   it("requires name for sign-up payloads", () => {
     const result = signUpWithPasswordSchema.safeParse({
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       name: "",
       password: "password123",
     });
@@ -32,7 +32,7 @@ describe("@marginflow/validation auth schemas", () => {
 
   it("requires confirm password for sign-up form payloads", () => {
     const result = signUpWithPasswordFormSchema.safeParse({
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       name: "Mateus",
       password: "password123",
     });
@@ -42,7 +42,7 @@ describe("@marginflow/validation auth schemas", () => {
 
   it("rejects sign-up form payloads when passwords do not match", () => {
     const result = signUpWithPasswordFormSchema.safeParse({
-      email: "owner@marginflow.local",
+      email: "owner@lucreii.local",
       name: "Mateus",
       password: "password123",
       confirmPassword: "different123",

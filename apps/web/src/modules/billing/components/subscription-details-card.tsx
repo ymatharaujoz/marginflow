@@ -7,7 +7,7 @@ import {
   ArrowUpRight,
   AlertTriangle,
 } from "lucide-react";
-import { Card, Button, Badge } from "@marginflow/ui";
+import { Card, Button, Badge } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 
 interface SubscriptionDetailsCardProps {

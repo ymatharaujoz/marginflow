@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, Container } from "@marginflow/ui";
+import { Button, Card, Container } from "@lucreii/ui";
 
 export default function AppErrorPage({
   error,

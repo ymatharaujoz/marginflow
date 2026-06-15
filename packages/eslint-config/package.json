@@ -1,5 +1,5 @@
 {
-  "name": "@marginflow/eslint-config",
+  "name": "@lucreii/eslint-config",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,10 +8,10 @@
     "./next": "./next.mjs"
   },
   "scripts": {
-    "build": "node -e \"console.log('No build step required for @marginflow/eslint-config.')\"",
-    "lint": "node -e \"console.log('No lint step required for @marginflow/eslint-config.')\"",
-    "typecheck": "node -e \"console.log('No typecheck step required for @marginflow/eslint-config.')\"",
-    "test": "node -e \"console.log('No tests in @marginflow/eslint-config yet.')\""
+    "build": "node -e \"console.log('No build step required for @lucreii/eslint-config.')\"",
+    "lint": "node -e \"console.log('No lint step required for @lucreii/eslint-config.')\"",
+    "typecheck": "node -e \"console.log('No typecheck step required for @lucreii/eslint-config.')\"",
+    "test": "node -e \"console.log('No tests in @lucreii/eslint-config yet.')\""
   },
   "devDependencies": {
     "eslint-config-next": "16.2.4"

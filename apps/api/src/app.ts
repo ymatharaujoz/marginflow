@@ -24,7 +24,7 @@ export async function buildApp(
   env: ApiRuntimeEnv = readApiEnv(),
 ): Promise<NestFastifyApplication> {
   for (const warning of readMercadoLivreOauthWarnings(env)) {
-    console.warn("[marginflow/api] Mercado Livre OAuth warning.", { warning });
+    console.warn("[lucreii/api] Mercado Livre OAuth warning.", { warning });
   }
 
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -69,7 +69,7 @@ export async function buildApp(
       const sessionToken = readApiSessionTokenFromCookieHeader(request.headers.cookie);
 
       if (!sessionToken) {
-        console.error("[marginflow/api] Internal auth finalize missing session cookie.", {
+        console.error("[lucreii/api] Internal auth finalize missing session cookie.", {
           nextPath,
           origin: buildAbsoluteRequestUrl(request).origin,
           path: request.url,
@@ -84,7 +84,7 @@ export async function buildApp(
       });
 
       if (!authContext) {
-        console.error("[marginflow/api] Internal auth finalize could not resolve session context.", {
+        console.error("[lucreii/api] Internal auth finalize could not resolve session context.", {
           nextPath,
           origin: buildAbsoluteRequestUrl(request).origin,
           path: request.url,
@@ -106,7 +106,7 @@ export async function buildApp(
         webAppOrigin: env.WEB_APP_ORIGIN,
       });
 
-      console.info("[marginflow/api] Internal auth finalize redirected to web handoff.", {
+      console.info("[lucreii/api] Internal auth finalize redirected to web handoff.", {
         origin: buildAbsoluteRequestUrl(request).origin,
         path: request.url,
         redirectUrl,

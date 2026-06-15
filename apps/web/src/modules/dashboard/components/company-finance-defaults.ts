@@ -1,4 +1,4 @@
-import type { Company } from "@marginflow/types";
+import type { Company } from "@lucreii/types";
 
 function parseDigitsToDecimalString(value: string) {
   const digits = value.replace(/\D/g, "");

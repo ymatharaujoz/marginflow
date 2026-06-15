@@ -1,5 +1,5 @@
 {
-  "name": "marginflow",
+  "name": "lucreii",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.33.0",
@@ -8,17 +8,17 @@
   },
   "scripts": {
     "dev": "corepack pnpm exec turbo run dev --parallel",
-    "dev:api": "corepack pnpm --filter @marginflow/api dev",
-    "dev:web": "corepack pnpm --filter @marginflow/web dev",
+    "dev:api": "corepack pnpm --filter @lucreii/api dev",
+    "dev:web": "corepack pnpm --filter @lucreii/web dev",
     "ngrok:mercadolivre:callback": "node ./scripts/ngrok-mercadolivre-callback.mjs",
     "ngrok:mercadolivre:callback:url": "node ./scripts/print-mercadolivre-callback-url.mjs",
-    "db:generate": "corepack pnpm --filter @marginflow/database db:generate",
-    "db:migrate": "corepack pnpm --filter @marginflow/database db:migrate",
-    "db:diagnose": "corepack pnpm --filter @marginflow/database db:diagnose",
-    "db:studio": "corepack pnpm --filter @marginflow/database db:studio",
+    "db:generate": "corepack pnpm --filter @lucreii/database db:generate",
+    "db:migrate": "corepack pnpm --filter @lucreii/database db:migrate",
+    "db:diagnose": "corepack pnpm --filter @lucreii/database db:diagnose",
+    "db:studio": "corepack pnpm --filter @lucreii/database db:studio",
     "build": "corepack pnpm exec turbo run build",
-    "start:api": "corepack pnpm --filter @marginflow/api start",
-    "start": "corepack pnpm --filter @marginflow/web start",
+    "start:api": "corepack pnpm --filter @lucreii/api start",
+    "start": "corepack pnpm --filter @lucreii/web start",
     "lint": "corepack pnpm exec turbo run lint && eslint src vitest.config.ts",
     "typecheck": "corepack pnpm exec turbo run typecheck && tsc --noEmit",
     "test": "corepack pnpm exec turbo run test && vitest run --passWithNoTests",
@@ -26,10 +26,10 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@marginflow/validation": "workspace:*"
+    "@lucreii/validation": "workspace:*"
   },
   "devDependencies": {
-    "@marginflow/eslint-config": "workspace:*",
+    "@lucreii/eslint-config": "workspace:*",
     "eslint": "^9.39.0",
     "pnpm": "10.33.0",
     "prettier": "^3.6.2",

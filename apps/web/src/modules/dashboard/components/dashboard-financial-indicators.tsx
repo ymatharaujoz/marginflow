@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Minus, DollarSign, Percent, Scale, Settings2, PiggyBank } from "lucide-react";
-import type { Company, DashboardProfitabilityResponse, DashboardSummaryResponse } from "@marginflow/types";
+import type { Company, DashboardProfitabilityResponse, DashboardSummaryResponse } from "@lucreii/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { containerVariants, itemVariants } from "@/lib/animations";
-import { Card, Button, Input } from "@marginflow/ui";
+import { Card, Button, Input } from "@lucreii/ui";
 import {
   buildCompanyDefaultsPatch,
   formatCurrencyInput,

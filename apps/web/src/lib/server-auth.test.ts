@@ -21,7 +21,7 @@ const mirroredAuthState = {
     id: "session_123",
   },
   user: {
-    email: "owner@marginflow.local",
+    email: "owner@lucreii.local",
     emailVerified: true,
     id: "user_123",
     image: null,
@@ -35,7 +35,7 @@ function buildCookieValue() {
       authState: mirroredAuthState,
       remoteSessionToken: "remote_session_token_123",
     },
-    "marginflow-web-session-dev-secret",
+    "lucreii-web-session-dev-secret",
   );
 }
 
@@ -90,7 +90,7 @@ describe("readServerAuthState", () => {
 
     await expect(readServerAuthState({ mode: "soft" })).resolves.toEqual(mirroredAuthState);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "[marginflow/web] Auth state request failed in soft mode.",
+      "[lucreii/web] Auth state request failed in soft mode.",
       expect.objectContaining({
         endpoint: "https://marginflow-production.up.railway.app/auth-state/me",
         status: 500,
@@ -126,7 +126,7 @@ describe("readServerAuthState", () => {
       expect.objectContaining({
         cache: "no-store",
         headers: {
-          cookie: "marginflow_api_session=remote_session_token_123",
+          cookie: "lucreii_api_session=remote_session_token_123",
         },
       }),
     );

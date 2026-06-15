@@ -4,7 +4,7 @@ const getWebSessionSecretMock = vi.hoisted(() => vi.fn(() => "web-session-secret
 const createSignedWebAuthSessionMock = vi.hoisted(() => vi.fn(() => "signed-web-session"));
 
 vi.mock("@/lib/web-auth-session", () => ({
-  WEB_AUTH_SESSION_COOKIE_NAME: "marginflow.web_session",
+  WEB_AUTH_SESSION_COOKIE_NAME: "lucreii.web_session",
   createSignedWebAuthSession: createSignedWebAuthSessionMock,
   getWebSessionSecret: getWebSessionSecretMock,
 }));
@@ -26,16 +26,16 @@ describe("GET /auth/complete", () => {
                 onboardingStatus: "complete",
                 organization: {
                   id: "org_123",
-                  name: "MarginFlow",
+                  name: "Lucreii",
                   role: "owner",
-                  slug: "marginflow",
+                  slug: "lucreii",
                 },
                 session: {
                   expiresAt: "2026-12-31T00:00:00.000Z",
                   id: "session_123",
                 },
                 user: {
-                  email: "owner@marginflow.local",
+                  email: "owner@lucreii.local",
                   emailVerified: true,
                   id: "user_123",
                   image: null,
@@ -84,6 +84,6 @@ describe("GET /auth/complete", () => {
     expect(response.headers.get("location")).toBe(
       "https://marginflow-web.vercel.app/auth/verify-session?next=%2Fapp",
     );
-    expect(response.headers.get("set-cookie")).toContain("marginflow.web_session=signed-web-session");
+    expect(response.headers.get("set-cookie")).toContain("lucreii.web_session=signed-web-session");
   });
 });

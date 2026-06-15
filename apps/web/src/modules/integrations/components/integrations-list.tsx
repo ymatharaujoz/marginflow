@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Store, ExternalLink, Power, AlertCircle, CheckCircle2 } from "lucide-react";
-import { Card, Button, Badge } from "@marginflow/ui";
+import { Card, Button, Badge } from "@lucreii/ui";
 import { containerVariants, itemVariants } from "@/lib/animations";
 import { translateConnectionUiStatus } from "@/lib/pt-br/api-ui";
 import { formatDateTime } from "../lib/formatters";

@@ -1,6 +1,6 @@
-# MarginFlow
+# Lucreii
 
-MarginFlow is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M5 auth hardening baseline**: pnpm workspaces, Turborepo orchestration, a real Next.js web app in `apps/web`, a real NestJS Fastify API in `apps/api`, Better Auth-backed route protection, unified origin trust, and a lifecycle-managed database runtime.
+Lucreii is a financial management SaaS for marketplace sellers and small businesses. The current repository state is the **M5 auth hardening baseline**: pnpm workspaces, Turborepo orchestration, a real Next.js web app in `apps/web`, a real NestJS Fastify API in `apps/api`, Better Auth-backed route protection, unified origin trust, and a lifecycle-managed database runtime.
 
 ## Target architecture
 
@@ -47,7 +47,10 @@ The repository currently contains:
 
 1. Enable Corepack if needed: `corepack enable`
 2. Install dependencies: `corepack pnpm install`
-3. Copy `.env.example` to root `.env` and fill in Supabase dev runtime + migration values
+3. Copy each app's `.env.example` to `.env` and fill in the real values:
+   - `apps/web/.env`
+   - `apps/api/.env`
+   - Root `.env` is kept minimal (database + ngrok scripts) and also needs to be created from `.env.example`
 4. Run the workspace pipeline as needed:
    - `corepack pnpm dev` for workspace development commands
    - `corepack pnpm dev:api` to run the NestJS API scaffold
@@ -71,18 +74,41 @@ The frontend usually runs at `http://localhost:3000`, but Next.js will move to a
 
 ## Environment strategy
 
-Runtime environment parsing is owned by `packages/validation`, with `apps/web` consuming the shared public env validator.
+Environment variables are split per project. Each app owns its `.env` and `.env.example`; the root `.env` is kept minimal for database tooling and monorepo scripts only.
 
-- `NEXT_PUBLIC_*` variables are treated as client-visible
-- `NEXT_PUBLIC_API_BASE_URL` configures the frontend API base for NestJS communication; in production it should point directly to the Railway API origin such as `https://marginflow-production.up.railway.app`
-- `WEB_APP_ORIGIN`, `API_HOST`, `API_PORT`, `API_DB_POOL_MAX`, `BETTER_AUTH_URL`, `API_PUBLIC_BASE_URL`, and `AUTH_TRUSTED_ORIGINS` configure the backend bootstrap and auth/browser origin trust
+### `apps/web` variables (Vercel)
+
+- `NEXT_PUBLIC_APP_URL` — public origin of the web app
+- `NEXT_PUBLIC_API_BASE_URL` — public origin of the Railway API
+- `WEB_SESSION_SECRET` — server-only secret for the local SSR session
+- `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_ICON`, `NEXT_PUBLIC_PRICE_MONTHLY_LABEL`, `NEXT_PUBLIC_PRICE_ANNUAL_LABEL`, `NEXT_PUBLIC_WHATSAPP_PHONE`, `NEXT_PUBLIC_WHATSAPP_DEMO_URL` — public branding/marketing
+- `NEXT_PUBLIC_USE_MOCK_DATA` — local development only; never enable in production
+
+### `apps/api` variables (Railway)
+
+- `API_HOST`, `API_PORT`, `API_DB_POOL_MAX` — runtime binding
+- `API_PUBLIC_BASE_URL` — public origin of the API
+- `WEB_APP_ORIGIN` — public origin of the web app (the API no longer falls back to `NEXT_PUBLIC_APP_URL`)
+- `AUTH_TRUSTED_ORIGINS` — additional trusted browser origins for auth/CORS
+- `BETTER_AUTH_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_API_KEY` — Better Auth configuration
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` — OAuth configuration
+- `DATABASE_URL` — runtime DB URL
+- `DATABASE_MIGRATION_URL` — preferred DB URL for Drizzle migrations, seed, and Studio
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL` — billing
+- `MERCADOLIVRE_*` and `SHOPEE_*` — optional marketplace integrations
+- `SYNC_RELAX_GUARDS` — local/testing helper; ignored in production
+
+### Root variables
+
+- `DATABASE_URL`, `DATABASE_MIGRATION_URL` — used by `packages/database` when migrations/studio are run from the workspace root
+- `NGROK_AUTHTOKEN`, `NGROK_DOMAIN` — used by `scripts/ngrok-mercadolivre-callback` and `scripts/print-mercadolivre-callback-url`
+
+### Rules
+
+- `NEXT_PUBLIC_*` variables are client-visible and live only in `apps/web`
+- secrets stay server-only and live only in `apps/api` (or the minimal root `.env` for tooling)
 - `BETTER_AUTH_URL` should stay on the direct Railway auth surface such as `https://marginflow-production.up.railway.app/auth`, while `API_PUBLIC_BASE_URL` should stay on the Railway API origin such as `https://marginflow-production.up.railway.app`
-- `DATABASE_URL` is the runtime DB URL for app processes
-- `DATABASE_MIGRATION_URL` is the preferred DB URL for Drizzle migrations, seed, and Studio
-- `BETTER_AUTH_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET` are required for auth boot
 - `SUPABASE_*` values remain optional and reserved for later service-level integrations
-- secrets stay server-only
-- the repo ships `.env.example` as the canonical variable list for local setup
 
 ## Architecture rules
 

@@ -13,12 +13,13 @@ describe("MercadoLivreProvider", () => {
       API_PORT: 4000,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
       MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
-      MERCADOLIVRE_REDIRECT_URI: "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
       NODE_ENV: "test",
       STRIPE_PRICE_ANNUAL: "price_annual",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -51,12 +52,13 @@ describe("MercadoLivreProvider", () => {
       API_PORT: 4000,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
       MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
-      MERCADOLIVRE_REDIRECT_URI: "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
       MERCADOLIVRE_USE_PKCE: true,
       NODE_ENV: "test",
       STRIPE_PRICE_ANNUAL: "price_annual",
@@ -85,12 +87,13 @@ describe("MercadoLivreProvider", () => {
       API_PORT: 4000,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
       MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
-      MERCADOLIVRE_REDIRECT_URI: "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
       NODE_ENV: "test",
       STRIPE_PRICE_ANNUAL: "price_annual",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -157,12 +160,13 @@ describe("MercadoLivreProvider", () => {
       API_PORT: 4000,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
       MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
-      MERCADOLIVRE_REDIRECT_URI: "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
       MERCADOLIVRE_USE_PKCE: true,
       NODE_ENV: "test",
       STRIPE_PRICE_ANNUAL: "price_annual",
@@ -230,12 +234,13 @@ describe("MercadoLivreProvider", () => {
       API_PORT: 4000,
       BETTER_AUTH_SECRET: "secret",
       BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       GOOGLE_CLIENT_ID: "google-client-id",
       GOOGLE_CLIENT_SECRET: "google-client-secret",
       MERCADOLIVRE_CLIENT_ID: "ml-client-id",
       MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
-      MERCADOLIVRE_REDIRECT_URI: "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
       NODE_ENV: "test",
       STRIPE_PRICE_ANNUAL: "price_annual",
       STRIPE_PRICE_MONTHLY: "price_monthly",
@@ -334,9 +339,220 @@ describe("MercadoLivreProvider", () => {
     });
 
     expect(result.orders[0]?.fees).toEqual([
-      expect.objectContaining({ amount: "12.00", feeType: "marketplace_commission" }),
+      expect.objectContaining({
+        amount: "12.00",
+        feeType: "marketplace_commission",
+      }),
       expect.objectContaining({ amount: "3.00", feeType: "fixed_fee" }),
       expect.objectContaining({ amount: "9.00", feeType: "shipping_cost" }),
     ]);
+  });
+
+  it("imports active and paused listings, expanding variations with stable SKUs and pictures", async () => {
+    const provider = new MercadoLivreProvider({
+      API_PUBLIC_BASE_URL: "http://localhost:4000",
+      AUTH_SESSION_SECRET: "secret",
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      MERCADOLIVRE_CLIENT_ID: "client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_USE_PKCE: false,
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    } as never);
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: ["MLB1"],
+            scroll_id: "active-next",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [],
+            scroll_id: "active-next",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: ["MLB2"],
+            scroll_id: "paused-next",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [],
+            scroll_id: "paused-next",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              code: 200,
+              body: {
+                id: "MLB1",
+                title: "Camiseta",
+                price: 59.9,
+                status: "active",
+                seller_custom_field: null,
+                pictures: [
+                  {
+                    id: "PIC-RED",
+                    secure_url: "https://http2.mlstatic.com/red.jpg",
+                  },
+                  {
+                    id: "PIC-BLUE",
+                    secure_url: "https://http2.mlstatic.com/blue.jpg",
+                  },
+                ],
+                variations: [
+                  {
+                    id: 101,
+                    price: 64.9,
+                    seller_custom_field: "CAM-RED-M",
+                    picture_ids: ["PIC-RED"],
+                    attribute_combinations: [
+                      { name: "Cor", value_name: "Vermelho" },
+                      { name: "Tamanho", value_name: "M" },
+                    ],
+                  },
+                  {
+                    id: 102,
+                    price: 69.9,
+                    seller_custom_field: null,
+                    picture_ids: ["PIC-BLUE"],
+                    attribute_combinations: [
+                      { name: "Cor", value_name: "Azul" },
+                    ],
+                  },
+                ],
+              },
+            },
+            {
+              code: 200,
+              body: {
+                id: "MLB2",
+                title: "Caneca",
+                price: 39.9,
+                status: "paused",
+                seller_custom_field: null,
+                pictures: [
+                  {
+                    id: "PIC-MUG",
+                    secure_url: "https://http2.mlstatic.com/mug.jpg",
+                  },
+                ],
+                variations: [],
+              },
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.importCatalog({
+      connection: {
+        accessToken: "access-token",
+        externalAccountId: "seller-1",
+      } as never,
+      organizationId: "org-1",
+    });
+
+    expect(result).toEqual([
+      {
+        externalProductId: "MLB1:101",
+        images: ["https://http2.mlstatic.com/red.jpg"],
+        isActive: true,
+        metadata: { itemId: "MLB1", variationId: "101" },
+        sellingPrice: "64.90",
+        sku: "CAM-RED-M",
+        title: "Camiseta - Cor: Vermelho, Tamanho: M",
+      },
+      {
+        externalProductId: "MLB1:102",
+        images: ["https://http2.mlstatic.com/blue.jpg"],
+        isActive: true,
+        metadata: { itemId: "MLB1", variationId: "102" },
+        sellingPrice: "69.90",
+        sku: "ML-MLB1-102",
+        title: "Camiseta - Cor: Azul",
+      },
+      {
+        externalProductId: "MLB2",
+        images: ["https://http2.mlstatic.com/mug.jpg"],
+        isActive: false,
+        metadata: { itemId: "MLB2", variationId: null },
+        sellingPrice: "39.90",
+        sku: "ML-MLB2",
+        title: "Caneca",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("status=active");
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("status=paused");
+  });
+
+  it("retries catalog requests after a transient provider failure", async () => {
+    const provider = new MercadoLivreProvider({
+      API_PUBLIC_BASE_URL: "http://localhost:4000",
+      AUTH_SESSION_SECRET: "secret",
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      MERCADOLIVRE_CLIENT_ID: "client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      MERCADOLIVRE_USE_PKCE: false,
+      NODE_ENV: "test",
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    } as never);
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("temporarily unavailable", { status: 503 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ results: [] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      provider.importCatalog({
+        connection: {
+          accessToken: "access-token",
+          externalAccountId: "seller-1",
+        } as never,
+        organizationId: "org-1",
+      }),
+    ).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

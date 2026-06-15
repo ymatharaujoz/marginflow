@@ -1,4 +1,4 @@
-import type { DashboardSummaryMetrics } from "@marginflow/types";
+import type { DashboardSummaryMetrics } from "@lucreii/types";
 
 /**
  * Mensagens vindas da API (inglês e/ou pt-BR) — normalizamos para pt-BR na interface.

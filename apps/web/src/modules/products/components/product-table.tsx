@@ -12,7 +12,7 @@ import {
   Store,
   X,
 } from "lucide-react";
-import { Badge, Card, EmptyState } from "@marginflow/ui";
+import { Badge, Card, EmptyState } from "@lucreii/ui";
 import { Pagination } from "@/components/ui-premium/pagination";
 import { slideInUpVariants } from "@/lib/animations";
 import { ProductDetailsModal } from "./product-details-modal";

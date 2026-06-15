@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { dashboardSummaryApiResponseSchema } from "@marginflow/validation";
+import { dashboardSummaryApiResponseSchema } from "@lucreii/validation";
 import { createApiClient } from "@/lib/api/client";
 
 describe("createApiClient", () => {

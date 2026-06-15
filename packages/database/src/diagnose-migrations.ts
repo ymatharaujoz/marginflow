@@ -51,7 +51,7 @@ then re-run migrations. Example (PostgreSQL; adjust for your host):
   CREATE SCHEMA public;
   -- If you use Supabase, re-apply default grants on public (Dashboard → SQL or project docs).
 
-Then: corepack pnpm --filter @marginflow/database db:migrate
+Then: corepack pnpm --filter @lucreii/database db:migrate
 `);
     }
   } finally {

@@ -12,16 +12,19 @@ import { randomBytes } from "node:crypto";
 import {
   externalProducts,
   marketplaceConnections,
+  productImages,
+  products,
   type DatabaseClient,
   type MarketplaceConnection,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import type {
   IntegrationConnectionRecord,
   IntegrationConnectResponse,
   IntegrationProviderSlug,
+  MarketplaceCatalogImportResult,
   SyncedProductActionResult,
   SyncedProductRecord,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { and, desc, eq } from "drizzle-orm";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
@@ -102,6 +105,11 @@ function toDecimalString(value: number | string | null | undefined) {
   return "0.00";
 }
 
+function normalizeSku(value: string | null | undefined) {
+  const normalized = value?.trim().toUpperCase();
+  return normalized ? normalized : null;
+}
+
 @Injectable()
 export class IntegrationsService {
   private readonly providers: IntegrationProvider[];
@@ -121,21 +129,32 @@ export class IntegrationsService {
   }
 
   private getStateSecret() {
-    return this.env.AUTH_SESSION_SECRET ?? this.env.BETTER_AUTH_SECRET ?? this.env.STRIPE_WEBHOOK_SECRET;
+    return (
+      this.env.AUTH_SESSION_SECRET ??
+      this.env.BETTER_AUTH_SECRET ??
+      this.env.STRIPE_WEBHOOK_SECRET
+    );
   }
 
   private createCodeVerifier() {
     return randomBytes(32).toString("base64url");
   }
 
-  async listConnections(organizationId: string): Promise<IntegrationConnectionRecord[]> {
+  async listConnections(
+    organizationId: string,
+  ): Promise<IntegrationConnectionRecord[]> {
     const existingRows = await this.db.query.marketplaceConnections.findMany({
       where: (table) => eq(table.organizationId, organizationId),
     });
-    const rowsByProvider = new Map(existingRows.map((row) => [row.provider, row] as const));
+    const rowsByProvider = new Map(
+      existingRows.map((row) => [row.provider, row] as const),
+    );
 
     return this.providers.map((provider) =>
-      this.toConnectionRecord(provider, rowsByProvider.get(provider.provider) ?? null),
+      this.toConnectionRecord(
+        provider,
+        rowsByProvider.get(provider.provider) ?? null,
+      ),
     );
   }
 
@@ -164,7 +183,9 @@ export class IntegrationsService {
         state,
       });
       const callbackHost =
-        providerSlug === "mercadolivre" ? new URL(this.getMercadoLivreRedirectUri()).host : "n/a";
+        providerSlug === "mercadolivre"
+          ? new URL(this.getMercadoLivreRedirectUri()).host
+          : "n/a";
 
       this.logger.log(
         `Starting ${providerSlug} authorization flow (callbackHost=${callbackHost}, statePresent=${state ? "yes" : "no"}, pkce=${codeVerifier ? "enabled" : "disabled"})`,
@@ -201,7 +222,10 @@ export class IntegrationsService {
         );
       }
 
-      const state = readSignedIntegrationState(query.state, this.getStateSecret());
+      const state = readSignedIntegrationState(
+        query.state,
+        this.getStateSecret(),
+      );
 
       if (state.provider !== "mercadolivre") {
         throw new IntegrationProviderError(
@@ -281,7 +305,10 @@ export class IntegrationsService {
         );
       }
 
-      const state = readSignedIntegrationState(query.state, this.getStateSecret());
+      const state = readSignedIntegrationState(
+        query.state,
+        this.getStateSecret(),
+      );
       if (state.provider !== "shopee") {
         throw new IntegrationProviderError(
           "O state retornado não corresponde ao provedor esperado (Shopee)",
@@ -407,7 +434,10 @@ export class IntegrationsService {
     const provider = this.getProvider(providerSlug);
     const existing = await this.db.query.marketplaceConnections.findFirst({
       where: (table) =>
-        and(eq(table.organizationId, organizationId), eq(table.provider, providerSlug)),
+        and(
+          eq(table.organizationId, organizationId),
+          eq(table.provider, providerSlug),
+        ),
     });
 
     await provider.disconnect(existing ?? null);
@@ -464,6 +494,278 @@ export class IntegrationsService {
     });
   }
 
+  async importMercadoLivreCatalog(context: {
+    organizationId: string;
+    userId: string;
+  }): Promise<MarketplaceCatalogImportResult> {
+    await this.productsService.assertCatalogImportAllowed(context);
+
+    const connection = await this.db.query.marketplaceConnections.findFirst({
+      where: (table) =>
+        and(
+          eq(table.organizationId, context.organizationId),
+          eq(table.provider, "mercadolivre"),
+        ),
+    });
+
+    if (
+      !connection ||
+      connection.status !== "connected" ||
+      !connection.accessToken ||
+      !connection.externalAccountId ||
+      isExpired(connection.tokenExpiresAt)
+    ) {
+      throw new UnauthorizedException(
+        "Conecte novamente sua conta do Mercado Livre antes de importar o catálogo",
+      );
+    }
+
+    const provider = this.getProvider("mercadolivre");
+    if (!provider.importCatalog) {
+      throw new ServiceUnavailableException(
+        "Importação de catálogo não está disponível para o Mercado Livre",
+      );
+    }
+
+    let catalogProducts;
+    try {
+      catalogProducts = await provider.importCatalog({
+        connection,
+        organizationId: context.organizationId,
+      });
+    } catch (error) {
+      this.rethrowProviderError(error);
+    }
+
+    const [productRows, externalProductRows, imageRows] = await Promise.all([
+      this.db.query.products.findMany({
+        where: (table) => eq(table.organizationId, context.organizationId),
+      }),
+      this.db.query.externalProducts.findMany({
+        where: (table) =>
+          and(
+            eq(table.organizationId, context.organizationId),
+            eq(table.provider, "mercadolivre"),
+          ),
+      }),
+      this.db.query.productImages.findMany({
+        where: (table) => eq(table.organizationId, context.organizationId),
+      }),
+    ]);
+    const productsById = new Map(
+      productRows.map((product) => [product.id, product] as const),
+    );
+    const productsBySku = new Map<string, typeof productRows>();
+    for (const product of productRows) {
+      const sku = normalizeSku(product.sku);
+      if (sku) {
+        productsBySku.set(sku, [...(productsBySku.get(sku) ?? []), product]);
+      }
+    }
+    const externalProductsById = new Map(
+      externalProductRows.map(
+        (product) => [product.externalProductId, product] as const,
+      ),
+    );
+    const imagesByProductId = new Map<string, typeof imageRows>();
+    for (const image of imageRows) {
+      imagesByProductId.set(image.productId, [
+        ...(imagesByProductId.get(image.productId) ?? []),
+        image,
+      ]);
+    }
+
+    const result: MarketplaceCatalogImportResult = {
+      conflicts: [],
+      created: 0,
+      errors: [],
+      found: catalogProducts.length,
+      unchanged: 0,
+      updated: 0,
+    };
+
+    for (const catalogProduct of catalogProducts) {
+      const externalProduct = externalProductsById.get(
+        catalogProduct.externalProductId,
+      );
+      let matchedProduct = externalProduct?.linkedProductId
+        ? productsById.get(externalProduct.linkedProductId)
+        : undefined;
+
+      if (!matchedProduct) {
+        const skuMatches =
+          productsBySku.get(normalizeSku(catalogProduct.sku) ?? "") ?? [];
+        if (skuMatches.length > 1) {
+          result.conflicts.push({
+            externalProductId: catalogProduct.externalProductId,
+            message: `SKU "${catalogProduct.sku}" corresponde a mais de um produto interno`,
+            sku: catalogProduct.sku,
+          });
+          continue;
+        }
+        matchedProduct = skuMatches[0];
+      }
+
+      try {
+        const existingMercadoLivreImages = matchedProduct
+          ? (imagesByProductId.get(matchedProduct.id) ?? [])
+              .filter((image) => image.source === "mercadolivre")
+              .sort((left, right) => left.position - right.position)
+              .map((image) => image.url)
+          : [];
+        const productChanged =
+          !matchedProduct ||
+          matchedProduct.name !== catalogProduct.title ||
+          normalizeSku(matchedProduct.sku) !==
+            normalizeSku(catalogProduct.sku) ||
+          String(matchedProduct.sellingPrice) !== catalogProduct.sellingPrice ||
+          matchedProduct.isActive !== catalogProduct.isActive;
+        const imagesChanged =
+          existingMercadoLivreImages.length !== catalogProduct.images.length ||
+          existingMercadoLivreImages.some(
+            (image, index) => image !== catalogProduct.images[index],
+          );
+
+        const storedProduct = await this.db.transaction(async (tx) => {
+          let product = matchedProduct;
+
+          if (!product) {
+            [product] = await tx
+              .insert(products)
+              .values({
+                isActive: catalogProduct.isActive,
+                name: catalogProduct.title,
+                organizationId: context.organizationId,
+                sellingPrice: catalogProduct.sellingPrice,
+                sku: normalizeSku(catalogProduct.sku),
+              })
+              .returning();
+          } else if (productChanged) {
+            [product] = await tx
+              .update(products)
+              .set({
+                isActive: catalogProduct.isActive,
+                name: catalogProduct.title,
+                sellingPrice: catalogProduct.sellingPrice,
+                sku: normalizeSku(catalogProduct.sku),
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(products.id, product.id),
+                  eq(products.organizationId, context.organizationId),
+                ),
+              )
+              .returning();
+          }
+
+          await tx
+            .insert(externalProducts)
+            .values({
+              externalProductId: catalogProduct.externalProductId,
+              linkedProductId: product.id,
+              marketplaceConnectionId: connection.id,
+              metadata: catalogProduct.metadata,
+              organizationId: context.organizationId,
+              provider: "mercadolivre",
+              reviewStatus: matchedProduct
+                ? "linked_to_existing_product"
+                : "imported_as_internal_product",
+              sku: catalogProduct.sku,
+              title: catalogProduct.title,
+            })
+            .onConflictDoUpdate({
+              set: {
+                linkedProductId: product.id,
+                marketplaceConnectionId: connection.id,
+                metadata: catalogProduct.metadata,
+                reviewStatus: matchedProduct
+                  ? "linked_to_existing_product"
+                  : "imported_as_internal_product",
+                sku: catalogProduct.sku,
+                title: catalogProduct.title,
+                updatedAt: new Date(),
+              },
+              target: [
+                externalProducts.organizationId,
+                externalProducts.provider,
+                externalProducts.externalProductId,
+              ],
+            })
+            .returning({ id: externalProducts.id });
+
+          if (imagesChanged) {
+            await tx
+              .delete(productImages)
+              .where(
+                and(
+                  eq(productImages.productId, product.id),
+                  eq(productImages.source, "mercadolivre"),
+                ),
+              );
+
+            if (catalogProduct.images.length > 0) {
+              await tx.insert(productImages).values(
+                catalogProduct.images.map((url, position) => ({
+                  externalIdentifier: `${catalogProduct.externalProductId}:${position}`,
+                  organizationId: context.organizationId,
+                  position,
+                  productId: product.id,
+                  source: "mercadolivre",
+                  url,
+                })),
+              );
+            }
+          }
+
+          return product;
+        });
+
+        productsById.set(storedProduct.id, storedProduct);
+        productsBySku.set(normalizeSku(storedProduct.sku) ?? "", [
+          storedProduct,
+        ]);
+        externalProductsById.set(catalogProduct.externalProductId, {
+          ...externalProduct,
+          externalProductId: catalogProduct.externalProductId,
+          linkedProductId: storedProduct.id,
+        } as (typeof externalProductRows)[number]);
+        const preservedImages = (
+          imagesByProductId.get(storedProduct.id) ?? []
+        ).filter((image) => image.source !== "mercadolivre");
+        imagesByProductId.set(storedProduct.id, [
+          ...preservedImages,
+          ...(catalogProduct.images.map((url, position) => ({
+            externalIdentifier: `${catalogProduct.externalProductId}:${position}`,
+            position,
+            productId: storedProduct.id,
+            source: "mercadolivre",
+            url,
+          })) as typeof imageRows),
+        ]);
+
+        if (!matchedProduct) {
+          result.created += 1;
+        } else if (productChanged || imagesChanged) {
+          result.updated += 1;
+        } else {
+          result.unchanged += 1;
+        }
+      } catch (error) {
+        result.errors.push({
+          externalProductId: catalogProduct.externalProductId,
+          message:
+            error instanceof Error
+              ? error.message
+              : "Falha desconhecida ao importar produto",
+          sku: catalogProduct.sku,
+        });
+      }
+    }
+
+    return result;
+  }
+
   async importSyncedProduct(
     organizationId: string,
     providerSlug: IntegrationProviderSlug,
@@ -498,13 +800,19 @@ export class IntegrationsService {
       );
     }
 
-    const sellingPrice = this.selectLatestUnitPrice(externalProduct.orderItems) ?? "0.00";
-    const createdProduct = await this.productsService.createProduct(organizationId, {
-      isActive: true,
-      name: externalProduct.title?.trim() || `Produto Mercado Livre ${externalProduct.externalProductId}`,
-      sellingPrice,
-      sku: externalProduct.sku,
-    });
+    const sellingPrice =
+      this.selectLatestUnitPrice(externalProduct.orderItems) ?? "0.00";
+    const createdProduct = await this.productsService.createProduct(
+      organizationId,
+      {
+        isActive: true,
+        name:
+          externalProduct.title?.trim() ||
+          `Produto Mercado Livre ${externalProduct.externalProductId}`,
+        sellingPrice,
+        sku: externalProduct.sku,
+      },
+    );
 
     await this.db
       .update(externalProducts)
@@ -536,7 +844,10 @@ export class IntegrationsService {
       providerSlug,
       externalProductId,
     );
-    const product = await this.productsService.requireProductAccess(organizationId, productId);
+    const product = await this.productsService.requireProductAccess(
+      organizationId,
+      productId,
+    );
 
     if (
       externalProduct.reviewStatus === "imported_as_internal_product" &&
@@ -583,7 +894,11 @@ export class IntegrationsService {
     externalProductId: string,
   ): Promise<SyncedProductActionResult> {
     this.assertSyncProductProvider(providerSlug);
-    await this.requireSyncedExternalProduct(organizationId, providerSlug, externalProductId);
+    await this.requireSyncedExternalProduct(
+      organizationId,
+      providerSlug,
+      externalProductId,
+    );
 
     await this.db
       .update(externalProducts)
@@ -627,10 +942,14 @@ export class IntegrationsService {
   }
 
   private getProvider(providerSlug: IntegrationProviderSlug) {
-    const provider = this.providers.find((entry) => entry.provider === providerSlug);
+    const provider = this.providers.find(
+      (entry) => entry.provider === providerSlug,
+    );
 
     if (!provider) {
-      throw new NotFoundException(`Provedor de integração não suportado: "${providerSlug}"`);
+      throw new NotFoundException(
+        `Provedor de integração não suportado: "${providerSlug}"`,
+      );
     }
 
     return provider;
@@ -662,7 +981,10 @@ export class IntegrationsService {
     externalProductId: string,
     message: string,
   ): Promise<SyncedProductActionResult> {
-    const syncedProducts = await this.listSyncedProducts(organizationId, providerSlug);
+    const syncedProducts = await this.listSyncedProducts(
+      organizationId,
+      providerSlug,
+    );
     const syncedProduct = syncedProducts.find(
       (product) => product.externalProductId === externalProductId,
     );
@@ -814,8 +1136,10 @@ export class IntegrationsService {
 
   private selectLatestUnitPrice(orderItems: ExternalProductOrderItemRow[]) {
     const latestItem = [...orderItems].sort((left, right) => {
-      const leftTime = left.externalOrder?.orderedAt?.getTime() ?? left.updatedAt.getTime();
-      const rightTime = right.externalOrder?.orderedAt?.getTime() ?? right.updatedAt.getTime();
+      const leftTime =
+        left.externalOrder?.orderedAt?.getTime() ?? left.updatedAt.getTime();
+      const rightTime =
+        right.externalOrder?.orderedAt?.getTime() ?? right.updatedAt.getTime();
       return rightTime - leftTime;
     })[0];
 

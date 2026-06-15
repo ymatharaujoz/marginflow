@@ -324,8 +324,24 @@ export const companyRecordSchema = z.object({
   updatedAt: isoDateTimeField("Updated at"),
 });
 
-export const productListItemSchema = z.object({
+const productImageRecordSchema = z.object({
+  externalIdentifier: z.string().trim().min(1).nullable(),
   id: z.string().trim().min(1),
+  position: z.number().int().min(0),
+  productId: z.string().trim().min(1),
+  source: z.string().trim().min(1),
+  url: z.string().url().startsWith("https://"),
+});
+
+export const productListItemSchema = z.object({
+  coverImageUrl: z
+    .string()
+    .url()
+    .startsWith("https://")
+    .nullable()
+    .default(null),
+  id: z.string().trim().min(1),
+  images: z.array(productImageRecordSchema).default([]),
   organizationId: z.string().trim().min(1),
   name: z.string().trim().min(1),
   sku: z.string().trim().min(1).nullable(),

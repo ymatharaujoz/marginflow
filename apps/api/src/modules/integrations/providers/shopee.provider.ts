@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { MarketplaceConnection } from "@marginflow/database";
+import type { MarketplaceConnection } from "@lucreii/database";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import {
   IntegrationProviderError,

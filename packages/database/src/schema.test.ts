@@ -11,18 +11,20 @@ import {
   fixedCosts,
   organizations,
   productFinanceDefaults,
+  productImages,
   productMonthlyPerformance,
   products,
   users,
   verifications,
 } from "./index";
 
-describe("@marginflow/database schema", () => {
+describe("@lucreii/database schema", () => {
   it("exports core schema objects", () => {
     expect(dbSchema.organizations).toBe(organizations);
     expect(dbSchema.companies).toBe(companies);
     expect(dbSchema.fixedCosts).toBe(fixedCosts);
     expect(dbSchema.productFinanceDefaults).toBe(productFinanceDefaults);
+    expect(dbSchema.productImages).toBe(productImages);
     expect(dbSchema.productMonthlyPerformance).toBe(productMonthlyPerformance);
     expect(dbSchema.products).toBe(products);
     expect(dbSchema.users).toBe(users);
@@ -40,7 +42,16 @@ describe("@marginflow/database schema", () => {
     expect(db.query.companies).toBeDefined();
     expect(db.query.products).toBeDefined();
     expect(db.query.productFinanceDefaults).toBeDefined();
+    expect(db.query.productImages).toBeDefined();
     expect(db.query.productMonthlyPerformance).toBeDefined();
+  });
+
+  it("defines ordered product images with marketplace source metadata", () => {
+    expect(productImages.productId).toBeDefined();
+    expect(productImages.url).toBeDefined();
+    expect(productImages.position).toBeDefined();
+    expect(productImages.source).toBeDefined();
+    expect(productImages.externalIdentifier).toBeDefined();
   });
 
   it("exposes inferred insert types", () => {

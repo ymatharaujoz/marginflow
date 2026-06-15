@@ -5,10 +5,10 @@ describe("site helpers", () => {
   it("uses public app url when available", () => {
     const siteUrl = getSiteUrl({
       NEXT_PUBLIC_API_BASE_URL: "http://localhost:4000",
-      NEXT_PUBLIC_APP_URL: "https://app.marginflow.test",
+      NEXT_PUBLIC_APP_URL: "https://app.lucreii.test",
     });
 
-    expect(siteUrl.toString()).toBe("https://app.marginflow.test/");
+    expect(siteUrl.toString()).toBe("https://app.lucreii.test/");
   });
 
   it("falls back to localhost when env missing outside production", () => {

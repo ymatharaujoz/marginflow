@@ -9,7 +9,7 @@ function createEnv(): ApiRuntimeEnv {
     API_HOST: "127.0.0.1",
     API_PORT: 4000,
     BETTER_AUTH_SECRET: "secret",
-    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
     NODE_ENV: "test",
     SHOPEE_PARTNER_ID: 123456,
     SHOPEE_PARTNER_KEY: "partner-key",

@@ -15,7 +15,7 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
-import { Button, Card } from "@marginflow/ui";
+import { Button, Card } from "@lucreii/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { containerVariants, itemVariants, fadeInVariants } from "@/lib/animations";
 import { translateConnectionUiStatus } from "@/lib/pt-br/api-ui";

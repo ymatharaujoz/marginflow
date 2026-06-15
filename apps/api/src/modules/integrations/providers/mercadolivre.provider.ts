@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import {
+  type IntegrationCatalogImportContext,
+  type IntegrationCatalogProduct,
   IntegrationProviderError,
   type IntegrationProvider,
   type IntegrationProviderAuthorization,
@@ -14,6 +16,43 @@ import {
   type IntegrationSyncProduct,
   type IntegrationSyncResult,
 } from "../integrations.types";
+
+type MercadoLivreItemSearchResponse = {
+  results?: Array<string | number>;
+  scroll_id?: string;
+};
+
+type MercadoLivreItemPicture = {
+  id?: string;
+  secure_url?: string;
+  url?: string;
+};
+
+type MercadoLivreItemVariation = {
+  attribute_combinations?: Array<{
+    name?: string;
+    value_name?: string;
+  }>;
+  id?: string | number;
+  picture_ids?: string[];
+  price?: number;
+  seller_custom_field?: string | null;
+};
+
+type MercadoLivreItemResponse = {
+  id?: string;
+  pictures?: MercadoLivreItemPicture[];
+  price?: number;
+  seller_custom_field?: string | null;
+  status?: string;
+  title?: string;
+  variations?: MercadoLivreItemVariation[];
+};
+
+type MercadoLivreMultiGetResponse = Array<{
+  body?: MercadoLivreItemResponse;
+  code?: number;
+}>;
 
 type MercadoLivreTokenResponse = {
   access_token?: string;
@@ -141,7 +180,9 @@ export class MercadoLivreProvider implements IntegrationProvider {
   constructor(private readonly env: ApiRuntimeEnv) {}
 
   isConfigured() {
-    return Boolean(this.env.MERCADOLIVRE_CLIENT_ID && this.env.MERCADOLIVRE_CLIENT_SECRET);
+    return Boolean(
+      this.env.MERCADOLIVRE_CLIENT_ID && this.env.MERCADOLIVRE_CLIENT_SECRET,
+    );
   }
 
   supportsSync() {
@@ -172,7 +213,10 @@ export class MercadoLivreProvider implements IntegrationProvider {
         );
       }
 
-      url.searchParams.set("code_challenge", buildCodeChallenge(input.codeVerifier));
+      url.searchParams.set(
+        "code_challenge",
+        buildCodeChallenge(input.codeVerifier),
+      );
       url.searchParams.set("code_challenge_method", "S256");
     }
 
@@ -211,20 +255,27 @@ export class MercadoLivreProvider implements IntegrationProvider {
       tokenRequestBody.set("code_verifier", input.codeVerifier);
     }
 
-    const tokenResponse = await fetch("https://api.mercadolibre.com/oauth/token", {
-      body: tokenRequestBody,
-      headers: {
-        accept: "application/json",
-        "content-type": "application/x-www-form-urlencoded",
+    const tokenResponse = await fetch(
+      "https://api.mercadolibre.com/oauth/token",
+      {
+        body: tokenRequestBody,
+        headers: {
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        method: "POST",
       },
-      method: "POST",
-    });
+    );
 
     const tokenPayload = (await parseProviderResponse(tokenResponse)) as
       | MercadoLivreTokenResponse
       | string;
 
-    if (!tokenResponse.ok || typeof tokenPayload === "string" || !tokenPayload.access_token) {
+    if (
+      !tokenResponse.ok ||
+      typeof tokenPayload === "string" ||
+      !tokenPayload.access_token
+    ) {
       throw new IntegrationProviderError(
         `Mercado Livre token exchange failed.${
           typeof tokenPayload === "string"
@@ -235,18 +286,25 @@ export class MercadoLivreProvider implements IntegrationProvider {
       );
     }
 
-    const profileResponse = await fetch("https://api.mercadolibre.com/users/me", {
-      headers: {
-        Authorization: `Bearer ${tokenPayload.access_token}`,
-        accept: "application/json",
+    const profileResponse = await fetch(
+      "https://api.mercadolibre.com/users/me",
+      {
+        headers: {
+          Authorization: `Bearer ${tokenPayload.access_token}`,
+          accept: "application/json",
+        },
+        method: "GET",
       },
-      method: "GET",
-    });
+    );
     const profilePayload = (await parseProviderResponse(profileResponse)) as
       | MercadoLivreProfileResponse
       | string;
 
-    if (!profileResponse.ok || typeof profilePayload === "string" || !profilePayload.id) {
+    if (
+      !profileResponse.ok ||
+      typeof profilePayload === "string" ||
+      !profilePayload.id
+    ) {
       throw new IntegrationProviderError(
         `Mercado Livre account lookup failed.${
           typeof profilePayload === "string"
@@ -266,7 +324,8 @@ export class MercadoLivreProvider implements IntegrationProvider {
         ([profilePayload.first_name, profilePayload.last_name]
           .filter(Boolean)
           .join(" ")
-          .trim() || null),
+          .trim() ||
+          null),
       metadata: {
         email: profilePayload.email ?? null,
         firstName: profilePayload.first_name ?? null,
@@ -288,7 +347,42 @@ export class MercadoLivreProvider implements IntegrationProvider {
     return undefined;
   }
 
-  async syncOrders(input: IntegrationSyncContext): Promise<IntegrationSyncResult> {
+  async importCatalog(
+    input: IntegrationCatalogImportContext,
+  ): Promise<IntegrationCatalogProduct[]> {
+    const accountId = input.connection.externalAccountId;
+    const accessToken = input.connection.accessToken;
+
+    if (!accountId || !accessToken) {
+      throw new IntegrationProviderError(
+        "Mercado Livre connection is missing the account token required for catalog import.",
+        "callback_invalid",
+      );
+    }
+
+    const itemIds = await this.fetchCatalogItemIds({
+      accessToken,
+      accountId,
+    });
+    const products: IntegrationCatalogProduct[] = [];
+
+    for (let offset = 0; offset < itemIds.length; offset += 20) {
+      const itemBatch = await this.fetchCatalogItems({
+        accessToken,
+        itemIds: itemIds.slice(offset, offset + 20),
+      });
+
+      for (const item of itemBatch) {
+        products.push(...this.normalizeCatalogItem(item));
+      }
+    }
+
+    return products;
+  }
+
+  async syncOrders(
+    input: IntegrationSyncContext,
+  ): Promise<IntegrationSyncResult> {
     if (!this.supportsSync()) {
       throw new IntegrationProviderError(
         "Mercado Livre sync is not configured in the API environment.",
@@ -338,7 +432,9 @@ export class MercadoLivreProvider implements IntegrationProvider {
         return latest;
       }
 
-      return latest === null || order.orderedAt > latest ? order.orderedAt : latest;
+      return latest === null || order.orderedAt > latest
+        ? order.orderedAt
+        : latest;
     }, orderedAfter);
 
     return {
@@ -350,6 +446,175 @@ export class MercadoLivreProvider implements IntegrationProvider {
       orders,
       products,
     };
+  }
+
+  private async fetchCatalogItemIds(input: {
+    accessToken: string;
+    accountId: string;
+  }) {
+    const itemIds: string[] = [];
+    for (const status of ["active", "paused"] as const) {
+      let scrollId: string | null = null;
+
+      do {
+        const url = new URL(
+          `https://api.mercadolibre.com/users/${encodeURIComponent(input.accountId)}/items/search`,
+        );
+        url.searchParams.set("status", status);
+        url.searchParams.set("search_type", "scan");
+        url.searchParams.set("limit", "100");
+        if (scrollId) {
+          url.searchParams.set("scroll_id", scrollId);
+        }
+
+        const response = await this.fetchWithRetry(url, {
+          headers: { Authorization: `Bearer ${input.accessToken}` },
+        });
+        const payload = (await parseProviderResponse(response)) as
+          | MercadoLivreItemSearchResponse
+          | string;
+
+        if (!response.ok || typeof payload === "string") {
+          throw new IntegrationProviderError(
+            `Mercado Livre catalog search failed.${typeof payload === "string" ? ` ${payload}` : ""}`,
+            "remote_request_failed",
+          );
+        }
+
+        const pageIds = (payload.results ?? []).map(String);
+        itemIds.push(...pageIds);
+        scrollId = payload.scroll_id ?? null;
+
+        if (pageIds.length === 0) {
+          break;
+        }
+      } while (scrollId);
+    }
+
+    return [...new Set(itemIds)];
+  }
+
+  private async fetchCatalogItems(input: {
+    accessToken: string;
+    itemIds: string[];
+  }) {
+    if (input.itemIds.length === 0) {
+      return [];
+    }
+
+    const url = new URL("https://api.mercadolibre.com/items");
+    url.searchParams.set("ids", input.itemIds.join(","));
+    url.searchParams.set(
+      "attributes",
+      "id,title,price,status,seller_custom_field,pictures,variations",
+    );
+    const response = await this.fetchWithRetry(url, {
+      headers: { Authorization: `Bearer ${input.accessToken}` },
+    });
+    const payload = (await parseProviderResponse(response)) as
+      | MercadoLivreMultiGetResponse
+      | string;
+
+    if (
+      !response.ok ||
+      typeof payload === "string" ||
+      !Array.isArray(payload)
+    ) {
+      throw new IntegrationProviderError(
+        `Mercado Livre item lookup failed.${typeof payload === "string" ? ` ${payload}` : ""}`,
+        "remote_request_failed",
+      );
+    }
+
+    return payload
+      .filter((entry) => entry.code === 200 && entry.body?.id)
+      .map((entry) => entry.body!);
+  }
+
+  private normalizeCatalogItem(
+    item: MercadoLivreItemResponse,
+  ): IntegrationCatalogProduct[] {
+    const itemId = String(item.id);
+    const itemImages = (item.pictures ?? [])
+      .map((picture) => ({
+        id: picture.id ?? "",
+        url: picture.secure_url ?? picture.url ?? "",
+      }))
+      .filter((picture) => picture.url.startsWith("https://"));
+    const itemImageById = new Map(
+      itemImages.map((picture) => [picture.id, picture.url] as const),
+    );
+    const variations = item.variations ?? [];
+
+    if (variations.length === 0) {
+      return [
+        {
+          externalProductId: itemId,
+          images: itemImages.map((picture) => picture.url),
+          isActive: item.status === "active",
+          metadata: { itemId, variationId: null },
+          sellingPrice: toDecimalString(item.price),
+          sku: item.seller_custom_field?.trim() || `ML-${itemId}`,
+          title: item.title?.trim() || `Produto Mercado Livre ${itemId}`,
+        },
+      ];
+    }
+
+    return variations.flatMap((variation) => {
+      if (variation.id === undefined || variation.id === null) {
+        return [];
+      }
+
+      const variationId = String(variation.id);
+      const attributes = (variation.attribute_combinations ?? [])
+        .map((attribute) => {
+          const name = attribute.name?.trim();
+          const value = attribute.value_name?.trim();
+          return name && value ? `${name}: ${value}` : null;
+        })
+        .filter((value): value is string => value !== null);
+      const images = (variation.picture_ids ?? [])
+        .map((pictureId) => itemImageById.get(pictureId))
+        .filter((url): url is string => Boolean(url));
+
+      return [
+        {
+          externalProductId: `${itemId}:${variationId}`,
+          images:
+            images.length > 0
+              ? images
+              : itemImages.map((picture) => picture.url),
+          isActive: item.status === "active",
+          metadata: { itemId, variationId },
+          sellingPrice: toDecimalString(variation.price ?? item.price),
+          sku:
+            variation.seller_custom_field?.trim() ||
+            `ML-${itemId}-${variationId}`,
+          title: [
+            item.title?.trim() || `Produto Mercado Livre ${itemId}`,
+            attributes.length > 0 ? attributes.join(", ") : null,
+          ]
+            .filter(Boolean)
+            .join(" - "),
+        },
+      ];
+    });
+  }
+
+  private async fetchWithRetry(
+    input: string | URL,
+    init?: RequestInit,
+  ): Promise<Response> {
+    let response: Response | null = null;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      response = await fetch(input, init);
+      if (response.status !== 429 && response.status < 500) {
+        return response;
+      }
+    }
+
+    return response!;
   }
 
   private async fetchOrders(input: {
@@ -423,37 +688,56 @@ export class MercadoLivreProvider implements IntegrationProvider {
     const skuByExternalProductId: Record<string, string | null> = {};
     const titleByExternalProductId: Record<string, string | null> = {};
 
-    const items = (order.order_items ?? []).map<IntegrationSyncOrderItem>((item) => {
-      const externalProductId = item.item?.id ? String(item.item.id) : null;
+    const items = (order.order_items ?? []).map<IntegrationSyncOrderItem>(
+      (item) => {
+        const externalProductId = item.item?.id ? String(item.item.id) : null;
 
-      if (externalProductId) {
-        skuByExternalProductId[externalProductId] = item.item?.seller_sku ?? null;
-        titleByExternalProductId[externalProductId] = item.item?.title ?? null;
-      }
+        if (externalProductId) {
+          skuByExternalProductId[externalProductId] =
+            item.item?.seller_sku ?? null;
+          titleByExternalProductId[externalProductId] =
+            item.item?.title ?? null;
+        }
 
-      const quantity = typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
-      const unitPrice = toDecimalString(item.unit_price);
+        const quantity =
+          typeof item.quantity === "number" && item.quantity > 0
+            ? item.quantity
+            : 1;
+        const unitPrice = toDecimalString(item.unit_price);
 
-      return {
-        externalProductId,
-        quantity,
-        sku: item.item?.seller_sku ?? null,
-        totalPrice: toDecimalString((Number(unitPrice) || 0) * quantity),
-        title: item.item?.title ?? null,
-        unitPrice,
-      };
-    });
+        return {
+          externalProductId,
+          quantity,
+          sku: item.item?.seller_sku ?? null,
+          totalPrice: toDecimalString((Number(unitPrice) || 0) * quantity),
+          title: item.item?.title ?? null,
+          unitPrice,
+        };
+      },
+    );
 
     const fees: IntegrationSyncFee[] = [];
 
-    const paymentMarketplaceFee = (order.payments ?? []).reduce((sum, payment) => {
-      return sum + (typeof payment.marketplace_fee === "number" ? payment.marketplace_fee : 0);
-    }, 0);
+    const paymentMarketplaceFee = (order.payments ?? []).reduce(
+      (sum, payment) => {
+        return (
+          sum +
+          (typeof payment.marketplace_fee === "number"
+            ? payment.marketplace_fee
+            : 0)
+        );
+      },
+      0,
+    );
     const itemSaleFee = (order.order_items ?? []).reduce((sum, item) => {
       return sum + (typeof item.sale_fee === "number" ? item.sale_fee : 0);
     }, 0);
     const marketplaceCommission =
-      paymentMarketplaceFee > 0 ? paymentMarketplaceFee : itemSaleFee > 0 ? itemSaleFee : 0;
+      paymentMarketplaceFee > 0
+        ? paymentMarketplaceFee
+        : itemSaleFee > 0
+          ? itemSaleFee
+          : 0;
 
     if (marketplaceCommission > 0) {
       fees.push({
@@ -461,7 +745,10 @@ export class MercadoLivreProvider implements IntegrationProvider {
         currency: order.currency_id ?? "BRL",
         feeType: "marketplace_commission",
         metadata: {
-          source: paymentMarketplaceFee > 0 ? "payment.marketplace_fee" : "order_items.sale_fee",
+          source:
+            paymentMarketplaceFee > 0
+              ? "payment.marketplace_fee"
+              : "order_items.sale_fee",
         },
       });
     }
@@ -529,9 +816,17 @@ export class MercadoLivreProvider implements IntegrationProvider {
       }
     }
 
-    const paymentShippingCost = (order.payments ?? []).reduce((sum, payment) => {
-      return sum + (typeof payment.shipping_cost === "number" ? payment.shipping_cost : 0);
-    }, 0);
+    const paymentShippingCost = (order.payments ?? []).reduce(
+      (sum, payment) => {
+        return (
+          sum +
+          (typeof payment.shipping_cost === "number"
+            ? payment.shipping_cost
+            : 0)
+        );
+      },
+      0,
+    );
 
     if (paymentShippingCost > 0) {
       return paymentShippingCost;
@@ -547,14 +842,17 @@ export class MercadoLivreProvider implements IntegrationProvider {
     sellerAccountId: string;
     shipmentId: string;
   }) {
-    const response = await fetch(`https://api.mercadolibre.com/shipments/${input.shipmentId}/costs`, {
-      headers: {
-        Authorization: `Bearer ${input.accessToken}`,
-        accept: "application/json",
-        "x-format-new": "true",
+    const response = await fetch(
+      `https://api.mercadolibre.com/shipments/${input.shipmentId}/costs`,
+      {
+        headers: {
+          Authorization: `Bearer ${input.accessToken}`,
+          accept: "application/json",
+          "x-format-new": "true",
+        },
+        method: "GET",
       },
-      method: "GET",
-    });
+    );
 
     const payload = (await parseProviderResponse(response)) as
       | {
@@ -570,7 +868,9 @@ export class MercadoLivreProvider implements IntegrationProvider {
     }
 
     const matchedSender =
-      payload.senders?.find((sender) => String(sender.user_id ?? "") === input.sellerAccountId) ??
+      payload.senders?.find(
+        (sender) => String(sender.user_id ?? "") === input.sellerAccountId,
+      ) ??
       payload.senders?.[0] ??
       null;
 

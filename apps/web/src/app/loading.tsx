@@ -1,4 +1,4 @@
-import { Container, Skeleton } from "@marginflow/ui";
+import { Container, Skeleton } from "@lucreii/ui";
 import { resolveSiteConfig } from "@/lib/site";
 
 const brand = resolveSiteConfig();

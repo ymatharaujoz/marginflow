@@ -15,8 +15,8 @@ import {
   Wallet,
   Zap,
 } from "lucide-react";
-import { Badge, Modal } from "@marginflow/ui";
-import { cn } from "@marginflow/ui";
+import { Badge, Modal } from "@lucreii/ui";
+import { cn } from "@lucreii/ui";
 import { formatReferenceMonthPtBr } from "../hooks/use-product-data";
 import type { ProductTableRow } from "../types/products";
 import {

@@ -9,7 +9,7 @@ import type {
   DashboardSummaryMetrics,
   DashboardSummaryResponse,
   IntegrationProviderSlug,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { FinanceService } from "@/modules/finance/finance.service";
 import { SyncService } from "@/modules/sync/sync.service";
 

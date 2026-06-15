@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { AlertCircle, ArrowRight, Sparkles } from "lucide-react";
-import { Card, Button } from "@marginflow/ui";
+import { Card, Button } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 import { PUBLIC_BRAND } from "@/lib/public-branding";
 
@@ -52,7 +52,7 @@ export function PendingOnboardingCard() {
                     </Link>
                   </Button>
                   <Button asChild variant="secondary">
-                    <a href="mailto:suporte@marginflow.com">
+                    <a href="mailto:suporte@lucreii.com">
                       Precisa de ajuda?
                     </a>
                   </Button>

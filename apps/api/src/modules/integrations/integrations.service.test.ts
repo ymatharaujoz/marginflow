@@ -26,9 +26,13 @@ function createService() {
       products: {
         findMany: vi.fn(),
       },
+      productImages: {
+        findMany: vi.fn(),
+      },
     },
     select: vi.fn(),
     update: vi.fn(),
+    transaction: vi.fn(),
   };
   const env = {
     API_DB_POOL_MAX: 5,
@@ -36,7 +40,7 @@ function createService() {
     API_PORT: 4000,
     BETTER_AUTH_SECRET: "secret",
     BETTER_AUTH_URL: "http://localhost:4000",
-    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
     GOOGLE_CLIENT_ID: "google-client-id",
     GOOGLE_CLIENT_SECRET: "google-client-secret",
     MERCADOLIVRE_CLIENT_ID: "ml-client-id",
@@ -51,6 +55,7 @@ function createService() {
     WEB_APP_ORIGIN: "http://localhost:3000",
   };
   const productsService = {
+    assertCatalogImportAllowed: vi.fn(),
     createProduct: vi.fn(),
     requireProductAccess: vi.fn(),
   };
@@ -115,10 +120,225 @@ describe("IntegrationsService", () => {
     ]);
   });
 
+  it("imports Mercado Livre catalog products and their image gallery", async () => {
+    const { db, productsService, service } = createService();
+    const remoteProduct = {
+      externalProductId: "MLB1",
+      images: [
+        "https://http2.mlstatic.com/one.jpg",
+        "https://http2.mlstatic.com/two.jpg",
+      ],
+      isActive: true,
+      metadata: { itemId: "MLB1", variationId: null },
+      sellingPrice: "59.90",
+      sku: "SKU-1",
+      title: "Produto Mercado Livre",
+    };
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        displayName: "Mercado Livre",
+        importCatalog: vi.fn().mockResolvedValue([remoteProduct]),
+        provider: "mercadolivre",
+      },
+    ];
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      externalAccountId: "seller-1",
+      id: "connection-1",
+      organizationId: "org-1",
+      provider: "mercadolivre",
+      status: "connected",
+      tokenExpiresAt: null,
+    });
+    db.query.products.findMany.mockResolvedValue([]);
+    db.query.externalProducts.findMany.mockResolvedValue([]);
+    db.query.productImages.findMany.mockResolvedValue([]);
+
+    const insertedProduct = {
+      createdAt: new Date("2026-06-15T10:00:00.000Z"),
+      id: "product-1",
+      isActive: true,
+      name: remoteProduct.title,
+      organizationId: "org-1",
+      sellingPrice: remoteProduct.sellingPrice,
+      sku: remoteProduct.sku,
+      updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+    };
+    const tx = {
+      delete: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+      insert: vi
+        .fn()
+        .mockReturnValueOnce({
+          values: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([insertedProduct]),
+          }),
+        })
+        .mockReturnValueOnce({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockReturnValue({
+              returning: vi.fn().mockResolvedValue([{ id: "external-1" }]),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          values: vi.fn().mockResolvedValue(undefined),
+        }),
+      update: vi.fn(),
+    };
+    db.transaction.mockImplementation(
+      async (callback: (transaction: typeof tx) => unknown) => callback(tx),
+    );
+
+    await expect(
+      service.importMercadoLivreCatalog({
+        organizationId: "org-1",
+        userId: "user-1",
+      }),
+    ).resolves.toEqual({
+      conflicts: [],
+      created: 1,
+      errors: [],
+      found: 1,
+      unchanged: 0,
+      updated: 0,
+    });
+    expect(productsService.assertCatalogImportAllowed).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      userId: "user-1",
+    });
+    expect(tx.insert).toHaveBeenCalledTimes(3);
+  });
+
+  it("reports duplicate internal SKUs as conflicts without writing", async () => {
+    const { db, service } = createService();
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        displayName: "Mercado Livre",
+        importCatalog: vi.fn().mockResolvedValue([
+          {
+            externalProductId: "MLB1",
+            images: [],
+            isActive: true,
+            metadata: {},
+            sellingPrice: "59.90",
+            sku: "DUPLICATE",
+            title: "Produto",
+          },
+        ]),
+        provider: "mercadolivre",
+      },
+    ];
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      externalAccountId: "seller-1",
+      status: "connected",
+    });
+    db.query.products.findMany.mockResolvedValue([
+      { id: "product-1", sku: "duplicate", images: [] },
+      { id: "product-2", sku: "DUPLICATE", images: [] },
+    ]);
+    db.query.externalProducts.findMany.mockResolvedValue([]);
+    db.query.productImages.findMany.mockResolvedValue([]);
+
+    const result = await service.importMercadoLivreCatalog({
+      organizationId: "org-1",
+      userId: "user-1",
+    });
+
+    expect(result.conflicts).toEqual([
+      {
+        externalProductId: "MLB1",
+        message: 'SKU "DUPLICATE" corresponde a mais de um produto interno',
+        sku: "DUPLICATE",
+      },
+    ]);
+    expect(result.created).toBe(0);
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
+  it("keeps a repeated catalog import unchanged without replacing images", async () => {
+    const { db, service } = createService();
+    const catalogProduct = {
+      externalProductId: "MLB1",
+      images: ["https://http2.mlstatic.com/one.jpg"],
+      isActive: true,
+      metadata: { itemId: "MLB1", variationId: null },
+      sellingPrice: "59.90",
+      sku: "SKU-1",
+      title: "Produto",
+    };
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        displayName: "Mercado Livre",
+        importCatalog: vi.fn().mockResolvedValue([catalogProduct]),
+        provider: "mercadolivre",
+      },
+    ];
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      externalAccountId: "seller-1",
+      id: "connection-1",
+      status: "connected",
+      tokenExpiresAt: null,
+    });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        id: "product-1",
+        isActive: true,
+        name: "Produto",
+        sellingPrice: "59.90",
+        sku: "SKU-1",
+      },
+    ]);
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        externalProductId: "MLB1",
+        linkedProductId: "product-1",
+      },
+    ]);
+    db.query.productImages.findMany.mockResolvedValue([
+      {
+        position: 0,
+        productId: "product-1",
+        source: "mercadolivre",
+        url: "https://http2.mlstatic.com/one.jpg",
+      },
+    ]);
+    const tx = {
+      delete: vi.fn(),
+      insert: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: "external-1" }]),
+          }),
+        }),
+      }),
+      update: vi.fn(),
+    };
+    db.transaction.mockImplementation(
+      async (callback: (transaction: typeof tx) => unknown) => callback(tx),
+    );
+
+    const result = await service.importMercadoLivreCatalog({
+      organizationId: "org-1",
+      userId: "user-1",
+    });
+
+    expect(result.unchanged).toBe(1);
+    expect(result.created).toBe(0);
+    expect(result.updated).toBe(0);
+    expect(tx.update).not.toHaveBeenCalled();
+    expect(tx.delete).not.toHaveBeenCalled();
+  });
+
   it("creates the Mercado Livre authorization URL for the organization", async () => {
     const { service } = createService();
 
-    await expect(service.createConnectUrl("org_1", "mercadolivre")).resolves.toEqual(
+    await expect(
+      service.createConnectUrl("org_1", "mercadolivre"),
+    ).resolves.toEqual(
       expect.objectContaining({
         authorizationUrl: expect.stringContaining(
           "https://auth.mercadolivre.com.br/authorization",
@@ -255,7 +475,9 @@ describe("IntegrationsService", () => {
       },
     ]);
 
-    await expect(service.listSyncedProducts("org_1", "mercadolivre")).resolves.toEqual([
+    await expect(
+      service.listSyncedProducts("org_1", "mercadolivre"),
+    ).resolves.toEqual([
       expect.objectContaining({
         externalProductId: "MLB-1",
         fixedFee: "4.00",
@@ -333,7 +555,9 @@ describe("IntegrationsService", () => {
       },
     ]);
 
-    await expect(service.listSyncedProducts("org_1", "mercadolivre")).resolves.toEqual([
+    await expect(
+      service.listSyncedProducts("org_1", "mercadolivre"),
+    ).resolves.toEqual([
       expect.objectContaining({
         externalProductId: "MLB-2",
         linkedProduct: null,
@@ -434,7 +658,9 @@ describe("IntegrationsService", () => {
       })
       .mockImplementationOnce(createUpdateMock());
 
-    await expect(service.disconnectProvider("org_1", "mercadolivre")).resolves.toEqual(
+    await expect(
+      service.disconnectProvider("org_1", "mercadolivre"),
+    ).resolves.toEqual(
       expect.objectContaining({
         disconnectAvailable: false,
         provider: "mercadolivre",
@@ -476,10 +702,7 @@ describe("IntegrationsService", () => {
 
   it("logs route, notification summary, and ignore reason for ignored Mercado Livre notifications", async () => {
     const { service, syncService } = createService();
-    const loggerSpy = vi.spyOn(
-      service["logger"],
-      "log",
-    );
+    const loggerSpy = vi.spyOn(service["logger"], "log");
 
     syncService.handleMercadoLivreNotification.mockResolvedValue({
       accepted: true,

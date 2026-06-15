@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, Percent, Megaphone, Target, BarChart3 } from "lucide-react";
 import { StatCard } from "@/components/ui-premium/stat-card";
 import { containerVariants } from "@/lib/animations";
-import type { DashboardSummaryResponse } from "@marginflow/types";
+import type { DashboardSummaryResponse } from "@lucreii/types";
 import { buildDashboardKpis } from "../calculations/kpi-data";
 
 interface KpiCardsProps {

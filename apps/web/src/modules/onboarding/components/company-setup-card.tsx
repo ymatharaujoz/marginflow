@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { AlertCircle, ArrowRight, Building2, Hash } from "lucide-react";
-import { Button, Card } from "@marginflow/ui";
+import { Button, Card } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 
 interface CompanySetupCardProps {

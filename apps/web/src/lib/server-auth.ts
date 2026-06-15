@@ -1,5 +1,5 @@
-import type { AuthState } from "@marginflow/types";
-import { authStateApiResponseSchema } from "@marginflow/validation";
+import type { AuthState } from "@lucreii/types";
+import { authStateApiResponseSchema } from "@lucreii/validation";
 import { getWebEnv } from "@/lib/env";
 import { parseApiContract } from "@/lib/api/contract";
 import { buildRemoteAuthHeaders, readServerWebAuthSession } from "@/lib/server-session";
@@ -16,7 +16,7 @@ function logSoftAuthStateFailure(details: {
   error: unknown;
   status?: number;
 }) {
-  console.error("[marginflow/web] Auth state request failed in soft mode.", {
+  console.error("[lucreii/web] Auth state request failed in soft mode.", {
     bodyPreview: details.body?.slice(0, 200),
     contentType: details.contentType ?? null,
     endpoint: details.endpoint,

@@ -1,4 +1,4 @@
-import type { DashboardSummaryResponse } from "@marginflow/types";
+import type { DashboardSummaryResponse } from "@lucreii/types";
 import type { DashboardKpiItem } from "../types/dashboard";
 import { formatMoney, formatPercent, normalizeNumber } from "../utils/formatters";
 

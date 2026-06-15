@@ -12,7 +12,7 @@ import {
   type DatabaseClient,
   type FixedCost as FixedCostDbRow,
   type ProductMonthlyPerformance as PerformanceDbRow,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import type {
   Company,
   CreateCompanyInput,
@@ -23,7 +23,7 @@ import type {
   UpdateCompanyInput,
   UpdateFixedCostInput,
   UpdateProductMonthlyPerformanceInput,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { and, desc, eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 

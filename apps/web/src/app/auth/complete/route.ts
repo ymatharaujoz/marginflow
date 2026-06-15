@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exchangeAuthTicketApiResponseSchema } from "@marginflow/validation";
+import { exchangeAuthTicketApiResponseSchema } from "@lucreii/validation";
 import { getWebEnv } from "@/lib/env";
 import { parseApiContract } from "@/lib/api/contract";
 import {
@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   const signInUrl = new URL("/sign-in?auth_error=auth_handoff_failed", url);
 
   if (!ticket) {
-    console.error("[marginflow/web] Auth completion missing ticket.", {
+    console.error("[lucreii/web] Auth completion missing ticket.", {
       nextPath,
       origin: url.origin,
       path: url.pathname,
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
     });
 
     if (!response.ok) {
-      console.error("[marginflow/web] Auth exchange ticket request failed.", {
+      console.error("[lucreii/web] Auth exchange ticket request failed.", {
         endpoint: exchangeEndpoint,
         nextPath,
         origin: url.origin,
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       secure: redirectUrl.protocol === "https:",
     });
 
-    console.info("[marginflow/web] Auth exchange ticket redeemed.", {
+    console.info("[lucreii/web] Auth exchange ticket redeemed.", {
       endpoint: exchangeEndpoint,
       nextPath,
       origin: url.origin,
@@ -103,7 +103,7 @@ export async function GET(request: Request) {
 
     return nextResponse;
   } catch (error) {
-    console.error("[marginflow/web] Auth completion crashed while redeeming ticket.", {
+    console.error("[lucreii/web] Auth completion crashed while redeeming ticket.", {
       endpoint: exchangeEndpoint,
       nextPath,
       origin: url.origin,

@@ -1,5 +1,5 @@
-import type { BillingState } from "@marginflow/types";
-import { billingStateApiResponseSchema } from "@marginflow/validation";
+import type { BillingState } from "@lucreii/types";
+import { billingStateApiResponseSchema } from "@lucreii/validation";
 import { getWebEnv } from "@/lib/env";
 import { parseApiContract } from "@/lib/api/contract";
 import { buildRemoteAuthHeaders, readServerWebAuthSession } from "@/lib/server-session";

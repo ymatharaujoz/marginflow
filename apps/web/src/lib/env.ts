@@ -1,4 +1,4 @@
-import { validateClientEnv } from "@marginflow/validation/env";
+import { validateClientEnv } from "@lucreii/validation/env";
 
 /** Same defaults documented in `.env.example` and used in `auth-client.ts`. */
 const DEFAULT_PUBLIC_APP_URL = "http://localhost:3000";
@@ -67,7 +67,7 @@ function logProductionEnvDiagnostic(source: Record<string, string | undefined>, 
   }
 
   hasLoggedProductionEnvDiagnostic = true;
-  console.error("[marginflow/web] Missing required public environment variables in production.", {
+  console.error("[lucreii/web] Missing required public environment variables in production.", {
     missingKeys,
     nodeEnv: source.NODE_ENV ?? process.env.NODE_ENV,
     vercelEnv: pickNonEmpty(source.VERCEL_ENV) ?? pickNonEmpty(process.env.VERCEL_ENV),

@@ -1,7 +1,7 @@
 import {
   syncedProductLinkSchema,
   type SyncedProductLinkInput,
-} from "@marginflow/validation";
+} from "@lucreii/validation";
 import { z } from "zod";
 
 export class IntegrationProviderParamDto {

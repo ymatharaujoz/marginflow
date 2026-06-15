@@ -125,7 +125,7 @@ Para simular cartão salvo que falha em cobrança posterior, use
 7. Atualize cartão pelo Customer Portal e pague a invoice.
 8. Após Stripe retornar assinatura para `active`, confirme acesso restaurado.
 
-A política de retries/cancelamento final continua configurada no Stripe Billing. MarginFlow
+A política de retries/cancelamento final continua configurada no Stripe Billing. Lucreii
 bloqueia acesso assim que o status recebido deixa de ser `trialing` ou `active`.
 
 ## Diagnóstico

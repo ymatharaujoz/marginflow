@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Badge, Button, Card } from "@marginflow/ui";
+import { Badge, Button, Card } from "@lucreii/ui";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import type { ServerBillingState } from "@/lib/server-billing";
 import { PUBLIC_BRAND } from "@/lib/public-branding";
@@ -905,7 +905,7 @@ export function BillingPanel({
         <p className="text-sm text-muted-foreground">
           Dúvidas sobre planos?{" "}
           <a
-            href={getWhatsappDemoUrl(getClientPublicEnv()) ?? "mailto:suporte@marginflow.com"}
+            href={getWhatsappDemoUrl(getClientPublicEnv()) ?? "mailto:suporte@lucreii.com"}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-accent hover:underline"

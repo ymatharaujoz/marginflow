@@ -782,6 +782,35 @@ export const products = pgTable(
   ],
 );
 
+export const productImages = pgTable(
+  "product_images",
+  {
+    id: id(),
+    organizationId: organizationId().references(() => organizations.id, {
+      onDelete: "cascade",
+    }),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    position: integer("position").default(0).notNull(),
+    source: varchar("source", { length: 32 }).notNull(),
+    externalIdentifier: varchar("external_identifier", { length: 255 }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index("product_images_organization_id_idx").on(table.organizationId),
+    index("product_images_product_id_idx").on(table.productId),
+    uniqueIndex("product_images_product_source_position_key").on(
+      table.productId,
+      table.source,
+      table.position,
+    ),
+    check("product_images_position_non_negative", sql`${table.position} >= 0`),
+  ],
+);
+
 export const productFinanceDefaults = pgTable(
   "product_finance_defaults",
   {
@@ -1209,8 +1238,20 @@ export const productsRelations = relations(products, ({ one, many }) => ({
   }),
   externalProducts: many(externalProducts),
   productCosts: many(productCosts),
+  images: many(productImages),
   adCosts: many(adCosts),
   productMetrics: many(productMetrics),
+}));
+
+export const productImagesRelations = relations(productImages, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [productImages.organizationId],
+    references: [organizations.id],
+  }),
+  product: one(products, {
+    fields: [productImages.productId],
+    references: [products.id],
+  }),
 }));
 
 export const productFinanceDefaultsRelations = relations(

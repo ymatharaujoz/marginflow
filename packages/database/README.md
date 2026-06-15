@@ -1,6 +1,6 @@
 # Database Package
 
-Shared Drizzle schema and database access layer for MarginFlow.
+Shared Drizzle schema and database access layer for Lucreii.
 
 ## Local workflow
 

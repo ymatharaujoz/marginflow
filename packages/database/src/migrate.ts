@@ -33,7 +33,7 @@ Drizzle records which SQL files already ran in drizzle.__drizzle_migrations. If 
 0000 finished but the table was never created (or public was wiped), you get this error.
 
 Confirm with:
-  corepack pnpm --filter @marginflow/database db:diagnose
+  corepack pnpm --filter @lucreii/database db:diagnose
 
 Fix on a disposable database (local/dev only): drop and recreate public + drizzle, then migrate:
 
@@ -42,7 +42,7 @@ Fix on a disposable database (local/dev only): drop and recreate public + drizzl
   CREATE SCHEMA public;
 
 Then:
-  corepack pnpm --filter @marginflow/database db:migrate
+  corepack pnpm --filter @lucreii/database db:migrate
 
 (Supabase: after recreating public, restore default grants if your project requires them.)
 `;

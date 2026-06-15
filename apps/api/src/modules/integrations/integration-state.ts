@@ -1,5 +1,5 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
-import type { IntegrationProviderSlug } from "@marginflow/types";
+import type { IntegrationProviderSlug } from "@lucreii/types";
 import { IntegrationProviderError } from "./integrations.types";
 
 type SignedStatePayload = {

@@ -2,7 +2,7 @@ import type {
   ProductAnalyticsRow,
   ProductFinancialState,
   ProductMonthlyPerformanceDisplayRow,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { parseProtectedNumber } from "@/lib/protected-numbers";
 import type {
   ProductCatalogData,

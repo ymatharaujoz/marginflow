@@ -10,7 +10,7 @@ import type {
   RunSyncResponse,
   SyncRunRecord,
   SyncStatusResponse,
-} from "@marginflow/types";
+} from "@lucreii/types";
 import { apiClient } from "@/lib/api/client";
 
 const integrationsQueryKey = ["integrations"] as const;

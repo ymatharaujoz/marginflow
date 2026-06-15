@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import type { AuthState } from "@marginflow/types";
+import type { AuthState } from "@lucreii/types";
 
-export const WEB_AUTH_SESSION_COOKIE_NAME = "marginflow.web_session";
+export const WEB_AUTH_SESSION_COOKIE_NAME = "lucreii.web_session";
 
 export type WebAuthSessionPayload = {
   authState: AuthState;
@@ -53,7 +53,7 @@ export function readSignedWebAuthSession(
 }
 
 export function buildRemoteAuthCookieHeader(remoteSessionToken: string) {
-  return `marginflow_api_session=${remoteSessionToken}`;
+  return `lucreii_api_session=${remoteSessionToken}`;
 }
 
 export function getWebSessionSecret(source: Record<string, string | undefined> = process.env) {
@@ -78,5 +78,5 @@ export function getWebSessionSecret(source: Record<string, string | undefined> =
     );
   }
 
-  return "marginflow-web-session-dev-secret";
+  return "lucreii-web-session-dev-secret";
 }

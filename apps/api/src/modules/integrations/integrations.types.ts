@@ -1,5 +1,5 @@
-import type { MarketplaceConnection } from "@marginflow/database";
-import type { IntegrationProviderSlug } from "@marginflow/types";
+import type { MarketplaceConnection } from "@lucreii/database";
+import type { IntegrationProviderSlug } from "@lucreii/types";
 
 export type IntegrationProviderAuthorization = {
   authorizationUrl: string;
@@ -38,6 +38,21 @@ export type IntegrationSyncProduct = {
   sku: string | null;
   title: string | null;
   metadata: Record<string, unknown>;
+};
+
+export type IntegrationCatalogProduct = {
+  externalProductId: string;
+  images: string[];
+  isActive: boolean;
+  metadata: Record<string, unknown>;
+  sellingPrice: string;
+  sku: string;
+  title: string;
+};
+
+export type IntegrationCatalogImportContext = {
+  connection: MarketplaceConnection;
+  organizationId: string;
 };
 
 export type IntegrationSyncOrderItem = {
@@ -82,13 +97,18 @@ export type IntegrationSyncResult = {
 export type IntegrationProvider = {
   readonly displayName: string;
   readonly provider: IntegrationProviderSlug;
-  createAuthorization(input: IntegrationProviderContext): Promise<IntegrationProviderAuthorization>;
+  createAuthorization(
+    input: IntegrationProviderContext,
+  ): Promise<IntegrationProviderAuthorization>;
   disconnect(connection: MarketplaceConnection | null): Promise<void>;
   exchangeCode(
     code: string,
     input?: IntegrationProviderCallbackInput,
   ): Promise<IntegrationProviderCallbackResult>;
   isConfigured(): boolean;
+  importCatalog?(
+    input: IntegrationCatalogImportContext,
+  ): Promise<IntegrationCatalogProduct[]>;
   refreshAccessToken?(
     connection: MarketplaceConnection,
   ): Promise<IntegrationProviderTokenRefreshResult>;

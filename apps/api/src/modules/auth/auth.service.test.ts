@@ -7,7 +7,7 @@ const env = {
   API_PORT: 4000,
   AUTH_TRUSTED_ORIGINS: undefined,
   API_PUBLIC_BASE_URL: "http://localhost:4000",
-  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/marginflow",
+  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
   MERCADOLIVRE_CLIENT_ID: undefined,
   MERCADOLIVRE_CLIENT_SECRET: undefined,
   MERCADOLIVRE_REDIRECT_URI: undefined,
@@ -83,7 +83,7 @@ describe("AuthService", () => {
         expiresAt: "2099-04-22T00:00:00.000Z",
         id: "session_123",
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_123",
           image: null,
@@ -94,7 +94,7 @@ describe("AuthService", () => {
 
     const context = await service.resolveRequestContext({
       headers: new Headers({
-        cookie: "marginflow_api_session=session_token_123",
+        cookie: "lucreii_api_session=session_token_123",
       }),
     });
 
@@ -114,7 +114,7 @@ describe("AuthService", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,
@@ -130,7 +130,7 @@ describe("AuthService", () => {
         expiresAt: "2099-04-22T00:00:00.000Z",
         id: "session_123",
         user: {
-          email: "owner@marginflow.local",
+          email: "owner@lucreii.local",
           emailVerified: true,
           id: "user_123",
           image: null,
@@ -141,7 +141,7 @@ describe("AuthService", () => {
 
     const context = await service.resolveRequestContext({
       headers: new Headers({
-        cookie: "marginflow_api_session=session_token_123",
+        cookie: "lucreii_api_session=session_token_123",
       }),
     });
 
@@ -152,7 +152,7 @@ describe("AuthService", () => {
         id: "session_123",
       },
       user: {
-        email: "owner@marginflow.local",
+        email: "owner@lucreii.local",
         emailVerified: true,
         id: "user_123",
         image: null,

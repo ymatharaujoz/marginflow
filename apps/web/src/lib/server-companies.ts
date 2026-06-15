@@ -1,5 +1,5 @@
-import type { Company } from "@marginflow/types";
-import { companiesApiResponseSchema } from "@marginflow/validation";
+import type { Company } from "@lucreii/types";
+import { companiesApiResponseSchema } from "@lucreii/validation";
 import { getWebEnv } from "@/lib/env";
 import { parseApiContract } from "@/lib/api/contract";
 import { buildRemoteAuthHeaders, readServerWebAuthSession } from "@/lib/server-session";

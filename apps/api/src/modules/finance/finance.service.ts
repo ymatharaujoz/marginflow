@@ -7,7 +7,7 @@ import {
   type FinancialManualExpenseInput,
   type FinancialOrderInput,
   type FinancialProductInput,
-} from "@marginflow/domain";
+} from "@lucreii/domain";
 import {
   dailyMetrics,
   externalProducts,
@@ -19,7 +19,7 @@ import {
   type ExternalProduct,
   type Product,
   type ProductCost,
-} from "@marginflow/database";
+} from "@lucreii/database";
 import type {
   DashboardChannelProfitabilityRow,
   DashboardDailyMetricPoint,
@@ -27,8 +27,8 @@ import type {
   DashboardProductProfitabilityRow,
   DashboardReadModel,
   DashboardSummaryMetrics,
-} from "@marginflow/types";
-import type { IntegrationProviderSlug } from "@marginflow/types";
+} from "@lucreii/types";
+import type { IntegrationProviderSlug } from "@lucreii/types";
 import { and, desc, eq } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 

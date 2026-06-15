@@ -1,4 +1,4 @@
-import type { SyncRunRecord } from "@marginflow/types";
+import type { SyncRunRecord } from "@lucreii/types";
 
 export function formatDateTime(value: string | null): string {
   if (!value) return "-";
