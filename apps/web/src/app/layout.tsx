@@ -9,6 +9,10 @@ const rootSite = resolveSiteConfig();
 export const metadata: Metadata = {
   description: rootSite.defaultDescription,
   metadataBase: getSiteUrl(),
+  robots: {
+    follow: false,
+    index: false,
+  },
   title: rootSite.defaultTitle,
 };
 
