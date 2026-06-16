@@ -504,15 +504,12 @@ export function LandingPage() {
     },
   ];
 
-  const plans = pricingPlans
-    .filter((plan) => plan.name === "Crescimento")
-    .map((plan) => ({
-      ...plan,
-      featured: true,
-      cta: plan.ctaLabel,
-      href: plan.ctaHref,
-      features: [...plan.features],
-    }));
+  const plans = pricingPlans.map((plan) => ({
+    ...plan,
+    cta: plan.ctaLabel,
+    href: plan.ctaHref,
+    features: [...plan.features],
+  }));
 
   return (
     <main className="relative">
@@ -725,13 +722,13 @@ export function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="text-sm font-medium text-accent"
               >
-                Economize 20% no plano anual
+                Pagamento anual com melhor previsibilidade de caixa
               </motion.p>
             )}
           </motion.div>
 
           {/* Pricing Cards */}
-          <div className="mx-auto grid max-w-sm gap-6">
+          <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-3">
             {plans.map((plan, index) => (
               <PricingCard
                 key={plan.name}

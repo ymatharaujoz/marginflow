@@ -465,6 +465,7 @@ export const billingTrials = pgTable(
     email: varchar("email", { length: 320 }).notNull(),
     checkoutSessionId: varchar("checkout_session_id", { length: 255 }),
     interval: varchar("interval", { length: 32 }),
+    planCode: varchar("plan_code", { length: 64 }),
     reservedUntil: timestamp("reserved_until", { withTimezone: true }),
     redeemedAt: timestamp("redeemed_at", { withTimezone: true }),
     createdAt: createdAt(),

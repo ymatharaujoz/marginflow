@@ -105,6 +105,14 @@ describe("@lucreii/database schema", () => {
       'ADD COLUMN IF NOT EXISTS "trial_end"',
     );
     expect(billingTrialsMigration).toContain('INSERT INTO "billing_trials"');
+
+    const billingTrialPlanCodeMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0013_billing_trial_plan_code.sql"),
+      "utf8",
+    );
+    expect(billingTrialPlanCodeMigration).toContain(
+      'ADD COLUMN IF NOT EXISTS "plan_code"',
+    );
   });
 
   it("keeps company finance defaults aligned with migration assets", () => {

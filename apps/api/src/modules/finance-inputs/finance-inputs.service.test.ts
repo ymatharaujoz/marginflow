@@ -11,6 +11,9 @@ function createService() {
         findFirst: vi.fn(),
         findMany: vi.fn(),
       },
+      subscriptions: {
+        findFirst: vi.fn(),
+      },
       fixedCosts: {
         findFirst: vi.fn(),
         findMany: vi.fn(),
@@ -76,6 +79,11 @@ describe("FinanceInputsService", () => {
 
   it("creates companies with default finance values when fields are omitted", async () => {
     const { db, service } = createService();
+    db.query.companies.findMany.mockResolvedValue([]);
+    db.query.subscriptions.findFirst.mockResolvedValue({
+      planCode: "start",
+      status: "active",
+    });
     const valuesMock = vi.fn().mockReturnValue({
       returning: vi.fn().mockResolvedValue([
         {
@@ -114,6 +122,31 @@ describe("FinanceInputsService", () => {
         taxRateDefault: "0",
       }),
     );
+  });
+
+  it("blocks company creation when total registered CNPJs reaches the plan limit", async () => {
+    const { db, service } = createService();
+    db.query.companies.findMany.mockResolvedValue([
+      {
+        id: "company_inactive",
+        isActive: false,
+        organizationId: "org_123",
+        userId: "user_123",
+      },
+    ]);
+    db.query.subscriptions.findFirst.mockResolvedValue({
+      planCode: "start",
+      status: "active",
+    });
+
+    await expect(
+      service.createCompany(context, {
+        code: "meli",
+        name: "Mercado Livre",
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(db.insert).not.toHaveBeenCalled();
   });
 
   it("updates only provided company finance defaults", async () => {

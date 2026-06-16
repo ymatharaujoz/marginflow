@@ -28,7 +28,7 @@ function PricingCard({
 }) {
   const price = cycle === "annual" ? plan.annualPrice : plan.monthlyPrice;
   const suffix = cycle === "annual" ? plan.annualSuffix : plan.monthlySuffix;
-  const isGrowth = plan.name === "Crescimento";
+  const isFeatured = Boolean(plan.featured);
 
   return (
     <motion.article
@@ -41,7 +41,7 @@ function PricingCard({
       }}
       whileHover={{ y: -6, transition: { duration: 0.2 } }}
       className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:shadow-lg ${
-        isGrowth
+        isFeatured
           ? "border-accent/30 bg-gradient-to-b from-surface to-accent/[0.03] ring-1 ring-accent/10"
           : "border-border bg-gradient-to-b from-surface to-muted/20"
       }`}
@@ -53,17 +53,17 @@ function PricingCard({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 + index * 0.1 }}
           className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-            isGrowth ? "bg-accent text-white shadow-md" : "bg-muted text-muted-foreground"
+            isFeatured ? "bg-accent text-white shadow-md" : "bg-muted text-muted-foreground"
           }`}
         >
-          {isGrowth ? "Mais Popular" : plan.name}
+          {isFeatured ? "Mais Popular" : plan.name}
         </motion.span>
       </div>
 
       {/* Plan Name & Description */}
       <div className="mb-6 pt-2">
-        {!isGrowth && <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{plan.name}</h3>}
-        {isGrowth && <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">{plan.name}</h3>}
+        {!isFeatured && <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{plan.name}</h3>}
+        {isFeatured && <h3 className="text-sm font-semibold uppercase tracking-wider text-accent">{plan.name}</h3>}
         <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
       </div>
 
@@ -100,7 +100,7 @@ function PricingCard({
       <Link
         href={plan.ctaHref}
         className={`mb-6 inline-flex h-12 items-center justify-center rounded-xl px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
-          isGrowth
+          isFeatured
             ? "bg-accent text-white shadow-md hover:bg-accent-strong hover:shadow-lg"
             : "border border-border bg-surface text-foreground hover:border-accent/30 hover:bg-accent/[0.02]"
         }`}
@@ -171,14 +171,14 @@ export function PricingToggle() {
               exit={{ opacity: 0, y: -10 }}
               className="text-sm font-medium text-accent"
             >
-              Economize 20% no plano anual
+              Pagamento anual com melhor previsibilidade de caixa
             </motion.p>
           )}
         </AnimatePresence>
       </div>
 
       {/* Pricing Cards */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         {pricingPlans.map((plan, index) => (
           <PricingCard key={plan.name} plan={plan} cycle={cycle} index={index} />
         ))}

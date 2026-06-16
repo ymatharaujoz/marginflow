@@ -2,6 +2,13 @@ import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { DatabaseClient } from "@lucreii/database";
 import {
+  BILLING_PLAN_BY_CODE,
+  BILLING_PLANS,
+  getBillingPlanByPriceId,
+  isBillingPlanCode,
+  type BillingPlanCode,
+} from "@lucreii/types";
+import {
   billingCustomers,
   billingTrials,
   pendingCheckouts,
@@ -18,7 +25,6 @@ import {
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import type { BillingInterval } from "./billing.types";
 
-const PLAN_CODE = "lucreii";
 const TRIAL_DAYS = 7;
 const CHECKOUT_RESERVATION_MS = 24 * 60 * 60 * 1000;
 
@@ -35,11 +41,13 @@ export class BillingService {
 
   async createCheckoutSession(
     authContext: AuthenticatedRequestContext,
+    planCode: BillingPlanCode,
     interval: BillingInterval,
   ) {
     const customerId = await this.ensureCheckoutCustomer(authContext);
     const billingTrial = await this.ensureBillingTrial(authContext);
-    let trialEligible = billingTrial.redeemedAt === null;
+    let trialEligible =
+      planCode === "start" && billingTrial.redeemedAt === null;
 
     if (trialEligible && billingTrial.checkoutSessionId) {
       const existingSession = await this.stripe.checkout.sessions.retrieve(
@@ -51,6 +59,7 @@ export class BillingService {
         existingSession.url &&
         billingTrial.reservedUntil &&
         billingTrial.reservedUntil > new Date() &&
+        billingTrial.planCode === planCode &&
         billingTrial.interval === interval
       ) {
         return {
@@ -75,10 +84,7 @@ export class BillingService {
 
     const successUrl = `${this.env.WEB_APP_ORIGIN}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${this.env.WEB_APP_ORIGIN}/app/billing?checkout=cancelled`;
-    const priceId =
-      interval === "annual"
-        ? this.env.STRIPE_PRICE_ANNUAL
-        : this.env.STRIPE_PRICE_MONTHLY;
+    const priceId = this.resolvePriceId(planCode, interval);
 
     const session = await this.stripe.checkout.sessions.create({
       cancel_url: cancelUrl,
@@ -92,7 +98,7 @@ export class BillingService {
       metadata: {
         interval,
         organizationId: authContext.organization?.id ?? "",
-        planCode: PLAN_CODE,
+        planCode,
         trialEligible: String(trialEligible),
         userId: authContext.user.id,
       },
@@ -102,7 +108,7 @@ export class BillingService {
         metadata: {
           interval,
           organizationId: authContext.organization?.id ?? "",
-          planCode: PLAN_CODE,
+          planCode,
           trialEligible: String(trialEligible),
           userId: authContext.user.id,
         },
@@ -125,6 +131,7 @@ export class BillingService {
           this.toDate(session.expires_at) ??
           new Date(Date.now() + CHECKOUT_RESERVATION_MS),
         interval,
+        planCode,
       });
 
       if (!reserved) {
@@ -157,6 +164,7 @@ export class BillingService {
       checkoutSessionId: session.id,
       interval,
       organizationId: authContext.organization?.id ?? null,
+      planCode,
       stripeCustomerId: customerId,
       stripeSubscriptionId: null,
       userId: authContext.user.id,
@@ -202,11 +210,13 @@ export class BillingService {
       session.metadata?.organizationId,
     );
     const interval = this.resolveIntervalFromCheckoutSession(session);
+    const planCode = this.resolvePlanCodeFromCheckoutSession(session);
 
     await this.upsertPendingCheckoutRecord({
       checkoutSessionId: session.id,
       interval,
       organizationId: sessionOrganizationId,
+      planCode,
       stripeCustomerId: customerId,
       stripeSubscriptionId: externalSubscriptionId,
       userId: authContext.user.id,
@@ -398,11 +408,13 @@ export class BillingService {
       session.metadata?.organizationId,
     );
     const interval = this.resolveIntervalFromCheckoutSession(session);
+    const planCode = this.resolvePlanCodeFromCheckoutSession(session);
 
     await this.upsertPendingCheckoutRecord({
       checkoutSessionId: session.id,
       interval,
       organizationId,
+      planCode,
       stripeCustomerId: customerId,
       stripeSubscriptionId: externalSubscriptionId,
       userId,
@@ -438,6 +450,7 @@ export class BillingService {
       .set({
         checkoutSessionId: null,
         interval: null,
+        planCode: null,
         reservedUntil: null,
         updatedAt: new Date(),
       })
@@ -499,6 +512,7 @@ export class BillingService {
     await this.db
       .update(pendingCheckouts)
       .set({
+        planCode: this.resolvePlanCode(subscription),
         stripeCustomerId: externalCustomerId,
         stripeSubscriptionId: subscription.id,
         status:
@@ -555,6 +569,7 @@ export class BillingService {
       organizationId,
     });
     const interval = this.resolveInterval(subscription);
+    const planCode = this.resolvePlanCode(subscription);
     // Stripe.Subscription já inclui current_period_start e current_period_end como timestamps
     const currentPeriodStart = this.toDate(
       subscription.items.data[0]?.current_period_start,
@@ -575,7 +590,7 @@ export class BillingService {
       externalSubscriptionId: subscription.id,
       interval,
       organizationId,
-      planCode: PLAN_CODE,
+      planCode,
       provider: "stripe" as const,
       status: subscription.status,
       trialEnd: this.toDate(subscription.trial_end),
@@ -642,12 +657,14 @@ export class BillingService {
     checkoutSessionId: string;
     expiresAt: Date;
     interval: BillingInterval;
+    planCode: BillingPlanCode;
   }) {
     const [reserved] = await this.db
       .update(billingTrials)
       .set({
         checkoutSessionId: input.checkoutSessionId,
         interval: input.interval,
+        planCode: input.planCode,
         reservedUntil: input.expiresAt,
         updatedAt: new Date(),
       })
@@ -672,6 +689,7 @@ export class BillingService {
       .set({
         checkoutSessionId: null,
         interval: null,
+        planCode: null,
         reservedUntil: null,
         updatedAt: new Date(),
       })
@@ -773,7 +791,6 @@ export class BillingService {
       email: authContext.user.email,
       metadata: {
         organizationId: authContext.organization?.id ?? "",
-        planCode: PLAN_CODE,
         userId: authContext.user.id,
       },
       name: authContext.organization?.name ?? authContext.user.name,
@@ -829,6 +846,7 @@ export class BillingService {
     checkoutSessionId: string;
     interval: string;
     organizationId: string | null;
+    planCode: BillingPlanCode;
     stripeCustomerId: string | null;
     stripeSubscriptionId: string | null;
     userId: string;
@@ -844,7 +862,7 @@ export class BillingService {
       interval: input.interval,
       metadata: {},
       organizationId: input.organizationId,
-      planCode: PLAN_CODE,
+      planCode: input.planCode,
       status: input.status,
       stripeCustomerId: input.stripeCustomerId,
       stripeSubscriptionId: input.stripeSubscriptionId,
@@ -902,16 +920,91 @@ export class BillingService {
     return billingCustomer?.organizationId ?? null;
   }
 
-  private resolveInterval(subscription: Stripe.Subscription) {
+  private resolvePriceId(planCode: BillingPlanCode, interval: BillingInterval) {
+    const envPriceIds: Record<BillingPlanCode, Record<BillingInterval, string>> =
+      {
+        business: {
+          annual:
+            this.env.STRIPE_PRICE_BUSINESS_ANNUAL ??
+            BILLING_PLAN_BY_CODE.business.annualPriceId,
+          monthly:
+            this.env.STRIPE_PRICE_BUSINESS_MONTHLY ??
+            BILLING_PLAN_BY_CODE.business.monthlyPriceId,
+        },
+        pro: {
+          annual:
+            this.env.STRIPE_PRICE_PRO_ANNUAL ??
+            BILLING_PLAN_BY_CODE.pro.annualPriceId,
+          monthly:
+            this.env.STRIPE_PRICE_PRO_MONTHLY ??
+            BILLING_PLAN_BY_CODE.pro.monthlyPriceId,
+        },
+        start: {
+          annual:
+            this.env.STRIPE_PRICE_START_ANNUAL ??
+            BILLING_PLAN_BY_CODE.start.annualPriceId,
+          monthly:
+            this.env.STRIPE_PRICE_START_MONTHLY ??
+            BILLING_PLAN_BY_CODE.start.monthlyPriceId,
+        },
+      };
+
+    return envPriceIds[planCode][interval];
+  }
+
+  private resolvePlanByPriceId(priceId: string) {
+    const envPlan = BILLING_PLANS.find(
+      (plan) =>
+        this.resolvePriceId(plan.code, "monthly") === priceId ||
+        this.resolvePriceId(plan.code, "annual") === priceId,
+    );
+
+    return envPlan ?? getBillingPlanByPriceId(priceId);
+  }
+
+  private resolvePlanCode(subscription: Stripe.Subscription): BillingPlanCode {
+    const metadataPlanCode = subscription.metadata?.planCode;
+
+    if (metadataPlanCode && isBillingPlanCode(metadataPlanCode)) {
+      return metadataPlanCode;
+    }
+
     const firstItem = subscription.items.data[0];
     const priceId = firstItem?.price?.id;
 
-    if (priceId === this.env.STRIPE_PRICE_ANNUAL) {
-      return "annual";
+    if (priceId) {
+      const plan = this.resolvePlanByPriceId(priceId);
+      if (plan) {
+        return plan.code;
+      }
     }
 
-    if (priceId === this.env.STRIPE_PRICE_MONTHLY) {
-      return "monthly";
+    return "start";
+  }
+
+  private resolveInterval(subscription: Stripe.Subscription): BillingInterval {
+    const firstItem = subscription.items.data[0];
+    const priceId = firstItem?.price?.id;
+
+    if (priceId) {
+      for (const code of Object.keys(BILLING_PLAN_BY_CODE) as BillingPlanCode[]) {
+        if (this.resolvePriceId(code, "annual") === priceId) {
+          return "annual";
+        }
+
+        if (this.resolvePriceId(code, "monthly") === priceId) {
+          return "monthly";
+        }
+      }
+
+      const plan = getBillingPlanByPriceId(priceId);
+      if (plan?.annualPriceId === priceId) {
+        return "annual";
+      }
+
+      if (plan?.monthlyPriceId === priceId) {
+        return "monthly";
+      }
     }
 
     if (firstItem?.price?.recurring?.interval === "year") {
@@ -925,6 +1018,14 @@ export class BillingService {
     const interval = session.metadata?.interval;
 
     return interval === "annual" ? "annual" : "monthly";
+  }
+
+  private resolvePlanCodeFromCheckoutSession(
+    session: Stripe.Checkout.Session,
+  ): BillingPlanCode {
+    const planCode = session.metadata?.planCode;
+
+    return planCode && isBillingPlanCode(planCode) ? planCode : "start";
   }
 
   private getStripeCustomerId(

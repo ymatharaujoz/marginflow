@@ -1,13 +1,44 @@
 import { z } from "zod";
 
+const DEFAULT_STRIPE_PRICES = {
+  businessAnnual: "price_1TiiJBAcc6lqNf7osFGYo2ko",
+  businessMonthly: "price_1TiiItAcc6lqNf7oYZv2jHVt",
+  proAnnual: "price_1TiiICAcc6lqNf7olbaW6UZw",
+  proMonthly: "price_1TiiI0Acc6lqNf7oijT1DqqH",
+  startAnnual: "price_1TiiHfAcc6lqNf7o1HBx8o6c",
+  startMonthly: "price_1TiiHEAcc6lqNf7obNTfV2UF",
+} as const;
+
 export const serverEnvSchema = z.object({
   DATABASE_URL: z.string().url(),
   DATABASE_MIGRATION_URL: z.string().url().optional(),
   BETTER_AUTH_SECRET: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
-  STRIPE_PRICE_MONTHLY: z.string().min(1),
-  STRIPE_PRICE_ANNUAL: z.string().min(1),
+  STRIPE_PRICE_START_MONTHLY: z
+    .string()
+    .min(1)
+    .default(DEFAULT_STRIPE_PRICES.startMonthly),
+  STRIPE_PRICE_START_ANNUAL: z
+    .string()
+    .min(1)
+    .default(DEFAULT_STRIPE_PRICES.startAnnual),
+  STRIPE_PRICE_PRO_MONTHLY: z
+    .string()
+    .min(1)
+    .default(DEFAULT_STRIPE_PRICES.proMonthly),
+  STRIPE_PRICE_PRO_ANNUAL: z
+    .string()
+    .min(1)
+    .default(DEFAULT_STRIPE_PRICES.proAnnual),
+  STRIPE_PRICE_BUSINESS_MONTHLY: z
+    .string()
+    .min(1)
+    .default(DEFAULT_STRIPE_PRICES.businessMonthly),
+  STRIPE_PRICE_BUSINESS_ANNUAL: z
+    .string()
+    .min(1)
+    .default(DEFAULT_STRIPE_PRICES.businessAnnual),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_ANON_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),

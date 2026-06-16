@@ -18,8 +18,12 @@ const env = {
   BETTER_AUTH_URL: "http://localhost:4000",
   DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
   NODE_ENV: "test",
-  STRIPE_PRICE_ANNUAL: "price_annual",
-  STRIPE_PRICE_MONTHLY: "price_monthly",
+  STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+  STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+  STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+  STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+  STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+  STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
   STRIPE_SECRET_KEY: "stripe",
   STRIPE_WEBHOOK_SECRET: "webhook",
   SYNC_RELAX_GUARDS: false,
@@ -202,6 +206,7 @@ describe("BillingService", () => {
             name: "Mateus",
           },
         },
+        "start",
         "monthly",
       ),
     ).resolves.toEqual({
@@ -216,7 +221,7 @@ describe("BillingService", () => {
         customer: "cus_123",
         line_items: [
           {
-            price: "price_monthly",
+            price: "price_start_monthly",
             quantity: 1,
           },
         ],
@@ -242,6 +247,7 @@ describe("BillingService", () => {
       email: "owner@lucreii.local",
       id: "trial_123",
       interval: "annual",
+      planCode: "start",
       redeemedAt: null,
       reservedUntil: new Date("2099-01-01T00:00:00.000Z"),
       userId: "user_123",
@@ -271,6 +277,7 @@ describe("BillingService", () => {
             name: "Owner",
           },
         },
+        "start",
         "annual",
       ),
     ).resolves.toEqual({
@@ -294,6 +301,7 @@ describe("BillingService", () => {
       email: "owner@lucreii.local",
       id: "trial_123",
       interval: "monthly",
+      planCode: "start",
       redeemedAt: new Date("2026-06-01T00:00:00.000Z"),
       reservedUntil: null,
       userId: "user_123",
@@ -321,12 +329,77 @@ describe("BillingService", () => {
           name: "Owner",
         },
       },
-      "monthly",
+        "start",
+        "monthly",
     );
 
     expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
       expect.objectContaining({
         payment_method_collection: "always",
+        subscription_data: expect.not.objectContaining({
+          trial_period_days: expect.anything(),
+        }),
+      }),
+    );
+  });
+
+  it("does not grant trial for Pro checkout even when the user is trial eligible", async () => {
+    const { db, service, stripe } = createService();
+    db.query.billingCustomers.findFirst.mockResolvedValue({
+      externalCustomerId: "cus_123",
+      id: "billing_customer_123",
+      organizationId: "org_123",
+      provider: "stripe",
+    });
+    db.query.billingTrials.findFirst.mockResolvedValue({
+      checkoutSessionId: null,
+      email: "owner@lucreii.local",
+      id: "trial_123",
+      interval: null,
+      planCode: null,
+      redeemedAt: null,
+      reservedUntil: null,
+      userId: "user_123",
+    });
+    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_pro",
+      url: "https://checkout.stripe.test/pro",
+    });
+
+    await service.createCheckoutSession(
+      {
+        organization: {
+          id: "org_123",
+          name: "Org",
+          role: "owner",
+          slug: "org",
+        },
+        session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
+        user: {
+          email: "owner@lucreii.local",
+          emailVerified: true,
+          id: "user_123",
+          image: null,
+          name: "Owner",
+        },
+      },
+      "pro",
+      "monthly",
+    );
+
+    expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        line_items: [
+          {
+            price: "price_pro_monthly",
+            quantity: 1,
+          },
+        ],
+        metadata: expect.objectContaining({
+          planCode: "pro",
+          trialEligible: "false",
+        }),
         subscription_data: expect.not.objectContaining({
           trial_period_days: expect.anything(),
         }),
@@ -347,6 +420,7 @@ describe("BillingService", () => {
       email: "owner@lucreii.local",
       id: "trial_123",
       interval: "monthly",
+      planCode: "start",
       redeemedAt: null,
       reservedUntil: new Date("2099-01-01T00:00:00.000Z"),
       userId: "user_123",
@@ -379,7 +453,8 @@ describe("BillingService", () => {
           name: "Owner",
         },
       },
-      "annual",
+        "start",
+        "annual",
     );
 
     expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
@@ -458,9 +533,9 @@ describe("BillingService", () => {
             data: [
               {
                 price: {
-                  id: "price_monthly",
+                  id: "price_business_annual",
                   recurring: {
-                    interval: "month",
+                    interval: "year",
                   } as never,
                 },
               },
@@ -478,9 +553,9 @@ describe("BillingService", () => {
       expect.objectContaining({
         billingCustomerId: "billing_customer_123",
         externalSubscriptionId: "sub_123",
-        interval: "monthly",
+        interval: "annual",
         organizationId: "org_123",
-        planCode: "lucreii",
+        planCode: "business",
         status: "active",
       }),
     );
@@ -522,7 +597,7 @@ describe("BillingService", () => {
         data: [
           {
             price: {
-              id: "price_monthly",
+              id: "price_start_monthly",
               recurring: {
                 interval: "month",
               } as never,
@@ -639,7 +714,7 @@ describe("BillingService", () => {
         data: [
           {
             price: {
-              id: "price_monthly",
+              id: "price_start_monthly",
               recurring: {
                 interval: "month",
               } as never,

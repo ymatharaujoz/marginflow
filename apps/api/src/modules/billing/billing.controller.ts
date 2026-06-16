@@ -50,7 +50,11 @@ export class BillingController {
     @Body() body: CreateCheckoutRequestDto,
   ) {
     return {
-      data: await this.billingService.createCheckoutSession(authContext, body.interval),
+      data: await this.billingService.createCheckoutSession(
+        authContext,
+        body.planCode,
+        body.interval,
+      ),
       error: null,
     };
   }

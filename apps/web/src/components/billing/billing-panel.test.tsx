@@ -30,6 +30,12 @@ describe("BillingPanel", () => {
     expect(markup).toContain("Começar teste grátis");
     expect(markup).toContain("Cadastre seu cartão agora");
     expect(markup).toContain("Cobrança automática após 7 dias grátis");
+    expect(markup).toContain("Start");
+    expect(markup).toContain("Pro");
+    expect(markup).toContain("Business");
+    expect(markup).toContain("1 CNPJ");
+    expect(markup).toContain("3 CNPJs");
+    expect(markup).toContain("5 CNPJs");
   });
 
   it("presents immediate subscription copy after trial redemption", () => {
@@ -46,5 +52,6 @@ describe("BillingPanel", () => {
     expect(markup).toContain("Ative sua assinatura");
     expect(markup).toContain(">Assinar<");
     expect(markup).not.toContain("Começar teste grátis");
+    expect(markup).not.toContain("Cobrança automática após 7 dias grátis");
   });
 });
