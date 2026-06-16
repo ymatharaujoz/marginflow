@@ -1,4 +1,9 @@
-export const BILLING_INTERVALS = ["monthly", "annual"] as const;
+import type {
+  BillingInterval,
+  BillingPlanCode,
+} from "@lucreii/types";
+import { BILLING_INTERVALS, BILLING_PLAN_CODES } from "@lucreii/types";
+
 export const BILLING_STATE_STATUSES = [
   "active",
   "inactive",
@@ -6,7 +11,8 @@ export const BILLING_STATE_STATUSES = [
   "pending_onboarding",
 ] as const;
 
-export type BillingInterval = (typeof BILLING_INTERVALS)[number];
+export { BILLING_INTERVALS, BILLING_PLAN_CODES };
+export type { BillingInterval, BillingPlanCode };
 export type BillingStateStatus = (typeof BILLING_STATE_STATUSES)[number];
 
 export type BillingSnapshot = {

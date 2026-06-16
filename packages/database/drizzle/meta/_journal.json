@@ -92,6 +92,13 @@
       "when": 1781510400000,
       "tag": "0012_product_images",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781568000000,
+      "tag": "0013_billing_trial_plan_code",
+      "breakpoints": true
     }
   ]
 }

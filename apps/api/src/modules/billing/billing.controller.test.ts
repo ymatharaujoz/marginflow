@@ -112,6 +112,7 @@ describe("billing controller", () => {
       method: "POST",
       payload: {
         interval: "monthly",
+        planCode: "start",
       },
       url: "/billing/checkout",
     });

@@ -13,6 +13,7 @@ import {
   type FixedCost as FixedCostDbRow,
   type ProductMonthlyPerformance as PerformanceDbRow,
 } from "@lucreii/database";
+import { BILLING_PLAN_BY_CODE, isBillingPlanCode } from "@lucreii/types";
 import type {
   Company,
   CreateCompanyInput,
@@ -24,7 +25,7 @@ import type {
   UpdateFixedCostInput,
   UpdateProductMonthlyPerformanceInput,
 } from "@lucreii/types";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { DATABASE_CLIENT } from "@/common/tokens";
 
 type TenantContext = {
@@ -62,6 +63,8 @@ export class FinanceInputsService {
   }
 
   async createCompany(context: TenantContext, input: CreateCompanyInput): Promise<Company> {
+    await this.ensureCompanyLimitAllowsCreate(context);
+
     const [created] = await this.db
       .insert(companies)
       .values({
@@ -325,6 +328,39 @@ export class FinanceInputsService {
     }
 
     return company;
+  }
+
+  private async ensureCompanyLimitAllowsCreate(context: TenantContext) {
+    const [registeredCompanies, subscription] = await Promise.all([
+      this.db.query.companies.findMany({
+        where: (table) =>
+          and(
+            eq(table.organizationId, context.organizationId),
+            eq(table.userId, context.userId),
+          ),
+      }),
+      this.db.query.subscriptions.findFirst({
+        where: (table, { and, eq }) =>
+          and(
+            eq(table.organizationId, context.organizationId),
+            eq(table.provider, "stripe"),
+            isNotNull(table.billingCustomerId),
+          ),
+        orderBy: (table, { desc }) => [desc(table.updatedAt)],
+      }),
+    ]);
+
+    const planCode =
+      subscription?.planCode && isBillingPlanCode(subscription.planCode)
+        ? subscription.planCode
+        : "start";
+    const limit = BILLING_PLAN_BY_CODE[planCode].cnpjLimit;
+
+    if (registeredCompanies.length >= limit) {
+      throw new ForbiddenException(
+        `Seu plano permite ate ${limit} CNPJ${limit === 1 ? "" : "s"} cadastrado${limit === 1 ? "" : "s"}. Faca upgrade para vincular mais CNPJs.`,
+      );
+    }
   }
 
   private async ensurePerformanceAccess(context: TenantContext, performanceId: string) {

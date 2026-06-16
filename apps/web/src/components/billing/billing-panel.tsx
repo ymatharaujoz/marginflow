@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge, Button, Card } from "@lucreii/ui";
+import { BILLING_PLANS, type BillingPlanCode } from "@lucreii/types";
 import { apiClient, ApiClientError } from "@/lib/api/client";
 import type { ServerBillingState } from "@/lib/server-billing";
-import { PUBLIC_BRAND } from "@/lib/public-branding";
 import { getClientPublicEnv } from "@/lib/env";
 import { getWhatsappDemoUrl } from "@/lib/site";
 
@@ -103,26 +103,6 @@ const itemVariants = {
   },
 };
 
-function billingPlan() {
-  const monthly = PUBLIC_BRAND.priceMonthlyLabel;
-  const annual = PUBLIC_BRAND.priceAnnualLabel;
-  return {
-    description: "Melhor custo-benefício para operações consolidadas.",
-    monthlyPrice: monthly,
-    annualPrice: annual,
-    features: [
-      "Workspace completo",
-      "Integração com os principais marketplaces",
-      "Dashboard financeiro",
-      "Suporte por email e whatsapp",
-      "Prioridade no suporte",
-      "Exportação de relatórios",
-      "Webhooks avançados",
-      "API dedicada",
-    ],
-  };
-}
-
 const trustFeatures = [
   { icon: ShieldIcon, label: "SSL Seguro", description: "256-bit encryption" },
   {
@@ -153,9 +133,10 @@ export function BillingPanel({
   trialEligible,
 }: BillingPanelProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState<"monthly" | "annual" | null>(
-    null,
-  );
+  const [isSubmitting, setIsSubmitting] = useState<{
+    interval: "monthly" | "annual";
+    planCode: BillingPlanCode;
+  } | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(
     "annual",
   );
@@ -225,15 +206,18 @@ export function BillingPanel({
     })();
   }, [checkoutSessionId, needsClientConfirm, router]);
 
-  async function handleCheckout(interval: "monthly" | "annual") {
-    setIsSubmitting(interval);
+  async function handleCheckout(
+    planCode: BillingPlanCode,
+    interval: "monthly" | "annual",
+  ) {
+    setIsSubmitting({ interval, planCode });
     setMessage(null);
 
     try {
       const response = await apiClient.post<{
         data: { checkoutUrl: string; sessionId: string };
         error: null;
-      }>("/billing/checkout", { body: { interval } });
+      }>("/billing/checkout", { body: { interval, planCode } });
       window.location.assign(response.data.checkoutUrl);
     } catch (error) {
       const nextMessage =
@@ -247,7 +231,6 @@ export function BillingPanel({
     }
   }
 
-  const plan = billingPlan();
   const isBusy = isSubmitting !== null || successPhase !== "hidden";
 
   return (
@@ -711,7 +694,7 @@ export function BillingPanel({
               exit={{ opacity: 0, y: -10 }}
               className="text-sm font-medium text-accent"
             >
-              Economize 20% no plano anual
+              Pagamento anual com melhor previsibilidade de caixa
             </motion.p>
           )}
         </motion.div>
@@ -730,9 +713,17 @@ export function BillingPanel({
               },
             },
           }}
-          className="mx-auto max-w-md"
+          className="grid gap-6 lg:grid-cols-3"
         >
+          {BILLING_PLANS.map((plan) => {
+            const includesTrial = trialEligible && plan.code === "start";
+            const loading =
+              isSubmitting?.planCode === plan.code &&
+              isSubmitting.interval === billingCycle;
+
+            return (
           <motion.div
+            key={plan.code}
             variants={{
               hidden: { opacity: 0, y: 30, scale: 0.95 },
               visible: {
@@ -754,7 +745,7 @@ export function BillingPanel({
             >
               {/* Popular Badge — only on annual */}
               <AnimatePresence>
-                {billingCycle === "annual" && (
+                {plan.featured && (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -782,10 +773,10 @@ export function BillingPanel({
                 <div className="mb-6">
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold text-foreground">
-                      Pro
+                      {plan.name}
                     </h3>
                     <AnimatePresence>
-                      {billingCycle === "annual" && (
+                      {plan.featured && (
                         <motion.span
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
@@ -793,7 +784,7 @@ export function BillingPanel({
                           transition={{ duration: 0.2 }}
                           className="inline-flex items-center rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success"
                         >
-                          -20%
+                          {plan.cnpjLimitLabel}
                         </motion.span>
                       )}
                     </AnimatePresence>
@@ -825,7 +816,7 @@ export function BillingPanel({
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {trialEligible
+                    {includesTrial
                       ? `Cobrança automática após ${trialDays} dias grátis`
                       : billingCycle === "monthly"
                         ? "cobrado mensalmente"
@@ -852,14 +843,14 @@ export function BillingPanel({
                 <Button
                   className="w-full"
                   disabled={isBusy}
-                  loading={isSubmitting === billingCycle}
-                  onClick={() => void handleCheckout(billingCycle)}
+                  loading={loading}
+                  onClick={() => void handleCheckout(plan.code, billingCycle)}
                   size="lg"
                   variant="primary"
                 >
-                  {trialEligible ? "Começar teste grátis" : "Assinar"}
+                  {includesTrial ? "Começar teste grátis" : "Assinar"}
                 </Button>
-                {trialEligible && (
+                {includesTrial && (
                   <p className="mt-3 text-center text-xs text-muted-foreground">
                     Cancele no Stripe antes do período de teste para não ser cobrado
                   </p>
@@ -867,6 +858,8 @@ export function BillingPanel({
               </div>
             </Card>
           </motion.div>
+            );
+          })}
         </motion.div>
       </motion.div>
 
