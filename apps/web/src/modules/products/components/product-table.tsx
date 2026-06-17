@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   ArrowUpDown,
@@ -35,6 +36,7 @@ type SortKey =
   | "returns"
   | "unitCost"
   | "sellingPrice"
+  | "advertisingCost"
   | "commissionPct"
   | "shipping"
   | "taxPct"
@@ -79,14 +81,62 @@ function getChannelBadge(channel: string) {
   const normalized = channel.trim().toLowerCase();
 
   if (normalized === "mercadolivre") {
-    return <Badge>MELI</Badge>;
+    return (
+      <Badge
+        className="border-transparent"
+        style={{ backgroundColor: "#ffe600", color: "#000000" }}
+      >
+        MELI
+      </Badge>
+    );
   }
 
   if (normalized === "shopee") {
-    return <Badge>SHPE</Badge>;
+    return (
+      <Badge
+        className="border-transparent"
+        style={{ backgroundColor: "#fa5230", color: "#ffffff" }}
+      >
+        SHPE
+      </Badge>
+    );
   }
 
   return <Badge>{channel}</Badge>;
+}
+
+function ProductImagePreview({
+  alt,
+  url,
+}: {
+  alt: string;
+  url: string | null;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (!url || failed) {
+    return (
+      <div
+        aria-label={`Sem foto para ${alt}`}
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-md)] bg-surface-strong text-muted-foreground"
+      >
+        <Package className="h-4 w-4" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-surface-strong">
+      <Image
+        alt={alt}
+        className="object-cover"
+        fill
+        onError={() => setFailed(true)}
+        sizes="40px"
+        src={url}
+      />
+    </div>
+  );
 }
 
 export function ProductTable({
@@ -356,6 +406,15 @@ export function ProductTable({
                     </div>
                   </th>
                   <th
+                    onClick={() => handleSort("advertisingCost")}
+                    className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  >
+                    <div className="flex items-center justify-end gap-1">
+                      Publicidade
+                      <SortIcon column="advertisingCost" />
+                    </div>
+                  </th>
+                  <th
                     onClick={() => handleSort("commissionPct")}
                     className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
                   >
@@ -441,9 +500,12 @@ export function ProductTable({
                   >
                     <td className="px-3 py-3 text-left">{getChannelBadge(row.channelLabel)}</td>
                     <td className="px-3 py-3 text-left">
-                      <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-medium text-foreground">{row.name}</span>
-                        <span className="text-xs text-muted-foreground">{row.sku}</span>
+                      <div className="flex items-center gap-3">
+                        <ProductImagePreview alt={row.name} url={row.coverImageUrl} />
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-sm font-medium text-foreground">{row.name}</span>
+                          <span className="text-xs text-muted-foreground">{row.sku}</span>
+                        </div>
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right">
@@ -457,6 +519,9 @@ export function ProductTable({
                     </td>
                     <td className="px-3 py-3 text-right">
                       <span className="text-sm text-foreground">{formatMoney(row.sellingPrice)}</span>
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      <span className="text-sm text-foreground">{formatMoney(row.advertisingCost)}</span>
                     </td>
                     <td className="px-3 py-3 text-right">
                       <span className="text-sm text-foreground">{formatPercent(row.commissionPct)}</span>

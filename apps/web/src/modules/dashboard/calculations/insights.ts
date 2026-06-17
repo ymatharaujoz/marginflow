@@ -19,7 +19,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       id: "profit-positive",
       type: "growth",
       title: "Lucratividade Positiva",
-      description: `Seu negócio gerou ${formatMoney(netProfit)} de lucro líquido no período`,
+      description: `Seu negócio gerou ${formatMoney(netProfit)} de lucro líquido no período.`,
       priority: "medium",
     });
   } else if (netProfit < 0) {
@@ -27,7 +27,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       id: "profit-negative",
       type: "alert",
       title: "Margem Negativa Detectada",
-      description: "Seus custos estão superando a receita. Revise os produtos com menor margem",
+      description: "Seus custos estão superando a receita. Revise os produtos com menor margem.",
       priority: "high",
       href: "/app/products",
       actionLabel: "Ver produtos",
@@ -40,7 +40,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       id: "breakeven",
       type: "info",
       title: "Progresso até Ponto de Equilíbrio",
-      description: `Você atingiu ${progress.toFixed(0)}% do ponto de equilíbrio financeiro`,
+      description: `Você atingiu ${progress.toFixed(0)}% do ponto de equilíbrio financeiro.`,
     });
   }
 
@@ -64,7 +64,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       id: "roas-performance",
       type: roasTone,
       title: `ROAS ${roasStatus}`,
-      description: `Retorno de ${roasMultiple}x sobre ADS ${recommendation}`,
+      description: `Retorno de ${roasMultiple}x sobre ADS. ${recommendation}.`,
       priority: avgRoas < 2.5 ? "high" : "medium",
     });
   }
@@ -76,7 +76,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
         id: "contribution-strong",
         type: "growth",
         title: "Margem de Contribuição Forte",
-        description: `Seu negócio mantém ${contributionRate.toFixed(1)}% de margem de contribuição, cobrindo bem os custos operacionais antes das despesas fixas`,
+        description: `Seu negócio mantém ${contributionRate.toFixed(1)}% de margem de contribuição, cobrindo bem os custos operacionais antes das despesas fixas.`,
         priority: "medium",
       });
     }
@@ -89,7 +89,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
         id: "high-returns",
         type: "alert",
         title: "Taxa de Devolução Elevada",
-        description: `${totalReturns} devoluções em ${unitsSold} vendas (${returnRate.toFixed(1)}%). Revise qualidade ou descrição dos produtos`,
+        description: `${totalReturns} devoluções em ${unitsSold} vendas (${returnRate.toFixed(1)}%). Revise qualidade ou descrição dos produtos.`,
         priority: "high",
         href: "/app/products",
         actionLabel: "Ver produtos",
@@ -99,7 +99,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
         id: "returns-healthy",
         type: "growth",
         title: "Taxa de Devolução Saudável",
-        description: `Apenas ${returnRate.toFixed(1)}% de devoluções ${totalReturns === 0 ? "Nenhuma devolução registrada no periodo" : "Bom controle de qualidade e expectativas"}`,
+        description: `Apenas ${returnRate.toFixed(1)}% de devoluções. ${totalReturns === 0 ? "Nenhuma devolução registrada no periodo." : "Bom controle de qualidade e expectativas."}`,
         priority: "low",
       });
     }
@@ -112,7 +112,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
         id: "cac-insight",
         type: "info",
         title: "Custo de Aquisição (CAC)",
-        description: `Você investe ${formatMoney(cac)} em média para adquirir cada cliente através de anúncios`,
+        description: `Você investe ${formatMoney(cac)} em média para adquirir cada cliente através de anúncios.`,
         priority: "low",
       });
     }
@@ -124,7 +124,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       type: "info",
       title: "Cobertura Financeira Parcial",
       description:
-        "Alguns custos operacionais ainda dependem da cobertura atual do snapshot. O dashboard mostra zeros explicitos em vez de estimativas",
+        "Alguns custos operacionais ainda dependem da cobertura atual do snapshot. O dashboard mostra zeros explicitos em vez de estimativas.",
       priority: "medium",
       href: "/app/products",
       actionLabel: "Revisar catálogo",
@@ -136,7 +136,7 @@ export function buildDashboardInsights(data?: DashboardSummaryResponse): Dashboa
       id: "ai-tip",
       type: "ai",
       title: "Sugestão de IA",
-      description: "Continue sincronizando e cadastrando custos para liberar análises mais profundas do catálogo",
+      description: "Continue sincronizando e cadastrando custos para liberar análises mais profundas do catálogo.",
     });
   }
 

@@ -38,7 +38,7 @@ export function getSyncStatusLabel(canRun: boolean): string {
 }
 
 export function formatSyncOrigin(origin: SyncRunRecord["origin"]): string {
-  return origin === "automatic" ? "AutomÃ¡tica" : "Manual";
+  return origin === "automatic" ? "Automático" : "Manual";
 }
 
 const slotLabels: Record<string, string> = {

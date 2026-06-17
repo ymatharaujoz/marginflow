@@ -238,6 +238,7 @@ export type ProductAnalyticsScope = {
 };
 
 export type ProductMonthlyPerformanceDisplayRow = {
+  id: string;
   referenceMonth: string;
   channel: string;
   productName: string;

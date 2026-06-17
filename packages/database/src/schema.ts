@@ -787,6 +787,11 @@ export const products = pgTable(
   (table) => [
     index("products_organization_id_idx").on(table.organizationId),
     index("products_org_active_idx").on(table.organizationId, table.isActive),
+    uniqueIndex("products_org_normalized_sku_key")
+      .on(table.organizationId, sql`upper(trim(${table.sku}))`)
+      .where(
+        sql`${table.sku} is not null and char_length(trim(${table.sku})) > 0`,
+      ),
   ],
 );
 

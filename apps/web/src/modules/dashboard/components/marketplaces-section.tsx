@@ -5,15 +5,16 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 import { Card } from "@lucreii/ui";
+import type { DashboardRecentSyncResponse } from "@lucreii/types";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { slideInUpVariants } from "@/lib/animations";
-import type { DashboardChartsResponse, DashboardRecentSyncResponse } from "@lucreii/types";
+import type { DashboardChartsResponse } from "@lucreii/types";
+import type { DashboardConnectionStatuses } from "../hooks/use-dashboard-connection-statuses";
 import { formatMoney } from "../utils/formatters";
 
 interface MarketplacesSectionProps {
   data?: DashboardChartsResponse;
-  recentSync?: DashboardRecentSyncResponse;
-  recentSyncProvider?: "mercadolivre" | "shopee" | null;
+  syncStatusByProvider: DashboardConnectionStatuses;
   className?: string;
 }
 
@@ -36,66 +37,47 @@ const marketplaceIcons = {
 
 function getMarketplaceStatus(recentSync?: DashboardRecentSyncResponse) {
   if (!recentSync) {
-    return { status: "inactive" as const, label: "Não verificado" };
+    return { status: "inactive" as const, label: "Desconectado" };
   }
 
   const reason = recentSync.availability.reason;
-  const lastRun = recentSync.lastCompletedRun;
 
-  // Provedor desconectado ou indisponível
-  if (reason === "provider_disconnected" || reason === "provider_needs_reconnect" || reason === "provider_unavailable") {
+  if (
+    reason === "provider_disconnected" ||
+    reason === "provider_needs_reconnect" ||
+    reason === "provider_unavailable"
+  ) {
     return { status: "error" as const, label: "Desconectado" };
   }
 
-  // Sync em progresso
   if (reason === "sync_in_progress" || recentSync.activeRun) {
     return { status: "pending" as const, label: "Sincronizando" };
   }
 
-  // Verificar última sincronização bem-sucedida
-  if (lastRun && lastRun.finishedAt) {
-    const lastSync = new Date(lastRun.finishedAt);
-    const now = new Date();
-    const hoursSinceSync = (now.getTime() - lastSync.getTime()) / (1000 * 60 * 60);
-
-    // Mais de 24h sem sync = atenção
-    if (hoursSinceSync > 24) {
-      return { status: "warning" as const, label: "Atrasado" };
-    }
-
-    return { status: "active" as const, label: "Conectado" };
-  }
-
-  // Disponível mas nunca sincronizado
-  if (reason === "available") {
-    return { status: "warning" as const, label: "Nunca sync" };
-  }
-
-  return { status: "inactive" as const, label: "Não verificado" };
+  return { status: "active" as const, label: "Conectado" };
 }
 
 export function MarketplacesSection({
   data,
-  recentSync,
-  recentSyncProvider,
+  syncStatusByProvider,
   className = "",
 }: MarketplacesSectionProps) {
   const mlChannel = data?.channels.find((channel) => channel.channel.toLowerCase().includes("mercado"));
   const shopeeChannel = data?.channels.find((channel) => channel.channel.toLowerCase() === "shopee");
-  const statusBadge = useMemo(() => getMarketplaceStatus(recentSync), [recentSync]);
-  const statusProvider = recentSyncProvider ?? "mercadolivre";
+  const statusByProvider = useMemo(
+    () => ({
+      mercadolivre: getMarketplaceStatus(syncStatusByProvider.mercadolivre),
+      shopee: getMarketplaceStatus(syncStatusByProvider.shopee),
+    }),
+    [syncStatusByProvider],
+  );
 
   const marketplaces = [
     {
       id: "mercadolivre",
       name: "Mercado Livre",
       slug: "mercadolivre" as const,
-      status:
-        statusProvider === "mercadolivre"
-          ? statusBadge
-          : mlChannel
-            ? { status: "active" as const, label: "Com dados" }
-            : { status: "error" as const, label: "Desconectado" },
+      status: statusByProvider.mercadolivre,
       revenue: mlChannel ? formatMoney(mlChannel.grossRevenue) : undefined,
       orders: mlChannel?.unitsSold,
     },
@@ -103,12 +85,7 @@ export function MarketplacesSection({
       id: "shopee",
       name: "Shopee",
       slug: "shopee" as const,
-      status:
-        statusProvider === "shopee"
-          ? statusBadge
-          : shopeeChannel
-            ? { status: "active" as const, label: "Com dados" }
-            : { status: "error" as const, label: "Desconectado" },
+      status: statusByProvider.shopee,
       revenue: shopeeChannel ? formatMoney(shopeeChannel.grossRevenue) : undefined,
       orders: shopeeChannel?.unitsSold,
     },
@@ -149,16 +126,7 @@ export function MarketplacesSection({
                   className="mt-0.5"
                 />
               </div>
-              {(marketplace.revenue || marketplace.orders !== undefined) && (
-                <div className="shrink-0 text-right">
-                  {marketplace.revenue && (
-                    <p className="text-xs font-semibold text-foreground">{marketplace.revenue}</p>
-                  )}
-                  {marketplace.orders !== undefined && (
-                    <p className="text-[10px] text-muted-foreground">{marketplace.orders} unid.</p>
-                  )}
-                </div>
-              )}
+
               <Link
                 href="/app/integrations"
                 className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"

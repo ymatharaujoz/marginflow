@@ -19,7 +19,6 @@ import { deriveBusinessStatus, determineDashboardFinancialState } from "../calcu
 
 const dashboardSummaryQueryKey = ["dashboard-summary"] as const;
 const dashboardChartsQueryKey = ["dashboard-charts"] as const;
-const dashboardRecentSyncQueryKey = ["dashboard-recent-sync"] as const;
 const dashboardProfitabilityQueryKey = ["dashboard-profitability"] as const;
 
 function dashboardUrl(path: string, provider?: IntegrationProviderSlug | null) {
@@ -76,12 +75,6 @@ export function useDashboardData(provider: IntegrationProviderSlug | null = null
     retry: 2,
   });
 
-  const recentSyncQuery = useQuery({
-    queryFn: () => fetchDashboardRecentSync(provider),
-    queryKey: [...dashboardRecentSyncQueryKey, provider],
-    retry: 1,
-  });
-
   const profitabilityQuery = useQuery({
     queryFn: () => fetchDashboardProfitability(provider),
     queryKey: [...dashboardProfitabilityQueryKey, provider],
@@ -100,18 +93,15 @@ export function useDashboardData(provider: IntegrationProviderSlug | null = null
   return {
     summaryQuery,
     chartsQuery,
-    recentSyncQuery,
     profitabilityQuery,
     isLoading,
     error: error as Error | ApiClientError | null,
     financialState,
     businessStatus,
-    lastSyncDate: recentSyncQuery.data?.lastCompletedRun?.finishedAt ?? undefined,
     refetchAll() {
       summaryQuery.refetch();
       chartsQuery.refetch();
       profitabilityQuery.refetch();
-      recentSyncQuery.refetch();
     },
   };
 }

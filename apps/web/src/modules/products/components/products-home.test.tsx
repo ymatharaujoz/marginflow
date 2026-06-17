@@ -76,7 +76,7 @@ vi.mock("../hooks/use-product-data", () => ({
       },
     },
     error: null,
-    financialState: "ready",
+    financialState: "no-costs",
     goToPage: vi.fn(),
     isLoading: false,
     isUnauthorized: false,
@@ -178,6 +178,19 @@ beforeEach(() => {
 });
 
 describe("ProductsHome catalog modal", () => {
+  it("keeps catalog table visible when products have no cost", () => {
+    const view = renderProductsHome();
+
+    expect(document.body.textContent).toContain("Produtos do cat");
+    expect(document.body.textContent).toContain("Kit Mercado Livre");
+    expect(
+      document.querySelector('[aria-label="Produto sem custos cadastrados"]'),
+    ).not.toBeNull();
+    expect(document.body.textContent).not.toContain("Cadastre custos de produto");
+
+    view.unmount();
+  });
+
   it("opens modal, keeps non-finance fields read-only, saves finance inputs, and deletes product", async () => {
     apiClientMocks.patch.mockResolvedValue({
       data: { id: "product_1" },

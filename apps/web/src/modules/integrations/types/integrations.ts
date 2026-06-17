@@ -29,10 +29,6 @@ export interface UseIntegrationsDataReturn {
     isLoading: boolean;
     error: Error | null;
   };
-  syncHistoryQuery: {
-    data?: SyncRunRecord[];
-    isLoading: boolean;
-  };
   syncMutation: {
     isPending: boolean;
     mutate: () => void;
@@ -44,10 +40,6 @@ export interface UseIntegrationsDataReturn {
   disconnectMutation: {
     isPending: boolean;
     mutate: (provider: IntegrationProviderSlug) => void;
-  };
-  clearHistoryMutation: {
-    isPending: boolean;
-    mutate: () => void;
   };
   refetchAll: () => void;
 }
@@ -74,12 +66,8 @@ export interface IntegrationCardsProps {
 
 export interface SyncSectionProps {
   syncStatus?: SyncStatusResponse;
-  syncHistory: SyncRunRecord[];
   isSyncLoading: boolean;
-  isHistoryLoading: boolean;
-  isClearing: boolean;
   onSyncClick: () => void;
-  onClearHistory: () => void;
   canSync: boolean;
 }
 

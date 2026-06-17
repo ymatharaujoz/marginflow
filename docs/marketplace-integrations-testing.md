@@ -125,7 +125,7 @@ Validar que uma venda nova gera notificacao, inicia sincronizacao automatica e g
 4. Aguarde a notificacao de pedido.
 5. Abra `/app/integrations` e confira se a ultima sincronizacao foi atualizada.
 6. Se necessario, use `Sincronizar agora` para validar a sincronizacao manual na mesma conta.
-7. Abra o historico de sincronizacao e confirme que existe um run concluido recente.
+7. Confira na area de status que a ultima sincronizacao foi atualizada e concluida com sucesso.
 
 ### Resultado esperado
 

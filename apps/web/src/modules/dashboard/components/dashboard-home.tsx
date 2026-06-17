@@ -16,6 +16,7 @@ import { MarketplacesSection } from "./marketplaces-section";
 import { InsightsSection } from "./insights-section";
 import { ProductsTable } from "./products-table";
 import { useDashboardData } from "../hooks/use-dashboard-data";
+import { useDashboardConnectionStatuses } from "../hooks/use-dashboard-connection-statuses";
 
 interface DashboardHomeProps {
   activeCompany: Company | null;
@@ -73,7 +74,6 @@ export function DashboardHome({ activeCompany, organizationName }: DashboardHome
   const {
     summaryQuery,
     chartsQuery,
-    recentSyncQuery,
     profitabilityQuery,
     isLoading,
     error,
@@ -81,6 +81,7 @@ export function DashboardHome({ activeCompany, organizationName }: DashboardHome
     businessStatus,
     refetchAll,
   } = useDashboardData(providerFilter);
+  const { syncStatusByProvider } = useDashboardConnectionStatuses();
 
   if (isLoading) {
     return <LoadingDashboard />;
@@ -136,8 +137,7 @@ export function DashboardHome({ activeCompany, organizationName }: DashboardHome
           <div className="flex flex-col gap-3">
             <MarketplacesSection
               data={chartsQuery.data}
-              recentSync={recentSyncQuery.data}
-              recentSyncProvider={providerFilter}
+              syncStatusByProvider={syncStatusByProvider}
             />
             {summaryQuery.data && <InsightsSection data={summaryQuery.data} className="flex-1" />}
           </div>
@@ -163,8 +163,6 @@ export function DashboardHome({ activeCompany, organizationName }: DashboardHome
           />
         </motion.div>
       )}
-
-
     </motion.div>
   );
 }

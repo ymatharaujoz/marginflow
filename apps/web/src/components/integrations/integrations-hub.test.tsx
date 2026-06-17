@@ -106,7 +106,7 @@ describe("IntegrationsHub", () => {
     expect(markup).toContain("Conectar");
     expect(markup).not.toContain("Mercado Livre conectado com sucesso.");
     expect(markup).toContain("Status da Sincronização");
-    expect(markup).toContain("Histórico de Sincronizações");
+    expect(markup).not.toContain("Histórico de Sincronizações");
   });
 
   it("renders the API failure state", () => {

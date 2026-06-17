@@ -10,6 +10,7 @@ import {
   Plus,
   Upload,
   AlertCircle,
+  AlertTriangle,
   Package,
   Box,
   DollarSign,
@@ -223,13 +224,11 @@ function NoCostsState({
               </p>
             </div>
           </div>
-          <Button
-            variant="secondary"
-            className="gap-2 shrink-0"
-            onClick={onAdd}
-          >
-            <Plus className="h-4 w-4" />
-            Adicionar custo
+          <Button asChild variant="secondary" className="gap-2 shrink-0">
+            <Link href="/app/products/catalog">
+              <ArrowRight className="h-4 w-4" />
+              Ir para catálogo
+            </Link>
           </Button>
         </div>
       </Card>
@@ -460,9 +459,21 @@ function CatalogProductDetailsModal({
               <h2 className="text-lg font-semibold text-foreground leading-tight">
                 {product.name}
               </h2>
-              <span className="font-mono text-[11px] text-muted-foreground/60">
-                SKU: {product.sku ?? "—"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] text-muted-foreground/60">
+                  SKU: {product.sku ?? "—"}
+                </span>
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                    product.isActive
+                      ? "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/20"
+                      : "bg-muted text-muted-foreground ring-1 ring-inset ring-border",
+                  )}
+                >
+                  {product.isActive ? "Ativo" : "Arquivado"}
+                </span>
+              </div>
             </div>
           ) : (
             "Produto"
@@ -484,20 +495,6 @@ function CatalogProductDetailsModal({
             }}
             className="flex flex-col gap-6"
           >
-            {/* Status */}
-            <div className="flex justify-center">
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider",
-                  product.isActive
-                    ? "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/20"
-                    : "bg-muted text-muted-foreground ring-1 ring-inset ring-border",
-                )}
-              >
-                {product.isActive ? "Ativo" : "Arquivado"}
-              </span>
-            </div>
-
             {/* Imagem hero + miniaturas — centralizado */}
             <div className="mx-auto w-full max-w-[320px]">
               <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[var(--radius-xl)] border border-border/60 bg-gradient-to-br from-surface-strong via-surface to-background shadow-[var(--shadow-md)]">
@@ -675,7 +672,7 @@ function CatalogProductsTable({
             Produtos do catálogo
           </h3>
           <p className="text-xs text-muted-foreground">
-            Itens cadastrados manualmente ou importados.
+            Itens cadastrados manualmente ou importados
           </p>
         </div>
 
@@ -720,7 +717,18 @@ function CatalogProductsTable({
                         className="h-10 w-10 shrink-0 rounded-[var(--radius-md)]"
                         url={product.coverImageUrl}
                       />
-                      <span>{product.name}</span>
+                      <span className="flex items-center gap-2">
+                        <span>{product.name}</span>
+                        {product.latestCost ? null : (
+                          <span
+                            aria-label="Produto sem custos cadastrados"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning/10 text-warning"
+                            title="Produto sem custos cadastrados"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </td>
                   <td className="px-3 py-3 text-sm text-muted-foreground">
@@ -732,7 +740,7 @@ function CatalogProductsTable({
                   <td className="px-3 py-3 text-right text-sm text-foreground">
                     {product.latestCost
                       ? formatMoney(Number(product.latestCost.amount))
-                      : "Sem custo"}
+                      : "—"}
                   </td>
                   <td className="px-3 py-3 text-right text-sm text-foreground">
                     {product.financeDefaults
@@ -862,7 +870,7 @@ export function ProductsHome({
     );
   }
 
-  if (financialState === "no-costs" && stats) {
+  if (view !== "catalog" && financialState === "no-costs" && stats) {
     return (
       <motion.div
         variants={fadeInVariants}

@@ -11,7 +11,6 @@ import {
   ConnectedMarketplacesSection,
   SyncStatusGrid,
   SyncControlCard,
-  SyncHistorySection,
   LoadingIntegrations,
   ErrorState,
   useIntegrationsData,
@@ -45,11 +44,9 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
   const {
     integrationsQuery,
     syncStatusQuery,
-    syncHistoryQuery,
     connectMutation,
     disconnectMutation,
     syncMutation,
-    clearHistoryMutation,
     refetchAll,
   } = useIntegrationsData(syncProvider, {
     onSyncSuccess: (data: RunSyncResponse) => {
@@ -130,24 +127,6 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
 
     syncMutation.mutate();
   }, [syncMutation, syncStatusQuery]);
-
-  // Handler de limpar histórico
-  const handleClearHistory = useCallback(() => {
-    if (syncHistoryQuery.data?.length === 0 || clearHistoryMutation.isPending) return;
-    setMessage(null);
-    clearHistoryMutation.mutate(undefined, {
-      onSuccess: (data) => {
-        setMessage(
-          data.clearedCount === 1 ? "1 registro removido." : `${data.clearedCount} registros removidos.`,
-        );
-        setMessageTone("neutral");
-      },
-      onError: (error) => {
-        setMessage(error instanceof ApiClientError ? error.message : "Erro ao limpar histórico.");
-        setMessageTone("critical");
-      },
-    });
-  }, [clearHistoryMutation, syncHistoryQuery.data?.length]);
 
   // Estados de loading e erro
   if (integrationsQuery.isLoading) {
@@ -273,16 +252,6 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
         </section>
       )}
 
-      {/* Divider */}
-      <div className="border-t border-border/60" />
-
-      {/* Seção 4: Histórico de Sincronizações */}
-      <SyncHistorySection
-        syncHistory={syncHistoryQuery.data ?? []}
-        isLoading={syncHistoryQuery.isLoading}
-        isClearing={clearHistoryMutation.isPending}
-        onClearHistory={handleClearHistory}
-      />
     </motion.div>
   );
 }

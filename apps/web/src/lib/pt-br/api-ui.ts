@@ -25,7 +25,7 @@ const API_MESSAGES_BASE: Record<string, string> = {
 
   "Mercado Livre connected successfully.": "Mercado Livre conectado com sucesso.",
   "Mercado Livre auto-sync is active. New sales also trigger synchronization automatically.":
-    "A sincronizaÃ§Ã£o automÃ¡tica do Mercado Livre estÃ¡ ativa. Novas vendas tambÃ©m disparam sincronizaÃ§Ã£o automaticamente.",
+    "A sincronização automática do Mercado Livre está ativa. Novas vendas também disparam sincronização automaticamente.",
 
   "No marketplace account is connected yet.":
     "Nenhuma conta do marketplace está conectada ainda",
@@ -147,7 +147,7 @@ export function translateSyncRunStatus(status: string): string {
 }
 
 const SYNC_RUN_ORIGIN_PT: Record<string, string> = {
-  automatic: "AutomÃ¡tica",
+  automatic: "Automático",
   manual: "Manual",
 };
 
@@ -157,10 +157,10 @@ export function translateSyncRunOrigin(origin: string): string {
 }
 
 const DASHBOARD_CARD_LABEL_BASE: Record<string, string> = {
-  "Gross revenue": "Receita bruta",
-  "Net profit": "Lucro líquido",
-  "Gross margin": "Margem bruta",
-  "Break-even revenue": "Receita no ponto de equilíbrio",
+  "Gross revenue": "Receita Bruta",
+  "Net profit": "Lucro Líquido",
+  "Gross margin": "Margem Bruta",
+  "Break-even revenue": "Receita no Ponto de Equilíbrio",
 };
 
 const DASHBOARD_CARD_LABEL_PT = addIdentityPtKeys(DASHBOARD_CARD_LABEL_BASE);
@@ -173,16 +173,16 @@ export function translateDashboardCardLabel(label: string): string {
 export function translateDashboardCardHelper(label: string, metrics: DashboardSummaryMetrics): string {
   switch (label.trim()) {
     case "Gross revenue":
-    case "Receita bruta":
+    case "Receita Bruta":
       return `${metrics.ordersCount} pedidos entre ${metrics.unitsSold} unidades vendidas`;
     case "Net profit":
-    case "Lucro líquido":
+    case "Lucro Líquido":
       return `${metrics.netRevenue} de receita líquida após descontos e reembolsos`;
     case "Gross margin":
-    case "Margem bruta":
+    case "Margem Bruta":
       return `${metrics.contributionMargin} de margem de contribuição`;
     case "Break-even revenue":
-    case "Receita no ponto de equilíbrio":
+    case "Receita no Ponto de Equilíbrio":
       return `${metrics.breakEvenUnits} unidades necessárias no perfil de contribuição atual`;
     default:
       return "";

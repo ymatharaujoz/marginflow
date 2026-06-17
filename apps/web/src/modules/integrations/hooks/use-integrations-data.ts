@@ -3,12 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import type {
-  ClearSyncHistoryResponse,
   IntegrationConnectionRecord,
   IntegrationConnectResponse,
   IntegrationProviderSlug,
   RunSyncResponse,
-  SyncRunRecord,
   SyncStatusResponse,
 } from "@lucreii/types";
 import { apiClient } from "@/lib/api/client";
@@ -22,13 +20,6 @@ async function fetchIntegrations(): Promise<IntegrationConnectionRecord[]> {
 async function fetchSyncStatus(provider: IntegrationProviderSlug): Promise<SyncStatusResponse> {
   const response = await apiClient.get<{ data: SyncStatusResponse; error: null }>(
     `/sync/status?provider=${provider}`,
-  );
-  return response.data;
-}
-
-async function fetchSyncHistory(provider: IntegrationProviderSlug): Promise<SyncRunRecord[]> {
-  const response = await apiClient.get<{ data: SyncRunRecord[]; error: null }>(
-    `/sync/history?provider=${provider}`,
   );
   return response.data;
 }
@@ -55,11 +46,6 @@ export function useIntegrationsData(
     queryKey: ["sync-status", syncProvider],
   });
 
-  const syncHistoryQuery = useQuery({
-    queryFn: () => fetchSyncHistory(syncProvider),
-    queryKey: ["sync-history", syncProvider],
-  });
-
   const connectMutation = useMutation({
     mutationFn: async (provider: IntegrationProviderSlug) => {
       const response = await apiClient.post<{ data: IntegrationConnectResponse; error: null }>(
@@ -82,7 +68,6 @@ export function useIntegrationsData(
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
       await queryClient.invalidateQueries({ queryKey: ["sync-status"] });
-      await queryClient.invalidateQueries({ queryKey: ["sync-history"] });
     },
   });
 
@@ -97,24 +82,6 @@ export function useIntegrationsData(
       options.onSyncSuccess?.(data);
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
       await queryClient.invalidateQueries({ queryKey: ["sync-status", syncProvider] });
-      await queryClient.invalidateQueries({ queryKey: ["sync-history", syncProvider] });
-      router.refresh();
-    },
-  });
-
-  const clearHistoryMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.post<{ data: ClearSyncHistoryResponse; error: null }>(
-        "/sync/history/clear",
-        {
-          body: { provider: syncProvider },
-        },
-      );
-      return response.data;
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["sync-status", syncProvider] });
-      await queryClient.invalidateQueries({ queryKey: ["sync-history", syncProvider] });
       router.refresh();
     },
   });
@@ -122,7 +89,6 @@ export function useIntegrationsData(
   const refetchAll = () => {
     integrationsQuery.refetch();
     syncStatusQuery.refetch();
-    syncHistoryQuery.refetch();
   };
 
   const activeConnection = integrationsQuery.data?.find((c) => c.provider === syncProvider);
@@ -139,10 +105,6 @@ export function useIntegrationsData(
       isLoading: syncStatusQuery.isLoading,
       error: syncStatusQuery.error,
     },
-    syncHistoryQuery: {
-      data: syncHistoryQuery.data,
-      isLoading: syncHistoryQuery.isLoading,
-    },
     connectMutation: {
       isPending: connectMutation.isPending,
       mutate: connectMutation.mutate,
@@ -154,10 +116,6 @@ export function useIntegrationsData(
     syncMutation: {
       isPending: syncMutation.isPending,
       mutate: syncMutation.mutate,
-    },
-    clearHistoryMutation: {
-      isPending: clearHistoryMutation.isPending,
-      mutate: clearHistoryMutation.mutate,
     },
     refetchAll,
     activeConnection,
