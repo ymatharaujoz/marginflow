@@ -25,6 +25,10 @@ export function ProductHeader({
       return { badge: { status: "inactive" as const, label: "Catálogo vazio" }, color: "muted" };
     }
 
+    if (stats.productsWithoutCost > 0) {
+      return { badge: { status: "warning" as const, label: "Produtos sem custo" }, color: "warning" };
+    }
+
     if (stats.pendingSyncProducts > 0) {
       return { badge: { status: "pending" as const, label: "Revisão pendente" }, color: "info" };
     }

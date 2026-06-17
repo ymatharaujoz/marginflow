@@ -25,6 +25,7 @@ function resolveNetLiquidSales(salesQuantity: number, returnsQuantity: number): 
 function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow, taxRateDefault: number): {
   netLiquidSales: number;
   revenue: number;
+  totalCommission: number;
   totalProfit: number;
   totalPackagingCost: number;
   totalProductCost: number;
@@ -42,16 +43,19 @@ function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow, taxRateDe
   const packagingCost = toNumber(row.packagingCost);
   const unitCost = toNumber(row.unitCost);
   const advertising = toNumber(row.advertisingCost);
+  const marketplaceCommission = toNumber(row.marketplaceCommission ?? "0") || commissionRate * sellingPrice;
 
   const revenue = sellingPrice * netLiquidSales;
+  const totalCommission = marketplaceCommission * netLiquidSales;
+  const totalShipping = shippingFee * netLiquidSales;
   const totalTax = revenue * taxRateDefault;
   const totalPackagingCost = packagingCost * netLiquidSales;
   const totalProductCost = unitCost * netLiquidSales;
 
   const totalProfit =
     revenue
-    - revenue * commissionRate
-    - shippingFee * netLiquidSales
+    - totalCommission
+    - totalShipping
     - totalTax
     - totalPackagingCost
     - totalProductCost;
@@ -73,6 +77,7 @@ function deriveRowFinancials(row: ProductMonthlyPerformanceDisplayRow, taxRateDe
     netLiquidSales,
     revenue,
     roiRatio,
+    totalCommission,
     totalPackagingCost,
     totalProductCost,
     totalProfit,
@@ -340,17 +345,22 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
     const taxRateDefault = taxPct / 100;
     const financials = deriveRowFinancials(row, taxRateDefault);
     const sellingPrice = toNumber(row.salePrice);
+    const product = data.products.find((p) => p.sku === row.sku);
 
     return {
       ...financials,
       adSpend: toNumber(row.advertisingCost),
+      advertisingCost: toNumber(row.advertisingCost),
       channelLabel: row.channel,
       commissionPct: sellingPrice > 0
         ? (toNumber(row.marketplaceCommission ?? "0") / sellingPrice) * 100
         : 0,
+      coverImageUrl: product?.coverImageUrl ?? null,
       id: `${row.referenceMonth}:${row.channel}:${row.sku}`,
+      isActive: product?.isActive ?? true,
       name: row.productName,
       packagingCost: toNumber(row.packagingCost),
+      performanceId: row.id,
       referenceMonth: row.referenceMonth,
       returns: row.returnsQuantity,
       sales: row.salesQuantity,
@@ -358,6 +368,7 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
       shipping: toNumber(row.shippingFee),
       sku: row.sku,
       taxPct,
+      totalCommission: financials.totalCommission,
       totalPackagingCost: financials.totalPackagingCost,
       totalProductCost: financials.totalProductCost,
       unitCost: toNumber(row.unitCost),

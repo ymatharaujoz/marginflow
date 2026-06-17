@@ -156,6 +156,7 @@ describe("@lucreii/validation protected app schemas", () => {
             advertisingCost: "0.00",
             channel: "mercadolivre",
             commissionRate: "0.100000",
+            id: "perf_1",
             packagingCost: "0.00",
             productName: "Produto um",
             referenceMonth: "2026-05-01",
@@ -275,6 +276,7 @@ describe("@lucreii/validation protected app schemas", () => {
             advertisingCost: "0.00",
             channel: "unknown",
             commissionRate: "0.000000",
+            id: "perf_2",
             packagingCost: "0.00",
             productName: "Produto Dois",
             referenceMonth: "2026-05-01",
@@ -366,5 +368,103 @@ describe("@lucreii/validation protected app schemas", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("rejects monthly performance rows without persistence id", () => {
+    const result = productAnalyticsSnapshotApiResponseSchema.safeParse({
+      data: {
+        adCosts: [],
+        catalogStats: {
+          activeProducts: 1,
+          archivedProducts: 0,
+          pendingSyncProducts: 0,
+          productsWithCost: 1,
+          productsWithoutCost: 0,
+          syncedProductsTotal: 0,
+          totalAdCosts: 0,
+          totalManualExpenses: 0,
+          totalProductCosts: 1,
+          totalProducts: 1,
+        },
+        dataGaps: [],
+        financialState: "ready",
+        manualExpenses: [],
+        mercadoLivreSyncStatus: {
+          activeRun: null,
+          availability: {
+            canRun: true,
+            currentWindowKey: "2026-05-13-morning",
+            currentWindowLabel: "Manha",
+            currentWindowSlot: "morning",
+            lastSuccessfulSyncAt: null,
+            message: "Sync is available for the current daily window.",
+            nextAvailableAt: "2026-05-13T09:00:00.000Z",
+            provider: "mercadolivre",
+            reason: "available",
+          },
+          lastCompletedRun: null,
+        },
+        monthlyPerformanceRows: [
+          {
+            advertisingCost: "0.00",
+            channel: "mercadolivre",
+            commissionRate: "0.100000",
+            packagingCost: "0.00",
+            productName: "Produto um",
+            referenceMonth: "2026-05-01",
+            returnsQuantity: 0,
+            salePrice: "20.00",
+            salesQuantity: 1,
+            shippingFee: "0.00",
+            sku: "SKU-1",
+            unitCost: "10.00",
+          },
+        ],
+        productCosts: [],
+        productRows: [
+          {
+            actualRoas: "0.00",
+            adSpend: "0.00",
+            channel: "mercadolivre",
+            contributionMargin: "10.00",
+            dataSource: "sync",
+            grossProfit: "10.00",
+            hasCost: true,
+            hasLinkedMarketplaceSignal: true,
+            hasSalesSignal: true,
+            insufficientReasons: [],
+            isActive: true,
+            margin: "10.00",
+            marketplaceCommission: "0.00",
+            minimumRoas: "Infinity",
+            name: "Produto sem custo total",
+            netSales: 1,
+            packagingCost: "0.00",
+            productId: "prod_1",
+            revenue: "20.00",
+            returns: 0,
+            roi: "0.00",
+            salePrice: "20.00",
+            sales: 1,
+            shippingCost: "0.00",
+            sku: "SKU-1",
+            taxAmount: "0.00",
+            totalProfit: "10.00",
+            unitProfit: "10.00",
+          },
+        ],
+        products: [],
+        scope: {
+          companyId: null,
+          companyRequired: false,
+          referenceMonth: "2026-05-01",
+          taxRateDefault: "0.000000",
+        },
+        syncedProducts: [],
+      },
+      error: null,
+    });
+
+    expect(result.success).toBe(false);
   });
 });

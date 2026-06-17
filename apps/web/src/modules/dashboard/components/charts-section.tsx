@@ -117,7 +117,7 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
                 <Area
                   type="monotone"
                   dataKey="grossRevenue"
-                  name="Receita bruta"
+                  name="Receita Bruta"
                   stroke={chartColors.grossRevenue}
                   strokeWidth={2.5}
                   fill="url(#revenueGradient)"
@@ -127,7 +127,7 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
                 <Area
                   type="monotone"
                   dataKey="netProfit"
-                  name="Lucro líquido"
+                  name="Lucro Líquido"
                   stroke={chartColors.netProfit}
                   strokeWidth={2.5}
                   fill="url(#profitGradient)"
@@ -175,7 +175,7 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
                   width={50}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(128,128,128,0.06)" }} />
-                <Bar dataKey="netProfit" name="Lucro líquido" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                <Bar dataKey="netProfit" name="Lucro Líquido" radius={[6, 6, 0, 0]} maxBarSize={60}>
                   {channelData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.netProfit >= 0 ? chartColors.grossRevenue : chartColors.warning} />
                   ))}

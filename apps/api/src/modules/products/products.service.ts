@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -93,6 +94,8 @@ function normalizeComparableSku(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
+const PRODUCT_SKU_UNIQUE_INDEX = "products_org_normalized_sku_key";
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -143,16 +146,24 @@ export class ProductsService {
     organizationId: string,
     input: ProductFormValues,
   ): Promise<ProductRecord> {
-    const [created] = await this.db
-      .insert(products)
-      .values({
-        isActive: input.isActive,
-        name: input.name,
-        organizationId,
-        sellingPrice: input.sellingPrice,
-        sku: input.sku,
-      })
-      .returning();
+    const normalizedSku = await this.assertSkuIsUnique(
+      organizationId,
+      input.sku,
+    );
+    const [created] = await this.withSkuConflictHandling(
+      normalizedSku,
+      async () =>
+        this.db
+          .insert(products)
+          .values({
+            isActive: input.isActive,
+            name: input.name,
+            organizationId,
+            sellingPrice: input.sellingPrice,
+            sku: normalizedSku,
+          })
+          .returning(),
+    );
 
     return this.toProductRecord(created, []);
   }
@@ -168,47 +179,50 @@ export class ProductsService {
         "SKU is required for manual product creation.",
       );
     }
+    await this.assertSkuIsUnique(context.organizationId, normalizedSku);
     await this.resolveSingleActiveCompanyTaxRate(context);
 
-    const result = await this.db.transaction(async (tx) => {
-      const [createdProduct] = await tx
-        .insert(products)
-        .values({
-          isActive: input.product.isActive,
-          name: input.product.name,
-          organizationId: context.organizationId,
-          sellingPrice: input.product.sellingPrice,
-          sku: normalizedSku,
-        })
-        .returning();
+    const result = await this.withSkuConflictHandling(normalizedSku, () =>
+      this.db.transaction(async (tx) => {
+        const [createdProduct] = await tx
+          .insert(products)
+          .values({
+            isActive: input.product.isActive,
+            name: input.product.name,
+            organizationId: context.organizationId,
+            sellingPrice: input.product.sellingPrice,
+            sku: normalizedSku,
+          })
+          .returning();
 
-      const [createdCost] = await tx
-        .insert(productCosts)
-        .values({
-          amount: input.initialFinance.unitCost,
-          costType: "base",
-          currency: "BRL",
-          effectiveFrom: null,
-          notes: "Cadastro manual inicial",
-          organizationId: context.organizationId,
-          productId: createdProduct.id,
-        })
-        .returning();
+        const [createdCost] = await tx
+          .insert(productCosts)
+          .values({
+            amount: input.initialFinance.unitCost,
+            costType: "base",
+            currency: "BRL",
+            effectiveFrom: null,
+            notes: "Cadastro manual inicial",
+            organizationId: context.organizationId,
+            productId: createdProduct.id,
+          })
+          .returning();
 
-      const [createdDefaults] = await tx
-        .insert(productFinanceDefaults)
-        .values({
-          packagingCost: input.initialFinance.packagingCost,
-          productId: createdProduct.id,
-        })
-        .returning();
+        const [createdDefaults] = await tx
+          .insert(productFinanceDefaults)
+          .values({
+            packagingCost: input.initialFinance.packagingCost,
+            productId: createdProduct.id,
+          })
+          .returning();
 
-      return {
-        financeDefaults: createdDefaults,
-        product: createdProduct,
-        productCost: createdCost,
-      };
-    });
+        return {
+          financeDefaults: createdDefaults,
+          product: createdProduct,
+          productCost: createdCost,
+        };
+      }),
+    );
 
     await this.financeService.materializeOrganizationMetrics(
       context.organizationId,
@@ -282,15 +296,8 @@ export class ProductsService {
       );
     }
 
-    const existingSkus = new Set(
-      (
-        await this.db.query.products.findMany({
-          columns: { sku: true },
-          where: (table) => eq(table.organizationId, context.organizationId),
-        })
-      )
-        .map((p) => (p.sku ? p.sku.trim().toUpperCase() : null))
-        .filter((s): s is string => s !== null),
+    const existingSkus = await this.getOrganizationNormalizedSkuSet(
+      context.organizationId,
     );
 
     const errors: Array<{ row: number; message: string }> = [];
@@ -321,12 +328,20 @@ export class ProductsService {
       }
 
       const data = parsed.data;
-      const normalizedSku = data.SKU.trim().toUpperCase();
+      const normalizedSku = normalizeComparableSku(data.SKU);
+
+      if (!normalizedSku) {
+        errors.push({
+          row: rowNumber,
+          message: "SKU invÃ¡lido",
+        });
+        continue;
+      }
 
       if (existingSkus.has(normalizedSku)) {
         errors.push({
           row: rowNumber,
-          message: `SKU "${data.SKU}" já existe no catálogo`,
+          message: `SKU "${data.SKU}" já existe no catálogo.`,
         });
         continue;
       }
@@ -393,29 +408,136 @@ export class ProductsService {
     return String(activeCompanies[0]?.taxRateDefault ?? "0");
   }
 
+  private async listOrganizationProductSkus(organizationId: string) {
+    return this.db.query.products.findMany({
+      columns: {
+        id: true,
+        sku: true,
+      },
+      where: (table) => eq(table.organizationId, organizationId),
+    });
+  }
+
+  private async getOrganizationNormalizedSkuSet(organizationId: string) {
+    const productRows = await this.listOrganizationProductSkus(organizationId);
+
+    return new Set(
+      productRows
+        .map((product) => normalizeComparableSku(product.sku))
+        .filter((sku): sku is string => sku !== null),
+    );
+  }
+
+  private async assertSkuIsUnique(
+    organizationId: string,
+    sku: string | null | undefined,
+    excludedProductId?: string,
+  ) {
+    const normalizedSku = normalizeComparableSku(sku);
+
+    if (!normalizedSku) {
+      return null;
+    }
+
+    const productRows = await this.listOrganizationProductSkus(organizationId);
+    const conflictingProduct = productRows.find(
+      (product) =>
+        product.id !== excludedProductId &&
+        normalizeComparableSku(product.sku) === normalizedSku,
+    );
+
+    if (conflictingProduct) {
+      throw new ConflictException(this.buildDuplicateSkuMessage(normalizedSku));
+    }
+
+    return normalizedSku;
+  }
+
+  private buildDuplicateSkuMessage(normalizedSku: string) {
+    return `SKU "${normalizedSku}" já existe no catálogo.`;
+  }
+
+  private isSkuUniqueConstraintViolation(error: unknown) {
+    if (!error || typeof error !== "object") {
+      return false;
+    }
+
+    const code =
+      "code" in error && typeof error.code === "string" ? error.code : null;
+    const constraint =
+      "constraint" in error && typeof error.constraint === "string"
+        ? error.constraint
+        : null;
+    const detail =
+      "detail" in error && typeof error.detail === "string"
+        ? error.detail
+        : "";
+    const message =
+      "message" in error && typeof error.message === "string"
+        ? error.message
+        : "";
+
+    if (code !== "23505") {
+      return false;
+    }
+
+    return (
+      constraint === PRODUCT_SKU_UNIQUE_INDEX ||
+      detail.includes(PRODUCT_SKU_UNIQUE_INDEX) ||
+      message.includes(PRODUCT_SKU_UNIQUE_INDEX)
+    );
+  }
+
+  private async withSkuConflictHandling<T>(
+    sku: string | null,
+    operation: () => Promise<T>,
+  ) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (sku && this.isSkuUniqueConstraintViolation(error)) {
+        throw new ConflictException(this.buildDuplicateSkuMessage(sku));
+      }
+
+      throw error;
+    }
+  }
+
   async updateProduct(
     organizationId: string,
     productId: string,
     input: ProductUpdateInput,
   ): Promise<ProductRecord> {
     await this.ensureProductAccess(organizationId, productId);
-    const [updated] = await this.db
-      .update(products)
-      .set({
-        ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
-        ...(input.name !== undefined ? { name: input.name } : {}),
-        ...(input.sellingPrice !== undefined
-          ? { sellingPrice: input.sellingPrice }
-          : {}),
-        ...(input.sku !== undefined ? { sku: input.sku } : {}),
-      })
-      .where(
-        and(
-          eq(products.id, productId),
-          eq(products.organizationId, organizationId),
-        ),
-      )
-      .returning();
+    const normalizedSku =
+      input.sku !== undefined
+        ? await this.assertSkuIsUnique(
+            organizationId,
+            input.sku,
+            productId,
+          )
+        : undefined;
+    const [updated] = await this.withSkuConflictHandling(
+      normalizedSku ?? null,
+      async () =>
+        this.db
+          .update(products)
+          .set({
+            ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.sellingPrice !== undefined
+              ? { sellingPrice: input.sellingPrice }
+              : {}),
+            ...(input.sku !== undefined ? { sku: normalizedSku } : {}),
+          })
+          .where(
+            and(
+              eq(products.id, productId),
+              eq(products.organizationId, organizationId),
+            ),
+          )
+          .returning(),
+    );
 
     return this.toProductRecord(updated, []);
   }
@@ -1061,6 +1183,7 @@ export class ProductsService {
       advertisingCost: String(row.advertisingCost),
       channel: row.channel,
       commissionRate: String(row.commissionRate),
+      id: row.id,
       marketplaceCommission: (
         Number(row.commissionRate) * Number(row.salePrice)
       ).toFixed(2),

@@ -444,28 +444,6 @@ describe("SyncService", () => {
     expect(status.availability.reason).toBe("available");
   });
 
-  it("clears non-processing sync history for provider", async () => {
-    const { db, service } = createService();
-    const where = vi.fn().mockResolvedValue([
-      { id: "sync_1" },
-      { id: "sync_2" },
-    ]);
-
-    db.delete.mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        returning: where,
-      }),
-    });
-
-    const response = await service.clearHistory("org_123", "mercadolivre");
-
-    expect(db.delete).toHaveBeenCalledTimes(1);
-    expect(where).toHaveBeenCalledTimes(1);
-    expect(response).toEqual({
-      clearedCount: 2,
-    });
-  });
-
   it("fails the sync honestly when performance materialization cannot resolve an active company", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
     const { db, financeService, service, syncPerformanceMaterializer } = createService();

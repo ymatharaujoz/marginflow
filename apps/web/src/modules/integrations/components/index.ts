@@ -3,6 +3,5 @@ export { IntegrationsList } from "./integrations-list";
 export { ConnectedMarketplacesSection } from "./connected-marketplaces-section";
 export { SyncStatusGrid } from "./sync-status-grid";
 export { SyncControlCard } from "./sync-control-card";
-export { SyncHistorySection } from "./sync-history-section";
 export { LoadingIntegrations } from "./loading-integrations";
 export { ErrorState } from "./error-state";

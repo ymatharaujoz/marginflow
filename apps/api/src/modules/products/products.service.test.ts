@@ -1,4 +1,8 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { utils, write } from "xlsx";
 import { ProductsService } from "./products.service";
@@ -141,6 +145,7 @@ describe("ProductsService", () => {
   it("creates organization-scoped products", async () => {
     const { db, service } = createService();
 
+    db.query.products.findMany.mockResolvedValue([]);
     db.insert = createInsertMock({
       createdAt: new Date("2026-04-28T10:00:00.000Z"),
       id: "product_1",
@@ -224,6 +229,7 @@ describe("ProductsService", () => {
         update: vi.fn(),
       }),
     );
+    db.query.products.findMany.mockResolvedValue([]);
     db.query.companies.findMany.mockResolvedValue([
       {
         id: "company_1",
@@ -274,6 +280,39 @@ describe("ProductsService", () => {
     expect(financeService.materializeOrganizationMetrics).toHaveBeenCalledWith("org_1");
   });
 
+  it("rejects manual product creation when sku already exists in organization", async () => {
+    const { db, service } = createService();
+    db.query.products.findMany.mockResolvedValue([
+      {
+        id: "product_existing",
+        sku: " ml-001 ",
+      },
+    ]);
+
+    await expect(
+      service.createManualProduct(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        {
+          initialFinance: {
+            packagingCost: "3.00",
+            unitCost: "80.00",
+          },
+          product: {
+            isActive: true,
+            name: "Kit Mercado Livre",
+            sellingPrice: "149.90",
+            sku: "ML-001",
+          },
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(db.transaction).not.toHaveBeenCalled();
+  });
+
   it("rejects manual product creation when sku is blank", async () => {
     const { service } = createService();
 
@@ -301,6 +340,7 @@ describe("ProductsService", () => {
 
   it("rejects manual product creation when no active company exists", async () => {
     const { db, service } = createService();
+    db.query.products.findMany.mockResolvedValue([]);
     db.query.companies.findMany.mockResolvedValue([]);
 
     await expect(
@@ -329,6 +369,7 @@ describe("ProductsService", () => {
 
   it("rejects manual product creation when multiple active companies exist", async () => {
     const { db, service } = createService();
+    db.query.products.findMany.mockResolvedValue([]);
     db.query.companies.findMany.mockResolvedValue([
       {
         id: "company_1",
@@ -448,6 +489,244 @@ describe("ProductsService", () => {
     ).rejects.toThrow("Colunas extras não suportadas: IMPOSTO");
   });
 
+  it("rejects spreadsheet rows when sku already exists in catalog ignoring case and spacing", async () => {
+    const { db, service } = createService();
+    db.query.products.findMany.mockResolvedValue([
+      {
+        sku: " ml-001 ",
+      },
+    ]);
+    {
+      const unitCostHeader = `CUSTO UNIT${String.fromCharCode(193)}RIO`;
+      const salePriceHeader = `PRE${String.fromCharCode(199)}O DE VENDA`;
+      const workbook = utils.book_new();
+      const worksheet = utils.json_to_sheet([
+        {
+          EMBALAGEM: 3,
+          [unitCostHeader]: 80,
+          [salePriceHeader]: 149.9,
+          PRODUTO: "Kit Mercado Livre",
+          SKU: "ML-001",
+          STATUS: 1,
+        },
+      ]);
+      utils.book_append_sheet(workbook, worksheet, "Produtos");
+      const fileBuffer = Buffer.from(
+        write(workbook, { bookType: "xlsx", type: "buffer" }),
+      );
+
+      await expect(
+        service.importProducts(
+          {
+            organizationId: "org_1",
+            userId: "user_1",
+          },
+          fileBuffer,
+        ),
+      ).resolves.toEqual({
+        errors: [
+          {
+            message: 'SKU "ML-001" já existe no catálogo.',
+            row: 2,
+          },
+        ],
+        imported: 0,
+      });
+
+      return;
+    }
+
+    const workbook = utils.book_new();
+    const worksheet = utils.json_to_sheet([
+      {
+        EMBALAGEM: 3,
+        "CUSTO UNITÃRIO": 80,
+        "PREÃ‡O DE VENDA": 149.9,
+        PRODUTO: "Kit Mercado Livre",
+        SKU: "ML-001",
+        STATUS: 1,
+      },
+    ]);
+    utils.book_append_sheet(workbook, worksheet, "Produtos");
+    const fileBuffer = Buffer.from(
+      write(workbook, { bookType: "xlsx", type: "buffer" }),
+    );
+
+    await expect(
+      service.importProducts(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        fileBuffer,
+      ),
+    ).resolves.toEqual({
+      errors: [
+        {
+          message: 'SKU "ML-001" jÃ¡ existe no catÃ¡logo',
+          row: 2,
+        },
+      ],
+      imported: 0,
+    });
+  });
+
+  it("rejects spreadsheet rows when sku is duplicated inside file", async () => {
+    const { db, service } = createService();
+    db.query.products.findMany.mockResolvedValue([]);
+    vi.spyOn(service, "createManualProduct").mockResolvedValue({} as never);
+    {
+      const unitCostHeader = `CUSTO UNIT${String.fromCharCode(193)}RIO`;
+      const salePriceHeader = `PRE${String.fromCharCode(199)}O DE VENDA`;
+      const workbook = utils.book_new();
+      const worksheet = utils.json_to_sheet([
+        {
+          EMBALAGEM: 3,
+          [unitCostHeader]: 80,
+          [salePriceHeader]: 149.9,
+          PRODUTO: "Kit Mercado Livre",
+          SKU: "ML-001",
+          STATUS: 1,
+        },
+        {
+          EMBALAGEM: 4,
+          [unitCostHeader]: 81,
+          [salePriceHeader]: 150.9,
+          PRODUTO: "Kit Mercado Livre 2",
+          SKU: " ml-001 ",
+          STATUS: 1,
+        },
+      ]);
+      utils.book_append_sheet(workbook, worksheet, "Produtos");
+      const fileBuffer = Buffer.from(
+        write(workbook, { bookType: "xlsx", type: "buffer" }),
+      );
+
+      await expect(
+        service.importProducts(
+          {
+            organizationId: "org_1",
+            userId: "user_1",
+          },
+          fileBuffer,
+        ),
+      ).resolves.toEqual({
+        errors: [
+          {
+            message: 'SKU "ml-001" duplicado na planilha',
+            row: 3,
+          },
+        ],
+        imported: 1,
+      });
+
+      return;
+    }
+
+    const workbook = utils.book_new();
+    const worksheet = utils.json_to_sheet([
+      {
+        EMBALAGEM: 3,
+        "CUSTO UNITÃRIO": 80,
+        "PREÃ‡O DE VENDA": 149.9,
+        PRODUTO: "Kit Mercado Livre",
+        SKU: "ML-001",
+        STATUS: 1,
+      },
+      {
+        EMBALAGEM: 4,
+        "CUSTO UNITÃRIO": 81,
+        "PREÃ‡O DE VENDA": 150.9,
+        PRODUTO: "Kit Mercado Livre 2",
+        SKU: " ml-001 ",
+        STATUS: 1,
+      },
+    ]);
+    utils.book_append_sheet(workbook, worksheet, "Produtos");
+    const fileBuffer = Buffer.from(
+      write(workbook, { bookType: "xlsx", type: "buffer" }),
+    );
+
+    await expect(
+      service.importProducts(
+        {
+          organizationId: "org_1",
+          userId: "user_1",
+        },
+        fileBuffer,
+      ),
+    ).resolves.toEqual({
+      errors: [
+        {
+          message: 'SKU " ml-001 " duplicado na planilha',
+          row: 3,
+        },
+      ],
+      imported: 1,
+    });
+  });
+
+  it("rejects product sku updates when another product already uses normalized sku", async () => {
+    const { db, service } = createService();
+
+    db.query.products.findFirst.mockResolvedValue({
+      id: "product_1",
+      organizationId: "org_1",
+    });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        id: "product_1",
+        sku: "ABC-1",
+      },
+      {
+        id: "product_2",
+        sku: " xyz-1 ",
+      },
+    ]);
+
+    await expect(
+      service.updateProduct("org_1", "product_1", {
+        sku: "XYZ-1",
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("allows product sku updates when normalized sku belongs to same product", async () => {
+    const { db, service } = createService();
+
+    db.query.products.findFirst.mockResolvedValue({
+      id: "product_1",
+      organizationId: "org_1",
+    });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        id: "product_1",
+        sku: " xyz-1 ",
+      },
+    ]);
+    db.update = createUpdateMock({
+      createdAt: new Date("2026-04-28T10:00:00.000Z"),
+      id: "product_1",
+      isActive: true,
+      name: "Notebook",
+      organizationId: "org_1",
+      sellingPrice: "120.00",
+      sku: "XYZ-1",
+      updatedAt: new Date("2026-04-28T10:00:00.000Z"),
+    });
+
+    await expect(
+      service.updateProduct("org_1", "product_1", {
+        sku: "XYZ-1",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: "product_1",
+        sku: "XYZ-1",
+      }),
+    );
+  });
+
   it("rejects cross-organization product cost writes", async () => {
     const { db, service } = createService();
 
@@ -507,6 +786,34 @@ describe("ProductsService", () => {
         id: "cost_1",
       }),
     );
+  });
+
+  it("rejects product creation when sku already exists in organization", async () => {
+    const { db, service } = createService();
+    db.query.products.findMany.mockResolvedValue([
+      {
+        id: "product_existing",
+        sku: " nb-1 ",
+      },
+    ]);
+
+    await expect(
+      service.createProduct("org_1", {
+        isActive: true,
+        name: "Notebook",
+        sellingPrice: "120.00",
+        sku: "NB-1",
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.createProduct("org_1", {
+        isActive: true,
+        name: "Notebook",
+        sellingPrice: "120.00",
+        sku: "NB-1",
+      }),
+    ).rejects.toThrow('SKU "NB-1" já existe no catálogo.');
+    expect(db.insert).not.toHaveBeenCalled();
   });
 
   it("creates missing cost/default records when saving catalog finance", async () => {
@@ -872,6 +1179,7 @@ describe("ProductsService", () => {
         advertisingCost: "10.00",
         channel: "mercadolivre",
         commissionRate: "0.100000",
+        id: "perf_1",
         marketplaceCommission: "10.00",
         packagingCost: "2.00",
         productName: "Notebook",

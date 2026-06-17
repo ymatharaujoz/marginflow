@@ -447,6 +447,7 @@ export const productAnalyticsRowSchema = z.object({
 });
 
 export const productMonthlyPerformanceRowSchema = z.object({
+  id: z.string().trim().min(1),
   referenceMonth: isoDateField("Reference month"),
   channel: z.string().trim().min(1),
   productName: z.string().trim().min(1),

@@ -1,4 +1,4 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { ConflictException, UnauthorizedException } from "@nestjs/common";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "@/app";
@@ -269,6 +269,119 @@ describe("products controller", () => {
         }),
       }),
       error: null,
+    });
+  });
+
+  it("returns 409 when manual product creation hits duplicate sku", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(productsService, "createManualProduct").mockRejectedValueOnce(
+      new ConflictException('SKU "ML-001" já existe no catálogo.'),
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        initialFinance: {
+          packagingCost: "3.00",
+          unitCost: "80.00",
+        },
+        product: {
+          isActive: true,
+          name: "Kit Mercado Livre",
+          sellingPrice: "149.90",
+          sku: "ML-001",
+        },
+      },
+      url: "/products/manual",
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: {
+        message: 'SKU "ML-001" já existe no catálogo.',
+        statusCode: 409,
+      },
+      path: "/products/manual",
+      timestamp: expect.any(String),
+    });
+  });
+
+  it("returns 409 when product update hits duplicate sku", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(productsService, "updateProduct").mockRejectedValueOnce(
+      new ConflictException('SKU "NB-1" já existe no catálogo.'),
+    );
+
+    const response = await app.inject({
+      method: "PATCH",
+      payload: {
+        sku: "NB-1",
+      },
+      url: "/products/product_1",
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toEqual({
+      error: {
+        message: 'SKU "NB-1" já existe no catálogo.',
+        statusCode: 409,
+      },
+      path: "/products/product_1",
+      timestamp: expect.any(String),
     });
   });
 
@@ -546,6 +659,7 @@ describe("products controller", () => {
           advertisingCost: "10.00",
           channel: "mercadolivre",
           commissionRate: "0.100000",
+          id: "perf_1",
           packagingCost: "0.00",
           productName: "Notebook",
           referenceMonth: "2026-05-01",

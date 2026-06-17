@@ -24,28 +24,6 @@ export class SyncController {
     };
   }
 
-  @Get("history")
-  async getHistory(
-    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
-    @Query() query: SyncProviderDto,
-  ) {
-    return {
-      data: await this.syncService.getHistory(authContext.organization!.id, query.provider),
-      error: null,
-    };
-  }
-
-  @Post("history/clear")
-  async clearHistory(
-    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
-    @Body() body: SyncProviderDto,
-  ) {
-    return {
-      data: await this.syncService.clearHistory(authContext.organization!.id, body.provider),
-      error: null,
-    };
-  }
-
   @Post("run")
   async runSync(
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,

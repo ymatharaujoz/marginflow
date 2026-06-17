@@ -110,50 +110,16 @@ describe("sync controller", () => {
     });
   });
 
-  it("returns sync history", async () => {
-    mockEntitledContext();
-    vi.spyOn(syncService, "getHistory").mockResolvedValueOnce([
-      {
-        counts: {
-          fees: 1,
-          items: 2,
-          orders: 1,
-          products: 1,
-        },
-        createdAt: "2026-05-01T12:00:00.000Z",
-        cursor: {
-          orderedAfter: "2026-05-01T11:00:00.000Z",
-        },
-        errorSummary: null,
-        finishedAt: "2026-05-01T12:05:00.000Z",
-        id: "sync_123",
-        origin: "manual",
-        provider: "mercadolivre",
-        startedAt: "2026-05-01T12:01:00.000Z",
-        status: "completed",
-        updatedAt: "2026-05-01T12:05:00.000Z",
-        windowKey: "2026-05-01:morning",
-      },
-    ]);
-
+  it("does not expose sync history route", async () => {
     const response = await app.inject({
       method: "GET",
       url: "/sync/history?provider=mercadolivre",
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      data: [expect.objectContaining({ id: "sync_123" })],
-      error: null,
-    });
+    expect(response.statusCode).toBe(404);
   });
 
-  it("clears sync history", async () => {
-    mockEntitledContext();
-    vi.spyOn(syncService, "clearHistory").mockResolvedValueOnce({
-      clearedCount: 2,
-    });
-
+  it("does not expose clear sync history route", async () => {
     const response = await app.inject({
       method: "POST",
       payload: {
@@ -162,13 +128,7 @@ describe("sync controller", () => {
       url: "/sync/history/clear",
     });
 
-    expect(response.statusCode).toBe(201);
-    expect(response.json()).toEqual({
-      data: {
-        clearedCount: 2,
-      },
-      error: null,
-    });
+    expect(response.statusCode).toBe(404);
   });
 
   it("runs sync for authenticated entitled requests", async () => {

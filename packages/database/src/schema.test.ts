@@ -180,6 +180,24 @@ describe("@lucreii/database schema", () => {
     );
   });
 
+  it("keeps product sku uniqueness migration aligned with schema", () => {
+    const skuUniquenessMigration = readFileSync(
+      path.resolve(
+        __dirname,
+        "../drizzle/0016_products_unique_normalized_sku.sql",
+      ),
+      "utf8",
+    );
+
+    expect(skuUniquenessMigration).toContain(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "products_org_normalized_sku_key"',
+    );
+    expect(skuUniquenessMigration).toContain('upper(trim("sku"))');
+    expect(skuUniquenessMigration).toContain('"organization_id"');
+    expect(skuUniquenessMigration).toContain('"sku" IS NOT NULL');
+    expect(skuUniquenessMigration).toContain('char_length(trim("sku")) > 0');
+  });
+
   it("keeps tax removal migration aligned with schema", () => {
     const taxGlobalizationMigration = readFileSync(
       path.resolve(__dirname, "../drizzle/0010_globalize_company_tax.sql"),

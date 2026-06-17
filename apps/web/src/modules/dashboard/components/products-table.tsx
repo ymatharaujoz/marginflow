@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Package, ArrowUpRight, ArrowDownRight, TrendingUp, TrendingDown } from "lucide-react";
+import { Package, ArrowUpRight } from "lucide-react";
 import { Card, EmptyState, Badge } from "@lucreii/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { slideInUpVariants } from "@/lib/animations";
@@ -23,14 +23,32 @@ const healthBadgeConfig = {
   scalable: { status: "active" as const, label: "Escalável" },
 };
 
-const channelLabels: Record<string, string> = {
-  mercadolivre: "MELI",
-  shopee: "SHPE",
-};
-
 function getChannelBadge(channel: string) {
-  const label = channelLabels[channel.trim().toLowerCase()] ?? channel;
-  return <Badge>{label}</Badge>;
+  const normalized = channel.trim().toLowerCase();
+
+  if (normalized === "mercadolivre") {
+    return (
+      <Badge
+        className="border-transparent"
+        style={{ backgroundColor: "#ffe600", color: "#000000" }}
+      >
+        MELI
+      </Badge>
+    );
+  }
+
+  if (normalized === "shopee") {
+    return (
+      <Badge
+        className="border-transparent"
+        style={{ backgroundColor: "#fa5230", color: "#ffffff" }}
+      >
+        SHPE
+      </Badge>
+    );
+  }
+
+  return <Badge>{channel}</Badge>;
 }
 
 export function ProductsTable({ data, className = "" }: ProductsTableProps) {
@@ -71,8 +89,8 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
       <Card padding="lg" className={className}>
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">TOP 5 PRODUTOS</h3>
-            <p className="text-xs text-muted-foreground">MAIORES LUCRO POR SKU</p>
+            <h3 className="text-sm font-semibold text-foreground">TOP 5 Produtos</h3>
+            <p className="text-xs text-muted-foreground">Maiores lucros por SKU</p>
           </div>
           <Link
             href="/app/products"
@@ -89,11 +107,11 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-strong/95">
+                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Canal
+                  </th>
                   <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Produto
-                  </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Marketplace
                   </th>
                   <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Saúde
@@ -102,25 +120,13 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                     Vendas
                   </th>
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Devol.
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Líquida
+                    Devoluções
                   </th>
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Receita
                   </th>
                   <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    ROAS
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Lucro
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Margem
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    ROI
                   </th>
                 </tr>
               </thead>
@@ -137,19 +143,19 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                       transition={{ delay: index * 0.03, duration: 0.3 }}
                       className="transition-colors duration-150 hover:bg-foreground/[0.015]"
                     >
+                      <td className="px-3 py-3 text-center">{getChannelBadge(row.channelLabel)}</td>
+
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
                             <Package className="h-4 w-4 text-accent" />
                           </div>
-                          <div className="min-w-0 max-w-[180px]">
+                          <div className="min-w-0 max-w-[300px]">
                             <p className="truncate text-sm font-medium text-foreground">{row.name}</p>
                             <p className="truncate font-mono text-xs text-muted-foreground">{row.sku || "—"}</p>
                           </div>
                         </div>
                       </td>
-
-                      <td className="px-3 py-3 text-center">{getChannelBadge(row.channelLabel)}</td>
 
                       <td className="px-3 py-3 text-center">
                         <StatusBadge status={healthBadge.status} label={healthBadge.label} />
@@ -173,73 +179,13 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                       </td>
 
                       <td className="px-3 py-3 text-right">
-                        <span className="text-sm font-medium text-foreground">{formatNumber(row.netSales)}</span>
-                      </td>
-
-                      <td className="px-3 py-3 text-right">
                         <span className="text-sm font-medium text-foreground">{formatMoney(row.revenue)}</span>
-                      </td>
-
-                      <td className="px-3 py-3 text-right">
-                        {row.roas !== null && row.roas > 0 ? (
-                          <div className="flex items-center justify-end gap-1">
-                            {row.roas >= 3 ? (
-                              <TrendingUp className="h-3 w-3 text-success" />
-                            ) : row.roas < 1 ? (
-                              <TrendingDown className="h-3 w-3 text-error" />
-                            ) : null}
-                            <span
-                              className={`text-sm font-medium ${
-                                row.roas >= 3
-                                  ? "text-success"
-                                  : row.roas >= 1
-                                    ? "text-accent"
-                                    : "text-error"
-                              }`}
-                            >
-                              {row.roas.toFixed(1)}x
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
                       </td>
 
                       <td className="px-3 py-3 text-right">
                         <span className={`text-sm font-semibold ${row.profit >= 0 ? "text-success" : "text-error"}`}>
                           {formatMoney(row.profit)}
                         </span>
-                      </td>
-
-                      <td className="px-3 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {row.margin >= 20 ? (
-                            <ArrowUpRight className="h-3.5 w-3.5 text-success" />
-                          ) : row.margin < 10 ? (
-                            <ArrowDownRight className="h-3.5 w-3.5 text-error" />
-                          ) : null}
-                          <span
-                            className={`text-sm font-medium ${
-                              row.margin >= 20 ? "text-success" : row.margin < 10 ? "text-error" : "text-foreground"
-                            }`}
-                          >
-                            {formatPercent(row.margin)}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="px-3 py-3 text-right">
-                        {row.roi !== null ? (
-                          <span
-                            className={`text-sm font-medium ${
-                              row.roi >= 50 ? "text-success" : row.roi > 0 ? "text-accent" : "text-error"
-                            }`}
-                          >
-                            {formatPercent(row.roi, { digits: 0 })}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">—</span>
-                        )}
                       </td>
 
                     </motion.tr>

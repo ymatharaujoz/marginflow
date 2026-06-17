@@ -31,8 +31,11 @@ export type ProductMarketplaceNotice = {
 
 export type ProductTableRow = {
   id: string;
+  performanceId: string;
   name: string;
   sku: string;
+  isActive: boolean;
+  coverImageUrl: string | null;
   channelLabel: string;
   sales: number;
   returns: number;
@@ -47,8 +50,11 @@ export type ProductTableRow = {
   /** Embalagem total: packagingCost × netLiquidSales */
   totalPackagingCost: number;
   adSpend: number;
+  advertisingCost: number;
   /** PDV × venda líquida */
   revenue: number;
+  /** Comissão total: marketplaceCommission × netLiquidSales */
+  totalCommission: number;
   /** Contribution-style profit without advertising (formula from ops sheet) */
   totalProfit: number;
   /** Custo do produto total: unitCost × netLiquidSales */

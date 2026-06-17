@@ -19,7 +19,6 @@ import {
   type SyncRun,
 } from "@lucreii/database";
 import type {
-  ClearSyncHistoryResponse,
   IntegrationProviderSlug,
   RunSyncResponse,
   SyncAvailability,
@@ -28,7 +27,7 @@ import type {
   SyncRunRecord,
   SyncStatusResponse,
 } from "@lucreii/types";
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { FinanceService } from "@/modules/finance/finance.service";
@@ -194,37 +193,6 @@ export class SyncService {
       activeRun: activeRun ? this.toRunRecord(activeRun) : null,
       availability: this.buildAvailability(provider, connection, activeRun, lastCompletedRun),
       lastCompletedRun: lastCompletedRun ? this.toRunRecord(lastCompletedRun) : null,
-    };
-  }
-
-  async getHistory(organizationId: string, providerSlug: IntegrationProviderSlug) {
-    const rows = await this.db.query.syncRuns.findMany({
-      limit: 10,
-      orderBy: (table) => [desc(table.createdAt)],
-      where: (table) =>
-        and(eq(table.organizationId, organizationId), eq(table.provider, providerSlug)),
-    });
-
-    return rows.map((row) => this.toRunRecord(row));
-  }
-
-  async clearHistory(
-    organizationId: string,
-    providerSlug: IntegrationProviderSlug,
-  ): Promise<ClearSyncHistoryResponse> {
-    const rows = await this.db
-      .delete(syncRuns)
-      .where(
-        and(
-          eq(syncRuns.organizationId, organizationId),
-          eq(syncRuns.provider, providerSlug),
-          ne(syncRuns.status, "processing"),
-        ),
-      )
-      .returning({ id: syncRuns.id });
-
-    return {
-      clearedCount: rows.length,
     };
   }
 
