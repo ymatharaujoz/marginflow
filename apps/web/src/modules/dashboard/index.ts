@@ -5,6 +5,7 @@ export * from "./calculations/kpi-data";
 export * from "./calculations/product-health";
 export * from "./calculations/product-rows";
 export * from "./hooks/use-dashboard-data";
+export * from "./hooks/use-dashboard-connection-statuses";
 export * from "./hooks/use-dashboard-filters";
 export * from "./hooks/use-product-table";
 export * from "./types/dashboard";
