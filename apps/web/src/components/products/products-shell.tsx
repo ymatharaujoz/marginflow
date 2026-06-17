@@ -242,6 +242,144 @@ function PremiumSwitch({
   );
 }
 
+/* ─── Premium Import Modal Components ─── */
+
+type ImportOptionCardProps = {
+  icon: React.ReactNode;
+  iconBgClass: string;
+  title: string;
+  description: string;
+  badge?: React.ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+  index?: number;
+};
+
+function ImportOptionCard({
+  icon,
+  iconBgClass,
+  title,
+  description,
+  badge,
+  disabled,
+  onClick,
+  index = 0,
+}: ImportOptionCardProps) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.4,
+        delay: index * 0.1,
+        ease: [0.16, 1, 0.3, 1],
+      }}
+      whileHover={disabled ? undefined : { y: -2, transition: { duration: 0.2 } }}
+      whileTap={disabled ? undefined : { scale: 0.98 }}
+      onClick={onClick}
+      disabled={disabled}
+      type="button"
+      className={cn(
+        "group relative flex w-full items-start gap-4 rounded-[var(--radius-xl)] border p-5 text-left transition-all duration-300",
+        "border-border/40 bg-gradient-to-br from-surface/90 via-surface-strong/40 to-background/20 shadow-[var(--shadow-xs)]",
+        "hover:border-border/60 hover:shadow-[var(--shadow-md)] hover:from-surface hover:via-surface-strong/50 hover:to-background/30",
+        disabled && "cursor-not-allowed opacity-60 hover:border-border/40 hover:shadow-[var(--shadow-xs)]",
+      )}
+    >
+      <div
+        className={cn(
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-lg)] ring-1 transition-all duration-300",
+          iconBgClass,
+          !disabled && "group-hover:scale-105",
+        )}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {badge}
+        </div>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          {description}
+        </p>
+      </div>
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground/5 text-muted-foreground opacity-0 transition-all duration-200 group-hover:opacity-100 group-hover:bg-accent/10 group-hover:text-accent">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </motion.button>
+  );
+}
+
+type ColumnRequirementRowProps = {
+  label: string;
+  description: string;
+  index?: number;
+};
+
+function ColumnRequirementRow({
+  label,
+  description,
+  index = 0,
+}: ColumnRequirementRowProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{
+        duration: 0.35,
+        delay: index * 0.05,
+        ease: [0.16, 1, 0.3, 1],
+      }}
+      className="flex items-center justify-between rounded-[var(--radius-lg)] border border-border/50 bg-surface-strong/50 px-4 py-3 transition-colors duration-200 hover:border-border/80 hover:bg-surface-strong/80"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent/10 text-[10px] font-bold text-accent ring-1 ring-accent/20">
+          {String(index + 1).padStart(2, "0")}
+        </span>
+        <span className="text-sm font-semibold text-foreground">{label}</span>
+      </div>
+      <span className="text-xs text-muted-foreground">{description}</span>
+    </motion.div>
+  );
+}
+
+type ImportConfirmationCardProps = {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  children?: React.ReactNode;
+};
+
+function ImportConfirmationCard({
+  icon,
+  title,
+  description,
+  children,
+}: ImportConfirmationCardProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+      className="rounded-[var(--radius-xl)] border border-border/40 bg-gradient-to-br from-accent/[0.02] via-surface-strong/40 to-background/20 p-5 shadow-[var(--shadow-xs)]"
+    >
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/10 ring-1 ring-warning/20">
+          {icon}
+        </div>
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      {children}
+    </motion.div>
+  );
+}
+
 const initialProductCostForm: ProductCostFormValues = {
   productId: "",
   costType: "base",
@@ -1360,32 +1498,44 @@ export function ProductsShell({
           open={showImportInstructionsModal}
           title="Importar produtos"
         >
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Escolha de onde os produtos serao importados.
-            </p>
-            <button
-              className="flex w-full items-start gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4 text-left transition-colors hover:border-accent/40 hover:bg-accent/5 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={importSourcesMutation.isPending}
-              onClick={() => {
-                if (mercadoLivreConnection?.status === "connected") {
-                  setShowImportInstructionsModal(false);
-                  setShowMercadoLivreConfirmation(true);
-                  return;
-                }
-                setShowImportInstructionsModal(false);
-                router.push("/app/integrations");
-              }}
-              type="button"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-warning/10">
-                <Store className="h-5 w-5 text-warning" />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-7"
+          >
+            <div className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-border/40 bg-gradient-to-br from-accent/[0.02] via-surface-strong/40 to-background/20 p-4 shadow-[var(--shadow-xs)]">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent/10 ring-1 ring-accent/20">
+                <Upload className="h-5 w-5 text-accent" />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-foreground">
-                    Mercado Livre
-                  </p>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Selecione a origem
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Escolha de onde os produtos serão importados para o catálogo.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <ImportOptionCard
+                index={0}
+                icon={<Store className="h-5 w-5 text-warning" />}
+                iconBgClass="bg-warning/10 ring-warning/20"
+                title="Mercado Livre"
+                description="Importa anúncios ativos e pausados, variações, preços e fotos sem duplicar produtos."
+                disabled={importSourcesMutation.isPending}
+                onClick={() => {
+                  if (mercadoLivreConnection?.status === "connected") {
+                    setShowImportInstructionsModal(false);
+                    setShowMercadoLivreConfirmation(true);
+                    return;
+                  }
+                  setShowImportInstructionsModal(false);
+                  router.push("/app/integrations");
+                }}
+                badge={
                   <Badge
                     variant={
                       mercadoLivreConnection?.status === "connected"
@@ -1399,35 +1549,21 @@ export function ProductsShell({
                         ? "Conectado"
                         : "Conectar"}
                   </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Importa anuncios ativos e pausados, variacoes, precos e fotos
-                  sem duplicar produtos.
-                </p>
-              </div>
-            </button>
-
-            <button
-              className="flex w-full items-start gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4 text-left transition-colors hover:border-accent/40 hover:bg-accent/5"
-              onClick={() => {
-                setShowImportInstructionsModal(false);
-                setShowSpreadsheetInstructionsModal(true);
-              }}
-              type="button"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10">
-                <FileSpreadsheet className="h-5 w-5 text-accent" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Planilha Excel
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Mantem o fluxo atual de importacao por arquivo .xlsx.
-                </p>
-              </div>
-            </button>
-          </div>
+                }
+              />
+              <ImportOptionCard
+                index={1}
+                icon={<FileSpreadsheet className="h-5 w-5 text-accent" />}
+                iconBgClass="bg-accent/10 ring-accent/20"
+                title="Planilha Excel"
+                description="Mantém o fluxo atual de importação por arquivo .xlsx com colunas padronizadas."
+                onClick={() => {
+                  setShowImportInstructionsModal(false);
+                  setShowSpreadsheetInstructionsModal(true);
+                }}
+              />
+            </div>
+          </motion.div>
         </Modal>
 
         <Modal
@@ -1439,27 +1575,42 @@ export function ProductsShell({
           open={showSpreadsheetInstructionsModal}
           title="Importar por planilha"
         >
-          <div className="space-y-5">
-            <div className="flex items-start gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-7"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              className="flex items-start gap-4 rounded-[var(--radius-xl)] border border-border/40 bg-gradient-to-br from-accent/[0.02] via-surface-strong/40 to-background/20 p-5 shadow-[var(--shadow-xs)]"
+            >
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-lg)] bg-accent/10 ring-1 ring-accent/20">
                 <FileSpreadsheet className="h-5 w-5 text-accent" />
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-foreground">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-sm font-semibold text-foreground">
                   Arquivo .XLSX
-                </p>
-                <p className="text-xs text-muted-foreground">
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   A planilha deve estar no formato Excel (.xlsx) e conter as
-                  colunas na ordem exata abaixo, sem cabeçalhos adicionais
+                  colunas na ordem exata abaixo, sem cabeçalhos adicionais.
                 </p>
               </div>
-            </div>
+            </motion.div>
 
             <div className="space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.15, duration: 0.3 }}
+                className="text-[10px] font-bold uppercase tracking-[0.18em] text-accent"
+              >
                 Colunas obrigatórias
-              </p>
-              <div className="grid gap-2">
+              </motion.p>
+              <div className="space-y-2">
                 {[
                   { label: "PRODUTO", desc: "Nome do produto" },
                   { label: "SKU", desc: "Código do item" },
@@ -1467,23 +1618,23 @@ export function ProductsShell({
                   { label: "CUSTO UNITÁRIO", desc: "Custo de cada unidade" },
                   { label: "EMBALAGEM", desc: "Custo da embalagem" },
                   { label: "STATUS", desc: "1 para ativo, 0 para inativo" },
-                ].map((col) => (
-                  <div
+                ].map((col, idx) => (
+                  <ColumnRequirementRow
                     key={col.label}
-                    className="flex items-center justify-between rounded-[var(--radius-md)] border border-border bg-surface-strong/50 px-3.5 py-2.5"
-                  >
-                    <span className="text-sm font-semibold text-foreground">
-                      {col.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {col.desc}
-                    </span>
-                  </div>
+                    index={idx}
+                    label={col.label}
+                    description={col.desc}
+                  />
                 ))}
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-2">
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.3 }}
+              className="flex items-center justify-end gap-3 pt-2"
+            >
               <Button
                 onClick={() => setShowSpreadsheetInstructionsModal(false)}
                 type="button"
@@ -1502,8 +1653,8 @@ export function ProductsShell({
                 <Upload className="mr-2 h-4 w-4" />
                 Selecionar arquivo
               </Button>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </Modal>
 
         <Modal
@@ -1515,18 +1666,52 @@ export function ProductsShell({
           open={showMercadoLivreConfirmation}
           title="Importar do Mercado Livre"
         >
-          <div className="space-y-5">
-            <div className="rounded-[var(--radius-lg)] border border-border bg-surface p-4">
-              <p className="text-sm font-semibold text-foreground">
-                Importar todos os anuncios elegiveis?
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Anuncios ativos e pausados serao importados. Produtos com SKU
-                existente serao vinculados e atualizados. Variacoes viram itens
-                separados e as fotos permanecem hospedadas pelo Mercado Livre.
-              </p>
-            </div>
-            <div className="flex justify-end gap-3">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-7"
+          >
+            <ImportConfirmationCard
+              icon={<AlertTriangle className="h-5 w-5 text-warning" />}
+              title="Importar todos os anúncios elegíveis?"
+              description="Confirme para iniciar a importação do catálogo."
+            >
+              <div className="space-y-2.5 rounded-[var(--radius-lg)] bg-surface-strong/50 p-4">
+                {[
+                  "Anúncios ativos e pausados serão importados",
+                  "Produtos com SKU existente serão vinculados e atualizados",
+                  "Variações viram itens separados",
+                  "As fotos permanecem hospedadas pelo Mercado Livre",
+                ].map((item, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay: 0.2 + idx * 0.06,
+                      duration: 0.3,
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
+                    className="flex items-start gap-2.5"
+                  >
+                    <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-accent/10">
+                      <CheckCircle2 className="h-2.5 w-2.5 text-accent" />
+                    </div>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {item}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </ImportConfirmationCard>
+
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.3 }}
+              className="flex justify-end gap-3"
+            >
               <Button
                 disabled={marketplaceCatalogImportMutation.isPending}
                 onClick={() => setShowMercadoLivreConfirmation(false)}
@@ -1541,14 +1726,14 @@ export function ProductsShell({
                 {marketplaceCatalogImportMutation.isPending ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Importando catalogo...
+                    Importando catálogo...
                   </>
                 ) : (
-                  "Importar catalogo"
+                  "Importar catálogo"
                 )}
               </Button>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </Modal>
 
         <Modal
@@ -1560,67 +1745,73 @@ export function ProductsShell({
             }
           }}
           open={marketplaceImportResult !== null}
-          title="Resultado da importacao"
+          title="Resultado da importação"
         >
           {marketplaceImportResult ? (
-            <div className="space-y-5">
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {[
-                  ["Encontrados", marketplaceImportResult.found],
-                  ["Criados", marketplaceImportResult.created],
-                  ["Atualizados", marketplaceImportResult.updated],
-                  ["Sem alteracao", marketplaceImportResult.unchanged],
-                  ["Conflitos", marketplaceImportResult.conflicts.length],
-                  ["Erros", marketplaceImportResult.errors.length],
-                ].map(([label, value]) => (
-                  <div
-                    className="rounded-[var(--radius-lg)] border border-border bg-surface p-3"
-                    key={label}
-                  >
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                    <p className="mt-1 text-xl font-semibold text-foreground">
-                      {value}
-                    </p>
-                  </div>
-                ))}
-              </div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-7"
+            >
+              {/* TODO: Task 2 - Replace with new modal design (hero card + bento grid) */}
 
               {[
                 ...marketplaceImportResult.conflicts,
                 ...marketplaceImportResult.errors,
               ].length > 0 ? (
-                <div className="max-h-56 space-y-2 overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3, duration: 0.4 }}
+                  className="max-h-56 space-y-2 overflow-y-auto rounded-r-[var(--radius-lg)] border-l-2 border-border/60 bg-surface/50 p-5"
+                >
                   {[
                     ...marketplaceImportResult.conflicts,
                     ...marketplaceImportResult.errors,
-                  ].map((issue) => (
-                    <div
-                      className="rounded-[var(--radius-md)] border border-warning/20 bg-warning/5 p-3"
+                  ].map((issue, idx) => (
+                    <motion.div
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{
+                        delay: 0.35 + idx * 0.04,
+                        duration: 0.3,
+                      }}
+                      className="flex items-start gap-3 text-xs text-muted-foreground"
                       key={`${issue.externalProductId}:${issue.message}`}
                     >
-                      <p className="text-xs font-semibold text-foreground">
-                        {issue.sku || issue.externalProductId}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {issue.message}
-                      </p>
-                    </div>
+                      <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-border-strong" />
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {issue.sku || issue.externalProductId}
+                        </p>
+                        <p className="mt-0.5 leading-relaxed">
+                          {issue.message}
+                        </p>
+                      </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               ) : null}
 
-              <div className="flex justify-end">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.3 }}
+                className="flex justify-end"
+              >
                 <Button
                   onClick={() => {
                     setMarketplaceImportResult(null);
                     setShowMercadoLivreConfirmation(false);
                   }}
                   variant="secondary"
+                  className="rounded-full px-6 py-2.5"
                 >
                   Fechar
                 </Button>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           ) : null}
         </Modal>
 
@@ -1638,29 +1829,47 @@ export function ProductsShell({
           open={importResult !== null || importProductsMutation.isPending}
           title="Importar produtos"
         >
-          <div className="space-y-5">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-7"
+          >
             {importProductsMutation.isPending ? (
-              <div className="flex flex-col items-center gap-3 py-6">
-                <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                <p className="text-sm text-muted-foreground">
-                  Importando produtos...
-                </p>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex flex-col items-center gap-4 py-10"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-[var(--radius-xl)] bg-accent/10 ring-1 ring-accent/20">
+                  <Loader2 className="h-7 w-7 animate-spin text-accent" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-foreground">
+                    Importando produtos...
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Processando linhas da planilha
+                  </p>
+                </div>
+              </motion.div>
             ) : importResult ? (
               <>
-                {/* Resumo */}
-                <div
-                  className={`flex items-center gap-3 rounded-[var(--radius-lg)] border p-4 ${
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className={`flex items-center gap-4 rounded-[var(--radius-xl)] border p-5 ${
                     importResult.imported > 0
-                      ? "border-border bg-surface"
-                      : "border-warning/15 bg-warning/[0.04]"
+                      ? "border-border/40 bg-gradient-to-br from-success-soft/30 via-surface-strong/40 to-background/20 shadow-[var(--shadow-xs)]"
+                      : "border-warning/20 bg-gradient-to-br from-warning-soft/30 via-surface-strong/40 to-background/20 shadow-[var(--shadow-xs)]"
                   }`}
                 >
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-lg)] ring-1 ${
                       importResult.imported > 0
-                        ? "bg-success/10"
-                        : "bg-warning/10"
+                        ? "bg-success/10 ring-success/20"
+                        : "bg-warning/10 ring-warning/20"
                     }`}
                   >
                     {importResult.imported > 0 ? (
@@ -1669,13 +1878,13 @@ export function ProductsShell({
                       <AlertTriangle className="h-5 w-5 text-warning" />
                     )}
                   </div>
-                  <div className="flex-1">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-foreground">
                       {importResult.imported > 0
                         ? `${importResult.imported} produto${importResult.imported > 1 ? "s" : ""} importado${importResult.imported > 1 ? "s" : ""}`
                         : "Nenhum produto importado"}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {importResult.imported > 0
                         ? "Os produtos já estão disponíveis no catálogo."
                         : "Nenhuma linha da planilha foi processada com sucesso."}
@@ -1684,14 +1893,18 @@ export function ProductsShell({
                   {importResult.imported > 0 && (
                     <Badge variant="success">{importResult.imported}</Badge>
                   )}
-                </div>
+                </motion.div>
 
-                {/* Erros */}
                 {importResult.errors.length > 0 && (
-                  <div className="space-y-3">
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15, duration: 0.4 }}
+                    className="space-y-3"
+                  >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-error/10">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-error/10 ring-1 ring-error/20">
                           <FileWarning className="h-4 w-4 text-error" />
                         </div>
                         <div>
@@ -1710,33 +1923,45 @@ export function ProductsShell({
 
                     <div className="max-h-64 overflow-y-auto rounded-[var(--radius-xl)] border border-error/10 bg-surface p-2 shadow-[var(--shadow-sm)]">
                       {importResult.errors.map((err, idx) => (
-                        <div
+                        <motion.div
                           key={idx}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{
+                            delay: 0.2 + idx * 0.04,
+                            duration: 0.3,
+                            ease: [0.16, 1, 0.3, 1],
+                          }}
                           className="group flex items-start gap-3 rounded-[var(--radius-lg)] px-4 py-3.5 transition-colors hover:bg-error-soft/40"
                         >
-                          <span className="mt-0.5 shrink-0 rounded-[var(--radius-md)] bg-error/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-error">
+                          <span className="mt-0.5 shrink-0 rounded-[var(--radius-md)] bg-error/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-error ring-1 ring-error/20">
                             {err.row === 0 ? "Arquivo" : `Linha ${err.row}`}
                           </span>
                           <span className="text-sm leading-relaxed text-foreground/90">
                             {err.message}
                           </span>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
-                <div className="flex justify-end pt-2">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3, duration: 0.3 }}
+                  className="flex justify-end pt-2"
+                >
                   <Button
                     onClick={() => setImportResult(null)}
                     variant="secondary"
                   >
                     Fechar
                   </Button>
-                </div>
+                </motion.div>
               </>
             ) : null}
-          </div>
+          </motion.div>
         </Modal>
 
         <Modal
