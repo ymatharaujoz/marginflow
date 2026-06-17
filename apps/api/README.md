@@ -77,6 +77,7 @@ Optional local/testing helper:
 
 `DATABASE_URL` should target pooled/runtime Postgres credentials. `DATABASE_MIGRATION_URL` should target direct or migration-safe credentials for Drizzle tooling.
 `BETTER_AUTH_URL` should point at the direct public Better Auth surface on Railway, such as `https://marginflow-production.up.railway.app/auth`. `API_PUBLIC_BASE_URL` should remain the raw public backend base, such as the same Railway URL without `/auth`.
+For the current production setup, `WEB_APP_ORIGIN` and `AUTH_TRUSTED_ORIGINS` should match `https://www.lucreii.com.br`.
 
 ## Mercado Livre local flow
 

@@ -62,11 +62,11 @@ describe("SignInPanel", () => {
 
   it("renders auth error message passed from sign-in page", () => {
     const view = mount(
-      <SignInPanel initialErrorMessage="Nao foi possivel concluir autenticacao. Tente de novo." />,
+      <SignInPanel initialErrorMessage="Não foi possível concluir a autenticação. Tente novamente mais tarde." />,
     );
 
     expect(document.body.textContent).toContain(
-      "Nao foi possivel concluir autenticacao. Tente de novo.",
+      "Não foi possível concluir a autenticação. Tente novamente mais tarde.",
     );
 
     view.unmount();

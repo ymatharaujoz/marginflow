@@ -14,20 +14,20 @@ Arquitetura atual:
 ## Valores canonicos de producao
 
 - Web (Vercel):
-  - `NEXT_PUBLIC_APP_URL=https://marginflow-web.vercel.app`
+  - `NEXT_PUBLIC_APP_URL=https://www.lucreii.com.br`
   - `NEXT_PUBLIC_API_BASE_URL=https://marginflow-production.up.railway.app`
   - `WEB_SESSION_SECRET=<segredo forte>`
 - API (Railway):
   - `BETTER_AUTH_URL=https://marginflow-production.up.railway.app/auth`
   - `API_PUBLIC_BASE_URL=https://marginflow-production.up.railway.app`
-  - `WEB_APP_ORIGIN=https://marginflow-web.vercel.app`
-  - `AUTH_TRUSTED_ORIGINS=https://marginflow-web.vercel.app`
+  - `WEB_APP_ORIGIN=https://www.lucreii.com.br`
+  - `AUTH_TRUSTED_ORIGINS=https://www.lucreii.com.br`
 
 > A API nao usa `NEXT_PUBLIC_APP_URL` como fallback. Configure `WEB_APP_ORIGIN` explicitamente no Railway.
 
 ## Fluxo de auth
 
-1. usuario abre `https://marginflow-web.vercel.app/sign-in`
+1. usuario abre `https://www.lucreii.com.br/sign-in`
 2. usuario faz sign-in com credenciais (email/senha)
 3. API cria sessao e retorna dados autenticados
 4. web cria sessao SSR local e segue para `/app`
@@ -99,6 +99,8 @@ Opcional:
 - abrir `/sign-in` na Vercel
 - confirmar login com email/senha funciona
 - confirmar redirect final para Vercel `/app`
+- confirmar `POST /auth/sign-in` responde com `SameSite=None; Secure` em producao
+- confirmar request seguinte para `/auth/finalize` inclui `lucreii_api_session`
 - confirmar `/app` autenticado no SSR
 - confirmar logout limpa sessao local do web
 
@@ -110,7 +112,8 @@ Verificar:
 
 - `NEXT_PUBLIC_API_BASE_URL` aponta para Railway
 - `BETTER_AUTH_URL` aponta para Railway `/auth`
-- `WEB_APP_ORIGIN` bate com dominio Vercel
+- `WEB_APP_ORIGIN` bate com `https://www.lucreii.com.br`
+- `AUTH_TRUSTED_ORIGINS` inclui `https://www.lucreii.com.br`
 
 ### `/auth/complete` falha
 
@@ -119,6 +122,7 @@ Verificar:
 - API publicou endpoint `POST /auth-state/exchange-ticket`
 - ticket one-time nao expirou
 - `WEB_SESSION_SECRET` existe no projeto web
+- logs da API nao mostram `Internal auth finalize missing session cookie`
 
 ### SSR autenticado nao funciona
 

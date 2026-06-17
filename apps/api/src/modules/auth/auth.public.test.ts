@@ -89,6 +89,33 @@ describe("public auth routes", () => {
     expect(response.headers["set-cookie"]).toContain("lucreii_api_session=session_token_123");
   });
 
+  it("sets cross-site session cookie attributes on sign-in over HTTPS", async () => {
+    const authService = app.get(AuthService);
+    vi.spyOn(authService, "signIn").mockResolvedValueOnce({
+      expiresAt: new Date("2099-12-31T00:00:00.000Z"),
+      sessionId: "550e8400-e29b-41d4-a716-446655440000",
+      sessionToken: "session_token_https",
+    });
+
+    const response = await app.inject({
+      headers: {
+        "x-forwarded-host": "marginflow-production.up.railway.app",
+        "x-forwarded-proto": "https",
+      },
+      method: "POST",
+      payload: {
+        email: "owner@lucreii.local",
+        password: "password123",
+      },
+      url: "/auth/sign-in",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["set-cookie"]).toContain("lucreii_api_session=session_token_https");
+    expect(response.headers["set-cookie"]).toContain("SameSite=None");
+    expect(response.headers["set-cookie"]).toContain("Secure");
+  });
+
   it("clears internal session cookie on sign-out", async () => {
     const authService = app.get(AuthService);
     vi.spyOn(authService, "signOut").mockResolvedValueOnce(undefined);

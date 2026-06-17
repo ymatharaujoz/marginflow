@@ -1,7 +1,7 @@
 const AUTH_ERROR_MESSAGES = {
-  auth_handoff_failed: "Nao foi possivel concluir autenticacao. Tente de novo.",
+auth_handoff_failed: "Não foi possível concluir a autenticação. Tente novamente mais tarde.",
   web_session_not_persisted:
-    "Seu login foi concluido, mas a sessao do app nao foi salva. Tente novamente.",
+    "Seu login foi concluído, mas a sessão não foi salva. Tente novamente mais tarde.",
 } as const;
 
 export function resolveAuthErrorMessage(
@@ -25,7 +25,7 @@ export function resolveAuthInlineErrorMessage(authError: unknown): string {
         : null;
 
   if (!rawMessage) {
-    return "Nao foi possivel concluir autenticacao. Tente de novo.";
+  return "Não foi possível concluir a autenticação. Tente novamente mais tarde.";
   }
 
   const normalized = rawMessage.trim().toLowerCase();
