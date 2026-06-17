@@ -7,7 +7,7 @@ import {
 describe("resolveAuthErrorMessage", () => {
   it("maps generic auth handoff errors", () => {
     expect(resolveAuthErrorMessage("auth_handoff_failed")).toBe(
-      "Nao foi possivel concluir autenticacao. Tente de novo.",
+      "Não foi possível concluir a autenticação. Tente novamente mais tarde.",
     );
   });
 });

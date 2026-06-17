@@ -78,22 +78,26 @@ export function buildSetApiSessionCookie({
   secure: boolean;
   sessionToken: string;
 }) {
+  const sameSite = secure ? "None" : "Lax";
+
   return [
     `${API_AUTH_SESSION_COOKIE_NAME}=${encodeURIComponent(sessionToken)}`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    `SameSite=${sameSite}`,
     `Expires=${expiresAt.toUTCString()}`,
     ...(secure ? ["Secure"] : []),
   ].join("; ");
 }
 
 export function buildClearApiSessionCookie({ secure }: { secure: boolean }) {
+  const sameSite = secure ? "None" : "Lax";
+
   return [
     `${API_AUTH_SESSION_COOKIE_NAME}=`,
     "Path=/",
     "HttpOnly",
-    "SameSite=Lax",
+    `SameSite=${sameSite}`,
     "Max-Age=0",
     ...(secure ? ["Secure"] : []),
   ].join("; ");
