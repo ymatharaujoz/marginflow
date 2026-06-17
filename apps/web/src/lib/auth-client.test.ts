@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildAuthFinalizeUrl,
+  buildWebAuthCompleteUrl,
   resolveAuthBaseUrl,
 } from "./auth-client";
 
@@ -14,10 +14,16 @@ describe("resolveAuthBaseUrl", () => {
   });
 });
 
-describe("buildAuthFinalizeUrl", () => {
-  it("builds auth finalize route with sanitized next path", () => {
-    expect(buildAuthFinalizeUrl("https://marginflow-production.up.railway.app", "https://marginflow-web.vercel.app/app")).toBe(
-      "https://marginflow-production.up.railway.app/auth/finalize?next=%2Fapp",
+describe("buildWebAuthCompleteUrl", () => {
+  it("builds web auth complete route with sanitized next path and ticket", () => {
+    expect(
+      buildWebAuthCompleteUrl(
+        "https://www.lucreii.com.br",
+        "ticket_123_ticket_123",
+        "https://marginflow-web.vercel.app/app",
+      ),
+    ).toBe(
+      "https://www.lucreii.com.br/auth/complete?ticket=ticket_123_ticket_123&next=%2Fapp",
     );
   });
 });

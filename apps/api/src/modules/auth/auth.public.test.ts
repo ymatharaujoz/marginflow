@@ -36,11 +36,16 @@ describe("public auth routes", () => {
 
   it("sets internal session cookie on sign-up", async () => {
     const authService = app.get(AuthService);
+    const authExchangeService = app.get(AuthExchangeService);
+    const organizationProvisioningService = app.get(OrganizationProvisioningService);
     vi.spyOn(authService, "signUp").mockResolvedValueOnce({
       expiresAt: new Date("2099-12-31T00:00:00.000Z"),
       sessionId: "550e8400-e29b-41d4-a716-446655440000",
       sessionToken: "session_token_123",
+      userId: "550e8400-e29b-41d4-a716-446655440001",
     });
+    vi.spyOn(authExchangeService, "createTicket").mockResolvedValueOnce("ticket_sign_up_123_ticket");
+    vi.spyOn(organizationProvisioningService, "findDefaultOrganization").mockResolvedValueOnce(null);
 
     const response = await app.inject({
       method: "POST",
@@ -56,6 +61,7 @@ describe("public auth routes", () => {
     expect(response.json()).toEqual({
       data: {
         sessionId: "550e8400-e29b-41d4-a716-446655440000",
+        ticket: "ticket_sign_up_123_ticket",
       },
       error: null,
     });
@@ -64,10 +70,20 @@ describe("public auth routes", () => {
 
   it("sets internal session cookie on sign-in", async () => {
     const authService = app.get(AuthService);
+    const authExchangeService = app.get(AuthExchangeService);
+    const organizationProvisioningService = app.get(OrganizationProvisioningService);
     vi.spyOn(authService, "signIn").mockResolvedValueOnce({
       expiresAt: new Date("2099-12-31T00:00:00.000Z"),
       sessionId: "550e8400-e29b-41d4-a716-446655440000",
       sessionToken: "session_token_123",
+      userId: "user_sign_in_123",
+    });
+    vi.spyOn(authExchangeService, "createTicket").mockResolvedValueOnce("ticket_sign_in_123_ticket");
+    vi.spyOn(organizationProvisioningService, "findDefaultOrganization").mockResolvedValueOnce({
+      id: "org_sign_in_123",
+      name: "Lucreii",
+      role: "owner",
+      slug: "lucreii",
     });
 
     const response = await app.inject({
@@ -83,6 +99,7 @@ describe("public auth routes", () => {
     expect(response.json()).toEqual({
       data: {
         sessionId: "550e8400-e29b-41d4-a716-446655440000",
+        ticket: "ticket_sign_in_123_ticket",
       },
       error: null,
     });
@@ -91,11 +108,16 @@ describe("public auth routes", () => {
 
   it("sets cross-site session cookie attributes on sign-in over HTTPS", async () => {
     const authService = app.get(AuthService);
+    const organizationProvisioningService = app.get(OrganizationProvisioningService);
+    const authExchangeService = app.get(AuthExchangeService);
     vi.spyOn(authService, "signIn").mockResolvedValueOnce({
       expiresAt: new Date("2099-12-31T00:00:00.000Z"),
       sessionId: "550e8400-e29b-41d4-a716-446655440000",
       sessionToken: "session_token_https",
+      userId: "user_https_123",
     });
+    vi.spyOn(organizationProvisioningService, "findDefaultOrganization").mockResolvedValueOnce(null);
+    vi.spyOn(authExchangeService, "createTicket").mockResolvedValueOnce("ticket_https_123_ticket");
 
     const response = await app.inject({
       headers: {
@@ -139,11 +161,16 @@ describe("public auth routes", () => {
     });
 
     const authService = app.get(AuthService);
+    const organizationProvisioningService = app.get(OrganizationProvisioningService);
+    const authExchangeService = app.get(AuthExchangeService);
     vi.spyOn(authService, "signIn").mockResolvedValueOnce({
       expiresAt: new Date("2099-12-31T00:00:00.000Z"),
       sessionId: "550e8400-e29b-41d4-a716-446655440000",
       sessionToken: "session_token_prod_123",
+      userId: "user_prod_123",
     });
+    vi.spyOn(organizationProvisioningService, "findDefaultOrganization").mockResolvedValueOnce(null);
+    vi.spyOn(authExchangeService, "createTicket").mockResolvedValueOnce("ticket_prod_123_ticket");
 
     const response = await app.inject({
       method: "POST",
@@ -162,11 +189,16 @@ describe("public auth routes", () => {
 
   it("forces cross-site session cookie attributes on sign-up in production", async () => {
     const authService = app.get(AuthService);
+    const organizationProvisioningService = app.get(OrganizationProvisioningService);
+    const authExchangeService = app.get(AuthExchangeService);
     vi.spyOn(authService, "signUp").mockResolvedValueOnce({
       expiresAt: new Date("2099-12-31T00:00:00.000Z"),
       sessionId: "550e8400-e29b-41d4-a716-446655440000",
       sessionToken: "session_token_prod_signup_123",
+      userId: "550e8400-e29b-41d4-a716-446655440005",
     });
+    vi.spyOn(organizationProvisioningService, "findDefaultOrganization").mockResolvedValueOnce(null);
+    vi.spyOn(authExchangeService, "createTicket").mockResolvedValueOnce("ticket_prod_signup_123_ticket");
 
     const response = await app.inject({
       method: "POST",

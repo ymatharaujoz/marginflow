@@ -21,6 +21,8 @@ import {
 import { API_RUNTIME_ENV } from "@/common/tokens";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { AuthService } from "./auth.service";
+import { AuthExchangeService } from "./auth-exchange.service";
+import { OrganizationProvisioningService } from "./organization-provisioning.service";
 
 class SignUpWithPasswordDto {
   static schema = signUpWithPasswordSchema;
@@ -42,8 +44,12 @@ export class AuthPublicController {
   constructor(
     @Inject(API_RUNTIME_ENV)
     private readonly env: ApiRuntimeEnv,
+    @Inject(AuthExchangeService)
+    private readonly authExchangeService: AuthExchangeService,
     @Inject(AuthService)
     private readonly authService: AuthService,
+    @Inject(OrganizationProvisioningService)
+    private readonly organizationProvisioningService: OrganizationProvisioningService,
   ) {}
 
   @Post("sign-up")
@@ -55,6 +61,13 @@ export class AuthPublicController {
     const result = await this.authService.signUp(body, {
       ipAddress: request.ip,
       userAgent: request.headers["user-agent"],
+    });
+    const organization = await this.organizationProvisioningService.findDefaultOrganization(result.userId);
+    const ticket = await this.authExchangeService.createTicket({
+      organizationId: organization?.id ?? null,
+      remoteSessionToken: result.sessionToken,
+      sessionId: result.sessionId,
+      userId: result.userId,
     });
     const cookiePolicy = resolveApiSessionCookiePolicy({
       isHttps: buildAbsoluteRequestUrl(request).protocol === "https:",
@@ -81,6 +94,7 @@ export class AuthPublicController {
     return reply.send({
       data: {
         sessionId: result.sessionId,
+        ticket,
       },
       error: null,
     });
@@ -96,6 +110,13 @@ export class AuthPublicController {
     const result = await this.authService.signIn(body, {
       ipAddress: request.ip,
       userAgent: request.headers["user-agent"],
+    });
+    const organization = await this.organizationProvisioningService.findDefaultOrganization(result.userId);
+    const ticket = await this.authExchangeService.createTicket({
+      organizationId: organization?.id ?? null,
+      remoteSessionToken: result.sessionToken,
+      sessionId: result.sessionId,
+      userId: result.userId,
     });
     const cookiePolicy = resolveApiSessionCookiePolicy({
       isHttps: buildAbsoluteRequestUrl(request).protocol === "https:",
@@ -120,6 +141,7 @@ export class AuthPublicController {
     return reply.send({
       data: {
         sessionId: result.sessionId,
+        ticket,
       },
       error: null,
     });

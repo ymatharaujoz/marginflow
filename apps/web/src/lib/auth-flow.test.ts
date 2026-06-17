@@ -6,6 +6,7 @@ describe("submitPasswordAuth", () => {
     const signInEmail = vi.fn();
 
     const result = await submitPasswordAuth({
+      appBaseUrl: "https://www.lucreii.com.br",
       apiBaseUrl: "https://marginflow-production.up.railway.app",
       authClient: {
         signIn: { email: signInEmail },
@@ -26,18 +27,18 @@ describe("submitPasswordAuth", () => {
     });
   });
 
-  it("signs in with email/password then redirects to auth finalize", async () => {
+  it("signs in with email/password then redirects to web auth completion", async () => {
     const signInEmail = vi.fn().mockResolvedValue({
       data: {
-        user: {
-          id: "user_123",
-        },
+        sessionId: "session_123",
+        ticket: "ticket_sign_in_123_ticket",
       },
       error: null,
     });
     const locationAssign = vi.fn();
 
     const result = await submitPasswordAuth({
+      appBaseUrl: "https://www.lucreii.com.br",
       apiBaseUrl: "https://marginflow-production.up.railway.app",
       authClient: {
         signIn: { email: signInEmail },
@@ -57,7 +58,7 @@ describe("submitPasswordAuth", () => {
       rememberMe: true,
     });
     expect(locationAssign).toHaveBeenCalledWith(
-      "https://marginflow-production.up.railway.app/auth/finalize?next=%2Fapp",
+      "https://www.lucreii.com.br/auth/complete?ticket=ticket_sign_in_123_ticket&next=%2Fapp",
     );
     expect(result).toEqual({
       inlineError: null,
@@ -65,18 +66,18 @@ describe("submitPasswordAuth", () => {
     });
   });
 
-  it("signs up with name, email and password then redirects to auth finalize", async () => {
+  it("signs up with name, email and password then redirects to web auth completion", async () => {
     const signUpEmail = vi.fn().mockResolvedValue({
       data: {
-        user: {
-          id: "user_123",
-        },
+        sessionId: "session_123",
+        ticket: "ticket_sign_up_123_ticket",
       },
       error: null,
     });
     const locationAssign = vi.fn();
 
     const result = await submitPasswordAuth({
+      appBaseUrl: "https://www.lucreii.com.br",
       apiBaseUrl: "https://marginflow-production.up.railway.app",
       authClient: {
         signIn: { email: vi.fn() },
@@ -98,7 +99,7 @@ describe("submitPasswordAuth", () => {
       password: "password123",
     });
     expect(locationAssign).toHaveBeenCalledWith(
-      "https://marginflow-production.up.railway.app/auth/finalize?next=%2Fapp",
+      "https://www.lucreii.com.br/auth/complete?ticket=ticket_sign_up_123_ticket&next=%2Fapp",
     );
     expect(result).toEqual({
       inlineError: null,
@@ -115,6 +116,7 @@ describe("submitPasswordAuth", () => {
     });
 
     const result = await submitPasswordAuth({
+      appBaseUrl: "https://www.lucreii.com.br",
       apiBaseUrl: "https://marginflow-production.up.railway.app",
       authClient: {
         signIn: { email: signInEmail },

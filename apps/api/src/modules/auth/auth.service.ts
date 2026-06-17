@@ -99,6 +99,7 @@ export class AuthService {
       expiresAt,
       sessionId,
       sessionToken,
+      userId,
     };
   }
 
@@ -142,6 +143,7 @@ export class AuthService {
       expiresAt,
       sessionId,
       sessionToken,
+      userId: account.user.id,
     };
   }
 

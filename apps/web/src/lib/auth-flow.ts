@@ -6,11 +6,14 @@ import {
   signInWithPasswordSchema,
   signUpWithPasswordFormSchema,
 } from "@lucreii/validation";
-import { buildAuthFinalizeUrl } from "./auth-client";
+import { buildWebAuthCompleteUrl } from "./auth-client";
 import { resolveAuthInlineErrorMessage } from "./auth-errors";
 
 type AuthResult = {
-  data?: unknown;
+  data?: {
+    sessionId: string;
+    ticket: string;
+  } | null;
   error?: unknown;
 };
 
@@ -33,6 +36,7 @@ type PasswordAuthClient = {
 
 type SubmitPasswordAuthInput =
   | {
+      appBaseUrl: string;
       apiBaseUrl: string;
       authClient: PasswordAuthClient;
       locationAssign: (url: string) => void;
@@ -41,6 +45,7 @@ type SubmitPasswordAuthInput =
       values: SignInWithPasswordInput;
     }
   | {
+      appBaseUrl: string;
       apiBaseUrl: string;
       authClient: PasswordAuthClient;
       locationAssign: (url: string) => void;
@@ -74,7 +79,20 @@ export async function submitPasswordAuth(input: SubmitPasswordAuthInput) {
         };
       }
 
-      input.locationAssign(buildAuthFinalizeUrl(input.apiBaseUrl, input.nextPath ?? "/app"));
+      if (!result?.data?.ticket) {
+        return {
+          inlineError: "Falha ao concluir login. Tente novamente.",
+          success: false as const,
+        };
+      }
+
+      input.locationAssign(
+        buildWebAuthCompleteUrl(
+          input.appBaseUrl,
+          result.data.ticket,
+          input.nextPath ?? "/app",
+        ),
+      );
 
       return {
         inlineError: null,
@@ -111,7 +129,20 @@ export async function submitPasswordAuth(input: SubmitPasswordAuthInput) {
       };
     }
 
-    input.locationAssign(buildAuthFinalizeUrl(input.apiBaseUrl, input.nextPath ?? "/app"));
+    if (!result?.data?.ticket) {
+      return {
+        inlineError: "Falha ao concluir login. Tente novamente.",
+        success: false as const,
+      };
+    }
+
+    input.locationAssign(
+      buildWebAuthCompleteUrl(
+        input.appBaseUrl,
+        result.data.ticket,
+        input.nextPath ?? "/app",
+      ),
+    );
 
     return {
       inlineError: null,
