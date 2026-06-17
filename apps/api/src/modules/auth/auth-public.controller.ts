@@ -16,7 +16,10 @@ import {
   buildClearApiSessionCookie,
   buildSetApiSessionCookie,
   buildAbsoluteRequestUrl,
+  resolveApiSessionCookiePolicy,
 } from "./auth-http";
+import { API_RUNTIME_ENV } from "@/common/tokens";
+import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import { AuthService } from "./auth.service";
 
 class SignUpWithPasswordDto {
@@ -37,6 +40,8 @@ class SignInWithPasswordDto {
 @Controller("auth")
 export class AuthPublicController {
   constructor(
+    @Inject(API_RUNTIME_ENV)
+    private readonly env: ApiRuntimeEnv,
     @Inject(AuthService)
     private readonly authService: AuthService,
   ) {}
@@ -51,14 +56,23 @@ export class AuthPublicController {
       ipAddress: request.ip,
       userAgent: request.headers["user-agent"],
     });
-    const secure = buildAbsoluteRequestUrl(request).protocol === "https:";
+    const cookiePolicy = resolveApiSessionCookiePolicy({
+      isHttps: buildAbsoluteRequestUrl(request).protocol === "https:",
+      nodeEnv: this.env.NODE_ENV,
+    });
+
+    console.info("[lucreii/api] Public auth sign-up issued session cookie.", {
+      sameSite: cookiePolicy.sameSite,
+      secure: cookiePolicy.secure,
+    });
 
     reply
       .header(
         "set-cookie",
         buildSetApiSessionCookie({
           expiresAt: result.expiresAt,
-          secure,
+          sameSite: cookiePolicy.sameSite,
+          secure: cookiePolicy.secure,
           sessionToken: result.sessionToken,
         }),
       )
@@ -83,13 +97,22 @@ export class AuthPublicController {
       ipAddress: request.ip,
       userAgent: request.headers["user-agent"],
     });
-    const secure = buildAbsoluteRequestUrl(request).protocol === "https:";
+    const cookiePolicy = resolveApiSessionCookiePolicy({
+      isHttps: buildAbsoluteRequestUrl(request).protocol === "https:",
+      nodeEnv: this.env.NODE_ENV,
+    });
+
+    console.info("[lucreii/api] Public auth sign-in issued session cookie.", {
+      sameSite: cookiePolicy.sameSite,
+      secure: cookiePolicy.secure,
+    });
 
     reply.header(
       "set-cookie",
       buildSetApiSessionCookie({
         expiresAt: result.expiresAt,
-        secure,
+        sameSite: cookiePolicy.sameSite,
+        secure: cookiePolicy.secure,
         sessionToken: result.sessionToken,
       }),
     );
@@ -111,8 +134,17 @@ export class AuthPublicController {
     await this.authService.signOut({
       headers: request.headers,
     });
-    const secure = buildAbsoluteRequestUrl(request).protocol === "https:";
-    reply.header("set-cookie", buildClearApiSessionCookie({ secure }));
+    const cookiePolicy = resolveApiSessionCookiePolicy({
+      isHttps: buildAbsoluteRequestUrl(request).protocol === "https:",
+      nodeEnv: this.env.NODE_ENV,
+    });
+
+    console.info("[lucreii/api] Public auth sign-out cleared session cookie.", {
+      sameSite: cookiePolicy.sameSite,
+      secure: cookiePolicy.secure,
+    });
+
+    reply.header("set-cookie", buildClearApiSessionCookie(cookiePolicy));
 
     return reply.send({
       data: { success: true },

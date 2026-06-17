@@ -66,10 +66,13 @@ export async function buildApp(
         typeof request.query.next === "string"
           ? sanitizeNextPath(request.query.next)
           : "/app";
+      const rawCookieHeader = request.headers.cookie;
       const sessionToken = readApiSessionTokenFromCookieHeader(request.headers.cookie);
 
       if (!sessionToken) {
         console.error("[lucreii/api] Internal auth finalize missing session cookie.", {
+          hasApiSessionCookie: typeof rawCookieHeader === "string" && rawCookieHeader.includes("lucreii_api_session="),
+          hasCookieHeader: typeof rawCookieHeader === "string" && rawCookieHeader.length > 0,
           nextPath,
           origin: buildAbsoluteRequestUrl(request).origin,
           path: request.url,
@@ -85,6 +88,8 @@ export async function buildApp(
 
       if (!authContext) {
         console.error("[lucreii/api] Internal auth finalize could not resolve session context.", {
+          hasApiSessionCookie: typeof rawCookieHeader === "string" && rawCookieHeader.includes("lucreii_api_session="),
+          hasCookieHeader: typeof rawCookieHeader === "string" && rawCookieHeader.length > 0,
           nextPath,
           origin: buildAbsoluteRequestUrl(request).origin,
           path: request.url,

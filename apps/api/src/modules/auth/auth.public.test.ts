@@ -116,6 +116,74 @@ describe("public auth routes", () => {
     expect(response.headers["set-cookie"]).toContain("Secure");
   });
 
+  it("forces cross-site session cookie attributes on sign-in in production even without forwarded proto", async () => {
+    await app.close();
+    app = await buildApp({
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      API_PUBLIC_BASE_URL: "https://marginflow-production.up.railway.app",
+      AUTH_TRUSTED_ORIGINS: "https://www.lucreii.com.br",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+      NODE_ENV: "production",
+      SYNC_RELAX_GUARDS: false,
+      WEB_APP_ORIGIN: "https://www.lucreii.com.br",
+    });
+
+    const authService = app.get(AuthService);
+    vi.spyOn(authService, "signIn").mockResolvedValueOnce({
+      expiresAt: new Date("2099-12-31T00:00:00.000Z"),
+      sessionId: "550e8400-e29b-41d4-a716-446655440000",
+      sessionToken: "session_token_prod_123",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        email: "owner@lucreii.local",
+        password: "password123",
+      },
+      url: "/auth/sign-in",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["set-cookie"]).toContain("lucreii_api_session=session_token_prod_123");
+    expect(response.headers["set-cookie"]).toContain("SameSite=None");
+    expect(response.headers["set-cookie"]).toContain("Secure");
+  });
+
+  it("forces cross-site session cookie attributes on sign-up in production", async () => {
+    const authService = app.get(AuthService);
+    vi.spyOn(authService, "signUp").mockResolvedValueOnce({
+      expiresAt: new Date("2099-12-31T00:00:00.000Z"),
+      sessionId: "550e8400-e29b-41d4-a716-446655440000",
+      sessionToken: "session_token_prod_signup_123",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        email: "owner@lucreii.local",
+        name: "Mateus",
+        password: "password123",
+      },
+      url: "/auth/sign-up",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.headers["set-cookie"]).toContain("lucreii_api_session=session_token_prod_signup_123");
+    expect(response.headers["set-cookie"]).toContain("SameSite=None");
+    expect(response.headers["set-cookie"]).toContain("Secure");
+  });
+
   it("clears internal session cookie on sign-out", async () => {
     const authService = app.get(AuthService);
     vi.spyOn(authService, "signOut").mockResolvedValueOnce(undefined);
@@ -136,6 +204,24 @@ describe("public auth routes", () => {
       error: null,
     });
     expect(response.headers["set-cookie"]).toContain("lucreii_api_session=;");
+  });
+
+  it("forces cross-site session cookie attributes on sign-out in production", async () => {
+    const authService = app.get(AuthService);
+    vi.spyOn(authService, "signOut").mockResolvedValueOnce(undefined);
+
+    const response = await app.inject({
+      headers: {
+        cookie: "lucreii_api_session=session_token_123",
+      },
+      method: "POST",
+      url: "/auth/sign-out",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["set-cookie"]).toContain("lucreii_api_session=;");
+    expect(response.headers["set-cookie"]).toContain("SameSite=None");
+    expect(response.headers["set-cookie"]).toContain("Secure");
   });
 
   it("redeems auth exchange ticket even when constructor metadata is unavailable", async () => {
