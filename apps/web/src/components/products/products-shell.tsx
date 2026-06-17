@@ -1894,8 +1894,7 @@ export function ProductsShell({
               </motion.div>
 
               {/* Conflicts & Errors Panel */}
-              {[...marketplaceImportResult.conflicts, ...marketplaceImportResult.errors]
-                .length > 0 ? (
+              {hasIssues ? (
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
