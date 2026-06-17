@@ -29,8 +29,9 @@ Arquitetura atual:
 
 1. usuario abre `https://www.lucreii.com.br/sign-in`
 2. usuario faz sign-in com credenciais (email/senha)
-3. API cria sessao e retorna dados autenticados
-4. web cria sessao SSR local e segue para `/app`
+3. API cria sessao, emite `lucreii_api_session` por compatibilidade e retorna `sessionId` + `ticket`
+4. web redireciona direto para `https://www.lucreii.com.br/auth/complete?ticket=...`
+5. `/auth/complete` troca ticket na API, cria `lucreii.web_session` e segue para `/app`
 
 ## Variaveis obrigatorias
 
@@ -98,9 +99,10 @@ Opcional:
 
 - abrir `/sign-in` na Vercel
 - confirmar login com email/senha funciona
+- confirmar `POST /auth/sign-in` ou `POST /auth/sign-up` responde com `ticket`
 - confirmar redirect final para Vercel `/app`
+- confirmar redirect intermediario vai para `/auth/complete`, nao para Railway `/auth/finalize`
 - confirmar `POST /auth/sign-in` responde com `SameSite=None; Secure` em producao
-- confirmar request seguinte para `/auth/finalize` inclui `lucreii_api_session`
 - confirmar `/app` autenticado no SSR
 - confirmar logout limpa sessao local do web
 
@@ -122,7 +124,7 @@ Verificar:
 - API publicou endpoint `POST /auth-state/exchange-ticket`
 - ticket one-time nao expirou
 - `WEB_SESSION_SECRET` existe no projeto web
-- logs da API nao mostram `Internal auth finalize missing session cookie`
+- payload de `POST /auth/sign-in` ou `POST /auth/sign-up` inclui `ticket`
 
 ### SSR autenticado nao funciona
 
@@ -131,3 +133,10 @@ Verificar:
 - cookie local `lucreii.web_session` esta sendo criado
 - payload trocado inclui `remoteSessionToken`
 - chamadas SSR do web para Railway enviam cookie de sessao
+
+### Log legado de `/auth/finalize`
+
+Se aparecer `Internal auth finalize missing session cookie`, trate como fluxo legado ou cliente antigo.
+
+- frontend principal atual nao depende mais de `/auth/finalize` para login normal
+- se esse log aparecer no fluxo principal, verifique se deploy do web realmente publicou redirect direto para `/auth/complete`

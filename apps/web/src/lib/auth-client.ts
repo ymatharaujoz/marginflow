@@ -21,10 +21,10 @@ export function resolveAuthBaseUrl(apiBaseUrl: string) {
   return `${trimmedBaseUrl}/auth`;
 }
 
-export function buildAuthFinalizeUrl(apiBaseUrl: string, callbackURL: string) {
-  const trimmedBaseUrl = apiBaseUrl.replace(/\/+$/, "");
-  const searchParams = new URLSearchParams({ next: toNextPath(callbackURL) });
-  return `${trimmedBaseUrl}/auth/finalize?${searchParams.toString()}`;
+export function buildWebAuthCompleteUrl(appBaseUrl: string, ticket: string, callbackURL: string) {
+  const trimmedBaseUrl = appBaseUrl.replace(/\/+$/, "");
+  const searchParams = new URLSearchParams({ ticket, next: toNextPath(callbackURL) });
+  return `${trimmedBaseUrl}/auth/complete?${searchParams.toString()}`;
 }
 
 function toNextPath(callbackURL: string) {
@@ -82,7 +82,7 @@ export const authClient = {
       password: string;
       rememberMe?: boolean;
     }) {
-      return postAuth<{ sessionId: string }>("sign-in", {
+      return postAuth<{ sessionId: string; ticket: string }>("sign-in", {
         email: input.email,
         password: input.password,
       });
@@ -97,7 +97,7 @@ export const authClient = {
       name: string;
       password: string;
     }) {
-      return postAuth<{ sessionId: string }>("sign-up", input);
+      return postAuth<{ sessionId: string; ticket: string }>("sign-up", input);
     },
   },
 };
