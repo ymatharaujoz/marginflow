@@ -5,6 +5,15 @@ const runtimeUrl =
   "postgresql://postgres.project-ref:runtime-pass@aws-0-us-east-1.pooler.supabase.com:6543/postgres";
 
 describe("readApiEnv", () => {
+  const stripePlanPrices = {
+    STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+    STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+    STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+    STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+    STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+    STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+  } as const;
+
   it("requires DATABASE_URL", () => {
     expect(() =>
       readApiEnv({
@@ -13,8 +22,7 @@ describe("readApiEnv", () => {
         API_DB_POOL_MAX: "5",
         STRIPE_SECRET_KEY: "stripe",
         STRIPE_WEBHOOK_SECRET: "webhook",
-        STRIPE_PRICE_MONTHLY: "price_monthly",
-        STRIPE_PRICE_ANNUAL: "price_annual",
+        ...stripePlanPrices,
         NODE_ENV: "test",
         WEB_APP_ORIGIN: "http://localhost:3000",
       }),
@@ -30,8 +38,7 @@ describe("readApiEnv", () => {
       DATABASE_URL: runtimeUrl,
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
-      STRIPE_PRICE_ANNUAL: "price_annual",
+      ...stripePlanPrices,
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
@@ -53,8 +60,7 @@ describe("readApiEnv", () => {
       BETTER_AUTH_URL: "http://localhost:4000/auth",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
-      STRIPE_PRICE_ANNUAL: "price_annual",
+      ...stripePlanPrices,
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
@@ -75,8 +81,7 @@ describe("readApiEnv", () => {
       MERCADOLIVRE_USE_PKCE: "true",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
-      STRIPE_PRICE_ANNUAL: "price_annual",
+      ...stripePlanPrices,
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
@@ -96,8 +101,7 @@ describe("readApiEnv", () => {
       DATABASE_URL: runtimeUrl,
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
-      STRIPE_PRICE_ANNUAL: "price_annual",
+      ...stripePlanPrices,
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
     } as const;
@@ -117,8 +121,7 @@ describe("readApiEnv", () => {
       DATABASE_URL: runtimeUrl,
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
-      STRIPE_PRICE_ANNUAL: "price_annual",
+      ...stripePlanPrices,
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
       AUTH_TRUSTED_ORIGINS: "http://localhost:3000, https://lucreii.app, https://admin.lucreii.app ",
@@ -144,8 +147,7 @@ describe("readApiEnv", () => {
       MERCADOLIVRE_REDIRECT_URI: "https://demo.ngrok-free.dev/integrations/mercadolivre/callback",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
-      STRIPE_PRICE_ANNUAL: "price_annual",
+      ...stripePlanPrices,
       NODE_ENV: "test",
       WEB_APP_ORIGIN: "http://localhost:3000",
     });
@@ -156,5 +158,25 @@ describe("readApiEnv", () => {
         expect.stringContaining("Fluxo local Mercado Livre detectado"),
       ]),
     );
+  });
+
+  it("requires configured Stripe prices for every plan and interval", () => {
+    expect(() =>
+      readApiEnv({
+        API_HOST: "127.0.0.1",
+        API_PORT: "4000",
+        API_DB_POOL_MAX: "12",
+        DATABASE_URL: runtimeUrl,
+        STRIPE_SECRET_KEY: "stripe",
+        STRIPE_WEBHOOK_SECRET: "webhook",
+        STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+        STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+        STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+        STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+        STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+        NODE_ENV: "test",
+        WEB_APP_ORIGIN: "http://localhost:3000",
+      }),
+    ).toThrow();
   });
 });

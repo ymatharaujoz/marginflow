@@ -9,7 +9,7 @@ export type ModalProps = {
   className?: string;
   onClose: () => void;
   open: boolean;
-  title?: string;
+  title?: ReactNode;
 };
 
 export function Modal({ children, className, onClose, open, title }: ModalProps) {
@@ -34,7 +34,7 @@ export function Modal({ children, className, onClose, open, title }: ModalProps)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-foreground/20 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-foreground/40 backdrop-blur-md animate-fade-in"
         onClick={onClose}
         aria-hidden
       />
@@ -45,13 +45,19 @@ export function Modal({ children, className, onClose, open, title }: ModalProps)
         )}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={typeof title === "string" ? title : undefined}
       >
         {title && (
-          <div className="flex shrink-0 items-center justify-between border-b border-border/50 px-6 py-4">
-            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+          <div className="flex shrink-0 items-start justify-between border-b border-border/50 px-8 py-6">
+            <div className="flex flex-col gap-1">
+              {typeof title === "string" ? (
+                <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+              ) : (
+                title
+              )}
+            </div>
             <button
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors"
+              className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-foreground/5 hover:text-foreground transition-colors"
               onClick={onClose}
               aria-label="Close"
               type="button"
@@ -62,7 +68,7 @@ export function Modal({ children, className, onClose, open, title }: ModalProps)
             </button>
           </div>
         )}
-        <div className={cn("overflow-y-auto mf-scrollbar min-h-0", title ? "px-6 py-5" : "px-6 py-6")}>
+        <div className={cn("overflow-y-auto mf-scrollbar min-h-0", title ? "px-8 py-10" : "px-8 py-10")}>
           {children}
         </div>
       </div>

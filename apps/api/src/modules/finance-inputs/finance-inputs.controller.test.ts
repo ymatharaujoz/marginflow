@@ -48,8 +48,12 @@ describe("finance inputs controllers", () => {
       BETTER_AUTH_URL: "http://localhost:4000",
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -77,11 +81,12 @@ describe("finance inputs controllers", () => {
     vi.spyOn(financeInputsService, "listCompanies").mockResolvedValueOnce([
       {
         code: "MELI",
+        cnpj: "12345678000195",
         createdAt: "2026-05-09T10:00:00.000Z",
         fixedCostDefault: "1500.00",
         id: "company_1",
         isActive: true,
-        name: "Mercado Livre",
+        razaoSocial: "Mercado Livre LTDA",
         taxRateDefault: "0.120000",
         updatedAt: "2026-05-09T10:00:00.000Z",
       },
@@ -109,11 +114,12 @@ describe("finance inputs controllers", () => {
     });
     vi.spyOn(financeInputsService, "createCompany").mockResolvedValueOnce({
       code: "MELI",
+      cnpj: "12345678000195",
       createdAt: "2026-05-09T10:00:00.000Z",
       fixedCostDefault: "1500.00",
       id: "company_1",
       isActive: true,
-      name: "Mercado Livre",
+      razaoSocial: "Mercado Livre LTDA",
       taxRateDefault: "0.120000",
       updatedAt: "2026-05-09T10:00:00.000Z",
     });
@@ -121,10 +127,10 @@ describe("finance inputs controllers", () => {
     const response = await app.inject({
       method: "POST",
       payload: {
-        code: "meli",
+        cnpj: "12.345.678/0001-95",
         fixedCostDefault: "1500.00",
         isActive: true,
-        name: "Mercado Livre",
+        razaoSocial: "Mercado Livre LTDA",
         taxRateDefault: "0.120000",
       },
       url: "/companies",
@@ -134,8 +140,10 @@ describe("finance inputs controllers", () => {
     expect(response.json().data).toEqual(
       expect.objectContaining({
         code: "MELI",
+        cnpj: "12345678000195",
         fixedCostDefault: "1500.00",
         id: "company_1",
+        razaoSocial: "Mercado Livre LTDA",
         taxRateDefault: "0.120000",
       }),
     );
@@ -151,11 +159,12 @@ describe("finance inputs controllers", () => {
     });
     vi.spyOn(financeInputsService, "updateCompany").mockResolvedValueOnce({
       code: "MELI",
+      cnpj: "12345678000195",
       createdAt: "2026-05-09T10:00:00.000Z",
       fixedCostDefault: "1750.00",
       id: "company_1",
       isActive: false,
-      name: "Mercado Livre",
+      razaoSocial: "Mercado Livre LTDA",
       taxRateDefault: "0.090000",
       updatedAt: "2026-05-09T12:00:00.000Z",
     });

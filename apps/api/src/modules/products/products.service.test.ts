@@ -27,6 +27,7 @@ function createUpdateMock(returnValue: unknown) {
 
 function createService() {
   const db = {
+    delete: vi.fn(),
     insert: vi.fn(),
     query: {
       adCosts: {
@@ -506,6 +507,157 @@ describe("ProductsService", () => {
         id: "cost_1",
       }),
     );
+  });
+
+  it("creates missing cost/default records when saving catalog finance", async () => {
+    const { db, financeService, service } = createService();
+    const txInsert = vi
+      .fn()
+      .mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([
+            {
+              amount: "30.00",
+              costType: "base",
+              createdAt: new Date("2026-06-17T10:00:00.000Z"),
+              currency: "BRL",
+              effectiveFrom: null,
+              id: "cost_1",
+              notes: "Atualizado pelo catálogo",
+              organizationId: "org_1",
+              productId: "product_1",
+              updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+            },
+          ]),
+        }),
+      })
+      .mockReturnValueOnce({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([
+            {
+              advertisingCost: "0.00",
+              createdAt: new Date("2026-06-17T10:00:00.000Z"),
+              id: "defaults_1",
+              packagingCost: "4.50",
+              productId: "product_1",
+              updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+            },
+          ]),
+        }),
+      });
+
+    db.query.products.findFirst
+      .mockResolvedValueOnce({
+        id: "product_1",
+        organizationId: "org_1",
+      })
+      .mockResolvedValueOnce({
+        createdAt: new Date("2026-06-17T10:00:00.000Z"),
+        financeDefaults: null,
+        id: "product_1",
+        images: [],
+        isActive: true,
+        name: "Kit Mercado Livre",
+        organizationId: "org_1",
+        sellingPrice: "149.90",
+        sku: "ML-001",
+        updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+      })
+      .mockResolvedValueOnce({
+        createdAt: new Date("2026-06-17T10:00:00.000Z"),
+        financeDefaults: {
+          advertisingCost: "0.00",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          id: "defaults_1",
+          packagingCost: "4.50",
+          productId: "product_1",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+        id: "product_1",
+        images: [],
+        isActive: true,
+        name: "Kit Mercado Livre",
+        organizationId: "org_1",
+        sellingPrice: "149.90",
+        sku: "ML-001",
+        updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+      });
+    db.query.productCosts.findFirst.mockResolvedValueOnce(null);
+    db.query.productCosts.findMany.mockResolvedValueOnce([
+      {
+        amount: "30.00",
+        costType: "base",
+        createdAt: new Date("2026-06-17T10:00:00.000Z"),
+        currency: "BRL",
+        effectiveFrom: null,
+        id: "cost_1",
+        notes: "Atualizado pelo catálogo",
+        organizationId: "org_1",
+        productId: "product_1",
+        updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+      },
+    ]);
+    db.transaction = vi.fn(async (callback) =>
+      callback({
+        insert: txInsert,
+        update: vi.fn(),
+      }),
+    );
+    financeService.materializeOrganizationMetrics = vi.fn().mockResolvedValue(undefined);
+
+    const updateCatalogFinance = (
+      service as ProductsService & {
+        updateCatalogFinance: (
+          organizationId: string,
+          productId: string,
+          input: { packagingCost: string; unitCost: string },
+        ) => Promise<unknown>;
+      }
+    ).updateCatalogFinance;
+
+    await expect(
+      Promise.resolve().then(() =>
+        updateCatalogFinance.call(service, "org_1", "product_1", {
+          packagingCost: "4.50",
+          unitCost: "30.00",
+        }),
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        financeDefaults: expect.objectContaining({
+          packagingCost: "4.50",
+        }),
+        latestCost: expect.objectContaining({
+          amount: "30.00",
+        }),
+      }),
+    );
+  });
+
+  it("deletes product after validating organization ownership", async () => {
+    const { db, financeService, service } = createService();
+
+    db.query.products.findFirst.mockResolvedValueOnce({
+      id: "product_1",
+      organizationId: "org_1",
+    });
+    db.delete = vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(undefined),
+    });
+    financeService.materializeOrganizationMetrics = vi.fn().mockResolvedValue(undefined);
+
+    const deleteProduct = (
+      service as ProductsService & {
+        deleteProduct: (
+          organizationId: string,
+          productId: string,
+        ) => Promise<{ id: string }>;
+      }
+    ).deleteProduct;
+
+    await expect(
+      Promise.resolve().then(() => deleteProduct.call(service, "org_1", "product_1")),
+    ).resolves.toEqual({ id: "product_1" });
   });
 
   it("updates ad costs and manual expenses", async () => {

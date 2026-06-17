@@ -3,6 +3,7 @@ import { z } from "zod";
 const moneyPattern = /^\d+(?:\.\d{1,2})?$/;
 const ratePattern = /^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/;
 const referenceMonthPattern = /^\d{4}-\d{2}-01$/;
+const repeatedDigitsPattern = /^(\d)\1{13}$/;
 
 function moneyField(label: string) {
   return z
@@ -28,29 +29,51 @@ function optionalNotesField() {
     .or(z.literal("").transform(() => null));
 }
 
-const companyCodeField = z
+function isValidCnpj(value: string) {
+  if (value.length !== 14 || repeatedDigitsPattern.test(value)) {
+    return false;
+  }
+
+  const digits = value.split("").map((digit) => Number.parseInt(digit, 10));
+  const firstWeights = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const secondWeights = [6, ...firstWeights];
+  const firstRemainder =
+    firstWeights.reduce((sum, weight, index) => sum + digits[index]! * weight, 0) % 11;
+  const firstDigit = firstRemainder < 2 ? 0 : 11 - firstRemainder;
+
+  if (digits[12] !== firstDigit) {
+    return false;
+  }
+
+  const secondRemainder =
+    secondWeights.reduce((sum, weight, index) => sum + digits[index]! * weight, 0) % 11;
+  const secondDigit = secondRemainder < 2 ? 0 : 11 - secondRemainder;
+
+  return digits[13] === secondDigit;
+}
+
+const companyRazaoSocialField = z.string().trim().min(2).max(255);
+const companyCnpjField = z
   .string()
   .trim()
-  .min(2)
-  .max(12)
-  .transform((value) => value.toUpperCase());
-
-const companyNameField = z.string().trim().min(2).max(255);
+  .transform((value) => value.replace(/\D/g, ""))
+  .refine((value) => value.length === 14, "CNPJ must have 14 digits.")
+  .refine((value) => isValidCnpj(value), "CNPJ must be valid.");
 
 export const companyFormSchema = z.object({
-  code: companyCodeField,
+  cnpj: companyCnpjField,
   fixedCostDefault: moneyField("Fixed cost default").default("0"),
   isActive: z.boolean().default(true),
-  name: companyNameField,
+  razaoSocial: companyRazaoSocialField,
   taxRateDefault: rateField("Tax rate default").default("0"),
 });
 
 export const companyUpdateSchema = z
   .object({
-    code: companyCodeField.optional(),
+    cnpj: companyCnpjField.optional(),
     fixedCostDefault: moneyField("Fixed cost default").optional(),
     isActive: z.boolean().optional(),
-    name: companyNameField.optional(),
+    razaoSocial: companyRazaoSocialField.optional(),
     taxRateDefault: rateField("Tax rate default").optional(),
   })
   .refine(

@@ -356,7 +356,7 @@ function PricingCard({
         ease: easeOut,
       }}
       whileHover={reduceMotion ? undefined : { y: -8, transition: { duration: 0.2 } }}
-      className={`relative flex flex-col rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:shadow-xl ${
+      className={`relative grid grid-rows-subgrid row-span-5 gap-y-4 rounded-2xl border p-6 shadow-sm transition-all duration-300 hover:shadow-xl ${
         featured
           ? "border-accent bg-gradient-to-b from-surface to-accent/[0.02] ring-1 ring-accent/20"
           : "border-border bg-surface"
@@ -370,18 +370,16 @@ function PricingCard({
         </div>
       )}
 
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{name}</h3>
-        <div className="mt-2 flex items-baseline gap-1">
-          <span className="text-4xl font-bold text-foreground">{price}</span>
-          <span className="text-sm text-muted-foreground">{suffix}</span>
-        </div>
-        <p className="mt-2 text-sm text-muted-foreground">{description}</p>
+      <h3 className="self-end text-sm font-semibold uppercase tracking-wider text-muted-foreground">{name}</h3>
+      <div className="flex items-baseline gap-1">
+        <span className="text-4xl font-bold text-foreground">{price}</span>
+        <span className="text-sm text-muted-foreground">{suffix}</span>
       </div>
+      <p className="text-sm text-muted-foreground">{description}</p>
 
       <Link
         href={href}
-        className={`mb-6 inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold transition-all ${
+        className={`inline-flex h-11 items-center justify-center rounded-xl px-6 text-sm font-semibold transition-all ${
           featured
             ? "bg-accent text-white shadow-md hover:bg-accent-strong hover:shadow-lg"
             : "border border-border bg-surface text-foreground hover:border-accent/30 hover:bg-accent/[0.02]"
@@ -390,7 +388,7 @@ function PricingCard({
         {cta}
       </Link>
 
-      <ul className="mt-auto space-y-3">
+      <ul className="space-y-3">
         {features.map((feature) => (
           <li key={feature} className="flex items-start gap-3 text-sm text-muted-foreground">
             <CheckIcon />
@@ -716,19 +714,10 @@ export function LandingPage() {
                 );
               })}
             </div>
-            {billing === "annual" && (
-              <motion.p
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-sm font-medium text-accent"
-              >
-                Pagamento anual com melhor previsibilidade de caixa
-              </motion.p>
-            )}
           </motion.div>
 
           {/* Pricing Cards */}
-          <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-3">
+          <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-3 lg:grid-rows-[auto_auto_1fr_auto_auto]">
             {plans.map((plan, index) => (
               <PricingCard
                 key={plan.name}

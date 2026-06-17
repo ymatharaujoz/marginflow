@@ -127,6 +127,7 @@ export function DashboardFinancialIndicators({
     const nextFixedCost = activeCompany ? Number.parseFloat(activeCompany.fixedCostDefault) || 0 : 0;
     const nextTaxPercent = activeCompany ? (Number.parseFloat(activeCompany.taxRateDefault) || 0) * 100 : 0;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFixedCost(nextFixedCost);
     setTaxPercent(nextTaxPercent);
     setFixedCostInput(formatCurrencyInput(nextFixedCost));
@@ -312,7 +313,7 @@ export function DashboardFinancialIndicators({
                     <h3 className="text-sm font-semibold text-foreground">Custo e Imposto</h3>
                     <p className="text-xs text-muted-foreground">
                       {activeCompany
-                        ? `${activeCompany.name}`
+                        ? `${activeCompany.razaoSocial}`
                         : "Nenhuma empresa ativa disponivel"}
                     </p>
                   </div>

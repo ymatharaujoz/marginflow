@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 const decimalPattern = /^\d+(?:\.\d{1,2})?$/;
-const decimalRatePattern = /^(?:0(?:\.\d{1,6})?|1(?:\.0{1,6})?)$/;
 const optionalDateField = z
   .string()
   .trim()
@@ -18,13 +17,6 @@ function decimalField(label: string) {
     .string()
     .trim()
     .regex(decimalPattern, `${label} must be a decimal amount with up to 2 places.`);
-}
-
-function decimalRateField(label: string) {
-  return z
-    .string()
-    .trim()
-    .regex(decimalRatePattern, `${label} must be a decimal rate between 0 and 1.`);
 }
 
 function optionalTrimmedString(max: number) {
@@ -60,6 +52,11 @@ export const productManualCreateSchema = z.object({
     sellingPrice: decimalField("Selling price"),
     sku: z.string().trim().min(1).max(128),
   }),
+});
+
+export const productCatalogFinanceUpdateSchema = z.object({
+  packagingCost: decimalField("Packaging cost"),
+  unitCost: decimalField("Unit cost"),
 });
 
 export const productCostFormSchema = z.object({
@@ -136,6 +133,9 @@ export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type ProductImportRowInput = z.infer<typeof productImportRowSchema>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type ProductManualCreateInput = z.infer<typeof productManualCreateSchema>;
+export type ProductCatalogFinanceUpdateInput = z.infer<
+  typeof productCatalogFinanceUpdateSchema
+>;
 export type ProductCostFormInput = z.infer<typeof productCostFormSchema>;
 export type ProductCostUpdateInput = z.infer<typeof productCostUpdateSchema>;
 export type AdCostFormInput = z.infer<typeof adCostFormSchema>;

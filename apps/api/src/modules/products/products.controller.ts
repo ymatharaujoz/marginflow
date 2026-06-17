@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
 import "@fastify/multipart";
 import { AuthGuard } from "@/modules/auth/auth.guard";
@@ -10,6 +10,7 @@ import {
   CreateManualProductRequestDto,
   CreateProductRequestDto,
   ProductAnalyticsQueryDto,
+  UpdateProductCatalogFinanceRequestDto,
   UpdateProductRequestDto,
 } from "./products.dto";
 
@@ -114,6 +115,36 @@ export class ProductsController {
   ) {
     return {
       data: await this.productsService.updateProduct(authContext.organization!.id, productId, body),
+      error: null,
+    };
+  }
+
+  @Patch(":id/catalog-finance")
+  async updateCatalogFinance(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param("id") productId: string,
+    @Body() body: UpdateProductCatalogFinanceRequestDto,
+  ) {
+    return {
+      data: await this.productsService.updateCatalogFinance(
+        authContext.organization!.id,
+        productId,
+        body,
+      ),
+      error: null,
+    };
+  }
+
+  @Delete(":id")
+  async deleteProduct(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param("id") productId: string,
+  ) {
+    return {
+      data: await this.productsService.deleteProduct(
+        authContext.organization!.id,
+        productId,
+      ),
       error: null,
     };
   }

@@ -82,7 +82,7 @@ export function createApiClient({
   defaultHeaders,
 }: ApiClientConfig) {
   async function request<T>(
-    method: "GET" | "POST" | "PATCH",
+    method: "DELETE" | "GET" | "POST" | "PATCH",
     path: string,
     options: ApiRequestOptions = {},
   ): Promise<T> {
@@ -135,6 +135,9 @@ export function createApiClient({
     patch<T>(path: string, options?: ApiRequestOptions) {
       return request<T>("PATCH", path, options);
     },
+    delete<T>(path: string, options?: Omit<ApiRequestOptions, "body">) {
+      return request<T>("DELETE", path, options);
+    },
   };
 }
 
@@ -166,5 +169,8 @@ export const apiClient = {
   },
   patch<T>(path: string, options?: ApiRequestOptions) {
     return getDefaultApiClient().patch<T>(path, options);
+  },
+  delete<T>(path: string, options?: Omit<ApiRequestOptions, "body">) {
+    return getDefaultApiClient().delete<T>(path, options);
   },
 };

@@ -67,17 +67,20 @@ describe("@lucreii/database schema", () => {
       productId: randomUUID(),
     };
     const companyInsert: typeof companies.$inferInsert = {
+      cnpj: "12345678000195",
       code: "MELI",
       fixedCostDefault: "0",
       taxRateDefault: "0",
-      name: "Mercado Livre",
+      razaoSocial: "Mercado Livre LTDA",
       organizationId: randomUUID(),
       userId: "user_123",
     };
 
     expect(organizationInsert.slug).toBe("demo-org");
     expect(companyInsert.code).toBe("MELI");
+    expect(companyInsert.cnpj).toBe("12345678000195");
     expect(companyInsert.fixedCostDefault).toBe("0");
+    expect(companyInsert.razaoSocial).toBe("Mercado Livre LTDA");
     expect(companyInsert.taxRateDefault).toBe("0");
     expect(financeDefaultsInsert.productId).toBeDefined();
     expect(productInsert.name).toBe("Produto");
@@ -259,7 +262,32 @@ describe("@lucreii/database schema", () => {
     expect(financeFoundationMigration).toContain(
       'CREATE UNIQUE INDEX "companies_org_code_key" ON "companies" USING btree ("organization_id","code")',
     );
+    expect(financeFoundationMigration).toContain('"name" varchar(255) NOT NULL');
     expect(analyticsScopeMigration).toContain("FROM public.companies c");
     expect(analyticsScopeMigration).toContain("WHERE c.id = company_id");
+  });
+
+  it("keeps company legal identity migration aligned with schema", () => {
+    const legalIdentityMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0014_company_legal_identity.sql"),
+      "utf8",
+    );
+    const legalIdentityRepairMigration = readFileSync(
+      path.resolve(__dirname, "../drizzle/0015_company_legal_identity_repair.sql"),
+      "utf8",
+    );
+    const migrationJournal = readFileSync(
+      path.resolve(__dirname, "../drizzle/meta/_journal.json"),
+      "utf8",
+    );
+
+    expect(legalIdentityMigration).toContain('ALTER TABLE "companies" RENAME COLUMN "name" TO "razao_social";');
+    expect(legalIdentityMigration).toContain('ALTER TABLE "companies" ADD COLUMN "cnpj" varchar(14) NOT NULL;');
+    expect(legalIdentityMigration).toContain("companies_cnpj_length");
+    expect(legalIdentityMigration).toContain('CREATE UNIQUE INDEX "companies_org_cnpj_key" ON "companies" USING btree ("organization_id","cnpj")');
+    expect(legalIdentityRepairMigration).toContain('ALTER TABLE "companies" RENAME COLUMN "name" TO "razao_social";');
+    expect(legalIdentityRepairMigration).toContain('ADD COLUMN IF NOT EXISTS "cnpj" varchar(14)');
+    expect(migrationJournal).toContain('"tag": "0014_company_legal_identity"');
+    expect(migrationJournal).toContain('"tag": "0015_company_legal_identity_repair"');
   });
 });

@@ -1,4 +1,7 @@
-import { UnauthorizedException } from "@nestjs/common";
+import {
+  InternalServerErrorException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "@/app";
@@ -22,8 +25,12 @@ describe("billing controller", () => {
       BETTER_AUTH_URL: "http://localhost:4000",
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -141,6 +148,53 @@ describe("billing controller", () => {
     });
 
     expect(response.statusCode).toBe(401);
+  });
+
+  it("returns clear error when Stripe billing configuration is invalid", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(billingService, "createCheckoutSession").mockRejectedValueOnce(
+      new InternalServerErrorException(
+        "Stripe billing configuration is invalid for plan start (monthly).",
+      ),
+    );
+
+    const response = await app.inject({
+      method: "POST",
+      payload: {
+        interval: "monthly",
+        planCode: "start",
+      },
+      url: "/billing/checkout",
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toEqual({
+      error: {
+        message:
+          "Stripe billing configuration is invalid for plan start (monthly).",
+        statusCode: 500,
+      },
+      path: "/billing/checkout",
+      timestamp: expect.any(String),
+    });
   });
 
   it("confirms completed checkout sessions and returns refreshed billing snapshots", async () => {

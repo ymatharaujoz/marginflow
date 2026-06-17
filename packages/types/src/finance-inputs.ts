@@ -2,7 +2,8 @@ import type { DecimalString } from "./products";
 
 export type Company = {
   id: string;
-  name: string;
+  cnpj: string;
+  razaoSocial: string;
   code: string;
   isActive: boolean;
   fixedCostDefault: DecimalString;
@@ -12,8 +13,8 @@ export type Company = {
 };
 
 export type CreateCompanyInput = {
-  name: string;
-  code: string;
+  cnpj: string;
+  razaoSocial: string;
   isActive?: boolean;
   fixedCostDefault?: DecimalString;
   taxRateDefault?: DecimalString;

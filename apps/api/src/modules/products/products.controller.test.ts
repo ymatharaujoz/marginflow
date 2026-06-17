@@ -24,8 +24,12 @@ describe("products controller", () => {
       BETTER_AUTH_URL: "http://localhost:4000",
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -264,6 +268,151 @@ describe("products controller", () => {
           sku: "ML-001",
         }),
       }),
+      error: null,
+    });
+  });
+
+  it("updates catalog finance inputs for an existing product", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(
+      productsService as ProductsService & {
+        updateCatalogFinance: (
+          organizationId: string,
+          productId: string,
+          input: { packagingCost: string; unitCost: string },
+        ) => Promise<unknown>;
+      },
+      "updateCatalogFinance",
+    ).mockResolvedValueOnce({
+      coverImageUrl: null,
+      createdAt: "2026-06-17T10:00:00.000Z",
+      financeDefaults: {
+        advertisingCost: "0.00",
+        createdAt: "2026-06-17T10:00:00.000Z",
+        id: "defaults_1",
+        packagingCost: "4.50",
+        productId: "product_1",
+        updatedAt: "2026-06-17T10:00:00.000Z",
+      },
+      id: "product_1",
+      images: [],
+      isActive: true,
+      latestCost: {
+        amount: "30.00",
+        costType: "base",
+        createdAt: "2026-06-17T10:00:00.000Z",
+        currency: "BRL",
+        effectiveFrom: null,
+        id: "cost_1",
+        notes: "Atualizado pelo catálogo",
+        organizationId: "org_123",
+        productId: "product_1",
+        updatedAt: "2026-06-17T10:00:00.000Z",
+      },
+      name: "Kit Mercado Livre",
+      organizationId: "org_123",
+      sellingPrice: "149.90",
+      sku: "ML-001",
+      updatedAt: "2026-06-17T10:00:00.000Z",
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      payload: {
+        packagingCost: "4.50",
+        unitCost: "30.00",
+      },
+      url: "/products/product_1/catalog-finance",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: expect.objectContaining({
+        financeDefaults: expect.objectContaining({
+          packagingCost: "4.50",
+        }),
+        id: "product_1",
+        latestCost: expect.objectContaining({
+          amount: "30.00",
+        }),
+      }),
+      error: null,
+    });
+  });
+
+  it("deletes a product from catalog", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(
+      productsService as ProductsService & {
+        deleteProduct: (organizationId: string, productId: string) => Promise<{
+          id: string;
+        }>;
+      },
+      "deleteProduct",
+    ).mockResolvedValueOnce({ id: "product_1" });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/products/product_1",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: { id: "product_1" },
       error: null,
     });
   });

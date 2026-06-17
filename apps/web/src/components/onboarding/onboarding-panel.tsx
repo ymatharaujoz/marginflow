@@ -62,7 +62,7 @@ export function OnboardingPanel({
     }
   }
 
-  async function handleCompanySubmit(data: { code: string; isActive: true; name: string }) {
+  async function handleCompanySubmit(data: { cnpj: string; isActive: true; razaoSocial: string }) {
     setIsSubmitting(true);
     setMessage(null);
 

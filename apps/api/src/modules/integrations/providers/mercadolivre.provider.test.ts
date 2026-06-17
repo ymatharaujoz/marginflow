@@ -19,8 +19,12 @@ describe("MercadoLivreProvider", () => {
       MERCADOLIVRE_REDIRECT_URI:
         "http://localhost:4000/integrations/mercadolivre/callback",
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -57,8 +61,12 @@ describe("MercadoLivreProvider", () => {
         "http://localhost:4000/integrations/mercadolivre/callback",
       MERCADOLIVRE_USE_PKCE: true,
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -89,8 +97,12 @@ describe("MercadoLivreProvider", () => {
       MERCADOLIVRE_REDIRECT_URI:
         "http://localhost:4000/integrations/mercadolivre/callback",
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -161,8 +173,12 @@ describe("MercadoLivreProvider", () => {
         "http://localhost:4000/integrations/mercadolivre/callback",
       MERCADOLIVRE_USE_PKCE: true,
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -232,8 +248,12 @@ describe("MercadoLivreProvider", () => {
       MERCADOLIVRE_REDIRECT_URI:
         "http://localhost:4000/integrations/mercadolivre/callback",
       NODE_ENV: "test",
-      STRIPE_PRICE_ANNUAL: "price_annual",
-      STRIPE_PRICE_MONTHLY: "price_monthly",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
       STRIPE_SECRET_KEY: "stripe",
       STRIPE_WEBHOOK_SECRET: "webhook",
       SYNC_RELAX_GUARDS: false,
@@ -376,7 +396,7 @@ describe("MercadoLivreProvider", () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            results: ["MLB2"],
+            results: ["MLB2", "MLB3"],
             scroll_id: "paused-next",
           }),
           { status: 200, headers: { "content-type": "application/json" } },
@@ -401,7 +421,13 @@ describe("MercadoLivreProvider", () => {
                 title: "Camiseta",
                 price: 59.9,
                 status: "active",
-                seller_custom_field: null,
+                seller_custom_field: "CAMISETA-LEGACY",
+                attributes: [
+                  {
+                    id: "SELLER_SKU",
+                    value_name: "SKU-001",
+                  },
+                ],
                 pictures: [
                   {
                     id: "PIC-RED",
@@ -417,6 +443,12 @@ describe("MercadoLivreProvider", () => {
                     id: 101,
                     price: 64.9,
                     seller_custom_field: "CAM-RED-M",
+                    attributes: [
+                      {
+                        id: "SELLER_SKU",
+                        value_name: "SKU-001-RED-M",
+                      },
+                    ],
                     picture_ids: ["PIC-RED"],
                     attribute_combinations: [
                       { name: "Cor", value_name: "Vermelho" },
@@ -443,10 +475,34 @@ describe("MercadoLivreProvider", () => {
                 price: 39.9,
                 status: "paused",
                 seller_custom_field: null,
+                attributes: [],
                 pictures: [
                   {
                     id: "PIC-MUG",
                     secure_url: "https://http2.mlstatic.com/mug.jpg",
+                  },
+                ],
+                variations: [],
+              },
+            },
+            {
+              code: 200,
+              body: {
+                id: "MLB3",
+                title: "Garrafa",
+                price: 49.9,
+                status: "active",
+                seller_custom_field: "GARRAFA-LEGACY",
+                attributes: [
+                  {
+                    id: "SELLER_SKU",
+                    value_name: "SKU-MLB3",
+                  },
+                ],
+                pictures: [
+                  {
+                    id: "PIC-BOTTLE",
+                    secure_url: "https://http2.mlstatic.com/bottle.jpg",
                   },
                 ],
                 variations: [],
@@ -473,7 +529,7 @@ describe("MercadoLivreProvider", () => {
         isActive: true,
         metadata: { itemId: "MLB1", variationId: "101" },
         sellingPrice: "64.90",
-        sku: "CAM-RED-M",
+        sku: "SKU-001-RED-M",
         title: "Camiseta - Cor: Vermelho, Tamanho: M",
       },
       {
@@ -494,10 +550,21 @@ describe("MercadoLivreProvider", () => {
         sku: "ML-MLB2",
         title: "Caneca",
       },
+      {
+        externalProductId: "MLB3",
+        images: ["https://http2.mlstatic.com/bottle.jpg"],
+        isActive: true,
+        metadata: { itemId: "MLB3", variationId: null },
+        sellingPrice: "49.90",
+        sku: "SKU-MLB3",
+        title: "Garrafa",
+      },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("status=active");
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("status=paused");
+    expect(String(fetchMock.mock.calls[4]?.[0])).toContain("attributes=");
+    expect(String(fetchMock.mock.calls[4]?.[0])).toContain("seller_custom_field");
   });
 
   it("retries catalog requests after a transient provider failure", async () => {

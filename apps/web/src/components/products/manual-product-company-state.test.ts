@@ -26,12 +26,13 @@ describe("manual product company state", () => {
       resolveManualProductCompanyState({
         companies: [
           {
+            cnpj: "12345678000195",
             code: "MAIN",
             createdAt: "2026-05-15T10:00:00.000Z",
             fixedCostDefault: "0.00",
             id: "company_1",
             isActive: true,
-            name: "Empresa Principal",
+            razaoSocial: "Empresa Principal LTDA",
             taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
@@ -52,22 +53,24 @@ describe("manual product company state", () => {
       resolveManualProductCompanyState({
         companies: [
           {
+            cnpj: "12345678000195",
             code: "MAIN",
             createdAt: "2026-05-15T10:00:00.000Z",
             fixedCostDefault: "0.00",
             id: "company_1",
             isActive: true,
-            name: "Empresa Principal",
+            razaoSocial: "Empresa Principal LTDA",
             taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
           {
+            cnpj: "11222333000181",
             code: "SHOP",
             createdAt: "2026-05-15T10:00:00.000Z",
             fixedCostDefault: "0.00",
             id: "company_2",
             isActive: true,
-            name: "Filial Shop",
+            razaoSocial: "Filial Shop LTDA",
             taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
@@ -88,22 +91,24 @@ describe("manual product company state", () => {
       getManualProductCompanyValidationMessage({
         companies: [
           {
+            cnpj: "12345678000195",
             code: "MAIN",
             createdAt: "2026-05-15T10:00:00.000Z",
             fixedCostDefault: "0.00",
             id: "company_1",
             isActive: true,
-            name: "Empresa Principal",
+            razaoSocial: "Empresa Principal LTDA",
             taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },
           {
+            cnpj: "11222333000181",
             code: "SHOP",
             createdAt: "2026-05-15T10:00:00.000Z",
             fixedCostDefault: "0.00",
             id: "company_2",
             isActive: true,
-            name: "Filial Shop",
+            razaoSocial: "Filial Shop LTDA",
             taxRateDefault: "0.000000",
             updatedAt: "2026-05-15T10:00:00.000Z",
           },

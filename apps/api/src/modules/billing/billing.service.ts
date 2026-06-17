@@ -1,10 +1,14 @@
-import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from "@nestjs/common";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { DatabaseClient } from "@lucreii/database";
 import {
   BILLING_PLAN_BY_CODE,
-  BILLING_PLANS,
-  getBillingPlanByPriceId,
   isBillingPlanCode,
   type BillingPlanCode,
 } from "@lucreii/types";
@@ -27,9 +31,13 @@ import type { BillingInterval } from "./billing.types";
 
 const TRIAL_DAYS = 7;
 const CHECKOUT_RESERVATION_MS = 24 * 60 * 60 * 1000;
+const BILLING_PRICE_CONFIG_LABEL = "Stripe billing configuration";
 
 @Injectable()
 export class BillingService {
+  private readonly logger = new Logger(BillingService.name);
+  private readonly validatedPriceIds = new Set<string>();
+
   constructor(
     @Inject(DATABASE_CLIENT)
     private readonly db: DatabaseClient,
@@ -44,6 +52,8 @@ export class BillingService {
     planCode: BillingPlanCode,
     interval: BillingInterval,
   ) {
+    const priceId = this.resolvePriceId(planCode, interval);
+    await this.validateConfiguredPrice(planCode, interval, priceId);
     const customerId = await this.ensureCheckoutCustomer(authContext);
     const billingTrial = await this.ensureBillingTrial(authContext);
     let trialEligible =
@@ -84,27 +94,18 @@ export class BillingService {
 
     const successUrl = `${this.env.WEB_APP_ORIGIN}/app/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
     const cancelUrl = `${this.env.WEB_APP_ORIGIN}/app/billing?checkout=cancelled`;
-    const priceId = this.resolvePriceId(planCode, interval);
+    let session: Stripe.Checkout.Session;
 
-    const session = await this.stripe.checkout.sessions.create({
-      cancel_url: cancelUrl,
-      customer: customerId,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        interval,
-        organizationId: authContext.organization?.id ?? "",
-        planCode,
-        trialEligible: String(trialEligible),
-        userId: authContext.user.id,
-      },
-      mode: "subscription",
-      payment_method_collection: "always",
-      subscription_data: {
+    try {
+      session = await this.stripe.checkout.sessions.create({
+        cancel_url: cancelUrl,
+        customer: customerId,
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
         metadata: {
           interval,
           organizationId: authContext.organization?.id ?? "",
@@ -112,10 +113,28 @@ export class BillingService {
           trialEligible: String(trialEligible),
           userId: authContext.user.id,
         },
-        ...(trialEligible ? { trial_period_days: TRIAL_DAYS } : {}),
-      },
-      success_url: successUrl,
-    });
+        mode: "subscription",
+        payment_method_collection: "always",
+        subscription_data: {
+          metadata: {
+            interval,
+            organizationId: authContext.organization?.id ?? "",
+            planCode,
+            trialEligible: String(trialEligible),
+            userId: authContext.user.id,
+          },
+          ...(trialEligible ? { trial_period_days: TRIAL_DAYS } : {}),
+        },
+        success_url: successUrl,
+      });
+    } catch (error: unknown) {
+      this.rethrowStripePriceConfigurationError(error, {
+        interval,
+        planCode,
+        priceId,
+      });
+      throw error;
+    }
 
     if (!session.url) {
       throw new BadRequestException(
@@ -921,45 +940,36 @@ export class BillingService {
   }
 
   private resolvePriceId(planCode: BillingPlanCode, interval: BillingInterval) {
-    const envPriceIds: Record<BillingPlanCode, Record<BillingInterval, string>> =
-      {
-        business: {
-          annual:
-            this.env.STRIPE_PRICE_BUSINESS_ANNUAL ??
-            BILLING_PLAN_BY_CODE.business.annualPriceId,
-          monthly:
-            this.env.STRIPE_PRICE_BUSINESS_MONTHLY ??
-            BILLING_PLAN_BY_CODE.business.monthlyPriceId,
-        },
-        pro: {
-          annual:
-            this.env.STRIPE_PRICE_PRO_ANNUAL ??
-            BILLING_PLAN_BY_CODE.pro.annualPriceId,
-          monthly:
-            this.env.STRIPE_PRICE_PRO_MONTHLY ??
-            BILLING_PLAN_BY_CODE.pro.monthlyPriceId,
-        },
-        start: {
-          annual:
-            this.env.STRIPE_PRICE_START_ANNUAL ??
-            BILLING_PLAN_BY_CODE.start.annualPriceId,
-          monthly:
-            this.env.STRIPE_PRICE_START_MONTHLY ??
-            BILLING_PLAN_BY_CODE.start.monthlyPriceId,
-        },
-      };
+    const envPriceIds = this.readConfiguredPriceIdMap();
+    const priceId = envPriceIds[planCode][interval]?.trim();
 
-    return envPriceIds[planCode][interval];
+    if (priceId) {
+      return priceId;
+    }
+
+    this.logger.error(`${BILLING_PRICE_CONFIG_LABEL} missing price id.`, {
+      interval,
+      keyPrefix: this.readStripeKeyPrefix(),
+      planCode,
+    });
+    throw new InternalServerErrorException(
+      `Missing Stripe price configuration for plan ${planCode} (${interval}).`,
+    );
   }
 
   private resolvePlanByPriceId(priceId: string) {
-    const envPlan = BILLING_PLANS.find(
-      (plan) =>
-        this.resolvePriceId(plan.code, "monthly") === priceId ||
-        this.resolvePriceId(plan.code, "annual") === priceId,
-    );
+    for (const [code, intervals] of Object.entries(
+      this.readConfiguredPriceIdMap(),
+    ) as [BillingPlanCode, Record<BillingInterval, string>][]) {
+      if (
+        intervals.monthly === priceId ||
+        intervals.annual === priceId
+      ) {
+        return BILLING_PLAN_BY_CODE[code];
+      }
+    }
 
-    return envPlan ?? getBillingPlanByPriceId(priceId);
+    return null;
   }
 
   private resolvePlanCode(subscription: Stripe.Subscription): BillingPlanCode {
@@ -997,14 +1007,6 @@ export class BillingService {
         }
       }
 
-      const plan = getBillingPlanByPriceId(priceId);
-      if (plan?.annualPriceId === priceId) {
-        return "annual";
-      }
-
-      if (plan?.monthlyPriceId === priceId) {
-        return "monthly";
-      }
     }
 
     if (firstItem?.price?.recurring?.interval === "year") {
@@ -1075,6 +1077,95 @@ export class BillingService {
 
   private toDate(value: number | null | undefined) {
     return typeof value === "number" ? new Date(value * 1000) : null;
+  }
+
+  private readConfiguredPriceIdMap(): Record<
+    BillingPlanCode,
+    Record<BillingInterval, string>
+  > {
+    return {
+      business: {
+        annual: this.env.STRIPE_PRICE_BUSINESS_ANNUAL,
+        monthly: this.env.STRIPE_PRICE_BUSINESS_MONTHLY,
+      },
+      pro: {
+        annual: this.env.STRIPE_PRICE_PRO_ANNUAL,
+        monthly: this.env.STRIPE_PRICE_PRO_MONTHLY,
+      },
+      start: {
+        annual: this.env.STRIPE_PRICE_START_ANNUAL,
+        monthly: this.env.STRIPE_PRICE_START_MONTHLY,
+      },
+    };
+  }
+
+  private async validateConfiguredPrice(
+    planCode: BillingPlanCode,
+    interval: BillingInterval,
+    priceId: string,
+  ) {
+    if (this.validatedPriceIds.has(priceId) || this.shouldSkipPriceValidation()) {
+      return;
+    }
+
+    try {
+      const price = await this.stripe.prices.retrieve(priceId);
+
+      if (!price.active) {
+        this.logger.error(`${BILLING_PRICE_CONFIG_LABEL} points to inactive price.`, {
+          interval,
+          keyPrefix: this.readStripeKeyPrefix(),
+          planCode,
+          priceId,
+        });
+        throw new InternalServerErrorException(
+          `Stripe billing configuration is invalid for plan ${planCode} (${interval}).`,
+        );
+      }
+
+      this.validatedPriceIds.add(priceId);
+    } catch (error: unknown) {
+      this.rethrowStripePriceConfigurationError(error, {
+        interval,
+        planCode,
+        priceId,
+      });
+      throw error;
+    }
+  }
+
+  private shouldSkipPriceValidation() {
+    return this.env.STRIPE_SECRET_KEY.startsWith("rk_");
+  }
+
+  private rethrowStripePriceConfigurationError(
+    error: unknown,
+    input: {
+      interval: BillingInterval;
+      planCode: BillingPlanCode;
+      priceId: string;
+    },
+  ): never | void {
+    if (
+      error instanceof Stripe.errors.StripeInvalidRequestError &&
+      error.code === "resource_missing"
+    ) {
+      this.logger.error(`${BILLING_PRICE_CONFIG_LABEL} rejected by Stripe.`, {
+        interval: input.interval,
+        keyPrefix: this.readStripeKeyPrefix(),
+        param: error.param ?? null,
+        planCode: input.planCode,
+        priceId: input.priceId,
+      });
+      throw new InternalServerErrorException(
+        `Stripe billing configuration is invalid for plan ${input.planCode} (${input.interval}).`,
+      );
+    }
+  }
+
+  private readStripeKeyPrefix() {
+    const match = this.env.STRIPE_SECRET_KEY.match(/^[a-z]+(?:_[a-z]+)?/i);
+    return match?.[0] ?? "unknown";
   }
 
   async createCustomerPortalSession(authContext: AuthenticatedRequestContext) {

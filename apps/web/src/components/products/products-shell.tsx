@@ -47,6 +47,7 @@ import type {
   SyncedProductMutationInput,
 } from "./products-actions-context";
 import { getCatalogCompanyRequirementMessage } from "./manual-product-company-state";
+import { CurrencyInput, parseCurrencyValue } from "@/modules/products/components/currency-input";
 
 type ManualProductFormState = {
   isActive: boolean;
@@ -73,75 +74,7 @@ const initialManualProductForm: ManualProductFormState = {
   unitCost: "",
 };
 
-function parseCurrencyValue(raw: string): string {
-  let cleaned = raw.replace(/[^\d.,]/g, "");
-  const parts = cleaned.split(/[.,]/);
-  if (parts.length > 2) {
-    cleaned = parts.slice(0, -1).join("") + "." + parts[parts.length - 1];
-  } else {
-    cleaned = cleaned.replace(",", ".");
-  }
-  if (!cleaned || isNaN(Number(cleaned))) return "";
-  return cleaned;
-}
 
-function CurrencyInput({
-  value,
-  onChange,
-  placeholder,
-  required,
-}: {
-  value: string;
-  onChange: (val: string) => void;
-  placeholder?: string;
-  required?: boolean;
-}) {
-  const [text, setText] = useState(() =>
-    value
-      ? Number(value).toLocaleString("pt-BR", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-      : "",
-  );
-
-  useEffect(() => {
-    setText(
-      value
-        ? Number(value).toLocaleString("pt-BR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })
-        : "",
-    );
-  }, [value]);
-
-  const handleBlur = () => {
-    const parsed = parseCurrencyValue(text);
-    onChange(parsed);
-    setText(
-      parsed
-        ? Number(parsed).toLocaleString("pt-BR", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })
-        : "",
-    );
-  };
-
-  return (
-    <input
-      className="h-10 w-full rounded-[var(--radius-md)] border border-border bg-surface-strong pl-9 pr-3.5 text-sm text-foreground transition-all duration-[var(--transition-fast)] placeholder:text-muted hover:border-border-strong focus:border-border-focus focus:outline-2 focus:outline-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
-      inputMode="decimal"
-      onBlur={handleBlur}
-      onChange={(e) => setText(e.target.value)}
-      placeholder={placeholder}
-      required={required}
-      type="text"
-      value={text}
-    />
-  );
-}
 
 type FormSectionProps = {
   title: string;
@@ -1681,10 +1614,10 @@ export function ProductsShell({
             >
               <div className="space-y-2.5 rounded-[var(--radius-lg)] bg-surface-strong/50 p-4">
                 {[
-                  "Anúncios ativos e pausados serão importados",
-                  "Produtos com SKU existente serão vinculados e atualizados",
-                  "Variações viram itens separados",
-                  "As fotos permanecem hospedadas pelo Mercado Livre",
+                  "Anúncios ativos e pausados serão importados.",
+                  "Produtos com SKU existente serão vinculados e atualizados.",
+                  "Variações viram itens separados.",
+                  "As fotos permanecem hospedadas pelo Mercado Livre.",
                 ].map((item, idx) => (
                   <motion.div
                     key={idx}
@@ -1739,7 +1672,7 @@ export function ProductsShell({
         </Modal>
 
         <Modal
-          className="max-w-2xl"
+          className="max-w-4xl"
           onClose={() => {
             if (!marketplaceCatalogImportMutation.isPending) {
               setMarketplaceImportResult(null);
@@ -1836,62 +1769,64 @@ export function ProductsShell({
               </motion.div>
 
               {/* Bento Grid Stats */}
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                className="grid grid-cols-4 gap-3"
-              >
-                {[
-                  {
-                    label: "Encontrados",
-                    value: marketplaceImportResult.found,
-                    icon: <Search className="h-5 w-5" strokeWidth={1.5} />,
-                  },
-                  {
-                    label: "Criados",
-                    value: marketplaceImportResult.created,
-                    icon: <CheckCircle2 className="h-5 w-5" strokeWidth={1.5} />,
-                  },
-                  {
-                    label: "Atualizados",
-                    value: marketplaceImportResult.updated,
-                    icon: <RefreshCw className="h-5 w-5" strokeWidth={1.5} />,
-                  },
-                  {
-                    label: "Sem alteração",
-                    value: marketplaceImportResult.unchanged,
-                    icon: <Minus className="h-5 w-5" strokeWidth={1.5} />,
-                  },
-                ].map((stat, idx) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{
-                      delay: 0.2 + idx * 0.08,
-                      duration: 0.35,
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="relative flex flex-col justify-center rounded-[var(--radius-xl)] border border-border/60 bg-surface p-5"
-                  >
-                    <div className="absolute top-3 right-3 text-muted-foreground/30">
-                      {stat.icon}
-                    </div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">
-                      {stat.label}
-                    </p>
-                    <p
-                      className={cn(
-                        "mt-2 text-3xl font-bold tabular-nums tracking-tight text-foreground",
-                        stat.value === 0 && "text-muted-foreground/40",
-                      )}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="grid grid-cols-2 gap-4 sm:gap-5"
+                >
+                  {[
+                    {
+                      label: "Encontrados",
+                      value: marketplaceImportResult.found,
+                      icon: <Search className="h-4 w-4" strokeWidth={1.5} />,
+                    },
+                    {
+                      label: "Criados",
+                      value: marketplaceImportResult.created,
+                      icon: <CheckCircle2 className="h-4 w-4" strokeWidth={1.5} />,
+                    },
+                    {
+                      label: "Atualizados",
+                      value: marketplaceImportResult.updated,
+                      icon: <RefreshCw className="h-4 w-4" strokeWidth={1.5} />,
+                    },
+                    {
+                      label: "Sem alteração",
+                      value: marketplaceImportResult.unchanged,
+                      icon: <Minus className="h-4 w-4" strokeWidth={1.5} />,
+                    },
+                  ].map((stat, idx) => (
+                    <motion.div
+                      key={stat.label}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{
+                        delay: 0.2 + idx * 0.08,
+                        duration: 0.35,
+                        ease: [0.16, 1, 0.3, 1],
+                      }}
+                      className="relative flex min-h-[120px] flex-col justify-between rounded-[var(--radius-xl)] border border-border/40 bg-surface/60 px-5 py-4"
                     >
-                      {stat.value}
-                    </p>
-                  </motion.div>
-                ))}
-              </motion.div>
+                      <div className="flex items-start gap-2">
+                        <p className="min-w-0 flex-1 text-[11px] font-semibold uppercase leading-tight tracking-[0.04em] text-muted-foreground/60">
+                          {stat.label}
+                        </p>
+                        <span className="mt-0.5 shrink-0 text-muted-foreground/25">
+                          {stat.icon}
+                        </span>
+                      </div>
+                      <p
+                        className={cn(
+                          "text-2xl font-bold leading-none tabular-nums tracking-tight text-foreground",
+                          stat.value === 0 && "text-muted-foreground/30",
+                        )}
+                      >
+                        {stat.value}
+                      </p>
+                    </motion.div>
+                  ))}
+                </motion.div>
 
               {/* Conflicts & Errors Panel */}
               {hasIssues ? (
@@ -2130,7 +2065,7 @@ export function ProductsShell({
         </Modal>
 
         <Modal
-          className="w-[92vw] max-w-2xl"
+          className="w-[92vw] max-w-3xl"
           onClose={() => {
             if (!manualProductMutation.isPending) {
               setShowManualProductModal(false);
@@ -2238,64 +2173,49 @@ export function ProductsShell({
                     <span className="font-medium text-foreground">
                       Preço de venda
                     </span>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        R$
-                      </span>
-                      <CurrencyInput
-                        onChange={(val) =>
-                          setManualProductForm((current) => ({
-                            ...current,
-                            sellingPrice: val,
-                          }))
-                        }
-                        placeholder="0,00"
-                        required
-                        value={manualProductForm.sellingPrice}
-                      />
-                    </div>
+                    <CurrencyInput
+                      onChange={(val) =>
+                        setManualProductForm((current) => ({
+                          ...current,
+                          sellingPrice: val,
+                        }))
+                      }
+                      placeholder="0,00"
+                      required
+                      value={manualProductForm.sellingPrice}
+                    />
                   </label>
                   <label className="grid gap-1.5 text-sm">
                     <span className="font-medium text-foreground">
                       Custo unitário
                     </span>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        R$
-                      </span>
-                      <CurrencyInput
-                        onChange={(val) =>
-                          setManualProductForm((current) => ({
-                            ...current,
-                            unitCost: val,
-                          }))
-                        }
-                        placeholder="0,00"
-                        required
-                        value={manualProductForm.unitCost}
-                      />
-                    </div>
+                    <CurrencyInput
+                      onChange={(val) =>
+                        setManualProductForm((current) => ({
+                          ...current,
+                          unitCost: val,
+                        }))
+                      }
+                      placeholder="0,00"
+                      required
+                      value={manualProductForm.unitCost}
+                    />
                   </label>
                   <label className="grid gap-1.5 text-sm">
                     <span className="font-medium text-foreground">
                       Embalagem
                     </span>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        R$
-                      </span>
-                      <CurrencyInput
-                        onChange={(val) =>
-                          setManualProductForm((current) => ({
-                            ...current,
-                            packagingCost: val,
-                          }))
-                        }
-                        placeholder="0,00"
-                        required
-                        value={manualProductForm.packagingCost}
-                      />
-                    </div>
+                    <CurrencyInput
+                      onChange={(val) =>
+                        setManualProductForm((current) => ({
+                          ...current,
+                          packagingCost: val,
+                        }))
+                      }
+                      placeholder="0,00"
+                      required
+                      value={manualProductForm.packagingCost}
+                    />
                   </label>
                 </div>
               </FormSection>

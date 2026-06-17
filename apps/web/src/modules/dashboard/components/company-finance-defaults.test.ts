@@ -25,22 +25,24 @@ describe("company finance defaults helpers", () => {
   it("returns the first active company", () => {
     const activeCompany = getActiveCompany([
       {
+        cnpj: "12345678000195",
         code: "INACTIVE",
         createdAt: "2026-05-09T10:00:00.000Z",
         fixedCostDefault: "0.00",
         id: "company_0",
         isActive: false,
-        name: "Inativa",
+        razaoSocial: "Inativa LTDA",
         taxRateDefault: "0.000000",
         updatedAt: "2026-05-09T10:00:00.000Z",
       },
       {
+        cnpj: "11222333000181",
         code: "MELI",
         createdAt: "2026-05-09T10:00:00.000Z",
         fixedCostDefault: "1500.00",
         id: "company_1",
         isActive: true,
-        name: "Mercado Livre",
+        razaoSocial: "Mercado Livre LTDA",
         taxRateDefault: "0.120000",
         updatedAt: "2026-05-09T10:00:00.000Z",
       },

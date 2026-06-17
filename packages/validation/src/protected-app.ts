@@ -315,8 +315,9 @@ export const productFinanceDefaultsRecordSchema = z.object({
 
 export const companyRecordSchema = z.object({
   id: z.string().trim().min(1),
-  name: z.string().trim().min(1),
+  cnpj: z.string().trim().length(14),
   code: z.string().trim().min(1),
+  razaoSocial: z.string().trim().min(1),
   fixedCostDefault: decimalField("Fixed cost default"),
   isActive: z.boolean(),
   taxRateDefault: decimalRateField("Tax rate default"),

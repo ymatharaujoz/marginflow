@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { AlertCircle, ArrowRight, Building2, Hash } from "lucide-react";
+import { AlertCircle, ArrowRight, Building2, FileDigit } from "lucide-react";
 import { Button, Card } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 
@@ -10,21 +10,24 @@ interface CompanySetupCardProps {
   organizationName: string;
   isSubmitting: boolean;
   message: string | null;
-  onSubmit: (data: { code: string; isActive: true; name: string }) => void;
+  onSubmit: (data: { cnpj: string; isActive: true; razaoSocial: string }) => void;
 }
 
-function buildCompanyCode(name: string) {
-  const normalized = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "");
+function normalizeCnpj(value: string) {
+  return value.replace(/\D/g, "").slice(0, 14);
+}
 
-  if (normalized.length >= 2) {
-    return normalized.slice(0, 12);
+function formatCnpj(value: string) {
+  const digits = normalizeCnpj(value);
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) {
+    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
   }
 
-  return `${normalized}MF`.slice(0, 12);
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
 }
 
 export function CompanySetupCard({
@@ -33,45 +36,30 @@ export function CompanySetupCard({
   message,
   onSubmit,
 }: CompanySetupCardProps) {
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [codeManuallyEdited, setCodeManuallyEdited] = useState(false);
+  const [razaoSocial, setRazaoSocial] = useState("");
+  const [cnpj, setCnpj] = useState("");
   const [showErrors, setShowErrors] = useState(false);
-  const suggestedName = `${organizationName} Principal`;
-  const displayName = name.trim() || suggestedName;
-  const suggestedCode = useMemo(() => buildCompanyCode("MINHAEMPRESA"), [displayName]);
-
-  function handleNameChange(value: string) {
-    setName(value);
-    setShowErrors(false);
-    if (!codeManuallyEdited) {
-      setCode(buildCompanyCode(value));
-    }
-  }
-
-  function handleCodeChange(value: string) {
-    setCodeManuallyEdited(true);
-    setShowErrors(false);
-    setCode(value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12));
-  }
+  const suggestedRazaoSocial = `Minha Razão Social`;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nameValid = name.trim().length >= 2;
-    const codeValid = (code || suggestedCode).trim().length >= 2;
-    if (!nameValid || !codeValid) {
+    const razaoSocialValid = razaoSocial.trim().length >= 2;
+    const cnpjValid = normalizeCnpj(cnpj).length === 14;
+
+    if (!razaoSocialValid || !cnpjValid) {
       setShowErrors(true);
       return;
     }
+
     onSubmit({
-      code: (code || suggestedCode).trim(),
+      cnpj: normalizeCnpj(cnpj),
       isActive: true,
-      name: name.trim(),
+      razaoSocial: razaoSocial.trim(),
     });
   }
 
-  const nameError = showErrors && name.trim().length < 2;
-  const codeError = showErrors && (code || suggestedCode).trim().length < 2;
+  const razaoSocialError = showErrors && razaoSocial.trim().length < 2;
+  const cnpjError = showErrors && normalizeCnpj(cnpj).length !== 14;
 
   return (
     <motion.div variants={itemVariants} className="h-full min-h-0">
@@ -84,7 +72,7 @@ export function CompanySetupCard({
             <div>
               <h3 className="font-semibold text-foreground">Primeira empresa</h3>
               <p className="text-xs text-muted-foreground">
-                Cadastre a empresa usada nos custos e impostos mensais
+                Cadastre sua primeira empresa que será usada nas importações, custos, impostos e filtros mensais.
               </p>
             </div>
           </div>
@@ -98,53 +86,57 @@ export function CompanySetupCard({
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
-                Nome da empresa
+                Razão Social
                 <span className="text-xs font-normal text-error">*</span>
               </label>
               <input
                 className={`w-full rounded-lg border bg-surface-strong px-4 py-3 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-border-strong focus:ring-2 ${
-                  nameError
+                  razaoSocialError
                     ? "border-error hover:border-error focus:border-error focus:ring-error/10"
                     : "border-border focus:border-accent focus:ring-accent/10"
                 }`}
                 maxLength={255}
                 minLength={2}
-                onChange={(event) => handleNameChange(event.target.value)}
-                placeholder="Minha Empresa"
+                onChange={(event) => {
+                  setShowErrors(false);
+                  setRazaoSocial(event.target.value);
+                }}
+                placeholder={suggestedRazaoSocial}
                 required
                 type="text"
-                value={name}
+                value={razaoSocial}
               />
-              {nameError && (
+              {razaoSocialError ? (
                 <p className="text-xs text-error">Informe pelo menos 2 caracteres</p>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                Codigo da empresa
-                <span className="inline-flex items-center rounded-full bg-surface-strong px-2 py-0.5 text-[10px] font-normal text-muted-foreground">
-                  Até 12 caracteres
-                </span>
+                <FileDigit className="h-4 w-4 text-muted-foreground" />
+                CNPJ
+                <span className="text-xs font-normal text-error">*</span>
               </label>
               <input
-                className={`w-full rounded-lg border bg-surface-strong px-4 py-3 text-sm font-medium uppercase text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-border-strong focus:ring-2 ${
-                  codeError
+                className={`w-full rounded-lg border bg-surface-strong px-4 py-3 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/60 hover:border-border-strong focus:ring-2 ${
+                  cnpjError
                     ? "border-error hover:border-error focus:border-error focus:ring-error/10"
                     : "border-border focus:border-accent focus:ring-accent/10"
                 }`}
-                maxLength={12}
-                minLength={2}
-                onChange={(event) => handleCodeChange(event.target.value)}
-                placeholder={suggestedCode}
+                inputMode="numeric"
+                maxLength={18}
+                onChange={(event) => {
+                  setShowErrors(false);
+                  setCnpj(formatCnpj(event.target.value));
+                }}
+                placeholder="00.000.000/0000-00"
                 required
                 type="text"
-                value={code}
+                value={cnpj}
               />
-              <p className={`text-xs ${codeError ? "text-error" : "text-muted-foreground"}`}>
-                {codeError ? "Informe pelo menos 2 caracteres" : "Este código identifica a empresa nos filtros mensais e no cadastro manual"}
-              </p>
+              {cnpjError ? (
+                <p className="text-xs text-error">Informe 14 digitos de CNPJ</p>
+              ) : null}
             </div>
 
             {message ? (

@@ -99,6 +99,20 @@
       "when": 1781568000000,
       "tag": "0013_billing_trial_plan_code",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1781658000000,
+      "tag": "0014_company_legal_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1781744400000,
+      "tag": "0015_company_legal_identity_repair",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   RefreshCw,
@@ -25,9 +26,11 @@ import {
   EmptyState,
   Dropdown,
   Modal,
+  cn,
 } from "@lucreii/ui";
 import type { ProductListItem } from "@lucreii/types";
-import { ApiClientError } from "@/lib/api/client";
+import { CurrencyInput } from "./currency-input";
+import { ApiClientError, apiClient } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
 import { ProductHeader } from "./product-header";
@@ -103,17 +106,17 @@ const emptyCatalogBenefits = [
   {
     icon: Box,
     title: "Catálogo centralizado",
-    description: "Gerencie todos os seus produtos em um só lugar",
+    description: "Gerencie todos os seus produtos em um só lugar.",
   },
   {
     icon: DollarSign,
     title: "Controle de custos",
-    description: "Registre custos e calcule margens reais",
+    description: "Registre custos e calcule margens reais.",
   },
   {
     icon: BarChart3,
     title: "Análise de lucratividade",
-    description: "Descubra quais produtos trazem mais resultado",
+    description: "Descubra quais produtos trazem mais resultado.",
   },
 ];
 
@@ -144,8 +147,7 @@ function EmptyCatalogState({
           Construa seu catálogo
         </h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          Cadastre seu primeiro produto para começar a controlar custos, margens
-          e lucratividade real de cada item
+          Cadastre ou importe seu primeiro produto para começar a controlar custos, margens e lucratividade real de cada item.
         </p>
 
         <div className="mx-auto mt-8 grid max-w-lg gap-3 sm:grid-cols-3">
@@ -306,6 +308,18 @@ function formatProductDate(dateIso: string) {
   }).format(new Date(dateIso));
 }
 
+type CatalogFinanceFormValues = {
+  packagingCost: string;
+  unitCost: string;
+};
+
+function buildCatalogFinanceForm(product: ProductListItem): CatalogFinanceFormValues {
+  return {
+    packagingCost: product.financeDefaults?.packagingCost ?? "",
+    unitCost: product.latestCost?.amount ?? "",
+  };
+}
+
 function ProductImagePreview({
   alt,
   className,
@@ -344,67 +358,299 @@ function ProductImagePreview({
 
 function CatalogProductDetailsModal({
   onClose,
+  onDeleted,
+  onSaved,
   product,
 }: {
   onClose: () => void;
+  onDeleted: () => Promise<unknown> | unknown;
+  onSaved: () => Promise<unknown> | unknown;
   product: ProductListItem | null;
 }) {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [form, setForm] = useState<CatalogFinanceFormValues>({
+    packagingCost: "",
+    unitCost: "",
+  });
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [heroFailed, setHeroFailed] = useState(false);
+
+  useEffect(() => {
+    if (!product) {
+      setForm({ packagingCost: "", unitCost: "" });
+      setErrorMessage(null);
+      setSelectedImageIndex(0);
+      return;
+    }
+
+    setForm(buildCatalogFinanceForm(product));
+    setErrorMessage(null);
+    setSelectedImageIndex(0);
+  }, [product]);
+
+  const images = product?.images ?? [];
+  const currentImage = images[selectedImageIndex] ?? null;
+
+  useEffect(() => {
+    setHeroFailed(false);
+  }, [currentImage?.url]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!product) {
+        throw new Error("Produto não encontrado.");
+      }
+
+      return apiClient.patch<{ data: ProductListItem; error: null }>(
+        `/products/${product.id}/catalog-finance`,
+        {
+          body: {
+            packagingCost: form.packagingCost.trim(),
+            unitCost: form.unitCost.trim(),
+          },
+        },
+      );
+    },
+    onError: (error) => {
+      setErrorMessage(
+        error instanceof ApiClientError
+          ? error.message
+          : "Não foi possível salvar os dados financeiros do produto.",
+      );
+    },
+    onSuccess: async () => {
+      setErrorMessage(null);
+      await onSaved();
+      onClose();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!product) {
+        throw new Error("Produto não encontrado.");
+      }
+
+      return apiClient.delete<{ data: { id: string }; error: null }>(
+        `/products/${product.id}`,
+      );
+    },
+    onError: (error) => {
+      setErrorMessage(
+        error instanceof ApiClientError
+          ? error.message
+          : "Não foi possível excluir o produto.",
+      );
+    },
+    onSuccess: async () => {
+      setErrorMessage(null);
+      await onDeleted();
+      onClose();
+    },
+  });
+
   return (
-    <Modal
-      className="w-[92vw] max-w-3xl"
-      onClose={onClose}
-      open={product !== null}
-      title={product?.name ?? "Produto"}
-    >
+      <Modal
+        className="w-[94vw] max-w-5xl"
+        onClose={onClose}
+        open={product !== null}
+        title={
+          product ? (
+            <div>
+              <h2 className="text-lg font-semibold text-foreground leading-tight">
+                {product.name}
+              </h2>
+              <span className="font-mono text-[11px] text-muted-foreground/60">
+                SKU: {product.sku ?? "—"}
+              </span>
+            </div>
+          ) : (
+            "Produto"
+          )
+        }
+      >
       {product ? (
-        <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {product.images.length > 0 ? (
-              product.images.map((image) => (
-                <ProductImagePreview
-                  alt={product.name}
-                  className="aspect-square rounded-[var(--radius-lg)]"
-                  key={image.id}
-                  url={image.url}
-                />
-              ))
-            ) : (
-              <ProductImagePreview
-                alt={product.name}
-                className="aspect-square rounded-[var(--radius-lg)]"
-                url={null}
-              />
-            )}
-          </div>
-          <div className="grid gap-3 rounded-[var(--radius-lg)] border border-border bg-surface p-4 sm:grid-cols-3">
-            <div>
-              <p className="text-xs text-muted-foreground">SKU</p>
-              <p className="mt-1 text-sm font-medium text-foreground">
-                {product.sku ?? "Sem SKU"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Preco</p>
-              <p className="mt-1 text-sm font-medium text-foreground">
-                {formatMoney(Number(product.sellingPrice))}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Status</p>
-              <p className="mt-1 text-sm font-medium text-foreground">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="flex flex-col"
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (saveMutation.isPending || deleteMutation.isPending) return;
+              saveMutation.mutate();
+            }}
+            className="flex flex-col gap-6"
+          >
+            {/* Status */}
+            <div className="flex justify-center">
+              <span
+                className={cn(
+                  "inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wider",
+                  product.isActive
+                    ? "bg-emerald-500/10 text-emerald-600 ring-1 ring-inset ring-emerald-500/20"
+                    : "bg-muted text-muted-foreground ring-1 ring-inset ring-border",
+                )}
+              >
                 {product.isActive ? "Ativo" : "Arquivado"}
-              </p>
+              </span>
             </div>
-          </div>
-        </div>
+
+            {/* Imagem hero + miniaturas — centralizado */}
+            <div className="mx-auto w-full max-w-[320px]">
+              <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[var(--radius-xl)] border border-border/60 bg-gradient-to-br from-surface-strong via-surface to-background shadow-[var(--shadow-md)]">
+                {currentImage && !heroFailed ? (
+                  <Image
+                    alt={product.name}
+                    className="object-cover"
+                    fill
+                    onError={() => setHeroFailed(true)}
+                    sizes="320px"
+                    src={currentImage.url}
+                  />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                    <Package className="h-10 w-10" />
+                    <span className="text-xs">Sem foto</span>
+                  </div>
+                )}
+              </div>
+              {images.length > 1 && (
+                <div className="flex flex-wrap justify-center gap-3">
+                  {images.map((image, index) => (
+                    <button
+                      key={image.id}
+                      onClick={() => setSelectedImageIndex(index)}
+                      type="button"
+                      className={cn(
+                        "relative h-16 w-16 shrink-0 overflow-hidden rounded-[var(--radius-lg)] border-2 transition-all",
+                        index === selectedImageIndex
+                          ? "border-accent ring-2 ring-accent/20"
+                          : "border-border/40 opacity-50 hover:opacity-100",
+                      )}
+                    >
+                      <Image
+                        alt=""
+                        className="object-cover"
+                        fill
+                        sizes="64px"
+                        src={image.url}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Seção financeira */}
+            <div className="rounded-[var(--radius-xl)] border border-border/30 bg-gradient-to-br from-surface/80 via-surface-strong/30 to-background/10 p-5 shadow-[var(--shadow-sm)]">
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-[var(--radius-lg)] bg-accent/10 ring-1 ring-accent/20">
+                  <DollarSign className="h-4 w-4 text-accent" />
+                </div>
+                <div>
+                  <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-accent">
+                    Informações Financeiras
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground/70">
+                    Preencha os custos do produto
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label
+                    className="text-xs font-medium text-muted-foreground"
+                    htmlFor="catalog-unit-cost"
+                  >
+                    Custo unitário <span className="text-error">*</span>
+                  </label>
+                  <div className="mt-2">
+                    <CurrencyInput
+                      id="catalog-unit-cost"
+                      name="unitCost"
+                      onChange={(val) =>
+                        setForm((curr) => ({ ...curr, unitCost: val }))
+                      }
+                      placeholder="0,00"
+                      required
+                      value={form.unitCost}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label
+                    className="text-xs font-medium text-muted-foreground"
+                    htmlFor="catalog-packaging-cost"
+                  >
+                    Embalagem <span className="text-error">*</span>
+                  </label>
+                  <div className="mt-2">
+                    <CurrencyInput
+                      id="catalog-packaging-cost"
+                      name="packagingCost"
+                      onChange={(val) =>
+                        setForm((curr) => ({ ...curr, packagingCost: val }))
+                      }
+                      placeholder="0,00"
+                      required
+                      value={form.packagingCost}
+                    />
+                  </div>
+                </div>
+                <div className="sm:col-span-2 pt-1">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Preço de venda
+                  </p>
+                  <p className="mt-1.5 text-2xl font-semibold tracking-tight text-foreground">
+                    {formatMoney(product.sellingPrice)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {errorMessage ? (
+              <div className="rounded-[var(--radius-md)] border border-error/30 bg-error/10 px-3 py-2.5 text-sm text-error">
+                {errorMessage}
+              </div>
+            ) : null}
+
+            {/* Barra de ações */}
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/30 pt-6">
+              <Button
+                onClick={() => {
+                  if (!window.confirm("Excluir este produto do catálogo?")) {
+                    return;
+                  }
+                  deleteMutation.mutate();
+                }}
+                type="button"
+                variant="ghost"
+                className="border border-error/20 text-error hover:bg-error/5 hover:text-error"
+              >
+                Excluir produto
+              </Button>
+              <Button
+                type="submit"
+                className="px-6"
+              >
+                Salvar
+              </Button>
+            </div>
+          </form>
+        </motion.div>
       ) : null}
     </Modal>
   );
 }
 
 function CatalogProductsTable({
+  onRefresh,
   products,
 }: {
+  onRefresh: () => Promise<unknown> | unknown;
   products: ReturnType<typeof useProductData>["products"];
 }) {
   const [selectedProduct, setSelectedProduct] =
@@ -422,100 +668,104 @@ function CatalogProductsTable({
   }
 
   return (
-    <Card padding="lg">
-      <div className="mb-4">
-        <h3 className="text-sm font-semibold text-foreground">
-          Produtos do catálogo
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Itens cadastrados manualmente ou importados
-        </p>
-      </div>
+    <>
+      <Card padding="lg">
+        <div className="mb-4">
+          <h3 className="text-sm font-semibold text-foreground">
+            Produtos do catálogo
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Itens cadastrados manualmente ou importados.
+          </p>
+        </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1100px] border-separate border-spacing-0">
-          <thead>
-            <tr className="border-b border-border bg-surface-strong/95">
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Produto
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                SKU
-              </th>
-              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Preço de venda
-              </th>
-              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Custo unitário
-              </th>
-              <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Embalagem
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Status
-              </th>
-              <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Criado em
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((product) => (
-              <tr
-                className="cursor-pointer border-b border-border/50 hover:bg-surface-strong/30"
-                key={product.id}
-                onClick={() => setSelectedProduct(product)}
-              >
-                <td className="px-3 py-3 text-sm font-medium text-foreground">
-                  <div className="flex items-center gap-3">
-                    <ProductImagePreview
-                      alt={product.name}
-                      className="h-10 w-10 shrink-0 rounded-[var(--radius-md)]"
-                      url={product.coverImageUrl}
-                    />
-                    <span>{product.name}</span>
-                  </div>
-                </td>
-                <td className="px-3 py-3 text-sm text-muted-foreground">
-                  {product.sku ?? "Sem SKU"}
-                </td>
-                <td className="px-3 py-3 text-right text-sm text-foreground">
-                  {formatMoney(Number(product.sellingPrice))}
-                </td>
-                <td className="px-3 py-3 text-right text-sm text-foreground">
-                  {product.latestCost
-                    ? formatMoney(Number(product.latestCost.amount))
-                    : "Sem custo"}
-                </td>
-                <td className="px-3 py-3 text-right text-sm text-foreground">
-                  {product.financeDefaults
-                    ? formatMoney(Number(product.financeDefaults.packagingCost))
-                    : "—"}
-                </td>
-                <td className="px-3 py-3 text-left">
-                  <Badge
-                    variant={product.isActive ? "success" : "neutral"}
-                    className="gap-1.5"
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${product.isActive ? "bg-success" : "bg-muted"}`}
-                    />
-                    {product.isActive ? "Ativo" : "Arquivado"}
-                  </Badge>
-                </td>
-                <td className="px-3 py-3 text-sm text-muted-foreground">
-                  {formatProductDate(product.createdAt)}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] border-separate border-spacing-0">
+            <thead>
+              <tr className="border-b border-border bg-surface-strong/95">
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Produto
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  SKU
+                </th>
+                <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Preço de venda
+                </th>
+                <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Custo unitário
+                </th>
+                <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Embalagem
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Status
+                </th>
+                <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Criado em
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {products.map((product) => (
+                <tr
+                  className="cursor-pointer border-b border-border/50 hover:bg-surface-strong/30"
+                  key={product.id}
+                  onClick={() => setSelectedProduct(product)}
+                >
+                  <td className="px-3 py-3 text-sm font-medium text-foreground">
+                    <div className="flex items-center gap-3">
+                      <ProductImagePreview
+                        alt={product.name}
+                        className="h-10 w-10 shrink-0 rounded-[var(--radius-md)]"
+                        url={product.coverImageUrl}
+                      />
+                      <span>{product.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-sm text-muted-foreground">
+                    {product.sku ?? "Sem SKU"}
+                  </td>
+                  <td className="px-3 py-3 text-right text-sm text-foreground">
+                    {formatMoney(Number(product.sellingPrice))}
+                  </td>
+                  <td className="px-3 py-3 text-right text-sm text-foreground">
+                    {product.latestCost
+                      ? formatMoney(Number(product.latestCost.amount))
+                      : "Sem custo"}
+                  </td>
+                  <td className="px-3 py-3 text-right text-sm text-foreground">
+                    {product.financeDefaults
+                      ? formatMoney(Number(product.financeDefaults.packagingCost))
+                      : "—"}
+                  </td>
+                  <td className="px-3 py-3 text-left">
+                    <Badge
+                      variant={product.isActive ? "success" : "neutral"}
+                      className="gap-1.5"
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${product.isActive ? "bg-success" : "bg-muted"}`}
+                      />
+                      {product.isActive ? "Ativo" : "Arquivado"}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-3 text-sm text-muted-foreground">
+                    {formatProductDate(product.createdAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
       <CatalogProductDetailsModal
+        onDeleted={onRefresh}
         onClose={() => setSelectedProduct(null)}
+        onSaved={onRefresh}
         product={selectedProduct}
       />
-    </Card>
+    </>
   );
 }
 
@@ -537,6 +787,7 @@ export function ProductsHome({
     error,
     isUnauthorized,
     setReferenceMonth,
+    refresh,
     refetch,
     goToPage,
   } = useProductData();
@@ -655,7 +906,7 @@ export function ProductsHome({
 
       <section className="min-w-0 w-full space-y-3">
         {view === "catalog" ? (
-          <CatalogProductsTable products={data?.products ?? []} />
+          <CatalogProductsTable onRefresh={refresh} products={data?.products ?? []} />
         ) : (
           <ProductTable
             rows={rows}

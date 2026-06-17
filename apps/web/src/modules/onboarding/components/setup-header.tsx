@@ -13,7 +13,6 @@ interface SetupHeaderProps {
 export function SetupHeader({
   organizationName = null,
   stage = "organization",
-  userName,
 }: SetupHeaderProps) {
   const isCompanyStage = stage === "company";
 
@@ -35,8 +34,8 @@ export function SetupHeader({
         </h1>
         <p className="max-w-lg text-sm leading-relaxed text-muted-foreground sm:text-base">
           {isCompanyStage
-            ? `A organização ${organizationName ?? "do seu workspace"} já está pronta. Agora falta a empresa para liberar produtos, custos e filtros mensais`
-            : "Seu pagamento foi confirmado. Agora vamos configurar para começar a usar  a aplicação"}
+            ? `Agora falta a criação da sua primeira empresa para liberar produtos, custos e filtros mensais.`
+            : "Vamos fazer as configurações iniciais para começar a usar a aplicação."}
         </p>
       </div>
     </motion.div>

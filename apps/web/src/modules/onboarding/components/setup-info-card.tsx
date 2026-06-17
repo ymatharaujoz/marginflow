@@ -1,25 +1,27 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Zap, Link2, BarChart3, ArrowUpRight, Building2, Package } from "lucide-react";
+import { ArrowUpRight, BarChart3, Building2, Link2, Package, Zap } from "lucide-react";
 import { Card } from "@lucreii/ui";
 import { itemVariants } from "@/lib/animations";
 
 const organizationFeatures = [
   {
     icon: Link2,
-    title: "Conexão a Marketplaces",
-    description: "Sincronize produtos e pedidos do Mercado Livre e Shopee automaticamente em um só lugar",
+    title: "Integração com Marketplaces",
+    description:
+      "Sincronize produtos e pedidos do Mercado Livre e Shopee automaticamente em um só lugar.",
   },
   {
     icon: BarChart3,
     title: "Visão dos seus lucros",
-    description: "Acompanhe margens reais, custos operacionais e descubra quais produtos são mais rentáveis",
+    description:
+      "Acompanhe margens reais, custos operacionais e descubra quais produtos são mais rentáveis.",
   },
   {
     icon: Zap,
     title: "Dashboards inteligentes",
-    description: "Monitore vendas, tendências e performance de cada canal com dados atualizados",
+    description: "Monitore vendas, tendências e performance de cada canal com dados atualizados.",
   },
 ];
 
@@ -27,17 +29,17 @@ const companyFeatures = [
   {
     icon: Building2,
     title: "Escopo por empresa",
-    description: "Separe operações quando precisar trabalhar com mais de uma empresa na mesma organização",
+    description: "Separe operações quando precisar trabalhar com mais de um CNPJ na mesma organização.",
   },
   {
     icon: Package,
     title: "Produto manual com SKU",
-    description: "Cadastre o SKU do seu produto para fazer match com as vendas sincronizadas de Marketplaces",
+    description: "Cadastre SKU do seu produto para fazer match com vendas sincronizadas de marketplaces.",
   },
   {
     icon: BarChart3,
     title: "Filtro mensal consistente",
-    description: "Consulte vendas, devoluções, frete, taxas e impostos pelo mês da empresa selecionada",
+    description: "Consulte vendas, devolucoes, frete, taxas e impostos pelo mês da empresa selecionada.",
   },
 ];
 
@@ -54,7 +56,7 @@ export function SetupInfoCard({ stage = "organization" }: { stage?: "company" | 
           </h3>
           <p className="text-xs text-muted-foreground">
             {isCompanyStage
-              ? "A empresa define o contexto usado nos relatórios mensais"
+              ? "Sua empresa define contexto usado nos relatórios mensais, importações de produtos e filtros."
               : "Após criar sua organização, você terá acesso a:"}
           </p>
         </div>
@@ -68,7 +70,7 @@ export function SetupInfoCard({ stage = "organization" }: { stage?: "company" | 
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
                 <feature.icon className="h-4 w-4" />
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-medium text-foreground">{feature.title}</h4>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                   {feature.description}

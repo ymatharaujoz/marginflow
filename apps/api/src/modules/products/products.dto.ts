@@ -3,6 +3,7 @@ import {
   adCostUpdateSchema,
   manualExpenseFormSchema,
   manualExpenseUpdateSchema,
+  productCatalogFinanceUpdateSchema,
   productCostFormSchema,
   productCostUpdateSchema,
   productFormSchema,
@@ -15,6 +16,7 @@ import type {
   AdCostUpdateInput,
   ManualExpenseFormInput,
   ManualExpenseUpdateInput,
+  ProductCatalogFinanceUpdateInput,
   ProductCostFormInput,
   ProductCostUpdateInput,
   ProductAnalyticsQueryInput,
@@ -62,6 +64,15 @@ export class ProductAnalyticsQueryDto implements ProductAnalyticsQueryInput {
 
   companyId?: string;
   referenceMonth?: string;
+}
+
+export class UpdateProductCatalogFinanceRequestDto
+  implements ProductCatalogFinanceUpdateInput
+{
+  static schema = productCatalogFinanceUpdateSchema;
+
+  packagingCost!: string;
+  unitCost!: string;
 }
 
 export class CreateProductCostRequestDto implements ProductCostFormInput {

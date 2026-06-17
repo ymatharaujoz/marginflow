@@ -162,19 +162,6 @@ export function PricingToggle() {
             );
           })}
         </div>
-
-        <AnimatePresence mode="wait">
-          {cycle === "annual" && (
-            <motion.p
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="text-sm font-medium text-accent"
-            >
-              Pagamento anual com melhor previsibilidade de caixa
-            </motion.p>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* Pricing Cards */}

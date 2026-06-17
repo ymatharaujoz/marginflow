@@ -182,7 +182,8 @@ export const companies = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: varchar("name", { length: 255 }).notNull(),
+    razaoSocial: varchar("razao_social", { length: 255 }).notNull(),
+    cnpj: varchar("cnpj", { length: 14 }).notNull(),
     code: varchar("code", { length: 12 }).notNull(),
     isActive: boolean("is_active").default(true).notNull(),
     fixedCostDefault: numeric("fixed_cost_default", { precision: 12, scale: 2 })
@@ -195,7 +196,12 @@ export const companies = pgTable(
     updatedAt: updatedAt(),
   },
   (table) => [
-    check("companies_name_length", sql`char_length(trim(${table.name})) >= 2`),
+    check(
+      "companies_razao_social_length",
+      sql`char_length(trim(${table.razaoSocial})) >= 2`,
+    ),
+    check("companies_cnpj_length", sql`char_length(trim(${table.cnpj})) = 14`),
+    check("companies_cnpj_digits", sql`${table.cnpj} ~ '^[0-9]{14}$'`),
     check(
       "companies_code_length",
       sql`char_length(trim(${table.code})) between 2 and 12`,
@@ -218,6 +224,7 @@ export const companies = pgTable(
       table.organizationId,
       table.isActive,
     ),
+    uniqueIndex("companies_org_cnpj_key").on(table.organizationId, table.cnpj),
     uniqueIndex("companies_org_code_key").on(table.organizationId, table.code),
   ],
 );

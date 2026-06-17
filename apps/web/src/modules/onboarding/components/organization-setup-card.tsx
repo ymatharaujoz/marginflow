@@ -77,7 +77,7 @@ export function OrganizationSetupCard({
             <div>
               <h3 className="font-semibold text-foreground">Detalhes da organização</h3>
               <p className="text-xs text-muted-foreground">
-                Escolha um nome para identificar sua organização
+                Escolha um nome para identificar sua organização.
               </p>
             </div>
           </div>

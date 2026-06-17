@@ -46,7 +46,7 @@ export function DashboardHeader({
             <StatusBadge status={currentStatus.badge.status} label={currentStatus.badge.label} />
           </div>
           <p className="text-sm text-muted-foreground">
-            Visão consolidada do seu negócio
+            Visão consolidada do seu negócio.
           </p>
         </div>
       </div>

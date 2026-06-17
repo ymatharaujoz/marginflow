@@ -29,6 +29,7 @@ type MercadoLivreItemPicture = {
 };
 
 type MercadoLivreItemVariation = {
+  attributes?: MercadoLivreItemAttribute[];
   attribute_combinations?: Array<{
     name?: string;
     value_name?: string;
@@ -37,13 +38,22 @@ type MercadoLivreItemVariation = {
   picture_ids?: string[];
   price?: number;
   seller_custom_field?: string | null;
+  seller_sku?: string | null;
+};
+
+type MercadoLivreItemAttribute = {
+  id?: string;
+  name?: string;
+  value_name?: string | null;
 };
 
 type MercadoLivreItemResponse = {
+  attributes?: MercadoLivreItemAttribute[];
   id?: string;
   pictures?: MercadoLivreItemPicture[];
   price?: number;
   seller_custom_field?: string | null;
+  seller_sku?: string | null;
   status?: string;
   title?: string;
   variations?: MercadoLivreItemVariation[];
@@ -171,6 +181,26 @@ function sanitizeProviderPayload(payload: unknown) {
 
 function buildCodeChallenge(codeVerifier: string) {
   return createHash("sha256").update(codeVerifier).digest("base64url");
+}
+
+function readMercadoLivreAttributeSku(
+  attributes: MercadoLivreItemAttribute[] | undefined,
+) {
+  for (const attribute of attributes ?? []) {
+    const attributeId = attribute.id?.trim().toUpperCase();
+    const attributeName = attribute.name?.trim().toUpperCase();
+
+    if (attributeId !== "SELLER_SKU" && attributeName !== "SKU") {
+      continue;
+    }
+
+    const value = attribute.value_name?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 export class MercadoLivreProvider implements IntegrationProvider {
@@ -506,7 +536,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
     url.searchParams.set("ids", input.itemIds.join(","));
     url.searchParams.set(
       "attributes",
-      "id,title,price,status,seller_custom_field,pictures,variations",
+      "id,title,price,status,seller_sku,seller_custom_field,attributes,pictures,variations",
     );
     const response = await this.fetchWithRetry(url, {
       headers: { Authorization: `Bearer ${input.accessToken}` },
@@ -554,7 +584,12 @@ export class MercadoLivreProvider implements IntegrationProvider {
           isActive: item.status === "active",
           metadata: { itemId, variationId: null },
           sellingPrice: toDecimalString(item.price),
-          sku: item.seller_custom_field?.trim() || `ML-${itemId}`,
+          sku: this.resolveCatalogSku({
+            fallbackSku: `ML-${itemId}`,
+            attributes: item.attributes,
+            sellerCustomField: item.seller_custom_field,
+            sellerSku: item.seller_sku,
+          }),
           title: item.title?.trim() || `Produto Mercado Livre ${itemId}`,
         },
       ];
@@ -587,9 +622,12 @@ export class MercadoLivreProvider implements IntegrationProvider {
           isActive: item.status === "active",
           metadata: { itemId, variationId },
           sellingPrice: toDecimalString(variation.price ?? item.price),
-          sku:
-            variation.seller_custom_field?.trim() ||
-            `ML-${itemId}-${variationId}`,
+          sku: this.resolveCatalogSku({
+            fallbackSku: `ML-${itemId}-${variationId}`,
+            attributes: variation.attributes,
+            sellerCustomField: variation.seller_custom_field,
+            sellerSku: variation.seller_sku,
+          }),
           title: [
             item.title?.trim() || `Produto Mercado Livre ${itemId}`,
             attributes.length > 0 ? attributes.join(", ") : null,
@@ -599,6 +637,20 @@ export class MercadoLivreProvider implements IntegrationProvider {
         },
       ];
     });
+  }
+
+  private resolveCatalogSku(input: {
+    attributes?: MercadoLivreItemAttribute[];
+    fallbackSku: string;
+    sellerCustomField?: string | null;
+    sellerSku?: string | null;
+  }) {
+    return (
+      readMercadoLivreAttributeSku(input.attributes) ??
+      input.sellerSku?.trim() ??
+      input.sellerCustomField?.trim() ??
+      input.fallbackSku
+    );
   }
 
   private async fetchWithRetry(

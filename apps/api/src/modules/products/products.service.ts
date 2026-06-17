@@ -11,6 +11,7 @@ import {
 } from "@lucreii/domain";
 import { and, desc, eq } from "drizzle-orm";
 import { read, utils } from "xlsx";
+import type { ProductCatalogFinanceUpdateInput } from "@lucreii/validation";
 import { productImportRowSchema } from "@lucreii/validation";
 import type {
   AdCost,
@@ -417,6 +418,115 @@ export class ProductsService {
       .returning();
 
     return this.toProductRecord(updated, []);
+  }
+
+  async updateCatalogFinance(
+    organizationId: string,
+    productId: string,
+    input: ProductCatalogFinanceUpdateInput,
+  ): Promise<ProductListItem> {
+    await this.ensureProductAccess(organizationId, productId);
+
+    const [existingProduct, existingCost] = await Promise.all([
+      this.db.query.products.findFirst({
+        where: (table) =>
+          and(eq(table.id, productId), eq(table.organizationId, organizationId)),
+        with: {
+          financeDefaults: true,
+        },
+      }),
+      this.db.query.productCosts.findFirst({
+        orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
+        where: (table) =>
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.productId, productId),
+          ),
+      }),
+    ]);
+
+    if (!existingProduct) {
+      throw new NotFoundException("Product not found.");
+    }
+
+    await this.db.transaction(async (tx) => {
+      if (existingCost) {
+        await tx
+          .update(productCosts)
+          .set({
+            amount: input.unitCost,
+            costType: existingCost.costType,
+            currency: existingCost.currency,
+            effectiveFrom: existingCost.effectiveFrom,
+            notes: "Atualizado pelo catálogo",
+          })
+          .where(
+            and(
+              eq(productCosts.id, existingCost.id),
+              eq(productCosts.organizationId, organizationId),
+            ),
+          )
+          .returning();
+      } else {
+        await tx
+          .insert(productCosts)
+          .values({
+            amount: input.unitCost,
+            costType: "base",
+            currency: "BRL",
+            effectiveFrom: null,
+            notes: "Atualizado pelo catálogo",
+            organizationId,
+            productId,
+          })
+          .returning();
+      }
+
+      if (existingProduct.financeDefaults) {
+        await tx
+          .update(productFinanceDefaults)
+          .set({
+            packagingCost: input.packagingCost,
+          })
+          .where(
+            eq(productFinanceDefaults.id, existingProduct.financeDefaults.id),
+          )
+          .returning();
+      } else {
+        await tx
+          .insert(productFinanceDefaults)
+          .values({
+            advertisingCost: "0",
+            packagingCost: input.packagingCost,
+            productId,
+          })
+          .returning();
+      }
+    });
+
+    await this.financeService.materializeOrganizationMetrics(organizationId);
+
+    return this.getProductListItem(organizationId, productId);
+  }
+
+  async deleteProduct(
+    organizationId: string,
+    productId: string,
+  ): Promise<{ id: string }> {
+    await this.ensureProductAccess(organizationId, productId);
+
+    await this.db
+      .delete(products)
+      .where(
+        and(
+          eq(products.id, productId),
+          eq(products.organizationId, organizationId),
+        ),
+      );
+
+    await this.financeService.materializeOrganizationMetrics(organizationId);
+
+    return { id: productId };
   }
 
   async listProductCosts(organizationId: string): Promise<ProductCostRecord[]> {
@@ -1042,6 +1152,47 @@ export class ProductsService {
     }
 
     return expense;
+  }
+
+  private async getProductListItem(
+    organizationId: string,
+    productId: string,
+  ): Promise<ProductListItem> {
+    const [productRow, productCostRows] = await Promise.all([
+      this.db.query.products.findFirst({
+        where: (table) =>
+          and(eq(table.id, productId), eq(table.organizationId, organizationId)),
+        with: {
+          financeDefaults: true,
+          images: {
+            orderBy: (table) => [table.position],
+          },
+        },
+      }),
+      this.db.query.productCosts.findMany({
+        orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
+        where: (table) =>
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.productId, productId),
+          ),
+      }),
+    ]);
+
+    if (!productRow) {
+      throw new NotFoundException("Product not found.");
+    }
+
+    return {
+      ...this.toProductRecord(productRow, productRow.images),
+      latestCost:
+        productCostRows.length > 0
+          ? this.toProductCostRecord(productCostRows[0]!)
+          : null,
+      financeDefaults: productRow.financeDefaults
+        ? this.toProductFinanceDefaultsRecord(productRow.financeDefaults)
+        : null,
+    };
   }
 
   private toProductRecord(

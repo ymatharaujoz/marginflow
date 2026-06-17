@@ -5,6 +5,7 @@ import {
   subscriptionEvents,
   subscriptions,
 } from "@lucreii/database";
+import { InternalServerErrorException } from "@nestjs/common";
 import Stripe from "stripe";
 import { describe, expect, it, vi } from "vitest";
 import { BillingService } from "./billing.service";
@@ -95,7 +96,7 @@ function createInsertMock() {
   };
 }
 
-function createService() {
+function createService(envOverrides: Partial<typeof env> = {}) {
   const {
     insert,
     insertCustomerValues,
@@ -137,6 +138,9 @@ function createService() {
       create: vi.fn(),
       retrieve: vi.fn(),
     },
+    prices: {
+      retrieve: vi.fn(),
+    },
     subscriptions: {
       retrieve: vi.fn(),
     },
@@ -144,6 +148,10 @@ function createService() {
       constructEvent: vi.fn(),
     },
   };
+  stripe.prices.retrieve.mockImplementation(async (priceId: string) => ({
+    active: true,
+    id: priceId,
+  }));
 
   return {
     db,
@@ -152,7 +160,14 @@ function createService() {
     insertPendingCheckoutValues,
     insertSubscriptionValues,
     insertTrialValues,
-    service: new BillingService(db as never, stripe as never, env),
+    service: new BillingService(
+      db as never,
+      stripe as never,
+      {
+        ...env,
+        ...envOverrides,
+      },
+    ),
     stripe,
     updateSet,
   };
@@ -180,6 +195,10 @@ describe("BillingService", () => {
     stripe.customers.retrieve.mockResolvedValue({
       id: "cus_123",
     } as Stripe.Response<Stripe.Customer>);
+    stripe.prices.retrieve.mockResolvedValue({
+      active: true,
+      id: "price_start_monthly",
+    } as Stripe.Response<Stripe.Price>);
     stripe.checkout.sessions.create.mockResolvedValue({
       id: "cs_123",
       url: "https://checkout.stripe.test/session",
@@ -232,6 +251,7 @@ describe("BillingService", () => {
         }),
       }),
     );
+    expect(stripe.prices.retrieve).toHaveBeenCalledWith("price_start_monthly");
   });
 
   it("reuses an open trial checkout for the same interval", async () => {
@@ -362,6 +382,10 @@ describe("BillingService", () => {
       userId: "user_123",
     });
     stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" });
+    stripe.prices.retrieve.mockResolvedValue({
+      active: true,
+      id: "price_pro_monthly",
+    } as Stripe.Response<Stripe.Price>);
     stripe.checkout.sessions.create.mockResolvedValue({
       id: "cs_pro",
       url: "https://checkout.stripe.test/pro",
@@ -405,6 +429,134 @@ describe("BillingService", () => {
         }),
       }),
     );
+  });
+
+  it("throws clear error when configured Stripe price does not exist", async () => {
+    const { db, service, stripe } = createService();
+    db.query.billingCustomers.findFirst.mockResolvedValue({
+      externalCustomerId: "cus_123",
+      id: "billing_customer_123",
+      organizationId: "org_123",
+      provider: "stripe",
+    });
+    db.query.billingTrials.findFirst.mockResolvedValue({
+      checkoutSessionId: null,
+      email: "owner@lucreii.local",
+      id: "trial_123",
+      interval: null,
+      planCode: null,
+      redeemedAt: null,
+      reservedUntil: null,
+      userId: "user_123",
+    });
+    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" });
+    const missingPrice = new Stripe.errors.StripeInvalidRequestError({
+      code: "resource_missing",
+      message: "No such price: 'price_start_monthly'",
+      param: "line_items[0][price]",
+      type: "invalid_request_error",
+    } as Stripe.StripeRawError);
+    stripe.prices.retrieve.mockRejectedValue(missingPrice);
+
+    await expect(
+      service.createCheckoutSession(
+        {
+          organization: {
+            id: "org_123",
+            name: "Org",
+            role: "owner",
+            slug: "org",
+          },
+          session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
+          user: {
+            email: "owner@lucreii.local",
+            emailVerified: true,
+            id: "user_123",
+            image: null,
+            name: "Owner",
+          },
+        },
+        "start",
+        "monthly",
+      ),
+    ).rejects.toThrow(InternalServerErrorException);
+
+    await expect(
+      service.createCheckoutSession(
+        {
+          organization: {
+            id: "org_123",
+            name: "Org",
+            role: "owner",
+            slug: "org",
+          },
+          session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
+          user: {
+            email: "owner@lucreii.local",
+            emailVerified: true,
+            id: "user_123",
+            image: null,
+            name: "Owner",
+          },
+        },
+        "start",
+        "monthly",
+      ),
+    ).rejects.toThrow(
+      "Stripe billing configuration is invalid for plan start (monthly).",
+    );
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("throws clear error when required Stripe price configuration is missing", async () => {
+    const { db, service, stripe } = createService({
+      STRIPE_PRICE_START_MONTHLY: undefined,
+    });
+    db.query.billingCustomers.findFirst.mockResolvedValue({
+      externalCustomerId: "cus_123",
+      id: "billing_customer_123",
+      organizationId: "org_123",
+      provider: "stripe",
+    });
+    db.query.billingTrials.findFirst.mockResolvedValue({
+      checkoutSessionId: null,
+      email: "owner@lucreii.local",
+      id: "trial_123",
+      interval: null,
+      planCode: null,
+      redeemedAt: null,
+      reservedUntil: null,
+      userId: "user_123",
+    });
+    stripe.customers.retrieve.mockResolvedValue({ id: "cus_123" });
+
+    await expect(
+      service.createCheckoutSession(
+        {
+          organization: {
+            id: "org_123",
+            name: "Org",
+            role: "owner",
+            slug: "org",
+          },
+          session: { expiresAt: new Date("2099-01-01"), id: "session_123" },
+          user: {
+            email: "owner@lucreii.local",
+            emailVerified: true,
+            id: "user_123",
+            image: null,
+            name: "Owner",
+          },
+        },
+        "start",
+        "monthly",
+      ),
+    ).rejects.toThrow(
+      "Missing Stripe price configuration for plan start (monthly).",
+    );
+
+    expect(stripe.prices.retrieve).not.toHaveBeenCalled();
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
   it("does not grant another trial when a reserved Checkout already completed", async () => {

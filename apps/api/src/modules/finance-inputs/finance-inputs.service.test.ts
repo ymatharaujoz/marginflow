@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FinanceInputsService } from "./finance-inputs.service";
 
@@ -47,11 +47,12 @@ describe("FinanceInputsService", () => {
     db.query.companies.findMany.mockResolvedValue([
       {
         code: "MELI",
+        cnpj: "12345678000195",
         createdAt: new Date("2026-05-09T10:00:00.000Z"),
         fixedCostDefault: "1500.00",
         id: "company_1",
         isActive: true,
-        name: "Mercado Livre",
+        razaoSocial: "Mercado Livre LTDA",
         organizationId: "org_123",
         taxRateDefault: "0.120000",
         updatedAt: new Date("2026-05-09T10:00:00.000Z"),
@@ -64,11 +65,12 @@ describe("FinanceInputsService", () => {
     expect(result).toEqual([
       {
         code: "MELI",
+        cnpj: "12345678000195",
         createdAt: "2026-05-09T10:00:00.000Z",
         fixedCostDefault: "1500.00",
         id: "company_1",
         isActive: true,
-        name: "Mercado Livre",
+        razaoSocial: "Mercado Livre LTDA",
         taxRateDefault: "0.120000",
         updatedAt: "2026-05-09T10:00:00.000Z",
       },
@@ -88,11 +90,12 @@ describe("FinanceInputsService", () => {
       returning: vi.fn().mockResolvedValue([
         {
           code: "MELI",
+          cnpj: "12345678000195",
           createdAt: new Date("2026-05-09T10:00:00.000Z"),
           fixedCostDefault: "0",
           id: "company_1",
           isActive: true,
-          name: "Mercado Livre",
+          razaoSocial: "Mercado Livre LTDA",
           organizationId: "org_123",
           taxRateDefault: "0",
           updatedAt: new Date("2026-05-09T10:00:00.000Z"),
@@ -105,14 +108,16 @@ describe("FinanceInputsService", () => {
     });
 
     const result = await service.createCompany(context, {
-      code: "meli",
-      name: "Mercado Livre",
+      cnpj: "12.345.678/0001-95",
+      razaoSocial: "Mercado Livre LTDA",
     });
 
     expect(valuesMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        code: "MELI",
+        cnpj: "12345678000195",
+        code: expect.stringMatching(/^CMP[A-Z0-9]{9}$/),
         fixedCostDefault: "0",
+        razaoSocial: "Mercado Livre LTDA",
         taxRateDefault: "0",
       }),
     );
@@ -141,12 +146,34 @@ describe("FinanceInputsService", () => {
 
     await expect(
       service.createCompany(context, {
-        code: "meli",
-        name: "Mercado Livre",
+        cnpj: "12.345.678/0001-95",
+        razaoSocial: "Mercado Livre LTDA",
       }),
     ).rejects.toBeInstanceOf(ForbiddenException);
 
     expect(db.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicated cnpj inside same organization", async () => {
+    const { db, service } = createService();
+    db.query.companies.findMany.mockResolvedValue([]);
+    db.query.subscriptions.findFirst.mockResolvedValue({
+      planCode: "pro",
+      status: "active",
+    });
+    const duplicateError = { code: "23505", constraint_name: "companies_org_cnpj_key" };
+    db.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockRejectedValue(duplicateError),
+      }),
+    });
+
+    await expect(
+      service.createCompany(context, {
+        cnpj: "12.345.678/0001-95",
+        razaoSocial: "Mercado Livre LTDA",
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it("updates only provided company finance defaults", async () => {
@@ -156,11 +183,12 @@ describe("FinanceInputsService", () => {
         returning: vi.fn().mockResolvedValue([
           {
             code: "MELI",
+            cnpj: "12345678000195",
             createdAt: new Date("2026-05-09T10:00:00.000Z"),
             fixedCostDefault: "1750.00",
             id: "company_1",
             isActive: true,
-            name: "Mercado Livre",
+            razaoSocial: "Mercado Livre LTDA",
             organizationId: "org_123",
             taxRateDefault: "0.090000",
             updatedAt: new Date("2026-05-09T11:00:00.000Z"),
@@ -179,17 +207,25 @@ describe("FinanceInputsService", () => {
     });
 
     const result = await service.updateCompany(context, "company_1", {
+      cnpj: "12.345.678/0001-95",
       fixedCostDefault: "1750.00",
+      razaoSocial: "Mercado Livre LTDA",
       taxRateDefault: "0.090000",
     });
 
-    expect(setMock).toHaveBeenCalledWith({
-      fixedCostDefault: "1750.00",
-      taxRateDefault: "0.090000",
-    });
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cnpj: "12345678000195",
+        fixedCostDefault: "1750.00",
+        razaoSocial: "Mercado Livre LTDA",
+        taxRateDefault: "0.090000",
+      }),
+    );
     expect(result).toEqual(
       expect.objectContaining({
+        cnpj: "12345678000195",
         fixedCostDefault: "1750.00",
+        razaoSocial: "Mercado Livre LTDA",
         taxRateDefault: "0.090000",
       }),
     );

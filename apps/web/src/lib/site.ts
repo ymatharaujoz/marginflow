@@ -32,7 +32,7 @@ export function brandSeoTitle(tagline: string, source: Record<string, string | u
 /** In-page sections on the marketing homepage (`/`). Header/footer use these instead of separate routes. */
 export const marketingLandingNav = [
   { sectionId: "recursos", label: "Recursos" },
-  { sectionId: "integracoes", label: "IntegraÃ§Ãµes" },
+  { sectionId: "integracoes", label: "Integrações" },
   { sectionId: "depoimentos", label: "Depoimentos" },
   { sectionId: "planos", label: "Planos" },
 ] as const;
@@ -51,25 +51,25 @@ export function getWhatsappDemoUrl(source: Record<string, string | undefined> = 
 }
 
 export const heroMetrics = [
-  { label: "Canais de marketplace em uma visÃ£o", value: "3" },
-  { label: "Janelas diÃ¡rias de sincronizaÃ§Ã£o (V1)", value: "3" },
+  { label: "Canais de marketplace em uma visão", value: "3" },
+  { label: "Janelas diárias de sincronização (V1)", value: "3" },
   { label: "Sinais financeiros em destaque", value: "12+" },
 ];
 
 export const valueCards = [
   {
-    body: "Receita, taxas, frete, anÃºncios e custos em um fluxo centrado em finanÃ§as, em vez de dez planilhas.",
-    eyebrow: "VisÃ£o unificada",
-    title: "Veja a margem real, nÃ£o sÃ³ vendas bonitas.",
+    body: "Receita, taxas, frete, anúncios e custos em um fluxo centrado em finanças, em vez de dez planilhas.",
+    eyebrow: "Visão unificada",
+    title: "Veja a margem real, não só vendas bonitas.",
   },
   {
-    body: "Acompanhe qual SKU, canal e campanha puxam a margem de contribuiÃ§Ã£o antes do caixa evaporar.",
+    body: "Acompanhe qual SKU, canal e campanha puxam a margem de contribuição antes do caixa evaporar.",
     eyebrow: "Motor de lucratividade",
     title: "Descubra onde vale investir mais.",
   },
   {
-    body: "Janelas de sync manuais deixam o V1 simples hoje e abrem espaÃ§o para automaÃ§Ã£o depois, sem rewrite.",
-    eyebrow: "OperaÃ§Ã£o enxuta",
+    body: "Janelas de sync manuais deixam o V1 simples hoje e abrem espaço para automação depois, sem rewrite.",
+    eyebrow: "Operação enxuta",
     title: "Comece controlado. Escala depois.",
   },
 ];
@@ -78,52 +78,52 @@ export const featureGroups = [
   {
     items: [
       "Dashboard em tempo real com mÃ©tricas de receita, lucro e margem",
-      "GestÃ£o de lucro por SKU considerando todos os custos",
-      "Analytics avanÃ§ado com grÃ¡ficos e tendÃªncias",
-      "Insights com IA para otimizaÃ§Ã£o de preÃ§os",
-      "Performance de anÃºncios e ROI por campanha",
+      "Gestão de lucro por SKU considerando todos os custos",
+      "Analytics avançado com gráficos e tendências",
+      "Insights com IA para otimização de preços",
+      "Performance de anúncios e ROI por campanha",
       "Comparativos entre marketplaces",
     ],
     title: "Analytics Completo",
   },
   {
     items: [
-      "Alertas automÃ¡ticos de margem negativa",
-      "RelatÃ³rios executivos em PDF",
-      "IntegraÃ§Ã£o com Mercado Livre, Shopee, TikTok e Shein (os dois Ãºltimos em breve)",
-      "SincronizaÃ§Ã£o manual em janelas diÃ¡rias",
-      "HistÃ³rico completo de vendas e mÃ©tricas",
+      "Alertas automáticos de margem negativa",
+      "Relatórios executivos em PDF",
+      "Integração com Mercado Livre, Shopee, TikTok e Shein (os dois últimos em breve)",
+      "Sincronização manual em janelas diárias",
+      "Histórico completo de vendas e métricas",
     ],
-    title: "GestÃ£o Profissional",
+    title: "Gestão Profissional",
   },
   {
     items: [
       "Login seguro com e-mail e senha",
       "Acesso protegido por assinatura",
-      "API para integraÃ§Ãµes customizadas",
-      "Suporte prioritÃ¡rio no plano Growth",
+      "API para integrações customizadas",
+      "Suporte prioritário no plano Growth",
       "Onboarding dedicado no plano Scale",
     ],
-    title: "SeguranÃ§a & Suporte",
+    title: "Segurança & Suporte",
   },
 ];
 
 export const integrationHighlights = [
   {
-    detail: "ReÃºna pedidos, taxas e contextualizaÃ§Ã£o de SKU num fluxo normalizado.",
+    detail: "Reúna pedidos, taxas e contextualização de SKU num fluxo normalizado.",
     provider: "Mercado Livre",
   },
   {
-    detail: "Compare lojas no mesmo modelo financeiro para decisÃµes Ã­ntegras entre canais.",
+    detail: "Compare lojas no mesmo modelo financeiro para decisões íntegras entre canais.",
     provider: "Shopee",
   },
   {
-    detail: "IntegraÃ§Ã£o em construÃ§Ã£o. Em breve sincronize pedidos, produtos e mÃ©tricas do TikTok.",
-    provider: "TikTok â€” em breve",
+    detail: "Integração em construção. Em breve sincronize pedidos, produtos e métricas do TikTok.",
+    provider: "TikTok — em breve",
   },
   {
-    detail: "IntegraÃ§Ã£o em construÃ§Ã£o. Em breve sincronize pedidos, produtos e mÃ©tricas da Shein.",
-    provider: "Shein â€” em breve",
+    detail: "Integração em construção. Em breve sincronize pedidos, produtos e métricas da Shein.",
+    provider: "Shein — em breve",
   },
   {
     detail: "Sobre custos de produtos, ads e fixos aos dados vindos dos marketplaces.",
@@ -155,10 +155,10 @@ export function getPublicRoutes(source: Record<string, string | undefined> = pro
 
     {
       changeFrequency: "weekly" as const,
-      description: "IntegraÃ§Ãµes Mercado Livre, Shopee, TikTok, Shein e entradas manuais de custo. TikTok e Shein em breve.",
+      description: "Integrações Mercado Livre, Shopee, TikTok, Shein e entradas manuais de custo. TikTok e Shein em breve.",
       path: "/integrations",
       priority: 0.75,
-      title: `IntegraÃ§Ãµes | ${name}`,
+      title: `Integrações | ${name}`,
     },
   ];
 }

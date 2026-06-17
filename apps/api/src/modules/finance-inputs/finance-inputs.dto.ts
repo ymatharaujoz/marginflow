@@ -22,20 +22,20 @@ import type {
 export class CreateCompanyRequestDto implements CompanyFormInput {
   static schema = companyFormSchema;
 
-  code!: string;
+  cnpj!: string;
   fixedCostDefault!: string;
   isActive!: boolean;
-  name!: string;
+  razaoSocial!: string;
   taxRateDefault!: string;
 }
 
 export class UpdateCompanyRequestDto implements CompanyUpdateInput {
   static schema = companyUpdateSchema;
 
-  code?: string;
+  cnpj?: string;
   fixedCostDefault?: string;
   isActive?: boolean;
-  name?: string;
+  razaoSocial?: string;
   taxRateDefault?: string;
 }
 

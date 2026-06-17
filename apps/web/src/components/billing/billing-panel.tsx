@@ -687,16 +687,6 @@ export function BillingPanel({
               );
             })}
           </div>
-          {billingCycle === "annual" && (
-            <motion.p
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="text-sm font-medium text-accent"
-            >
-              Pagamento anual com melhor previsibilidade de caixa
-            </motion.p>
-          )}
         </motion.div>
 
         {/* Single Pricing Card */}
@@ -713,7 +703,7 @@ export function BillingPanel({
               },
             },
           }}
-          className="grid gap-6 lg:grid-cols-3"
+          className="grid gap-6 lg:grid-cols-3 lg:grid-rows-[auto_auto_1fr_auto_auto]"
         >
           {BILLING_PLANS.map((plan) => {
             const includesTrial = trialEligible && plan.code === "start";
@@ -737,11 +727,12 @@ export function BillingPanel({
               },
             }}
             whileHover={{ y: -6, transition: { duration: 0.25 } }}
+            className="grid grid-rows-subgrid row-span-5"
           >
             <Card
               padding="none"
               variant="default"
-              className="relative flex h-full w-full flex-col overflow-hidden border border-border/60 transition-colors hover:border-border"
+              className="relative grid grid-rows-subgrid row-span-5 overflow-hidden border border-border/60 transition-colors hover:border-border"
             >
               {/* Popular Badge — only on annual */}
               <AnimatePresence>
@@ -768,34 +759,14 @@ export function BillingPanel({
                 )}
               </AnimatePresence>
 
-              <div className="flex h-full flex-1 flex-col p-6 pt-8">
-                {/* Plan Header */}
-                <div className="mb-6">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {plan.name}
-                    </h3>
-                    <AnimatePresence>
-                      {plan.featured && (
-                        <motion.span
-                          initial={{ opacity: 0, scale: 0.8 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.8 }}
-                          transition={{ duration: 0.2 }}
-                          className="inline-flex items-center rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success"
-                        >
-                          {plan.cnpjLimitLabel}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  <p className="mt-1 text-sm leading-snug text-muted-foreground">
-                    {plan.description}
-                  </p>
-                </div>
+              <div className="grid grid-rows-subgrid row-span-5 p-6 pt-8">
+                {/* Row 1: Plan Name */}
+                <h3 className="text-lg font-semibold text-foreground">
+                  {plan.name}
+                </h3>
 
-                {/* Price */}
-                <div className="mb-6">
+                {/* Row 2: Price */}
+                <div>
                   <div className="flex items-baseline gap-1">
                     <AnimatePresence mode="wait">
                       <motion.span
@@ -824,8 +795,27 @@ export function BillingPanel({
                   </p>
                 </div>
 
-                {/* Features */}
-                <div className="mb-6 space-y-2.5">
+                {/* Row 3: Description (grows to align buttons) */}
+                <p className="text-sm leading-snug text-muted-foreground">
+                  {plan.description}
+                </p>
+
+                {/* Row 4: CTA */}
+                <div>
+                  <Button
+                    className="w-full"
+                    disabled={isBusy}
+                    loading={loading}
+                    onClick={() => void handleCheckout(plan.code, billingCycle)}
+                    size="lg"
+                    variant="primary"
+                  >
+                    {includesTrial ? "Começar teste grátis" : "Assinar"}
+                  </Button>
+                </div>
+
+                {/* Row 5: Features */}
+                <div className="space-y-2.5">
                   {plan.features.map((feature) => (
                     <div key={feature} className="flex items-start gap-2.5">
                       <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-success" />
@@ -835,26 +825,6 @@ export function BillingPanel({
                     </div>
                   ))}
                 </div>
-
-                {/* Spacer to push CTA to bottom */}
-                <div className="flex-1" />
-
-                {/* CTA */}
-                <Button
-                  className="w-full"
-                  disabled={isBusy}
-                  loading={loading}
-                  onClick={() => void handleCheckout(plan.code, billingCycle)}
-                  size="lg"
-                  variant="primary"
-                >
-                  {includesTrial ? "Começar teste grátis" : "Assinar"}
-                </Button>
-                {includesTrial && (
-                  <p className="mt-3 text-center text-xs text-muted-foreground">
-                    Cancele no Stripe antes do período de teste para não ser cobrado
-                  </p>
-                )}
               </div>
             </Card>
           </motion.div>

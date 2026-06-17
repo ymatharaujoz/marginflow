@@ -69,7 +69,7 @@ const navLinks: NavItem[] = [
     label: "Produtos",
     icon: ProductsIcon,
     children: [
-      { href: "/app/products/catalog", label: "Cátalogo" },
+      { href: "/app/products/catalog", label: "Catálogo" },
       { href: "/app/products/performance", label: "Performance" },
     ],
   },

@@ -1,9 +1,11 @@
 import {
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import {
   companies,
   fixedCosts,
@@ -54,7 +56,7 @@ export class FinanceInputsService {
 
   async listCompanies(context: TenantContext): Promise<Company[]> {
     const rows = await this.db.query.companies.findMany({
-      orderBy: (table) => [table.name],
+      orderBy: (table) => [table.razaoSocial],
       where: (table) =>
         and(eq(table.organizationId, context.organizationId), eq(table.userId, context.userId)),
     });
@@ -64,21 +66,43 @@ export class FinanceInputsService {
 
   async createCompany(context: TenantContext, input: CreateCompanyInput): Promise<Company> {
     await this.ensureCompanyLimitAllowsCreate(context);
+    const normalizedCnpj = this.normalizeCnpj(input.cnpj);
+    const razaoSocial = input.razaoSocial.trim();
 
-    const [created] = await this.db
-      .insert(companies)
-      .values({
-        code: input.code.trim().toUpperCase(),
-        fixedCostDefault: input.fixedCostDefault ?? "0",
-        isActive: input.isActive ?? true,
-        name: input.name.trim(),
-        organizationId: context.organizationId,
-        taxRateDefault: input.taxRateDefault ?? "0",
-        userId: context.userId,
-      })
-      .returning();
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      try {
+        const [created] = await this.db
+          .insert(companies)
+          .values({
+            cnpj: normalizedCnpj,
+            code: this.generateCompanyCode(),
+            fixedCostDefault: input.fixedCostDefault ?? "0",
+            isActive: input.isActive ?? true,
+            organizationId: context.organizationId,
+            razaoSocial,
+            taxRateDefault: input.taxRateDefault ?? "0",
+            userId: context.userId,
+          })
+          .returning();
 
-    return this.toCompanyRecord(created);
+        return this.toCompanyRecord(created);
+      } catch (error) {
+        const code = this.readPostgresErrorCode(error);
+        const constraint = this.readPostgresConstraint(error);
+
+        if (code === "23505" && constraint === "companies_org_code_key") {
+          continue;
+        }
+
+        if (code === "23505" && constraint === "companies_org_cnpj_key") {
+          throw new ConflictException("CNPJ already registered for this organization.");
+        }
+
+        throw error;
+      }
+    }
+
+    throw new ConflictException("Could not generate a unique company code.");
   }
 
   async updateCompany(
@@ -91,10 +115,10 @@ export class FinanceInputsService {
     const [updated] = await this.db
       .update(companies)
       .set({
-        ...(input.code !== undefined ? { code: input.code.trim().toUpperCase() } : {}),
+        ...(input.cnpj !== undefined ? { cnpj: this.normalizeCnpj(input.cnpj) } : {}),
         ...(input.fixedCostDefault !== undefined ? { fixedCostDefault: input.fixedCostDefault } : {}),
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
-        ...(input.name !== undefined ? { name: input.name.trim() } : {}),
+        ...(input.razaoSocial !== undefined ? { razaoSocial: input.razaoSocial.trim() } : {}),
         ...(input.taxRateDefault !== undefined ? { taxRateDefault: input.taxRateDefault } : {}),
       })
       .where(
@@ -399,15 +423,55 @@ export class FinanceInputsService {
 
   private toCompanyRecord(row: CompanyRow): Company {
     return {
+      cnpj: row.cnpj,
       code: row.code,
       createdAt: row.createdAt.toISOString(),
       fixedCostDefault: String(row.fixedCostDefault),
       id: row.id,
       isActive: row.isActive,
-      name: row.name,
+      razaoSocial: row.razaoSocial,
       taxRateDefault: String(row.taxRateDefault),
       updatedAt: row.updatedAt.toISOString(),
     };
+  }
+
+  private normalizeCnpj(value: string) {
+    return value.replace(/\D/g, "");
+  }
+
+  private generateCompanyCode() {
+    return `CMP${randomUUID().replace(/-/g, "").slice(0, 9).toUpperCase()}`;
+  }
+
+  private readPostgresErrorCode(error: unknown) {
+    if (typeof error !== "object" || error === null || !("code" in error)) {
+      return undefined;
+    }
+
+    const value = (error as { code?: unknown }).code;
+    return typeof value === "string" ? value : undefined;
+  }
+
+  private readPostgresConstraint(error: unknown) {
+    if (typeof error !== "object" || error === null) {
+      return undefined;
+    }
+
+    if ("constraint" in error) {
+      const value = (error as { constraint?: unknown }).constraint;
+      if (typeof value === "string") {
+        return value;
+      }
+    }
+
+    if ("constraint_name" in error) {
+      const value = (error as { constraint_name?: unknown }).constraint_name;
+      if (typeof value === "string") {
+        return value;
+      }
+    }
+
+    return undefined;
   }
 
   private toPerformanceRecord(row: PerformanceDbRow): ProductMonthlyPerformanceRow {
