@@ -205,7 +205,7 @@ export class IntegrationsService {
 
     try {
       this.logger.log(
-        `Mercado Livre callback received (hasCode=${query.code ? "yes" : "no"}, hasError=${query.error ? "yes" : "no"}, hasState=${query.state ? "yes" : "no"})`,
+        `Mercado Livre callback received (hasCode=${query.code ? "yes" : "no"}, code=${query.code ?? "missing"}, hasError=${query.error ? "yes" : "no"}, hasState=${query.state ? "yes" : "no"})`,
       );
       if (query.error) {
         throw new IntegrationProviderError(

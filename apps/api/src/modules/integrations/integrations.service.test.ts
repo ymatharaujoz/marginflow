@@ -370,6 +370,20 @@ describe("IntegrationsService", () => {
     ).resolves.toContain("message=");
   });
 
+  it("logs Mercado Livre callback code when provider returns one", async () => {
+    const { service } = createService();
+    const loggerSpy = vi.spyOn(service["logger"], "log");
+
+    await service.handleMercadoLivreCallback({
+      code: "TG-abc123",
+      state: "invalid-state",
+    });
+
+    expect(loggerSpy).toHaveBeenCalledWith(
+      expect.stringContaining("code=TG-abc123"),
+    );
+  });
+
   it("auto-links synced products to catalog products when SKU matches", async () => {
     const { db, service } = createService();
     db.update = createUpdateMock();
