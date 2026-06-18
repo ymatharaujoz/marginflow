@@ -44,6 +44,7 @@ export function SignInPanel({ initialErrorMessage = null }: SignInPanelProps) {
     const result =
       mode === "sign-in"
         ? await submitPasswordAuth({
+            appBaseUrl: getClientPublicEnv().NEXT_PUBLIC_APP_URL,
             apiBaseUrl: getClientPublicEnv().NEXT_PUBLIC_API_BASE_URL,
             authClient,
             locationAssign: (url) => window.location.assign(url),
@@ -51,6 +52,7 @@ export function SignInPanel({ initialErrorMessage = null }: SignInPanelProps) {
             values: { email, password },
           })
         : await submitPasswordAuth({
+            appBaseUrl: getClientPublicEnv().NEXT_PUBLIC_APP_URL,
             apiBaseUrl: getClientPublicEnv().NEXT_PUBLIC_API_BASE_URL,
             authClient,
             locationAssign: (url) => window.location.assign(url),
