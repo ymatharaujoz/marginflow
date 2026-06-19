@@ -54,7 +54,7 @@ describe("CompanyCreationPanel", () => {
     );
 
     expect(document.body.textContent).toContain("Adicionar empresa");
-    expect(document.body.textContent).toContain("2 de 3 CNPJs cadastrados");
+    expect(document.body.textContent).toContain("2 de 3 empresas cadastradas");
 
     view.unmount();
   });

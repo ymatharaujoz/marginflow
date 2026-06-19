@@ -191,7 +191,7 @@ describe("dashboard foundation helpers", () => {
   it("renders the top products table from profitability data", () => {
     const markup = renderToStaticMarkup(createElement(ProductsTable, { data: profitability }));
 
-    expect(markup).toContain("5 Melhores Produtos");
+    expect(markup).toContain("TOP 5 Produtos");
     expect(markup).toContain("Maiores lucros por SKU");
   });
 });

@@ -148,6 +148,7 @@ const snapshot: ProductAnalyticsSnapshot = {
     {
       catalogGroupKey: null,
       catalogRole: "standalone",
+      companyId: "company_1",
       coverImageUrl: "https://example.com/product-one.png",
       createdAt: "2026-05-01T10:00:00.000Z",
       children: [],
@@ -158,6 +159,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       isActive: true,
       latestCost: {
         amount: "25.00",
+        companyId: "company_1",
         costType: "base",
         createdAt: "2026-05-01T10:00:00.000Z",
         currency: "BRL",
@@ -179,6 +181,7 @@ const snapshot: ProductAnalyticsSnapshot = {
     {
       catalogGroupKey: null,
       catalogRole: "standalone",
+      companyId: "company_1",
       coverImageUrl: null,
       createdAt: "2026-05-01T10:00:00.000Z",
       children: [],

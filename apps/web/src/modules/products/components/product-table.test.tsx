@@ -206,10 +206,10 @@ describe("ProductTable", () => {
     keydown(tableRow, "Enter");
 
     expect(document.body.textContent).toContain("Visão Geral de Vendas");
+    expect(document.body.textContent).toContain("Sem foto");
 
     click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Composição")!);
     expect(document.body.textContent).toContain("Composição de Preço");
-    expect(document.body.textContent).toContain("Sem foto");
 
     keydown(document, "Escape");
 
