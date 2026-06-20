@@ -31,8 +31,11 @@ vi.mock("@/lib/server-billing", () => ({
   readServerBillingState: readServerBillingStateMock,
 }));
 
-vi.mock("@/lib/server-companies", () => ({
+vi.mock("@/modules/dashboard/components/company-finance-defaults", () => ({
   getActiveCompany: getActiveCompanyMock,
+}));
+
+vi.mock("@/lib/server-companies", () => ({
   hasActiveCompany: hasActiveCompanyMock,
   readServerCompanies: readServerCompaniesMock,
 }));

@@ -3,7 +3,8 @@ import { IntegrationsHub } from "@/components/integrations/integrations-hub";
 import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
-import { getActiveCompany, hasActiveCompany, readServerCompanies } from "@/lib/server-companies";
+import { getActiveCompany } from "@/modules/dashboard/components/company-finance-defaults";
+import { hasActiveCompany, readServerCompanies } from "@/lib/server-companies";
 
 type IntegrationsPageProps = {
   searchParams: Promise<{
