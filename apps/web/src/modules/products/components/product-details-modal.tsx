@@ -17,6 +17,7 @@ import {
 import { Badge, Button, Modal, cn } from "@lucreii/ui";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { productCatalogQueryKey, formatReferenceMonthPtBr } from "../hooks/use-product-data";
+import { computeRowCommissionTotal, computeRowNetRevenue } from "../calculations/product-insights";
 import { CurrencyInput, parseCurrencyValue } from "./currency-input";
 import type { ProductTableRow } from "../types/products";
 import { formatMoney, formatNumber } from "../utils/formatters";
@@ -303,16 +304,13 @@ export function ProductDetailsModal({
   }
 
   const totalCommission = row.totalCommission;
-  const unitTax = row.sellingPrice * (row.taxPct / 100);
-  // TARIFA TOTAL: quando totalCommission representa o valor unitário da
-  // comissão, multiplicamos por netLiquidSales. Se o produto já chegou
-  // com o total integral, a multiplicação excederia o faturamento e
-  // usamos o valor diretamente.
-  const commissionTotal =
-    totalCommission * row.netLiquidSales > row.revenue
-      ? totalCommission
-      : totalCommission * row.netLiquidSales;
-  const netRevenue = row.revenue - commissionTotal;
+  const parentCommission =
+    row.catalogRole === "parent" && row.children.length > 0
+      ? row.children[0].totalCommission
+      : null;
+  const displayedCommission = parentCommission ?? totalCommission;
+  const commissionTotal = computeRowCommissionTotal(row);
+  const netRevenue = computeRowNetRevenue(row);
 
   return (
     <Modal
@@ -442,7 +440,7 @@ export function ProductDetailsModal({
                     />
                     <MetricCard
                       label="Comissão MELI"
-                      value={formatMoney(totalCommission)}
+                      value={formatMoney(displayedCommission)}
                       icon={<Percent className="h-3 w-3" />}
                     />
                     <MetricCard
@@ -457,7 +455,7 @@ export function ProductDetailsModal({
                     />
                     <MetricCard
                       label="Imposto"
-                      value={formatMoney(unitTax)}
+                      value={`${row.taxPct}%`}
                       icon={<Percent className="h-3 w-3" />}
                     />
                   </div>

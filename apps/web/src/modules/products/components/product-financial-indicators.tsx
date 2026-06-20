@@ -2,9 +2,13 @@
 
 import { useMemo } from "react";
 import { motion } from "framer-motion";
-import { DollarSign, Receipt, Megaphone, Percent } from "lucide-react";
+import { DollarSign, Receipt, Megaphone, Percent, TrendingUp } from "lucide-react";
 import { containerVariants, itemVariants } from "@/lib/animations";
 import { formatMoney } from "../utils/formatters";
+import {
+  computeRowCommissionTotal,
+  computeRowNetRevenue,
+} from "../calculations/product-insights";
 import type { ProductTableRow } from "../types/products";
 
 interface ProductFinancialIndicatorsProps {
@@ -78,8 +82,12 @@ export function ProductFinancialIndicators({ rows }: ProductFinancialIndicatorsP
     return rows.reduce((sum, row) => sum + row.revenue, 0);
   }, [rows]);
 
+  const totalNetRevenue = useMemo(() => {
+    return rows.reduce((sum, row) => sum + computeRowNetRevenue(row), 0);
+  }, [rows]);
+
   const totalCommission = useMemo(() => {
-    return rows.reduce((sum, row) => sum + row.revenue * (row.commissionPct / 100), 0);
+    return rows.reduce((sum, row) => sum + computeRowCommissionTotal(row), 0);
   }, [rows]);
 
   const totalShipping = useMemo(() => {
@@ -97,13 +105,20 @@ export function ProductFinancialIndicators({ rows }: ProductFinancialIndicatorsP
       animate="visible"
       className="space-y-4"
     >
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <IndicatorCard
           label="Faturamento"
           value={formatMoney(totalRevenue)}
           subValue={`${rows.length} produto${rows.length !== 1 ? "s" : ""}`}
           icon={<DollarSign className="h-4 w-4" />}
           variant="default"
+        />
+        <IndicatorCard
+          label="Receita Líquida"
+          value={formatMoney(totalNetRevenue)}
+          subValue="Faturamento − comissões"
+          icon={<TrendingUp className="h-4 w-4" />}
+          variant={totalNetRevenue < 0 ? "error" : "default"}
         />
         <IndicatorCard
           label="Comissão Marketplaces"

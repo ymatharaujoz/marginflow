@@ -571,4 +571,84 @@ describe("products foundation helpers", () => {
     expect(row.totalCommission).toBeCloseTo(10.53, 2);
     expect(row.commissionPct).toBeCloseTo((10.53 / 89.7) * 100, 2);
   });
+
+  it("aggregates parent totalCommission from children even when parent analytics netSales matches the synthetic aggregate", () => {
+    const aggregationSnapshot = structuredClone(snapshot);
+    const parent = structuredClone(snapshot.products[0]);
+    parent.id = "product_parent";
+    parent.catalogRole = "parent";
+    parent.name = "Produto Pai";
+    parent.sku = "PAI-001";
+    parent.sellingPrice = "29.90";
+    parent.children = [
+      {
+        ...structuredClone(snapshot.products[0]),
+        catalogRole: "child",
+        id: "product_child",
+        name: "Produto Pai - Azul",
+        parentProductId: "product_parent",
+        sku: "PAI-001-AZ",
+        sellingPrice: "29.90",
+        variationLabel: "Cor: Azul",
+        children: [],
+      },
+    ];
+
+    const childRow: (typeof snapshot.monthlyPerformanceRows)[number] = {
+      advertisingCost: "0.00",
+      channel: "mercadolivre",
+      commissionRate: "0.176000",
+      id: "perf_child",
+      marketplaceCommission: "10.54",
+      packagingCost: "0.00",
+      productId: "product_child",
+      productName: "Produto Pai - Azul",
+      referenceMonth: "2026-05-01",
+      returnsQuantity: 0,
+      salePrice: "29.90",
+      salesQuantity: 4,
+      shippingFee: "0.00",
+      sku: "PAI-001-AZ",
+      unitCost: "23.00",
+    };
+
+    aggregationSnapshot.products = [parent];
+    aggregationSnapshot.monthlyPerformanceRows = [childRow];
+    aggregationSnapshot.performanceRows = [];
+    aggregationSnapshot.productRows = [
+      {
+        ...structuredClone(snapshot.productRows[1]),
+        channel: "mercadolivre",
+        marketplaceCommission: "21.08",
+        name: "Produto Pai",
+        netSales: 4,
+        productId: "product_parent",
+        revenue: "239.20",
+        sales: 4,
+        salePrice: "59.80",
+        sku: "PAI-001",
+        returns: 0,
+      },
+      {
+        ...structuredClone(snapshot.productRows[1]),
+        channel: "mercadolivre",
+        marketplaceCommission: "42.16",
+        name: "Produto Pai - Azul",
+        netSales: 4,
+        productId: "product_child",
+        revenue: "119.60",
+        sales: 4,
+        salePrice: "29.90",
+        sku: "PAI-001-AZ",
+        returns: 0,
+      },
+    ];
+
+    const rows = buildProductTableRows(aggregationSnapshot);
+    const parentRow = rows.find((row) => row.catalogRole === "parent");
+
+    expect(parentRow).toBeDefined();
+    expect(parentRow?.totalCommission).toBeCloseTo(42.16, 2);
+    expect(parentRow?.commissionPct).toBeCloseTo((42.16 / 119.6) * 100, 2);
+  });
 });

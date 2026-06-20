@@ -459,6 +459,7 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
     product: ProductListItem | null,
     children: ProductTableRow[],
     preferParentCostOverride = true,
+    precomputedCommissionTotal: number | null = null,
   ): ProductTableRow => {
     const taxPct = toNumber(data.scope.taxRateDefault) * 100;
     const taxRateDefault = taxPct / 100;
@@ -484,7 +485,8 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
       }
     }
 
-    const marketplaceCommissionTotal = resolveMarketplaceCommissionTotal(row);
+    const marketplaceCommissionTotal =
+      precomputedCommissionTotal ?? resolveMarketplaceCommissionTotal(row);
     const financials = deriveRowFinancials(effectiveRow, taxRateDefault, marketplaceCommissionTotal);
     const sellingPrice = toNumber(effectiveRow.salePrice);
     const variationLabel = product?.variationLabel ?? extractVariationLabel(row.productName);
@@ -628,7 +630,7 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
       unitCost: toDecimalString(weightedUnitCost),
     };
 
-    return mapRow(syntheticRow, product, children);
+    return mapRow(syntheticRow, product, children, true, totals.marketplaceCommission);
   };
 
   const buildFromProduct = (product: ProductListItem): ProductTableRow | null => {
@@ -709,6 +711,36 @@ export function determineFinancialState(
   data: ProductCatalogData,
 ): ProductFinancialState {
   return data.financialState;
+}
+
+/**
+ * Comissão total de uma linha de produto, espelhando a lógica usada no modal
+ * de detalhes (product-details-modal). Para pais com variações, usa a comissão
+ * unitária do primeiro filho multiplicada pelas vendas líquidas. Para filhos
+ * ou standalone, aplica heurística que detecta se `totalCommission` já é o
+ * total ou o valor unitário.
+ */
+export function computeRowCommissionTotal(row: ProductTableRow): number {
+  const totalCommission = row.totalCommission;
+  const parentCommission =
+    row.catalogRole === "parent" && row.children.length > 0
+      ? row.children[0].totalCommission
+      : null;
+
+  if (parentCommission !== null) {
+    return parentCommission * row.netLiquidSales;
+  }
+
+  return totalCommission * row.netLiquidSales > row.revenue
+    ? totalCommission
+    : totalCommission * row.netLiquidSales;
+}
+
+/**
+ * Receita líquida de uma linha: faturamento menos a comissão total.
+ */
+export function computeRowNetRevenue(row: ProductTableRow): number {
+  return row.revenue - computeRowCommissionTotal(row);
 }
 
 const productDataGapLabels: Record<string, string> = {

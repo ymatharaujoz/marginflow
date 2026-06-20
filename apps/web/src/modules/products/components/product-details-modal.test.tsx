@@ -98,7 +98,7 @@ afterEach(() => {
 
 describe("ProductDetailsModal", () => {
   it("shows total MELI commission for the selected row", () => {
-    const row = buildRow();
+    const row = buildRow({ taxPct: 13 });
     const view = renderWithClient(
       <ProductDetailsModal onClose={() => {}} open row={row} />,
     );
@@ -110,6 +110,8 @@ describe("ProductDetailsModal", () => {
     expect(text).toContain("Comissão MELI");
     expect(text).toContain("R$ 31,62");
     expect(text).not.toContain("R$ 3,51");
+    expect(text).toContain("Imposto");
+    expect(text).toContain("13%");
 
     view.unmount();
   });
@@ -129,6 +131,47 @@ describe("ProductDetailsModal", () => {
     expect(normalizedTextContent()).toContain("R$ 11,67");
 
     view.unmount();
+  });
+
+  it("reuses the child commission value and derives net revenue as FATURAMENTO - (COMISSÃO MELI × VENDAS) for a parent row with variations", () => {
+    const child = buildRow({
+      id: "child-1",
+      netLiquidSales: 1,
+      sales: 1,
+      sku: "CHILD-1",
+      totalCommission: 10.54,
+    });
+    const row = buildRow({
+      catalogRole: "parent",
+      children: [child],
+      id: "parent-1",
+      netLiquidSales: 4,
+      revenue: 119.6,
+      sales: 4,
+      sku: "PARENT-1",
+      totalCommission: 100,
+    });
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Composição")!);
+
+    const text = normalizedTextContent();
+
+    expect(text).toContain("R$ 10,54");
+
+    view.unmount();
+
+    const view2 = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    const overviewText = normalizedTextContent();
+
+    expect(overviewText).toContain("R$ 77,44");
+
+    view2.unmount();
   });
 
   it("calculates net revenue using commission total when commission exceeds revenue on multiplication", () => {
