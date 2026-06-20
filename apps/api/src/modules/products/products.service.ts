@@ -52,6 +52,7 @@ import type {
   ProductPerformanceRow,
   ProductRecord,
   SyncedProductRecord,
+  SyncStatusResponse,
 } from "@lucreii/types";
 import { DATABASE_CLIENT } from "@/common/tokens";
 import { FinanceService } from "@/modules/finance/finance.service";
@@ -323,8 +324,12 @@ export class ProductsService {
     input: ProductFormValues,
   ): Promise<ProductRecord> {
     if (!this.isTenantContext(contextOrOrganizationId)) {
+      const context = await this.requireScopedCompanyContext({
+        organizationId: contextOrOrganizationId,
+        userId: "",
+      });
       const normalizedSku = await this.assertSkuIsUnique(
-        contextOrOrganizationId,
+        context.companyId,
         input.sku,
       );
       const [created] = await this.withSkuConflictHandling(
@@ -333,6 +338,7 @@ export class ProductsService {
           this.db
             .insert(products)
             .values({
+              companyId: context.companyId,
               isActive: input.isActive,
               name: input.name,
               organizationId: contextOrOrganizationId,
@@ -820,6 +826,7 @@ export class ProductsService {
           .insert(productCosts)
           .values({
             amount: input.unitCost,
+            companyId: scopedContext?.companyId ?? organizationId,
             costType: "base",
             currency: "BRL",
             effectiveFrom: null,
@@ -927,12 +934,21 @@ export class ProductsService {
     input: ProductCostFormValues,
   ): Promise<ProductCostRecord> {
     if (!this.isTenantContext(contextOrOrganizationId)) {
-      await this.ensureProductAccess(contextOrOrganizationId, input.productId);
+      const context = await this.requireScopedCompanyContext({
+        organizationId: contextOrOrganizationId,
+        userId: "",
+      });
+      await this.ensureProductAccess(
+        context.organizationId,
+        input.productId,
+        context.companyId,
+      );
 
       const [created] = await this.db
         .insert(productCosts)
         .values({
           amount: input.amount,
+          companyId: context.companyId,
           costType: input.costType,
           currency: input.currency,
           effectiveFrom: input.effectiveFrom,
@@ -1281,7 +1297,7 @@ export class ProductsService {
             scopedContext.companyId,
             "mercadolivre",
           )
-        : Promise.resolve({
+        : Promise.resolve<SyncStatusResponse>({
             activeRun: null,
             availability: {
               canRun: false,

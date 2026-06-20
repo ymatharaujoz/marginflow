@@ -278,7 +278,7 @@ function buildPerformanceConflictTarget(productId: string | null) {
         productMonthlyPerformance.referenceMonth,
         productMonthlyPerformance.channel,
         productMonthlyPerformance.productId,
-      ] as const,
+      ],
     };
   }
 
@@ -289,7 +289,7 @@ function buildPerformanceConflictTarget(productId: string | null) {
       productMonthlyPerformance.referenceMonth,
       productMonthlyPerformance.channel,
       productMonthlyPerformance.sku,
-    ] as const,
+    ],
   };
 }
 

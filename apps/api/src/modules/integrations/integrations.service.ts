@@ -829,7 +829,6 @@ export class IntegrationsService {
       this.selectLatestUnitPrice(externalProduct.orderItems) ?? "0.00";
     const createdProduct = await this.productsService.createProduct(
       {
-        companyId,
         organizationId,
         selectedCompanyId: companyId,
         userId: "",

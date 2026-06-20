@@ -703,9 +703,16 @@ describe("IntegrationsService", () => {
     productsService.createProduct.mockResolvedValue({
       id: "product_2",
     });
-    vi.spyOn(service as never, "buildSyncedProductActionResult").mockResolvedValue({
-      message: "Produto sincronizado importado para o catálogo",
-    } as never);
+    vi
+      .spyOn(
+        service as unknown as {
+          buildSyncedProductActionResult: (...args: unknown[]) => Promise<unknown>;
+        },
+        "buildSyncedProductActionResult",
+      )
+      .mockResolvedValue({
+        message: "Produto sincronizado importado para o catálogo",
+      } as never);
     db.update = vi.fn().mockReturnValue({
       set: vi.fn().mockReturnValue({
         where: vi.fn().mockResolvedValue(undefined),
@@ -721,7 +728,6 @@ describe("IntegrationsService", () => {
     );
     expect(productsService.createProduct).toHaveBeenCalledWith(
       {
-        companyId: "company_1",
         organizationId: "org_1",
         selectedCompanyId: "company_1",
         userId: "",
