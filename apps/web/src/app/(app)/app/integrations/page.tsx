@@ -3,7 +3,7 @@ import { IntegrationsHub } from "@/components/integrations/integrations-hub";
 import { resolveProtectedAppRedirect } from "@/lib/protected-app-route";
 import { readServerAuthState } from "@/lib/server-auth";
 import { readServerBillingState } from "@/lib/server-billing";
-import { hasActiveCompany, readServerCompanies } from "@/lib/server-companies";
+import { getActiveCompany, hasActiveCompany, readServerCompanies } from "@/lib/server-companies";
 
 type IntegrationsPageProps = {
   searchParams: Promise<{
@@ -34,6 +34,12 @@ export default async function IntegrationsPage({ searchParams }: IntegrationsPag
 
   if (!hasActiveCompany(companies)) {
     redirect("/app/onboarding");
+  }
+
+  const activeCompany = getActiveCompany(companies);
+
+  if (!authState.selectedCompanyId && activeCompany) {
+    redirect(`/auth/auto-select-company?companyId=${activeCompany.id}`);
   }
 
   return (

@@ -138,7 +138,7 @@ export function BillingPanel({
     planCode: BillingPlanCode;
   } | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(
-    "annual",
+    "monthly",
   );
   const needsClientConfirm =
     checkoutState === "success" &&

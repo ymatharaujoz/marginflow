@@ -402,7 +402,7 @@ function PricingCard({
 
 export function LandingPage() {
   const reduceMotion = useReducedMotion();
-  const [billing, setBilling] = useState<"monthly" | "annual">("annual");
+  const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: heroRef,
