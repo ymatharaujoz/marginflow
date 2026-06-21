@@ -1,8 +1,13 @@
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import type { IntegrationProvider } from "./integrations.types";
 import { MercadoLivreProvider } from "./providers/mercadolivre.provider";
+import { SheinProvider } from "./providers/shein.provider";
 import { ShopeeProvider } from "./providers/shopee.provider";
 
 export function createIntegrationProviders(env: ApiRuntimeEnv): IntegrationProvider[] {
-  return [new MercadoLivreProvider(env), new ShopeeProvider(env)];
+  return [
+    new MercadoLivreProvider(env),
+    new ShopeeProvider(env),
+    new SheinProvider(env),
+  ];
 }

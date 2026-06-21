@@ -163,6 +163,17 @@ function ChannelBadge({ label }: { label: string }) {
     );
   }
 
+  if (normalized === "shein") {
+    return (
+      <Badge
+        className="border-transparent"
+        style={{ backgroundColor: "#111111", color: "#ffffff" }}
+      >
+        Shein
+      </Badge>
+    );
+  }
+
   return <Badge>{label}</Badge>;
 }
 
@@ -309,8 +320,7 @@ export function ProductDetailsModal({
       ? row.children[0].totalCommission
       : null;
   const displayedCommission = parentCommission ?? totalCommission;
-  const commissionTotal = computeRowCommissionTotal(row);
-  const netRevenue = computeRowNetRevenue(row);
+  const netRevenue = row.revenue - displayedCommission;
 
   return (
     <Modal

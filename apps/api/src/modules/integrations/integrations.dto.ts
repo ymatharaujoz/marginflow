@@ -6,10 +6,10 @@ import { z } from "zod";
 
 export class IntegrationProviderParamDto {
   static schema = z.object({
-    provider: z.enum(["mercadolivre", "shopee"]),
+    provider: z.enum(["mercadolivre", "shopee", "shein"]),
   });
 
-  provider!: "mercadolivre" | "shopee";
+  provider!: "mercadolivre" | "shopee" | "shein";
 }
 
 export class MercadoLivreCallbackQueryDto {
@@ -76,14 +76,44 @@ export class ShopeeNotificationDto {
   timestamp?: number;
 }
 
+export class SheinCallbackQueryDto {
+  static schema = z.object({
+    code: z.string().min(1).optional(),
+    seller_id: z.union([z.string(), z.number()]).optional(),
+    state: z.string().min(1).optional(),
+  });
+
+  code?: string;
+  seller_id?: string | number;
+  state?: string;
+}
+
+export class SheinNotificationDto {
+  static schema = z
+    .object({
+      event: z.string().min(1).optional(),
+      order_id: z.union([z.string(), z.number()]).optional(),
+      seller_id: z.union([z.string(), z.number()]).optional(),
+      shop_id: z.union([z.string(), z.number()]).optional(),
+      timestamp: z.number().int().optional(),
+    })
+    .passthrough();
+
+  event?: string;
+  order_id?: string | number;
+  seller_id?: string | number;
+  shop_id?: string | number;
+  timestamp?: number;
+}
+
 export class IntegrationExternalProductParamDto {
   static schema = z.object({
     externalProductId: z.string().trim().min(1),
-    provider: z.enum(["mercadolivre", "shopee"]),
+    provider: z.enum(["mercadolivre", "shopee", "shein"]),
   });
 
   externalProductId!: string;
-  provider!: "mercadolivre" | "shopee";
+  provider!: "mercadolivre" | "shopee" | "shein";
 }
 
 export class LinkSyncedProductRequestDto implements SyncedProductLinkInput {

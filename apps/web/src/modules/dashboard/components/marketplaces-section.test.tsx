@@ -121,6 +121,7 @@ describe("MarketplacesSection", () => {
             },
             lastCompletedRun: null,
           }),
+          shein: undefined,
         }}
       />,
     );
@@ -155,6 +156,7 @@ describe("MarketplacesSection", () => {
             },
             lastCompletedRun: null,
           }),
+          shein: undefined,
         }}
       />,
     );

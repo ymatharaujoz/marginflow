@@ -71,6 +71,20 @@ type ShopeeNotification = {
   timestamp?: number;
 };
 
+type SheinCallbackQuery = {
+  code?: string;
+  seller_id?: string | number;
+  state?: string;
+};
+
+type SheinNotification = {
+  event?: string;
+  order_id?: string | number;
+  seller_id?: string | number;
+  shop_id?: string | number;
+  timestamp?: number;
+};
+
 type ExternalProductOrderItemRow = Awaited<
   ReturnType<IntegrationsService["requireSyncedExternalProduct"]>
 >["orderItems"][number];
@@ -382,6 +396,90 @@ export class IntegrationsService {
     }
   }
 
+  async handleSheinCallback(query: SheinCallbackQuery) {
+    const baseRedirect = `${this.env.WEB_APP_ORIGIN.replace(/\/$/, "")}/app/integrations`;
+
+    try {
+      if (!query.code || !query.state || query.seller_id === undefined) {
+        throw new IntegrationProviderError(
+          "A resposta da Shein não incluiu code, seller_id e state obrigatórios",
+          "callback_invalid",
+        );
+      }
+
+      const state = readSignedIntegrationState(
+        query.state,
+        this.getStateSecret(),
+      );
+      if (state.provider !== "shein") {
+        throw new IntegrationProviderError(
+          "O state retornado não corresponde ao provedor esperado (Shein)",
+          "callback_invalid",
+        );
+      }
+
+      const provider = this.getProvider("shein");
+      const connection = await provider.exchangeCode(query.code, {
+        externalAccountId: String(query.seller_id),
+      });
+
+      await this.db
+        .insert(marketplaceConnections)
+        .values({
+          accessToken: connection.accessToken,
+          companyId: state.companyId,
+          externalAccountId: connection.connectedAccountId,
+          metadata: {
+            ...connection.metadata,
+            connectedAccountLabel: connection.connectedAccountLabel,
+          },
+          organizationId: state.organizationId,
+          provider: "shein",
+          refreshToken: connection.refreshToken,
+          status: "connected",
+          tokenExpiresAt: connection.tokenExpiresAt,
+        })
+        .onConflictDoUpdate({
+          set: {
+            accessToken: connection.accessToken,
+            externalAccountId: connection.connectedAccountId,
+            lastSyncedAt: null,
+            metadata: {
+              ...connection.metadata,
+              connectedAccountLabel: connection.connectedAccountLabel,
+            },
+            refreshToken: connection.refreshToken,
+            status: "connected",
+            tokenExpiresAt: connection.tokenExpiresAt,
+            updatedAt: new Date(),
+          },
+          target: [
+            marketplaceConnections.organizationId,
+            marketplaceConnections.companyId,
+            marketplaceConnections.provider,
+          ],
+        });
+
+      return this.buildRedirectUrl(baseRedirect, {
+        provider: "shein",
+        status: "success",
+      });
+    } catch (error) {
+      const message =
+        error instanceof IntegrationProviderError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Falha ao conectar a Shein";
+
+      return this.buildRedirectUrl(baseRedirect, {
+        message,
+        provider: "shein",
+        status: "error",
+      });
+    }
+  }
+
   async handleShopeeNotification(input: {
     authorization: string;
     body: ShopeeNotification;
@@ -508,6 +606,303 @@ export class IntegrationsService {
       organizationId,
       productsList: productRows,
       providerSlug,
+    });
+  }
+
+  async importMarketplaceCatalog(context: {
+    companyId: string;
+    organizationId: string;
+    providerSlug: IntegrationProviderSlug;
+    userId: string;
+  }): Promise<MarketplaceCatalogImportResult> {
+    this.assertSyncProductProvider(context.providerSlug);
+    if (context.providerSlug === "mercadolivre") {
+      return this.importMercadoLivreCatalog({
+        companyId: context.companyId,
+        organizationId: context.organizationId,
+        userId: context.userId,
+      });
+    }
+
+    await this.productsService.assertCatalogImportAllowed(context);
+
+    const provider = this.getProvider(context.providerSlug);
+    const connection = await this.db.query.marketplaceConnections.findFirst({
+      where: (table) =>
+        and(
+          eq(table.organizationId, context.organizationId),
+          eq(table.companyId, context.companyId),
+          eq(table.provider, context.providerSlug),
+        ),
+    });
+
+    if (
+      !connection ||
+      connection.status !== "connected" ||
+      !connection.accessToken ||
+      !connection.externalAccountId ||
+      isExpired(connection.tokenExpiresAt)
+    ) {
+      throw new UnauthorizedException(
+        `Conecte novamente sua conta do ${provider.displayName} antes de importar o catálogo`,
+      );
+    }
+
+    if (!provider.importCatalog) {
+      throw new ServiceUnavailableException(
+        `Importação de catálogo não está disponível para ${provider.displayName}`,
+      );
+    }
+
+    let catalogProducts;
+    try {
+      catalogProducts = await provider.importCatalog({
+        connection,
+        organizationId: context.organizationId,
+      });
+    } catch (error) {
+      this.rethrowProviderError(error);
+    }
+
+    const [productRows, externalProductRows, imageRows] = await Promise.all([
+      this.db.query.products.findMany({
+        where: (table) => eq(table.organizationId, context.organizationId),
+      }),
+      this.db.query.externalProducts.findMany({
+        where: (table) =>
+          and(
+            eq(table.organizationId, context.organizationId),
+            eq(table.companyId, context.companyId),
+            eq(table.provider, context.providerSlug),
+          ),
+      }),
+      this.db.query.productImages.findMany({
+        where: (table) => eq(table.organizationId, context.organizationId),
+      }),
+    ]);
+    const productsById = new Map(
+      productRows.map((product) => [product.id, product] as const),
+    );
+    const productsBySku = new Map<string, typeof productRows>();
+    for (const product of productRows) {
+      const sku = normalizeSku(product.sku);
+      if (sku) {
+        productsBySku.set(sku, [...(productsBySku.get(sku) ?? []), product]);
+      }
+    }
+    const externalProductsById = new Map(
+      externalProductRows.map(
+        (product) => [product.externalProductId, product] as const,
+      ),
+    );
+    const imagesByProductId = new Map<string, typeof imageRows>();
+    for (const image of imageRows) {
+      imagesByProductId.set(image.productId, [
+        ...(imagesByProductId.get(image.productId) ?? []),
+        image,
+      ]);
+    }
+
+    const result: MarketplaceCatalogImportResult = {
+      conflicts: [],
+      created: 0,
+      errors: [],
+      found: catalogProducts.length,
+      unchanged: 0,
+      updated: 0,
+    };
+
+    for (const catalogProduct of catalogProducts) {
+      const externalProduct = externalProductsById.get(
+        catalogProduct.externalProductId,
+      );
+      let matchedProduct = externalProduct?.linkedProductId
+        ? productsById.get(externalProduct.linkedProductId)
+        : undefined;
+
+      if (!matchedProduct) {
+        const skuMatches =
+          productsBySku.get(normalizeSku(catalogProduct.sku) ?? "") ?? [];
+        if (skuMatches.length > 1) {
+          result.conflicts.push({
+            externalProductId: catalogProduct.externalProductId,
+            message: `SKU "${catalogProduct.sku}" corresponde a mais de um produto interno`,
+            sku: catalogProduct.sku,
+          });
+          continue;
+        }
+        matchedProduct = skuMatches[0];
+      }
+
+      try {
+        const existingProviderImages = matchedProduct
+          ? (imagesByProductId.get(matchedProduct.id) ?? [])
+              .filter((image) => image.source === context.providerSlug)
+              .sort((left, right) => left.position - right.position)
+              .map((image) => image.url)
+          : [];
+        const productChanged =
+          !matchedProduct ||
+          matchedProduct.name !== catalogProduct.title ||
+          normalizeSku(matchedProduct.sku) !==
+            normalizeSku(catalogProduct.sku) ||
+          String(matchedProduct.sellingPrice) !== catalogProduct.sellingPrice ||
+          matchedProduct.isActive !== catalogProduct.isActive;
+        const imagesChanged =
+          existingProviderImages.length !== catalogProduct.images.length ||
+          existingProviderImages.some(
+            (image, index) => image !== catalogProduct.images[index],
+          );
+
+        const storedProduct = await this.db.transaction(async (tx) => {
+          let product = matchedProduct;
+
+          if (!product) {
+            [product] = await tx
+              .insert(products)
+              .values({
+                isActive: catalogProduct.isActive,
+                companyId: context.companyId,
+                name: catalogProduct.title,
+                organizationId: context.organizationId,
+                sellingPrice: catalogProduct.sellingPrice,
+                sku: normalizeSku(catalogProduct.sku),
+              })
+              .returning();
+          } else if (productChanged) {
+            [product] = await tx
+              .update(products)
+              .set({
+                isActive: catalogProduct.isActive,
+                name: catalogProduct.title,
+                sellingPrice: catalogProduct.sellingPrice,
+                sku: normalizeSku(catalogProduct.sku),
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(products.id, product.id),
+                  eq(products.organizationId, context.organizationId),
+                ),
+              )
+              .returning();
+          }
+
+          await tx
+            .insert(externalProducts)
+            .values({
+              externalProductId: catalogProduct.externalProductId,
+              linkedProductId: product.id,
+              companyId: context.companyId,
+              marketplaceConnectionId: connection.id,
+              metadata: catalogProduct.metadata,
+              organizationId: context.organizationId,
+              provider: context.providerSlug,
+              reviewStatus: matchedProduct
+                ? "linked_to_existing_product"
+                : "imported_as_internal_product",
+              sku: catalogProduct.sku,
+              title: catalogProduct.title,
+            })
+            .onConflictDoUpdate({
+              set: {
+                linkedProductId: product.id,
+                marketplaceConnectionId: connection.id,
+                metadata: catalogProduct.metadata,
+                reviewStatus: matchedProduct
+                  ? "linked_to_existing_product"
+                  : "imported_as_internal_product",
+                sku: catalogProduct.sku,
+                title: catalogProduct.title,
+                updatedAt: new Date(),
+              },
+              target: [
+                externalProducts.organizationId,
+                externalProducts.companyId,
+                externalProducts.provider,
+                externalProducts.externalProductId,
+              ],
+            })
+            .returning({ id: externalProducts.id });
+
+          if (imagesChanged) {
+            await tx
+              .delete(productImages)
+              .where(
+                and(
+                  eq(productImages.productId, product.id),
+                  eq(productImages.source, context.providerSlug),
+                ),
+              );
+
+            if (catalogProduct.images.length > 0) {
+              await tx.insert(productImages).values(
+                catalogProduct.images.map((url, position) => ({
+                  externalIdentifier: `${catalogProduct.externalProductId}:${position}`,
+                  organizationId: context.organizationId,
+                  position,
+                  productId: product.id,
+                  source: context.providerSlug,
+                  url,
+                })),
+              );
+            }
+          }
+
+          return product;
+        });
+
+        productsById.set(storedProduct.id, storedProduct);
+        productsBySku.set(normalizeSku(storedProduct.sku) ?? "", [
+          storedProduct,
+        ]);
+        externalProductsById.set(catalogProduct.externalProductId, {
+          ...externalProduct,
+          externalProductId: catalogProduct.externalProductId,
+          linkedProductId: storedProduct.id,
+        } as (typeof externalProductRows)[number]);
+        const preservedImages = (
+          imagesByProductId.get(storedProduct.id) ?? []
+        ).filter((image) => image.source !== context.providerSlug);
+        imagesByProductId.set(storedProduct.id, [
+          ...preservedImages,
+          ...(catalogProduct.images.map((url, position) => ({
+            externalIdentifier: `${catalogProduct.externalProductId}:${position}`,
+            position,
+            productId: storedProduct.id,
+            source: context.providerSlug,
+            url,
+          })) as typeof imageRows),
+        ]);
+
+        if (!matchedProduct) {
+          result.created += 1;
+        } else if (productChanged || imagesChanged) {
+          result.updated += 1;
+        } else {
+          result.unchanged += 1;
+        }
+      } catch (error) {
+        result.errors.push({
+          externalProductId: catalogProduct.externalProductId,
+          message:
+            error instanceof Error
+              ? error.message
+              : "Falha desconhecida ao importar produto",
+          sku: catalogProduct.sku,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  async handleSheinNotification(body: SheinNotification) {
+    return this.syncService.handleSheinNotification({
+      event: body.event,
+      orderId: body.order_id,
+      sellerId: body.seller_id ?? body.shop_id,
+      timestamp: body.timestamp,
     });
   }
 
@@ -837,7 +1232,7 @@ export class IntegrationsService {
         isActive: true,
         name:
           externalProduct.title?.trim() ||
-          `Produto Mercado Livre ${externalProduct.externalProductId}`,
+          `Produto ${this.getProvider(providerSlug).displayName} ${externalProduct.externalProductId}`,
         sellingPrice,
         sku: externalProduct.sku,
       },
@@ -1005,7 +1400,11 @@ export class IntegrationsService {
   }
 
   private assertSyncProductProvider(providerSlug: IntegrationProviderSlug) {
-    if (providerSlug !== "mercadolivre" && providerSlug !== "shopee") {
+    if (
+      providerSlug !== "mercadolivre" &&
+      providerSlug !== "shopee" &&
+      providerSlug !== "shein"
+    ) {
       throw new BadRequestException(
         "Marketplace não suporta produtos sincronizados",
       );

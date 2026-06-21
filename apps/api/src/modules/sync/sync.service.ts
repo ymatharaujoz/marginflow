@@ -219,6 +219,13 @@ type ShopeeNotificationInput = {
   timestamp?: number;
 };
 
+type SheinNotificationInput = {
+  event?: string;
+  orderId?: string | number;
+  sellerId?: string | number;
+  timestamp?: number;
+};
+
 @Injectable()
 export class SyncService {
   private readonly providers: IntegrationProvider[];
@@ -449,6 +456,70 @@ export class SyncService {
       companyId: connection.companyId,
       organizationId: connection.organizationId,
       providerSlug: "shopee",
+      triggerMetadata: { notification: summary },
+      triggerOrigin: "automatic",
+      userId: null,
+    });
+
+    return { accepted: true, reason: "started", status: "started", summary };
+  }
+
+  async handleSheinNotification(input: SheinNotificationInput): Promise<MercadoLivreNotificationResult> {
+    const sellerId =
+      input.sellerId !== undefined && input.sellerId !== null ? String(input.sellerId).trim() : null;
+    const orderId =
+      input.orderId !== undefined && input.orderId !== null ? String(input.orderId).trim() : null;
+    const event = input.event?.trim().toLowerCase() ?? "";
+    const summary: SyncTriggerSummary = {
+      applicationId: null,
+      attempts: null,
+      notificationId: orderId,
+      resource: orderId ? `/orders/${orderId}` : null,
+      sent: input.timestamp ? new Date(input.timestamp * 1000).toISOString() : null,
+      topic: event ? `shein:${event}` : "shein",
+      userId: sellerId,
+    };
+    const provider = this.getProvider("shein");
+
+    if (!sellerId) {
+      return { accepted: true, reason: "missing_user_id", status: "ignored", summary };
+    }
+    if (!orderId || !event.includes("order")) {
+      return { accepted: true, reason: "ignored_topic", status: "ignored", summary };
+    }
+    if (!provider.isConfigured()) {
+      return { accepted: true, reason: "provider_unavailable", status: "ignored", summary };
+    }
+    if (!provider.supportsSync()) {
+      return { accepted: true, reason: "provider_unsupported", status: "ignored", summary };
+    }
+
+    const connection = await this.findConnectionByExternalAccountId("shein", sellerId);
+    if (!connection || connection.status !== "connected" || !connection.accessToken) {
+      return { accepted: true, reason: "connection_not_found", status: "ignored", summary };
+    }
+
+    const activeRun = await this.findLatestRun(
+      connection.organizationId,
+      connection.companyId,
+      "shein",
+      "processing",
+    );
+    if (activeRun) {
+      await this.markAutomaticRerunPending(connection.id, summary);
+      return {
+        accepted: true,
+        reason: "active_run_pending_rerun",
+        status: "rerun_marked",
+        summary,
+      };
+    }
+
+    await this.executeSync({
+      connection,
+      companyId: connection.companyId,
+      organizationId: connection.organizationId,
+      providerSlug: "shein",
       triggerMetadata: { notification: summary },
       triggerOrigin: "automatic",
       userId: null,
@@ -1089,7 +1160,11 @@ export class SyncService {
   }
 
   private isRealtimeProvider(providerSlug: IntegrationProviderSlug) {
-    return providerSlug === "mercadolivre" || providerSlug === "shopee";
+    return (
+      providerSlug === "mercadolivre" ||
+      providerSlug === "shopee" ||
+      providerSlug === "shein"
+    );
   }
 
   private async findLatestRun(

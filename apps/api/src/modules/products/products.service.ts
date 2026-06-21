@@ -1331,7 +1331,7 @@ export class ProductsService {
 
     const syncedProducts = (
       await Promise.all(
-        (["mercadolivre", "shopee"] as const).map((providerSlug) =>
+        (["mercadolivre", "shopee", "shein"] as const).map((providerSlug) =>
           listSyncedProductsReadModel({
             companyId: scope.companyId ?? undefined,
             db: this.db,

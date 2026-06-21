@@ -133,7 +133,7 @@ describe("ProductDetailsModal", () => {
     view.unmount();
   });
 
-  it("reuses the child commission value and derives net revenue as FATURAMENTO - (COMISSÃO MELI × VENDAS) for a parent row with variations", () => {
+  it("derives net revenue as FATURAMENTO - COMISSÃO MELI (composition value) for a parent row with variations", () => {
     const child = buildRow({
       id: "child-1",
       netLiquidSales: 1,
@@ -169,7 +169,7 @@ describe("ProductDetailsModal", () => {
 
     const overviewText = normalizedTextContent();
 
-    expect(overviewText).toContain("R$ 77,44");
+    expect(overviewText).toContain("R$ 109,06");
 
     view2.unmount();
   });
@@ -188,7 +188,7 @@ describe("ProductDetailsModal", () => {
     view.unmount();
   });
 
-  it("calculates net revenue by multiplying unit commission when it does not exceed revenue", () => {
+  it("calculates net revenue as FATURAMENTO - COMISSÃO MELI regardless of unit/total ambiguity", () => {
     const row = buildRow({ totalCommission: 10.54 });
     const view = renderWithClient(
       <ProductDetailsModal onClose={() => {}} open row={row} />,
@@ -197,7 +197,7 @@ describe("ProductDetailsModal", () => {
     const text = normalizedTextContent();
 
     expect(text).toContain("Receita Líquida");
-    expect(text).toContain("R$ 58,08");
+    expect(text).toContain("R$ 79,16");
 
     view.unmount();
   });

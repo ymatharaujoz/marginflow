@@ -105,6 +105,7 @@ export function DashboardHome({ activeCompany, companyName }: DashboardHomeProps
           [null, "Todos"],
           ["mercadolivre", "Mercado Livre"],
           ["shopee", "Shopee"],
+          ["shein", "Shein"],
         ] as const).map(([provider, label]) => (
           <button
             key={provider ?? "all"}

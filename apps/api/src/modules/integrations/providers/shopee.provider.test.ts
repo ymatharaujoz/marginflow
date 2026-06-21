@@ -227,4 +227,109 @@ describe("ShopeeProvider", () => {
       expect.objectContaining({ externalProductId: "101", sku: "SKU-1" }),
     );
   });
+
+  it("imports Shopee catalog products with model-level SKUs, prices, status, and images", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_718_184_000_000);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            response: {
+              has_next_page: false,
+              item: [{ item_id: 101, item_status: "NORMAL" }],
+              next_offset: 0,
+            },
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            response: {
+              item_list: [
+                {
+                  image: {
+                    image_id_list: ["img-1", "img-2"],
+                    image_url_list: [
+                      "https://cf.shopee.com.br/file/img-1",
+                      "https://cf.shopee.com.br/file/img-2",
+                    ],
+                  },
+                  item_id: 101,
+                  item_name: "Camiseta Shopee",
+                  item_sku: "SKU-PAI",
+                  item_status: "NORMAL",
+                  price_info: [{ current_price: 89.9 }],
+                  has_model: true,
+                },
+              ],
+            },
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            response: {
+              has_next_page: false,
+              model: [
+                {
+                  model_id: 501,
+                  model_name: "Azul",
+                  model_sku: "SKU-AZUL",
+                  price_info: [{ current_price: 99.9 }],
+                  stock_info_v2: { seller_stock: [{ stock_location_id: "loc-1", stock: 4 }] },
+                },
+                {
+                  model_id: 502,
+                  model_name: "Preta",
+                  model_sku: "SKU-PRETA",
+                  price_info: [{ current_price: 109.9 }],
+                  stock_info_v2: { seller_stock: [{ stock_location_id: "loc-1", stock: 0 }] },
+                },
+              ],
+              next_offset: 0,
+            },
+          }),
+          { headers: { "content-type": "application/json" }, status: 200 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+    const provider = new ShopeeProvider(createEnv());
+
+    const result = await provider.importCatalog!({
+      connection: createConnection() as never,
+      organizationId: "org_1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[0]?.[0].toString()).toContain("/api/v2/product/get_item_list");
+    expect(fetchMock.mock.calls[1]?.[0].toString()).toContain(
+      "/api/v2/product/get_item_base_info",
+    );
+    expect(fetchMock.mock.calls[2]?.[0].toString()).toContain("/api/v2/product/get_model_list");
+    expect(result).toEqual([
+      expect.objectContaining({
+        externalProductId: "101:501",
+        images: [
+          "https://cf.shopee.com.br/file/img-1",
+          "https://cf.shopee.com.br/file/img-2",
+        ],
+        isActive: true,
+        sellingPrice: "99.90",
+        sku: "SKU-AZUL",
+        title: "Camiseta Shopee - Azul",
+      }),
+      expect.objectContaining({
+        externalProductId: "101:502",
+        isActive: false,
+        sellingPrice: "109.90",
+        sku: "SKU-PRETA",
+        title: "Camiseta Shopee - Preta",
+      }),
+    ]);
+  });
 });

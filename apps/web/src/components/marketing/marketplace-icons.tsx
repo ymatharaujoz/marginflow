@@ -87,7 +87,7 @@ export function TiktokIcon({ className = "h-12 w-12" }: { className?: string }) 
 }
 
 // ==========================================
-// SHEIN — official mark (public/icons/shein-icon.svg)
+// Shein — official mark (public/icons/shein-icon.svg)
 // ==========================================
 export function SheinIcon({ className = "h-12 w-12" }: { className?: string }) {
   const { src } = useSheinThemeIcon();

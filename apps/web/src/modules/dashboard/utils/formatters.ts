@@ -53,6 +53,7 @@ export function formatMetricDate(value: string) {
 const providerLabels: Record<string, string> = {
   mercadolivre: "Mercado Livre",
   shopee: "Shopee",
+  shein: "Shein",
 };
 
 export function formatProviderLabel(value: string) {

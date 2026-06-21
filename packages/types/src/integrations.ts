@@ -1,4 +1,4 @@
-export type IntegrationProviderSlug = "mercadolivre" | "shopee";
+export type IntegrationProviderSlug = "mercadolivre" | "shopee" | "shein";
 
 export type IntegrationConnectionStatus =
   | "connected"

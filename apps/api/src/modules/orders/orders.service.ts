@@ -175,7 +175,7 @@ function toOrderListItem(order: OrderRow): OrderListItem {
     orderDate: toDateOnly(order.orderedAt),
     orderId: order.externalOrderId,
     orderedAt: toIsoString(order.orderedAt),
-    provider: order.provider as "mercadolivre" | "shopee",
+    provider: order.provider as "mercadolivre" | "shopee" | "shein",
     shippingAmount: shippingAmount.toFixed(2),
     tariffAmount: tariffAmount.toFixed(2),
     status: order.status,

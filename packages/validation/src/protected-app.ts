@@ -42,7 +42,7 @@ function isoDateTimeField(label: string) {
     .min(1, `${label} must be a non-empty ISO date time.`);
 }
 
-const integrationProviderSchema = z.enum(["mercadolivre", "shopee"]);
+const integrationProviderSchema = z.enum(["mercadolivre", "shopee", "shein"]);
 const onboardingStatusSchema = z.enum(["complete", "organization_missing"]);
 const billingStateStatusSchema = z.enum([
   "active",

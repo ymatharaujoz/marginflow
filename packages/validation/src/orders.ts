@@ -28,7 +28,7 @@ function isoDateTimeField(label: string) {
     .min(1, `${label} must be a non-empty ISO date time.`);
 }
 
-const integrationProviderSchema = z.enum(["mercadolivre", "shopee"]);
+const integrationProviderSchema = z.enum(["mercadolivre", "shopee", "shein"]);
 
 export const orderListFiltersSchema = z.object({
   page: z.coerce.number().int().min(1).optional(),

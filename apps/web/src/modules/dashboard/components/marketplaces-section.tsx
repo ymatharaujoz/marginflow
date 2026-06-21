@@ -33,6 +33,13 @@ const marketplaceIcons = {
       className="h-8 w-auto"
     />
   ),
+  shein: (
+    <img
+      src="/icons/shein-icon.svg"
+      alt="Shein"
+      className="h-8 w-auto"
+    />
+  ),
 };
 
 function getMarketplaceStatus(recentSync?: DashboardRecentSyncResponse) {
@@ -64,10 +71,12 @@ export function MarketplacesSection({
 }: MarketplacesSectionProps) {
   const mlChannel = data?.channels.find((channel) => channel.channel.toLowerCase().includes("mercado"));
   const shopeeChannel = data?.channels.find((channel) => channel.channel.toLowerCase() === "shopee");
+  const sheinChannel = data?.channels.find((channel) => channel.channel.toLowerCase() === "shein");
   const statusByProvider = useMemo(
     () => ({
       mercadolivre: getMarketplaceStatus(syncStatusByProvider.mercadolivre),
       shopee: getMarketplaceStatus(syncStatusByProvider.shopee),
+      shein: getMarketplaceStatus(syncStatusByProvider.shein),
     }),
     [syncStatusByProvider],
   );
@@ -88,6 +97,14 @@ export function MarketplacesSection({
       status: statusByProvider.shopee,
       revenue: shopeeChannel ? formatMoney(shopeeChannel.grossRevenue) : undefined,
       orders: shopeeChannel?.unitsSold,
+    },
+    {
+      id: "shein",
+      name: "Shein",
+      slug: "shein" as const,
+      status: statusByProvider.shein,
+      revenue: sheinChannel ? formatMoney(sheinChannel.grossRevenue) : undefined,
+      orders: sheinChannel?.unitsSold,
     },
   ];
 

@@ -32,11 +32,13 @@ const STATUS_OPTIONS = [
 const PROVIDER_FILTER_OPTIONS: { value: IntegrationProviderSlug; label: string }[] = [
   { value: "mercadolivre", label: "Mercado Livre" },
   { value: "shopee", label: "Shopee" },
+  { value: "shein", label: "Shein" },
 ];
 
 const PROVIDER_LABELS: Record<IntegrationProviderSlug, string> = {
   mercadolivre: "Mercado Livre",
   shopee: "Shopee",
+  shein: "Shein",
 };
 
 type SortKey =
@@ -140,6 +142,17 @@ function getProviderBadge(provider: string) {
         style={{ backgroundColor: "#fa5230", color: "#ffffff" }}
       >
         SHPE
+      </Badge>
+    );
+  }
+
+  if (normalized === "shein") {
+    return (
+      <Badge
+        className="border-transparent"
+        style={{ backgroundColor: "#111111", color: "#ffffff" }}
+      >
+        Shein
       </Badge>
     );
   }
