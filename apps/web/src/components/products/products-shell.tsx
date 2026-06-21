@@ -26,6 +26,7 @@ import type {
   ManualExpenseFormValues,
   ManualExpenseRecord,
   IntegrationConnectionRecord,
+  IntegrationProviderSlug,
   MarketplaceCatalogImportResult,
   ProductCostFormValues,
   ProductCostRecord,
@@ -72,6 +73,53 @@ const initialManualProductForm: ManualProductFormState = {
   sellingPrice: "",
   sku: "",
   unitCost: "",
+};
+
+const marketplaceImportMeta: Record<
+  IntegrationProviderSlug,
+  {
+    catalogLabel: string;
+    confirmationBullets: string[];
+    importDescription: string;
+    resultErrorMessage: string;
+  }
+> = {
+  mercadolivre: {
+    catalogLabel: "Mercado Livre",
+    confirmationBullets: [
+      "Anúncios ativos e pausados serão importados.",
+      "Produtos com SKU existente serão vinculados e atualizados.",
+      "Variações viram itens separados.",
+      "As fotos permanecem hospedadas pelo Mercado Livre.",
+    ],
+    importDescription:
+      "Importa anúncios ativos e pausados, variações, preços e fotos sem duplicar produtos.",
+    resultErrorMessage: "Erro ao importar catalogo do Mercado Livre.",
+  },
+  shopee: {
+    catalogLabel: "Shopee",
+    confirmationBullets: [
+      "Produtos ativos e deslistados elegíveis serão importados.",
+      "Modelos e variações viram itens separados.",
+      "Produtos com SKU existente serão vinculados e atualizados.",
+      "As fotos permanecem hospedadas pela Shopee.",
+    ],
+    importDescription:
+      "Importa produtos, modelos, preços, status e fotos da Shopee para o catálogo.",
+    resultErrorMessage: "Erro ao importar catalogo da Shopee.",
+  },
+  shein: {
+    catalogLabel: "Shein",
+    confirmationBullets: [
+      "Produtos elegíveis da Shein serão importados.",
+      "Produtos com SKU existente serão vinculados e atualizados.",
+      "Variações e modelos viram itens separados quando disponíveis.",
+      "As fotos permanecem hospedadas pela Shein.",
+    ],
+    importDescription:
+      "Importa produtos, variações, preços, status e fotos da Shein para o catálogo.",
+    resultErrorMessage: "Erro ao importar catalogo da Shein.",
+  },
 };
 
 
@@ -381,8 +429,11 @@ export function ProductsShell({
   ] = useState(false);
   const [showMercadoLivreConfirmation, setShowMercadoLivreConfirmation] =
     useState(false);
-  const [mercadoLivreConnection, setMercadoLivreConnection] =
-    useState<IntegrationConnectionRecord | null>(null);
+  const [marketplaceConnections, setMarketplaceConnections] = useState<
+    IntegrationConnectionRecord[]
+  >([]);
+  const [selectedMarketplaceImportProvider, setSelectedMarketplaceImportProvider] =
+    useState<IntegrationProviderSlug | null>(null);
   const [marketplaceImportResult, setMarketplaceImportResult] =
     useState<MarketplaceCatalogImportResult | null>(null);
   const [importResult, setImportResult] = useState<{
@@ -685,21 +736,25 @@ export function ProductsShell({
       setCriticalFeedback(error, "Nao foi possivel consultar as integracoes.");
     },
     onSuccess: (response) => {
-      setMercadoLivreConnection(
-        response.data.find(
-          (connection) => connection.provider === "mercadolivre",
-        ) ?? null,
-      );
+      setMarketplaceConnections(response.data);
     },
   });
 
   const marketplaceCatalogImportMutation = useMutation({
-    mutationFn: () =>
-      apiClient.post<{ data: MarketplaceCatalogImportResult; error: null }>(
-        "/integrations/mercadolivre/catalog/import",
-      ),
+    mutationFn: () => {
+      if (!selectedMarketplaceImportProvider) {
+        throw new Error("Provider de importacao nao selecionado.");
+      }
+
+      return apiClient.post<{ data: MarketplaceCatalogImportResult; error: null }>(
+        `/integrations/${selectedMarketplaceImportProvider}/catalog/import`,
+      );
+    },
     onError: (error) => {
       setShowMercadoLivreConfirmation(false);
+      const providerMeta = selectedMarketplaceImportProvider
+        ? marketplaceImportMeta[selectedMarketplaceImportProvider]
+        : null;
       setMarketplaceImportResult({
         conflicts: [],
         created: 0,
@@ -709,7 +764,7 @@ export function ProductsShell({
             message:
               error instanceof ApiClientError
                 ? error.message
-                : "Erro ao importar catalogo do Mercado Livre.",
+                : providerMeta?.resultErrorMessage ?? "Erro ao importar catalogo do marketplace.",
             sku: "",
           },
         ],
@@ -730,6 +785,20 @@ export function ProductsShell({
     setShowImportInstructionsModal(true);
     importSourcesMutation.mutate();
   }, [blockCatalogCreationIfCompanyRuleFails, importSourcesMutation]);
+
+  const mercadoLivreConnection =
+    marketplaceConnections.find(
+      (connection) => connection.provider === "mercadolivre",
+    ) ?? null;
+  const shopeeConnection =
+    marketplaceConnections.find((connection) => connection.provider === "shopee") ??
+    null;
+  const sheinConnection =
+    marketplaceConnections.find((connection) => connection.provider === "shein") ??
+    null;
+  const selectedMarketplaceMeta = selectedMarketplaceImportProvider
+    ? marketplaceImportMeta[selectedMarketplaceImportProvider]
+    : null;
 
   const handleAddProduct = useCallback(
     (_context?: { companyId: string | null; referenceMonth: string }) => {
@@ -1470,10 +1539,11 @@ export function ProductsShell({
                 icon={<Store className="h-5 w-5 text-warning" />}
                 iconBgClass="bg-warning/10 ring-warning/20"
                 title="Mercado Livre"
-                description="Importa anúncios ativos e pausados, variações, preços e fotos sem duplicar produtos."
+                description={marketplaceImportMeta.mercadolivre.importDescription}
                 disabled={importSourcesMutation.isPending}
                 onClick={() => {
                   if (mercadoLivreConnection?.status === "connected") {
+                    setSelectedMarketplaceImportProvider("mercadolivre");
                     setShowImportInstructionsModal(false);
                     setShowMercadoLivreConfirmation(true);
                     return;
@@ -1499,6 +1569,72 @@ export function ProductsShell({
               />
               <ImportOptionCard
                 index={1}
+                icon={<Store className="h-5 w-5 text-accent" />}
+                iconBgClass="bg-accent/10 ring-accent/20"
+                title="Shopee"
+                description={marketplaceImportMeta.shopee.importDescription}
+                disabled={importSourcesMutation.isPending}
+                onClick={() => {
+                  if (shopeeConnection?.status === "connected") {
+                    setSelectedMarketplaceImportProvider("shopee");
+                    setShowImportInstructionsModal(false);
+                    setShowMercadoLivreConfirmation(true);
+                    return;
+                  }
+                  setShowImportInstructionsModal(false);
+                  router.push("/app/integrations");
+                }}
+                badge={
+                  <Badge
+                    variant={
+                      shopeeConnection?.status === "connected"
+                        ? "success"
+                        : "neutral"
+                    }
+                  >
+                    {importSourcesMutation.isPending
+                      ? "Consultando"
+                      : shopeeConnection?.status === "connected"
+                        ? "Conectado"
+                        : "Conectar"}
+                  </Badge>
+                }
+              />
+              <ImportOptionCard
+                index={2}
+                icon={<Store className="h-5 w-5 text-accent" />}
+                iconBgClass="bg-accent/10 ring-accent/20"
+                title="Shein"
+                description={marketplaceImportMeta.shein.importDescription}
+                disabled={importSourcesMutation.isPending}
+                onClick={() => {
+                  if (sheinConnection?.status === "connected") {
+                    setSelectedMarketplaceImportProvider("shein");
+                    setShowImportInstructionsModal(false);
+                    setShowMercadoLivreConfirmation(true);
+                    return;
+                  }
+                  setShowImportInstructionsModal(false);
+                  router.push("/app/integrations");
+                }}
+                badge={
+                  <Badge
+                    variant={
+                      sheinConnection?.status === "connected"
+                        ? "success"
+                        : "neutral"
+                    }
+                  >
+                    {importSourcesMutation.isPending
+                      ? "Consultando"
+                      : sheinConnection?.status === "connected"
+                        ? "Conectado"
+                        : "Conectar"}
+                  </Badge>
+                }
+              />
+              <ImportOptionCard
+                index={3}
                 icon={<FileSpreadsheet className="h-5 w-5 text-accent" />}
                 iconBgClass="bg-accent/10 ring-accent/20"
                 title="Planilha Excel"
@@ -1610,7 +1746,7 @@ export function ProductsShell({
             }
           }}
           open={showMercadoLivreConfirmation}
-          title="Importar do Mercado Livre"
+          title={`Importar de ${selectedMarketplaceMeta?.catalogLabel ?? "marketplace"}`}
         >
           <motion.div
             initial={{ opacity: 0 }}
@@ -1624,12 +1760,7 @@ export function ProductsShell({
               description="Confirme para iniciar a importação do catálogo."
             >
               <div className="space-y-2.5 rounded-[var(--radius-lg)] bg-surface-strong/50 p-4">
-                {[
-                  "Anúncios ativos e pausados serão importados.",
-                  "Produtos com SKU existente serão vinculados e atualizados.",
-                  "Variações viram itens separados.",
-                  "As fotos permanecem hospedadas pelo Mercado Livre.",
-                ].map((item, idx) => (
+                {(selectedMarketplaceMeta?.confirmationBullets ?? []).map((item, idx) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, x: -8 }}
@@ -1766,7 +1897,7 @@ export function ProductsShell({
                   className="mt-1.5 text-sm text-muted-foreground"
                 >
                   {marketplaceImportResult.found} produto
-                  {marketplaceImportResult.found !== 1 ? "s" : ""} do Mercado Livre
+                  {marketplaceImportResult.found !== 1 ? "s" : ""} do {selectedMarketplaceMeta?.catalogLabel ?? "marketplace"}
                   processado{marketplaceImportResult.found !== 1 ? "s" : ""}
                 </motion.p>
               </motion.div>

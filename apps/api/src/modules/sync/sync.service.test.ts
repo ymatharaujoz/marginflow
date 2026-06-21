@@ -250,6 +250,62 @@ describe("SyncService", () => {
     expect(status.availability.currentWindowKey).toBeNull();
   });
 
+  it("keeps Shein manual sync available without daily windows", async () => {
+    vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
+    const { db, service } = createService({ SYNC_RELAX_GUARDS: true, NODE_ENV: "production" });
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        createAuthorization: vi.fn(),
+        disconnect: vi.fn(),
+        displayName: "Shein",
+        exchangeCode: vi.fn(),
+        isConfigured: () => true,
+        provider: "shein" as const,
+        supportsSync: () => true,
+        syncOrders: vi.fn(),
+      },
+    ];
+
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      createdAt: new Date("2026-05-01T11:00:00.000Z"),
+      externalAccountId: "seller_123",
+      id: "conn_123",
+      lastSyncedAt: new Date("2026-05-01T12:05:00.000Z"),
+      metadata: {},
+      companyId: "company_123",
+      organizationId: "org_123",
+      provider: "shein",
+      refreshToken: "refresh",
+      status: "connected",
+      tokenExpiresAt: new Date("2026-05-03T11:00:00.000Z"),
+      updatedAt: new Date("2026-05-01T11:00:00.000Z"),
+    });
+    db.query.syncRuns.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        createdAt: new Date("2026-05-01T12:05:00.000Z"),
+        errorSummary: null,
+        finishedAt: new Date("2026-05-01T12:05:00.000Z"),
+        id: "sync_123",
+        marketplaceConnectionId: "conn_123",
+        metadata: {},
+        companyId: "company_123",
+        organizationId: "org_123",
+        provider: "shein",
+        startedAt: new Date("2026-05-01T12:01:00.000Z"),
+        status: "completed",
+        updatedAt: new Date("2026-05-01T12:05:00.000Z"),
+        windowKey: "2026-05-01:morning",
+      });
+
+    const status = await service.getStatus("org_123", "company_123", "shein");
+
+    expect(status.availability.canRun).toBe(true);
+    expect(status.availability.reason).toBe("available");
+    expect(status.availability.currentWindowKey).toBeNull();
+  });
+
   it("runs a sync, stores imported data, and materializes finance metrics", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
     const { db, financeService, service, syncPerformanceMaterializer } = createService();

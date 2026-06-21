@@ -2080,7 +2080,7 @@ describe("ProductsService", () => {
         taxAmount: "18.00",
       }),
     ]);
-    expect(listSyncedProductsReadModel).toHaveBeenCalledTimes(2);
+    expect(listSyncedProductsReadModel).toHaveBeenCalledTimes(3);
     expect(listSyncedProductsReadModel).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
@@ -2089,6 +2089,12 @@ describe("ProductsService", () => {
     );
     expect(listSyncedProductsReadModel).toHaveBeenNthCalledWith(
       2,
+      expect.objectContaining({
+        companyId: "22222222-2222-4222-8222-222222222222",
+      }),
+    );
+    expect(listSyncedProductsReadModel).toHaveBeenNthCalledWith(
+      3,
       expect.objectContaining({
         companyId: "22222222-2222-4222-8222-222222222222",
       }),

@@ -8,10 +8,10 @@ import { DashboardService } from "./dashboard.service";
 
 class DashboardProviderQueryDto {
   static schema = z.object({
-    provider: z.enum(["mercadolivre", "shopee"]).optional(),
+    provider: z.enum(["mercadolivre", "shopee", "shein"]).optional(),
   });
 
-  provider?: "mercadolivre" | "shopee";
+  provider?: "mercadolivre" | "shopee" | "shein";
 }
 
 @Controller("dashboard")

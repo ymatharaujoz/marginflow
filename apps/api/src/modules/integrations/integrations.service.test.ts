@@ -119,6 +119,12 @@ describe("IntegrationsService", () => {
         provider: "shopee",
         status: "unavailable",
       }),
+      expect.objectContaining({
+        connectAvailable: false,
+        displayName: "Shein",
+        provider: "shein",
+        status: "unavailable",
+      }),
     ]);
   });
 
@@ -194,9 +200,10 @@ describe("IntegrationsService", () => {
     );
 
     await expect(
-      service.importMercadoLivreCatalog({
+      service.importMarketplaceCatalog({
         companyId: "company-1",
         organizationId: "org-1",
+        providerSlug: "mercadolivre",
         userId: "user-1",
       }),
     ).resolves.toEqual({
@@ -246,9 +253,10 @@ describe("IntegrationsService", () => {
     db.query.externalProducts.findMany.mockResolvedValue([]);
     db.query.productImages.findMany.mockResolvedValue([]);
 
-    const result = await service.importMercadoLivreCatalog({
+    const result = await service.importMarketplaceCatalog({
       companyId: "company-1",
       organizationId: "org-1",
+      providerSlug: "mercadolivre",
       userId: "user-1",
     });
 
@@ -326,9 +334,10 @@ describe("IntegrationsService", () => {
       async (callback: (transaction: typeof tx) => unknown) => callback(tx),
     );
 
-    const result = await service.importMercadoLivreCatalog({
+    const result = await service.importMarketplaceCatalog({
       companyId: "company-1",
       organizationId: "org-1",
+      providerSlug: "mercadolivre",
       userId: "user-1",
     });
 
@@ -337,6 +346,94 @@ describe("IntegrationsService", () => {
     expect(result.updated).toBe(0);
     expect(tx.update).not.toHaveBeenCalled();
     expect(tx.delete).not.toHaveBeenCalled();
+  });
+
+  it("imports Shopee catalog products using provider-specific image source and fallback labels", async () => {
+    const { db, service } = createService();
+    const catalogProduct = {
+      externalProductId: "101:501",
+      images: ["https://cf.shopee.com.br/file/img-1"],
+      isActive: true,
+      metadata: { itemId: 101, modelId: 501 },
+      sellingPrice: "99.90",
+      sku: "SKU-SHOPEE-1",
+      title: "Produto Shopee",
+    };
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        displayName: "Shopee",
+        importCatalog: vi.fn().mockResolvedValue([catalogProduct]),
+        isConfigured: () => true,
+        provider: "shopee",
+      },
+    ];
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      externalAccountId: "shop-1",
+      id: "connection-1",
+      organizationId: "org-1",
+      provider: "shopee",
+      refreshToken: "refresh",
+      status: "connected",
+      tokenExpiresAt: null,
+    });
+    db.query.products.findMany.mockResolvedValue([]);
+    db.query.externalProducts.findMany.mockResolvedValue([]);
+    db.query.productImages.findMany.mockResolvedValue([]);
+
+    const insertedProduct = {
+      createdAt: new Date("2026-06-21T10:00:00.000Z"),
+      id: "product-1",
+      isActive: true,
+      name: catalogProduct.title,
+      organizationId: "org-1",
+      sellingPrice: catalogProduct.sellingPrice,
+      sku: catalogProduct.sku,
+      updatedAt: new Date("2026-06-21T10:00:00.000Z"),
+    };
+    const tx = {
+      delete: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+      insert: vi
+        .fn()
+        .mockReturnValueOnce({
+          values: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([insertedProduct]),
+          }),
+        })
+        .mockReturnValueOnce({
+          values: vi.fn().mockReturnValue({
+            onConflictDoUpdate: vi.fn().mockReturnValue({
+              returning: vi.fn().mockResolvedValue([{ id: "external-1" }]),
+            }),
+          }),
+        })
+        .mockReturnValueOnce({
+          values: vi.fn().mockResolvedValue(undefined),
+        }),
+      update: vi.fn(),
+    };
+    db.transaction.mockImplementation(
+      async (callback: (transaction: typeof tx) => unknown) => callback(tx),
+    );
+
+    const result = await service.importMarketplaceCatalog({
+      companyId: "company-1",
+      organizationId: "org-1",
+      providerSlug: "shopee",
+      userId: "user-1",
+    });
+
+    expect(result).toEqual({
+      conflicts: [],
+      created: 1,
+      errors: [],
+      found: 1,
+      unchanged: 0,
+      updated: 0,
+    });
+    expect(tx.insert).toHaveBeenCalledTimes(3);
   });
 
   it("creates the Mercado Livre authorization URL for the organization", async () => {

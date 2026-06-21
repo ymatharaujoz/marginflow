@@ -72,6 +72,7 @@ type SortDirection = "asc" | "desc" | null;
 const marketplaceOptions = [
   { value: "mercadolivre", label: "MELI" },
   { value: "shopee", label: "Shopee" },
+  { value: "shein", label: "Shein" },
 ];
 
 function getChannelBadge(channel: string) {
@@ -95,6 +96,17 @@ function getChannelBadge(channel: string) {
         style={{ backgroundColor: "#fa5230", color: "#ffffff" }}
       >
         SHPE
+      </Badge>
+    );
+  }
+
+  if (normalized === "shein") {
+    return (
+      <Badge
+        className="border-transparent"
+        style={{ backgroundColor: "#111111", color: "#ffffff" }}
+      >
+        Shein
       </Badge>
     );
   }

@@ -23,6 +23,8 @@ import {
   LinkSyncedProductRequestDto,
   MercadoLivreCallbackQueryDto,
   MercadoLivreNotificationDto,
+  SheinCallbackQueryDto,
+  SheinNotificationDto,
   ShopeeCallbackQueryDto,
   ShopeeNotificationDto,
 } from "./integrations.dto";
@@ -94,6 +96,19 @@ export class IntegrationsController {
     return reply.send();
   }
 
+  @Get("shein/callback")
+  async handleSheinCallback(
+    @Query() query: SheinCallbackQueryDto,
+    @Res() reply: FastifyReply,
+  ) {
+    reply.status(302);
+    reply.header(
+      "location",
+      await this.integrationsService.handleSheinCallback(query),
+    );
+    return reply.send();
+  }
+
   @Post("shopee/webhook")
   async handleShopeeWebhook(
     @Body() body: ShopeeNotificationDto,
@@ -106,6 +121,14 @@ export class IntegrationsController {
         body,
         rawBody: request.rawBody ?? Buffer.from(JSON.stringify(body)),
       }),
+      error: null,
+    };
+  }
+
+  @Post("shein/webhook")
+  async handleSheinWebhook(@Body() body: SheinNotificationDto) {
+    return {
+      data: await this.integrationsService.handleSheinNotification(body),
       error: null,
     };
   }
@@ -151,16 +174,18 @@ export class IntegrationsController {
     };
   }
 
-  @Post("mercadolivre/catalog/import")
+  @Post(":provider/catalog/import")
   @UseGuards(EntitlementGuard)
-  async importMercadoLivreCatalog(
+  async importMarketplaceCatalog(
     @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Param() params: IntegrationProviderParamDto,
   ) {
     const companyId = this.requireSelectedCompanyId(authContext);
     return {
-      data: await this.integrationsService.importMercadoLivreCatalog({
+      data: await this.integrationsService.importMarketplaceCatalog({
         companyId,
         organizationId: authContext.organization!.id,
+        providerSlug: params.provider,
         userId: authContext.user.id,
       }),
       error: null,

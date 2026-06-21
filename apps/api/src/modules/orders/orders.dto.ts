@@ -6,6 +6,6 @@ export class OrderListFiltersDto {
   page?: number;
   pageSize?: number;
   search?: string;
-  provider?: "mercadolivre" | "shopee";
+  provider?: "mercadolivre" | "shopee" | "shein";
   status?: string;
 }

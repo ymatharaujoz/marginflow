@@ -24,11 +24,19 @@ export function useDashboardConnectionStatuses() {
     retry: 1,
   });
 
+  const sheinQuery = useQuery({
+    queryFn: () => fetchDashboardRecentSync("shein"),
+    queryKey: [...dashboardRecentSyncByProviderQueryKey, "shein"],
+    retry: 1,
+  });
+
   return {
-    isLoading: mercadoLivreQuery.isLoading || shopeeQuery.isLoading,
+    isLoading:
+      mercadoLivreQuery.isLoading || shopeeQuery.isLoading || sheinQuery.isLoading,
     syncStatusByProvider: {
       mercadolivre: mercadoLivreQuery.data,
       shopee: shopeeQuery.data,
+      shein: sheinQuery.data,
     } satisfies DashboardConnectionStatuses,
   };
 }

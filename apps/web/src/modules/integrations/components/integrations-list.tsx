@@ -21,11 +21,13 @@ interface IntegrationsListProps {
 const providerIcons: Record<string, React.ReactNode> = {
   mercadolivre: <img src="/icons/mercado-libre-icon.svg" alt="Mercado Livre" className="h-5 w-auto" />,
   shopee: <img src="/icons/shopee-icon.svg" alt="Shopee" className="h-5 w-auto" />,
+  shein: <img src="/icons/shein-icon.svg" alt="Shein" className="h-5 w-auto" />,
 };
 
 const providerNames: Record<string, string> = {
   mercadolivre: "Mercado Livre",
   shopee: "Shopee",
+  shein: "Shein",
 };
 
 export function IntegrationsList({

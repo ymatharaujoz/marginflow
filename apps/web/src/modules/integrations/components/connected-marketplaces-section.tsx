@@ -63,6 +63,16 @@ const marketplaceMeta: Record<
     ),
     glowColor: "rgba(238, 77, 45, 0.25)",
   },
+  shein: {
+    name: "Shein",
+    description: "Conecte catálogo, pedidos e eventos automáticos da Shein.",
+    brandColor: "#111111",
+    brandColorSoft: "rgba(17, 17, 17, 0.10)",
+    icon: (
+      <img src="/icons/shein-icon.svg" alt="Shein" className="h-7 w-auto brightness-0 invert" />
+    ),
+    glowColor: "rgba(17, 17, 17, 0.20)",
+  },
 };
 
 function getStatusConfig(status: IntegrationConnectionRecord["status"]) {
@@ -237,7 +247,7 @@ function MarketplaceActionButton({
   );
 }
 
-function EmptyMarketplaceCard({ meta }: { meta: (typeof marketplaceMeta)["shopee"] }) {
+function EmptyMarketplaceCard({ meta }: { meta: (typeof marketplaceMeta)[keyof typeof marketplaceMeta] }) {
   return (
     <motion.div
       variants={itemVariants}

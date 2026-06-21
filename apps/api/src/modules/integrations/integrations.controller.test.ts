@@ -476,7 +476,7 @@ describe("integrations controller", () => {
     });
     vi.spyOn(
       integrationsService,
-      "importMercadoLivreCatalog",
+      "importMarketplaceCatalog",
     ).mockResolvedValueOnce({
       conflicts: [],
       created: 2,
@@ -503,9 +503,122 @@ describe("integrations controller", () => {
       },
       error: null,
     });
-    expect(integrationsService.importMercadoLivreCatalog).toHaveBeenCalledWith({
+    expect(integrationsService.importMarketplaceCatalog).toHaveBeenCalledWith({
       companyId: "company_123",
       organizationId: "org_123",
+      providerSlug: "mercadolivre",
+      userId: "user_123",
+    });
+  });
+
+  it("imports the connected Shopee catalog", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Lucreii",
+        role: "owner",
+        slug: "lucreii",
+      },
+      selectedCompanyId: "company_123",
+      session: {
+        expiresAt: new Date("2026-06-21T10:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(
+      integrationsService,
+      "importMarketplaceCatalog",
+    ).mockResolvedValueOnce({
+      conflicts: [],
+      created: 1,
+      errors: [],
+      found: 1,
+      unchanged: 0,
+      updated: 0,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/shopee/catalog/import",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(integrationsService.importMarketplaceCatalog).toHaveBeenCalledWith({
+      companyId: "company_123",
+      organizationId: "org_123",
+      providerSlug: "shopee",
+      userId: "user_123",
+    });
+  });
+
+  it("imports the connected Shein catalog", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Lucreii",
+        role: "owner",
+        slug: "lucreii",
+      },
+      selectedCompanyId: "company_123",
+      session: {
+        expiresAt: new Date("2026-06-21T10:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(
+      integrationsService,
+      "importMarketplaceCatalog",
+    ).mockResolvedValueOnce({
+      conflicts: [],
+      created: 1,
+      errors: [],
+      found: 1,
+      unchanged: 0,
+      updated: 0,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/integrations/shein/catalog/import",
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(integrationsService.importMarketplaceCatalog).toHaveBeenCalledWith({
+      companyId: "company_123",
+      organizationId: "org_123",
+      providerSlug: "shein",
       userId: "user_123",
     });
   });

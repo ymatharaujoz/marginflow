@@ -7,7 +7,7 @@ import { StatusBadge } from "./status-badge";
 
 interface MarketplaceCardProps {
   name: string;
-  slug: "mercadolivre" | "shopee" | string;
+  slug: "mercadolivre" | "shopee" | "shein" | string;
   status: "connected" | "disconnected" | "pending" | "developing";
   metrics?: {
     revenue?: string;
@@ -39,6 +39,15 @@ const marketplaceConfig = {
       </svg>
     ),
     brandColor: "#EE4D2D",
+  },
+  shein: {
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none">
+        <rect width="24" height="24" rx="4" fill="#111111"/>
+        <path d="M6 8h12v2H6zM6 11h12v2H6zM6 14h12v2H6z" fill="white"/>
+      </svg>
+    ),
+    brandColor: "#111111",
   },
 };
 

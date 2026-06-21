@@ -209,6 +209,7 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
           {([
             ["mercadolivre", "Mercado Livre"],
             ["shopee", "Shopee"],
+            ["shein", "Shein"],
           ] as const).map(([provider, label]) => (
             <button
               key={provider}
