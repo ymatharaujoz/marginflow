@@ -278,23 +278,22 @@ describe("MercadoLivreProvider", () => {
                       seller_sku: "SKU-1",
                       title: "Produto",
                     },
-                    quantity: 1,
-                    sale_fee: 12,
+                    quantity: 3,
+                    sale_fee: 10.54,
                     variation_id: 456,
-                    unit_price: 100,
+                    unit_price: 29.9,
                   },
                 ],
                 payments: [
                   {
                     fee_amount: 3,
-                    marketplace_fee: 12,
                     shipping_cost: 7,
                   },
                 ],
                 shipping: {
                   id: 999,
                 },
-                total_amount: 100,
+                total_amount: 89.7,
               },
             ],
           }),
@@ -352,7 +351,7 @@ describe("MercadoLivreProvider", () => {
 
     expect(result.orders[0]?.fees).toEqual([
       expect.objectContaining({
-        amount: "12.00",
+        amount: "31.62",
         feeType: "marketplace_commission",
       }),
       expect.objectContaining({ amount: "3.00", feeType: "fixed_fee" }),
@@ -361,11 +360,180 @@ describe("MercadoLivreProvider", () => {
     expect(result.orders[0]?.items).toEqual([
       expect.objectContaining({
         externalProductId: "MLB123:456",
-        quantity: 1,
+        quantity: 3,
         sku: "SKU-1",
         variationId: "456",
       }),
     ]);
+  });
+
+  it("uses billing provisions to persist fixed fee when the payment payload omits fee_amount", async () => {
+    const provider = new MercadoLivreProvider({
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      NODE_ENV: "test",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 1 },
+            results: [
+              {
+                currency_id: "BRL",
+                date_closed: "2026-05-14T10:00:00.000-03:00",
+                id: 123,
+                order_items: [
+                  {
+                    item: {
+                      id: "MLB123",
+                      seller_sku: "SKU-1",
+                      title: "Produto",
+                    },
+                    quantity: 1,
+                    sale_fee: 12,
+                    variation_id: 456,
+                    unit_price: 100,
+                  },
+                ],
+                payments: [],
+                total_amount: 100,
+              },
+            ],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            currency_id: "BRL",
+            date_closed: "2026-05-14T10:00:00.000-03:00",
+            id: 123,
+            order_items: [
+              {
+                item: {
+                  id: "MLB123",
+                  seller_sku: "SKU-1",
+                  title: "Produto",
+                },
+                quantity: 1,
+                sale_fee: 12,
+                variation_id: 456,
+                unit_price: 100,
+              },
+            ],
+            payments: [],
+            total_amount: 100,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [
+              {
+                order_id: 123,
+                sale_fee: {
+                  gross: 31.62,
+                  net: 11.67,
+                  rebate: 19.95,
+                  discount: 0,
+                  discount_reason: null,
+                },
+                fixed_fee: 19.95,
+              },
+            ],
+            total: 1,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 50, total: 1 },
+            results: [],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: {
+        accessToken: "token_123",
+        companyId: "company_1",
+        createdAt: new Date("2026-05-14T10:00:00.000Z"),
+        externalAccountId: "123456",
+        id: "conn_1",
+        lastSyncedAt: null,
+        metadata: {},
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        refreshToken: null,
+        status: "connected",
+        tokenExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-05-14T10:00:00.000Z"),
+      },
+      cursor: null,
+      organizationId: "org_1",
+    });
+
+    expect(result.orders[0]?.fees).toEqual([
+      expect.objectContaining({
+        amount: "12.00",
+        feeType: "marketplace_commission",
+      }),
+      expect.objectContaining({ amount: "19.95", feeType: "fixed_fee" }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
+      "/billing/integration/periods/key/2026-05-01/group/MP/details",
+    );
+    expect(
+      (fetchMock.mock.calls[2]?.[1] as RequestInit | undefined)?.headers,
+    ).toEqual(
+      expect.objectContaining({
+        "x-version": "2",
+      }),
+    );
   });
 
   it("hydrates order details when the search response omits fee fields", async () => {
@@ -568,6 +736,20 @@ describe("MercadoLivreProvider", () => {
         new Response(
           JSON.stringify({
             senders: [{ cost: 0, user_id: 123456 }],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
           }),
           {
             headers: { "content-type": "application/json" },

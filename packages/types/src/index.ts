@@ -17,6 +17,7 @@ export * from "./billing";
 export * from "./finance";
 export * from "./finance-inputs";
 export * from "./integrations";
+export * from "./orders";
 export * from "./products";
 export * from "./protected-app";
 export * from "./sync";

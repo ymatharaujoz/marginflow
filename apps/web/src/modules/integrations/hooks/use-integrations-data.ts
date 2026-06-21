@@ -10,6 +10,7 @@ import type {
   SyncStatusResponse,
 } from "@lucreii/types";
 import { apiClient } from "@/lib/api/client";
+import { ordersQueryKey } from "@/modules/orders";
 
 const integrationsQueryKey = ["integrations"] as const;
 async function fetchIntegrations(): Promise<IntegrationConnectionRecord[]> {
@@ -82,6 +83,7 @@ export function useIntegrationsData(
       options.onSyncSuccess?.(data);
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
       await queryClient.invalidateQueries({ queryKey: ["sync-status", syncProvider] });
+      await queryClient.invalidateQueries({ queryKey: ordersQueryKey });
       router.refresh();
     },
   });

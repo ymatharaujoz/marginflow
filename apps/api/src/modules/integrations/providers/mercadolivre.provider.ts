@@ -131,6 +131,31 @@ type MercadoLivreOrderItemResponse = {
   unit_price?: number;
 };
 
+type MercadoLivreBillingDetailFeeResponse = {
+  discount?: number;
+  discount_reason?: string | null;
+  fixed_fee?: number;
+  fee_amount?: number;
+  gross?: number;
+  net?: number;
+  rebate?: number;
+};
+
+type MercadoLivreBillingDetailResponse = {
+  last_id?: number | string;
+  limit?: number;
+  offset?: number;
+  results?: Array<{
+    fixed_fee?: number;
+    fee_amount?: number;
+    operation_id?: number | string;
+    order_id?: number | string;
+    sale_fee?: MercadoLivreBillingDetailFeeResponse;
+  }>;
+  total?: number;
+  errors?: unknown[];
+};
+
 function toDecimalString(value: number | string | null | undefined) {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value.toFixed(2);
@@ -142,6 +167,19 @@ function toDecimalString(value: number | string | null | undefined) {
   }
 
   return "0.00";
+}
+
+function toBillingPeriodKey(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
 }
 
 function dedupeProducts(products: IntegrationSyncProduct[]) {
@@ -187,6 +225,36 @@ function sanitizeProviderPayload(payload: unknown) {
 
 function buildCodeChallenge(codeVerifier: string) {
   return createHash("sha256").update(codeVerifier).digest("base64url");
+}
+
+function readBillingFixedFee(
+  result:
+    | {
+        fixed_fee?: number;
+        fee_amount?: number;
+        sale_fee?: MercadoLivreBillingDetailFeeResponse;
+      }
+    | null
+    | undefined,
+) {
+  if (!result) {
+    return null;
+  }
+
+  const candidates = [
+    result.fixed_fee,
+    result.fee_amount,
+    result.sale_fee?.fixed_fee,
+    result.sale_fee?.fee_amount,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "number" && candidate > 0) {
+      return candidate;
+    }
+  }
+
+  return null;
 }
 
 function readMercadoLivreAttributeSku(
@@ -870,7 +938,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
       return initialFees;
     }
 
-    return this.collectOrderFees({
+    const detailedFees = await this.collectOrderFees({
       ...order,
       currency_id: detailedOrder.currency_id ?? order.currency_id,
       date_closed: detailedOrder.date_closed ?? order.date_closed,
@@ -891,6 +959,32 @@ export class MercadoLivreProvider implements IntegrationProvider {
     }, input, {
       skipShipmentLookup: hasShipmentLookup,
     });
+
+    if (this.hasFeeType(detailedFees, "fixed_fee")) {
+      return detailedFees;
+    }
+
+    const fixedFee = await this.fetchBillingFixedFee({
+      accessToken: input.accessToken,
+      order,
+      fallbackDate: detailedOrder.date_closed ?? detailedOrder.date_created,
+    });
+
+    if (fixedFee === null) {
+      return detailedFees;
+    }
+
+    return [
+      ...detailedFees,
+      {
+        amount: toDecimalString(fixedFee),
+        currency: order.currency_id ?? detailedOrder.currency_id ?? "BRL",
+        feeType: "fixed_fee",
+        metadata: {
+          source: "billing/integration/periods",
+        },
+      },
+    ];
   }
 
   private async collectOrderFees(
@@ -917,7 +1011,11 @@ export class MercadoLivreProvider implements IntegrationProvider {
       0,
     );
     const itemSaleFee = (order.order_items ?? []).reduce((sum, item) => {
-      return sum + (typeof item.sale_fee === "number" ? item.sale_fee : 0);
+      const quantity =
+        typeof item.quantity === "number" && item.quantity > 0 ? item.quantity : 1;
+      const saleFee = typeof item.sale_fee === "number" ? item.sale_fee : 0;
+
+      return sum + saleFee * quantity;
     }, 0);
     const marketplaceCommission =
       paymentMarketplaceFee > 0
@@ -970,12 +1068,15 @@ export class MercadoLivreProvider implements IntegrationProvider {
   }
 
   private hasCompleteFeeCoverage(fees: IntegrationSyncFee[]) {
-    const types = new Set(fees.map((fee) => fee.feeType));
     return (
-      types.has("marketplace_commission") &&
-      types.has("fixed_fee") &&
-      types.has("shipping_cost")
+      this.hasFeeType(fees, "marketplace_commission") &&
+      this.hasFeeType(fees, "fixed_fee") &&
+      this.hasFeeType(fees, "shipping_cost")
     );
+  }
+
+  private hasFeeType(fees: IntegrationSyncFee[], feeType: IntegrationSyncFee["feeType"]) {
+    return fees.some((fee) => fee.feeType === feeType);
   }
 
   private async resolveShippingCost(
@@ -1048,6 +1149,56 @@ export class MercadoLivreProvider implements IntegrationProvider {
     }
 
     return payload;
+  }
+
+  private async fetchBillingFixedFee(input: {
+    accessToken: string;
+    fallbackDate: string | null | undefined;
+    order: MercadoLivreOrderResponse;
+  }) {
+    const periodKey = toBillingPeriodKey(input.fallbackDate ?? input.order.date_closed ?? input.order.date_created);
+
+    if (!periodKey || !input.order.id) {
+      return null;
+    }
+
+    const url = new URL(
+      `https://api.mercadolibre.com/billing/integration/periods/key/${encodeURIComponent(periodKey)}/group/MP/details`,
+    );
+    url.searchParams.set("document_type", "BILL");
+    url.searchParams.set("limit", "1000");
+    url.searchParams.set("from_id", "0");
+
+    const response = await this.fetchWithRetry(url, {
+      headers: {
+        Authorization: `Bearer ${input.accessToken}`,
+        accept: "application/json",
+        "x-version": "2",
+      },
+      method: "GET",
+    });
+
+    const payload = (await parseProviderResponse(response)) as
+      | MercadoLivreBillingDetailResponse
+      | string;
+
+    if (!response.ok || typeof payload === "string") {
+      return null;
+    }
+
+    const orderId = String(input.order.id);
+    const matchedResult =
+      payload.results?.find((result) => {
+        const candidateIds = [
+          result.order_id !== undefined ? String(result.order_id) : null,
+          result.operation_id !== undefined ? String(result.operation_id) : null,
+        ].filter((value): value is string => Boolean(value));
+
+        return candidateIds.includes(orderId);
+      }) ?? null;
+
+    const fixedFee = readBillingFixedFee(matchedResult);
+    return fixedFee !== null && fixedFee > 0 ? fixedFee : null;
   }
 
   private async fetchShipmentSellerCost(input: {
