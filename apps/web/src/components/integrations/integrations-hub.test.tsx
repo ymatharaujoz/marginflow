@@ -27,61 +27,64 @@ vi.mock("next/navigation", () => ({
 
 describe("IntegrationsHub", () => {
   function mockQueryByKey() {
-    reactQueryMocks.useQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
-      if (queryKey[0] === "integrations") {
-        return {
-          data: [
-            {
-              connectAvailable: true,
-              connectLabel: "Connect account",
-              connectedAccountId: null,
-              connectedAccountLabel: null,
-              disconnectAvailable: false,
-              disconnectLabel: null,
-              displayName: "Mercado Livre",
-              lastSyncedAt: null,
-              provider: "mercadolivre",
-              status: "disconnected",
-              statusMessage: "No marketplace account is connected yet.",
-              tokenExpiresAt: null,
+    reactQueryMocks.useQuery.mockImplementation(
+      ({ queryKey }: { queryKey: string[] }) => {
+        if (queryKey[0] === "integrations") {
+          return {
+            data: [
+              {
+                connectAvailable: true,
+                connectLabel: "Connect account",
+                connectedAccountId: null,
+                connectedAccountLabel: null,
+                disconnectAvailable: false,
+                disconnectLabel: null,
+                displayName: "Mercado Livre",
+                lastSyncedAt: null,
+                provider: "mercadolivre",
+                status: "disconnected",
+                statusMessage: "No marketplace account is connected yet.",
+                tokenExpiresAt: null,
+              },
+            ],
+            error: null,
+            isFetching: false,
+            isLoading: false,
+          };
+        }
+
+        if (queryKey[0] === "sync-status") {
+          return {
+            data: {
+              activeRun: null,
+              availability: {
+                canRun: true,
+                currentWindowKey: null,
+                currentWindowLabel: null,
+                currentWindowSlot: null,
+                lastSuccessfulSyncAt: null,
+                message:
+                  "Mercado Livre auto-sync is active. New sales also trigger synchronization automatically.",
+                nextAvailableAt: null,
+                provider: "mercadolivre",
+                reason: "available",
+              },
+              lastCompletedRun: null,
             },
-          ],
+            error: null,
+            isFetching: false,
+            isLoading: false,
+          };
+        }
+
+        return {
+          data: [],
           error: null,
           isFetching: false,
           isLoading: false,
         };
-      }
-
-      if (queryKey[0] === "sync-status") {
-        return {
-          data: {
-            activeRun: null,
-            availability: {
-              canRun: true,
-              currentWindowKey: null,
-              currentWindowLabel: null,
-              currentWindowSlot: null,
-              lastSuccessfulSyncAt: null,
-              message: "Mercado Livre auto-sync is active. New sales also trigger synchronization automatically.",
-              nextAvailableAt: null,
-              provider: "mercadolivre",
-              reason: "available",
-            },
-            lastCompletedRun: null,
-          },
-          error: null,
-          isFetching: false,
-          isLoading: false,
-        };
-      }
-
-      return {
-        data: [],
-        error: null,
-        isFetching: false,
-        isLoading: false,
-      };
-    });
+      },
+    );
   }
 
   beforeEach(() => {
@@ -110,29 +113,37 @@ describe("IntegrationsHub", () => {
   });
 
   it("renders the API failure state", () => {
-    reactQueryMocks.useQuery.mockImplementation(({ queryKey }: { queryKey: string[] }) => {
-      if (queryKey[0] === "integrations") {
+    reactQueryMocks.useQuery.mockImplementation(
+      ({ queryKey }: { queryKey: string[] }) => {
+        if (queryKey[0] === "integrations") {
+          return {
+            data: null,
+            error: new Error("Boom"),
+            isFetching: false,
+            isLoading: false,
+          };
+        }
+
         return {
           data: null,
-          error: new Error("Boom"),
+          error: null,
           isFetching: false,
           isLoading: false,
         };
-      }
-
-      return {
-        data: null,
-        error: null,
-        isFetching: false,
-        isLoading: false,
-      };
-    });
+      },
+    );
 
     const markup = renderToStaticMarkup(
-      <IntegrationsHub initialMessage={null} initialStatus={null} organizationName="Lucreii" />,
+      <IntegrationsHub
+        initialMessage={null}
+        initialStatus={null}
+        organizationName="Lucreii"
+      />,
     );
 
     expect(markup).toContain("Erro ao carregar dados");
-    expect(markup).toContain("Não foi possível carregar os dados de integrações.");
+    expect(markup).toContain(
+      "Não foi possível carregar os dados de integrações.",
+    );
   });
 });

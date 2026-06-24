@@ -31,6 +31,18 @@ export type ProductManualCreateFormValues = {
   initialFinance: ProductManualCreateInitialFinanceValues;
 };
 
+export type ProductCatalogExportFilters = {
+  marketplaces?: Array<"mercadolivre" | "shopee" | "shein">;
+  search?: string;
+};
+
+export type ProductSpreadsheetImportResult = {
+  created: number;
+  updated: number;
+  imported: number;
+  errors: Array<{ row: number; message: string }>;
+};
+
 export type AdCostFormValues = {
   productId: string | null;
   channel: string;
@@ -154,6 +166,7 @@ export type SyncedProductRecord = {
   provider: IntegrationProviderSlug;
   title: string | null;
   sku: string | null;
+  metadata?: Record<string, unknown>;
   reviewStatus: SyncedProductReviewStatus;
   linkedProduct: SyncedProductLinkedProduct | null;
   suggestedMatches: SyncedProductSuggestedMatch[];
@@ -265,6 +278,11 @@ export type ProductMonthlyPerformanceDisplayRow = {
   packagingCost: DecimalString;
   advertisingCost: DecimalString;
   marketplaceCommission?: DecimalString;
+  marketplaceCommissionUnit?: DecimalString;
+  fixedFeeUnit?: DecimalString;
+  shippingUnit?: DecimalString;
+  shippingOrFixedFeeUnit?: DecimalString;
+  shippingOrFixedFeeSource?: "shipping" | "fixed_fee" | "none";
 };
 
 export type ProductPerformanceRow = ProductMonthlyPerformanceDisplayRow & {

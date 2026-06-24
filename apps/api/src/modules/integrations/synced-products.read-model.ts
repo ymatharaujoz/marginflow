@@ -335,6 +335,7 @@ function toSyncedProductRecord(
     latestUnitPrice: selectLatestUnitPrice(row.orderItems),
     linkedProduct: toLinkedProductSummary(row.linkedProduct),
     marketplaceCommission: feeSummary.marketplaceCommission,
+    metadata: row.metadata,
     netMarketplaceTake: feeSummary.netMarketplaceTake,
     orderCount: uniqueOrderIds.size,
     provider: row.provider as IntegrationProviderSlug,

@@ -336,8 +336,7 @@ export class SyncPerformanceMaterializerService {
 
       const itemWeights = order.items.map((item) => parseMoney(String(item.totalPrice)));
       const commissionAllocations = allocateProportionally(
-        sumFeeAmounts(order.fees, "marketplace_commission") +
-          sumFeeAmounts(order.fees, "fixed_fee"),
+        sumFeeAmounts(order.fees, "marketplace_commission"),
         itemWeights,
       );
       const shippingAllocations = allocateProportionally(

@@ -33,6 +33,7 @@ import type {
   ProductFormValues,
   ProductListItem,
   ProductManualCreateResult,
+  ProductSpreadsheetImportResult,
   SyncedProductActionResult,
   SyncedProductRecord,
 } from "@lucreii/types";
@@ -93,7 +94,7 @@ const marketplaceImportMeta: Record<
       "As fotos permanecem hospedadas pelo Mercado Livre.",
     ],
     importDescription:
-      "Importa anúncios ativos e pausados, variações, preços e fotos sem duplicar produtos.",
+      "Importe produtos, variações, preços, status e fotos.",
     resultErrorMessage: "Erro ao importar catalogo do Mercado Livre.",
   },
   shopee: {
@@ -105,7 +106,7 @@ const marketplaceImportMeta: Record<
       "As fotos permanecem hospedadas pela Shopee.",
     ],
     importDescription:
-      "Importa produtos, modelos, preços, status e fotos da Shopee para o catálogo.",
+      "Importe produtos, modelos, preços, status e fotos.",
     resultErrorMessage: "Erro ao importar catalogo da Shopee.",
   },
   shein: {
@@ -117,7 +118,7 @@ const marketplaceImportMeta: Record<
       "As fotos permanecem hospedadas pela Shein.",
     ],
     importDescription:
-      "Importa produtos, variações, preços, status e fotos da Shein para o catálogo.",
+      "Importe produtos, variações, preços, status e fotos.",
     resultErrorMessage: "Erro ao importar catalogo da Shein.",
   },
 };
@@ -436,10 +437,8 @@ export function ProductsShell({
     useState<IntegrationProviderSlug | null>(null);
   const [marketplaceImportResult, setMarketplaceImportResult] =
     useState<MarketplaceCatalogImportResult | null>(null);
-  const [importResult, setImportResult] = useState<{
-    imported: number;
-    errors: Array<{ row: number; message: string }>;
-  } | null>(null);
+  const [importResult, setImportResult] =
+    useState<ProductSpreadsheetImportResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [productForm, setProductForm] = useState(initialProductForm);
@@ -696,15 +695,13 @@ export function ProductsShell({
       const formData = new FormData();
       formData.append("file", file);
       return apiClient.post<{
-        data: {
-          imported: number;
-          errors: Array<{ row: number; message: string }>;
-        };
+        data: ProductSpreadsheetImportResult;
         error: null;
       }>("/products/import", { body: formData });
     },
     onError: (error) => {
       setImportResult({
+        created: 0,
         imported: 0,
         errors: [
           {
@@ -715,6 +712,7 @@ export function ProductsShell({
                 : "Erro ao importar planilha.",
           },
         ],
+        updated: 0,
       });
     },
     onSuccess: async (response) => {
@@ -1638,7 +1636,7 @@ export function ProductsShell({
                 icon={<FileSpreadsheet className="h-5 w-5 text-accent" />}
                 iconBgClass="bg-accent/10 ring-accent/20"
                 title="Planilha Excel"
-                description="Mantém o fluxo atual de importação por arquivo .xlsx com colunas padronizadas."
+                description="Importe novos produtos e atualize custos."
                 onClick={() => {
                   setShowImportInstructionsModal(false);
                   setShowSpreadsheetInstructionsModal(true);
@@ -2105,12 +2103,12 @@ export function ProductsShell({
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-foreground">
                       {importResult.imported > 0
-                        ? `${importResult.imported} produto${importResult.imported > 1 ? "s" : ""} importado${importResult.imported > 1 ? "s" : ""}`
-                        : "Nenhum produto importado"}
+                        ? `${importResult.updated} item${importResult.updated !== 1 ? "s" : ""} atualizado${importResult.updated !== 1 ? "s" : ""}`
+                        : "Nenhuma linha processada"}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {importResult.imported > 0
-                        ? "Os produtos já estão disponíveis no catálogo."
+                        ? `${importResult.updated} atualizado${importResult.updated !== 1 ? "s" : ""} · ${importResult.errors.length} com erro`
                         : "Nenhuma linha da planilha foi processada com sucesso."}
                     </p>
                   </div>

@@ -416,11 +416,6 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
   const monthlyPerformanceBySku = new Map(
     data.monthlyPerformanceRows.map((row) => [row.sku, row] as const),
   );
-  const matchedSkus = new Set<string>();
-  const matchedPerformanceIds = new Set<string>();
-  const hasHierarchicalPerformanceRows = data.performanceRows.some(
-    (row) => row.catalogRole !== "standalone" || row.children.length > 0,
-  );
 
   const resolveProductAnalyticsRow = (
     row: Pick<ProductMonthlyPerformanceDisplayRow, "productId" | "sku">,
@@ -458,39 +453,16 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
     row: ProductMonthlyPerformanceDisplayRow,
     product: ProductListItem | null,
     children: ProductTableRow[],
-    preferParentCostOverride = true,
     precomputedCommissionTotal: number | null = null,
   ): ProductTableRow => {
     const taxPct = toNumber(data.scope.taxRateDefault) * 100;
     const taxRateDefault = taxPct / 100;
-
-    const isChild = product?.catalogRole === "child";
-
-    let effectiveRow = row;
-
-    if (isChild && preferParentCostOverride && product?.parentProductId) {
-      const parentProduct = byId.get(product.parentProductId);
-      if (parentProduct?.sku) {
-        const parentRow = data.monthlyPerformanceRows.find(
-          (r) => r.sku === parentProduct.sku,
-        );
-        if (parentRow) {
-          effectiveRow = {
-            ...row,
-            salePrice: parentRow.salePrice,
-            unitCost: parentRow.unitCost,
-            packagingCost: parentRow.packagingCost,
-          };
-        }
-      }
-    }
-
     const marketplaceCommissionTotal =
       precomputedCommissionTotal ?? resolveMarketplaceCommissionTotal(row);
-    const financials = deriveRowFinancials(effectiveRow, taxRateDefault, marketplaceCommissionTotal);
-    const sellingPrice = toNumber(effectiveRow.salePrice);
+    const financials = deriveRowFinancials(row, taxRateDefault, marketplaceCommissionTotal);
+    const sellingPrice = toNumber(row.salePrice);
     const variationLabel = product?.variationLabel ?? extractVariationLabel(row.productName);
-    const displayName = resolveProductDisplayName(row.productName, variationLabel);
+    const productName = product?.name?.trim() || row.productName.trim();
 
     return {
       ...financials,
@@ -504,11 +476,13 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
         ? (financials.totalCommission / financials.revenue) * 100
         : 0,
       coverImageUrl: product?.coverImageUrl ?? null,
-      displayName,
+      displayName: productName,
       id: row.productId ?? row.id,
       isActive: product?.isActive ?? true,
-      name: row.productName,
-      packagingCost: toNumber(effectiveRow.packagingCost),
+      name: productName,
+      fixedFeeUnit: toNumber(row.fixedFeeUnit),
+      marketplaceCommissionUnit: toNumber(row.marketplaceCommissionUnit),
+      packagingCost: toNumber(row.packagingCost),
       parentProductId: product?.parentProductId ?? null,
       performanceId: row.id,
       productId: row.productId ?? product?.id ?? null,
@@ -517,12 +491,15 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
       sales: row.salesQuantity,
       sellingPrice,
       shipping: toNumber(row.shippingFee),
+      shippingOrFixedFeeSource: row.shippingOrFixedFeeSource,
+      shippingOrFixedFeeUnit: toNumber(row.shippingOrFixedFeeUnit),
+      shippingUnit: toNumber(row.shippingUnit),
       sku: row.sku,
       taxPct,
       totalCommission: financials.totalCommission,
       totalPackagingCost: financials.totalPackagingCost,
       totalProductCost: financials.totalProductCost,
-      unitCost: toNumber(effectiveRow.unitCost),
+      unitCost: toNumber(row.unitCost),
       variationLabel,
     };
   };
@@ -536,175 +513,22 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
       .map(mapPerformanceRow)
       .filter((child): child is ProductTableRow => child !== null);
 
-    return mapRow(row, product, children, false);
+    return mapRow(row, product, children);
   };
 
-  const aggregateGroupRow = (
-    product: ProductListItem,
-    ownRow: ProductMonthlyPerformanceDisplayRow | null,
-    children: ProductTableRow[],
-  ): ProductTableRow => {
-    const sourceRows = [
-      ...(ownRow ? [ownRow] : []),
-      ...children.map((child) => ({
-        advertisingCost: String(child.advertisingCost),
-        channel: child.channelLabel,
-        commissionRate: child.commissionPct > 0 && child.sellingPrice > 0
-          ? String(child.commissionPct / 100)
-          : "0",
-        id: child.performanceId,
-        marketplaceCommission: child.totalCommission > 0
-          ? String(child.totalCommission / Math.max(1, child.netLiquidSales))
-          : "0",
-        packagingCost: String(child.packagingCost),
-        productId: child.productId,
-        productName: child.name,
-        referenceMonth: child.referenceMonth,
-        returnsQuantity: child.returns,
-        salePrice: String(child.sellingPrice),
-        salesQuantity: child.sales,
-        shippingFee: String(child.shipping),
-        sku: child.sku,
-        unitCost: String(child.unitCost),
-      }) satisfies ProductMonthlyPerformanceDisplayRow),
-    ];
-    const firstRow = ownRow ?? sourceRows[0];
-    const totals = sourceRows.reduce((accumulator, sourceRow) => {
-      const netSales = resolveNetLiquidSales(sourceRow.salesQuantity, sourceRow.returnsQuantity);
-      const commissionTotal = resolveMarketplaceCommissionTotal(sourceRow);
-      accumulator.salesQuantity += sourceRow.salesQuantity;
-      accumulator.returnsQuantity += sourceRow.returnsQuantity;
-      accumulator.netSales += netSales;
-      accumulator.revenue += toNumber(sourceRow.salePrice) * netSales;
-      accumulator.marketplaceCommission += commissionTotal ?? 0;
-      accumulator.shipping += toNumber(sourceRow.shippingFee) * netSales;
-      accumulator.packagingCost += toNumber(sourceRow.packagingCost) * netSales;
-      accumulator.unitCost += toNumber(sourceRow.unitCost) * netSales;
-      accumulator.adSpend += toNumber(sourceRow.advertisingCost);
-      return accumulator;
-    }, {
-      adSpend: 0,
-      marketplaceCommission: 0,
-      netSales: 0,
-      packagingCost: 0,
-      returnsQuantity: 0,
-      revenue: 0,
-      salesQuantity: 0,
-      shipping: 0,
-      unitCost: 0,
-    });
-
-    const netSales = totals.netSales;
-    const weightedSalePrice =
-      netSales > 0 ? totals.revenue / netSales : toNumber(firstRow?.salePrice);
-    const weightedMarketplaceCommission =
-      netSales > 0
-        ? totals.marketplaceCommission / netSales
-        : toNumber(firstRow?.marketplaceCommission);
-    const weightedShippingFee =
-      netSales > 0 ? totals.shipping / netSales : toNumber(firstRow?.shippingFee);
-    const weightedPackagingCost =
-      netSales > 0 ? totals.packagingCost / netSales : toNumber(firstRow?.packagingCost);
-    const weightedUnitCost =
-      netSales > 0 ? totals.unitCost / netSales : toNumber(firstRow?.unitCost);
-    const commissionRate =
-      totals.revenue > 0
-        ? totals.marketplaceCommission / totals.revenue
-        : toNumber(firstRow?.commissionRate);
-
-    const syntheticRow: ProductMonthlyPerformanceDisplayRow = {
-      advertisingCost: toDecimalString(totals.adSpend),
-      channel: firstRow?.channel ?? "mercadolivre",
-      commissionRate: toDecimalString(commissionRate, 6),
-      id: ownRow?.id ?? `${product.id}:${firstRow?.referenceMonth ?? "performance"}`,
-      marketplaceCommission: toDecimalString(weightedMarketplaceCommission),
-      packagingCost: toDecimalString(weightedPackagingCost),
-      productId: product.id,
-      productName: product.name,
-      referenceMonth: firstRow?.referenceMonth ?? data.scope.referenceMonth,
-      returnsQuantity: totals.returnsQuantity,
-      salePrice: toDecimalString(weightedSalePrice),
-      salesQuantity: totals.salesQuantity,
-      shippingFee: toDecimalString(weightedShippingFee),
-      sku: product.sku ?? firstRow?.sku ?? product.id,
-      unitCost: toDecimalString(weightedUnitCost),
-    };
-
-    return mapRow(syntheticRow, product, children, true, totals.marketplaceCommission);
-  };
-
-  const buildFromProduct = (product: ProductListItem): ProductTableRow | null => {
-    const ownRow =
-      monthlyPerformanceByProductId.get(product.id) ??
-      (product.sku ? monthlyPerformanceBySku.get(product.sku) ?? null : null);
-    const childRows = product.children
-      .map(buildFromProduct)
-      .filter((child): child is ProductTableRow => child !== null);
-
-    if (product.catalogRole === "parent" || childRows.length > 0) {
-      if (!ownRow && childRows.length === 0) {
-        return null;
-      }
-
-      if (ownRow) {
-        matchedSkus.add(ownRow.sku);
-        matchedPerformanceIds.add(ownRow.id);
-      }
-
-      for (const childRow of childRows) {
-        matchedSkus.add(childRow.sku);
-        matchedPerformanceIds.add(childRow.performanceId);
-      }
-
-      return aggregateGroupRow(product, ownRow, childRows);
-    }
-
-    if (!ownRow) {
-      return null;
-    }
-
-    matchedSkus.add(ownRow.sku);
-    matchedPerformanceIds.add(ownRow.id);
-
-    return mapRow(ownRow, product, []);
-  };
-
-  const rows: ProductTableRow[] = [];
-
-  if (hasHierarchicalPerformanceRows) {
-    return data.performanceRows
-      .filter((row) => row.catalogRole !== "child")
-      .map(mapPerformanceRow);
+  if (data.performanceRows.length > 0) {
+    return data.performanceRows.map(mapPerformanceRow);
   }
 
-  for (const product of data.products) {
-    if (product.catalogRole === "child") {
-      continue;
-    }
-
-    const row = buildFromProduct(product);
-    if (row) {
-      rows.push(row);
-    }
-  }
-
-  for (const row of data.monthlyPerformanceRows) {
-    if (matchedPerformanceIds.has(row.id) || matchedSkus.has(row.sku)) {
-      continue;
-    }
-
-    rows.push(
-      mapRow(
-        row,
-        (row.productId ? byId.get(row.productId) ?? null : null) ??
-          bySku.get(row.sku) ??
-          null,
-        [],
-      ),
-    );
-  }
-
-  return rows;
+  return data.monthlyPerformanceRows.map((row) =>
+    mapRow(
+      row,
+      (row.productId ? byId.get(row.productId) ?? null : null) ??
+        bySku.get(row.sku) ??
+        null,
+      [],
+    ),
+  );
 }
 
 export function determineFinancialState(
@@ -721,26 +545,32 @@ export function determineFinancialState(
  * total ou o valor unitário.
  */
 export function computeRowCommissionTotal(row: ProductTableRow): number {
-  const totalCommission = row.totalCommission;
-  const parentCommission =
+  const parentCommissionTotal =
     row.catalogRole === "parent" && row.children.length > 0
       ? row.children[0].totalCommission
       : null;
 
-  if (parentCommission !== null) {
-    return parentCommission * row.netLiquidSales;
+  if (parentCommissionTotal !== null) {
+    return parentCommissionTotal;
   }
 
-  return totalCommission * row.netLiquidSales > row.revenue
-    ? totalCommission
-    : totalCommission * row.netLiquidSales;
+  return row.totalCommission;
+}
+
+export function computeRowShippingOrFixedFeeTotal(row: ProductTableRow): number {
+  const shippingOrFixedFeeUnit =
+    row.catalogRole === "parent" && row.children.length > 0
+      ? row.children[0].shippingOrFixedFeeUnit ?? 0
+      : row.shippingOrFixedFeeUnit ?? 0;
+
+  return shippingOrFixedFeeUnit * row.netLiquidSales;
 }
 
 /**
  * Receita líquida de uma linha: faturamento menos a comissão total.
  */
 export function computeRowNetRevenue(row: ProductTableRow): number {
-  return row.revenue - computeRowCommissionTotal(row);
+  return row.revenue - computeRowCommissionTotal(row) - computeRowShippingOrFixedFeeTotal(row);
 }
 
 const productDataGapLabels: Record<string, string> = {

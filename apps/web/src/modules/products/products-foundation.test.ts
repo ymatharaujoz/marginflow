@@ -4,6 +4,7 @@ import {
   buildCatalogStats,
   buildProductInsights,
   buildProductTableRows,
+  computeRowNetRevenue,
   determineFinancialState,
 } from "./calculations/product-insights";
 
@@ -44,8 +45,10 @@ const snapshot: ProductAnalyticsSnapshot = {
       advertisingCost: "10.00",
       channel: "mercadolivre",
       commissionRate: "0.100000",
+      fixedFeeUnit: "5.00",
       id: "perf_1",
       marketplaceCommission: "10.00",
+      marketplaceCommissionUnit: "10.00",
       packagingCost: "4.00",
       productId: "product_1",
       productName: "Product One",
@@ -54,6 +57,9 @@ const snapshot: ProductAnalyticsSnapshot = {
       salePrice: "100.00",
       salesQuantity: 2,
       shippingFee: "12.00",
+      shippingOrFixedFeeSource: "shipping",
+      shippingOrFixedFeeUnit: "12.00",
+      shippingUnit: "12.00",
       sku: "ABC-1",
       unitCost: "25.00",
     },
@@ -61,8 +67,10 @@ const snapshot: ProductAnalyticsSnapshot = {
       advertisingCost: "0.00",
       channel: "unknown",
       commissionRate: "0.000000",
+      fixedFeeUnit: "0.00",
       id: "perf_2",
       marketplaceCommission: "0.00",
+      marketplaceCommissionUnit: "0.00",
       packagingCost: "0.00",
       productId: "product_2",
       productName: "Product Two",
@@ -71,6 +79,9 @@ const snapshot: ProductAnalyticsSnapshot = {
       salePrice: "80.00",
       salesQuantity: 0,
       shippingFee: "0.00",
+      shippingOrFixedFeeSource: "none",
+      shippingOrFixedFeeUnit: "0.00",
+      shippingUnit: "0.00",
       sku: "XYZ-1",
       unitCost: "0.00",
     },
@@ -81,33 +92,12 @@ const snapshot: ProductAnalyticsSnapshot = {
       catalogGroupKey: "mercadolivre:MLB-1",
       catalogRole: "parent",
       channel: "mercadolivre",
-      children: [
-        {
-          advertisingCost: "4.00",
-          catalogGroupKey: "mercadolivre:MLB-1",
-          catalogRole: "child",
-          channel: "mercadolivre",
-          children: [],
-          commissionRate: "0.100000",
-          id: "perf_child_1",
-          marketplaceCommission: "4.00",
-          packagingCost: "2.00",
-          parentProductId: "product_1",
-          productId: "product_1a",
-          productName: "Product One - Azul",
-          referenceMonth: "2026-05-01",
-          returnsQuantity: 0,
-          salePrice: "100.00",
-          salesQuantity: 2,
-          shippingFee: "3.00",
-          sku: "ABC-1-AZ",
-          unitCost: "25.00",
-          variationLabel: "Cor: Azul",
-        },
-      ],
+      children: [],
       commissionRate: "0.100000",
-      id: "perf_parent",
+      fixedFeeUnit: "5.00",
+      id: "perf_1",
       marketplaceCommission: "10.00",
+      marketplaceCommissionUnit: "10.00",
       packagingCost: "4.00",
       parentProductId: null,
       productId: "product_1",
@@ -115,11 +105,41 @@ const snapshot: ProductAnalyticsSnapshot = {
       referenceMonth: "2026-05-01",
       returnsQuantity: 1,
       salePrice: "100.00",
-      salesQuantity: 5,
+      salesQuantity: 2,
       shippingFee: "12.00",
+      shippingOrFixedFeeSource: "shipping",
+      shippingOrFixedFeeUnit: "12.00",
+      shippingUnit: "12.00",
       sku: "ABC-1",
       unitCost: "25.00",
       variationLabel: null,
+    },
+    {
+      advertisingCost: "4.00",
+      catalogGroupKey: "mercadolivre:MLB-1",
+      catalogRole: "child",
+      channel: "mercadolivre",
+      children: [],
+      commissionRate: "0.100000",
+      fixedFeeUnit: "0.00",
+      id: "perf_child_1",
+      marketplaceCommission: "4.00",
+      marketplaceCommissionUnit: "4.00",
+      packagingCost: "2.00",
+      parentProductId: "product_1",
+      productId: "product_1a",
+      productName: "Product One - Azul",
+      referenceMonth: "2026-05-01",
+      returnsQuantity: 0,
+      salePrice: "100.00",
+      salesQuantity: 2,
+      shippingFee: "3.00",
+      shippingOrFixedFeeSource: "shipping",
+      shippingOrFixedFeeUnit: "3.00",
+      shippingUnit: "3.00",
+      sku: "ABC-1-AZ",
+      unitCost: "25.00",
+      variationLabel: "Cor: Azul",
     },
     {
       advertisingCost: "0.00",
@@ -128,8 +148,10 @@ const snapshot: ProductAnalyticsSnapshot = {
       channel: "unknown",
       children: [],
       commissionRate: "0.000000",
+      fixedFeeUnit: "0.00",
       id: "perf_2",
       marketplaceCommission: "0.00",
+      marketplaceCommissionUnit: "0.00",
       packagingCost: "0.00",
       parentProductId: null,
       productId: "product_2",
@@ -139,6 +161,9 @@ const snapshot: ProductAnalyticsSnapshot = {
       salePrice: "80.00",
       salesQuantity: 0,
       shippingFee: "0.00",
+      shippingOrFixedFeeSource: "none",
+      shippingOrFixedFeeUnit: "0.00",
+      shippingUnit: "0.00",
       sku: "XYZ-1",
       unitCost: "0.00",
       variationLabel: null,
@@ -333,38 +358,64 @@ describe("products foundation helpers", () => {
   it("maps analytics rows without local sales simulation or heuristic costs", () => {
     expect(buildProductTableRows(snapshot)).toEqual([
       expect.objectContaining({
-        actualRoas: 40,
+        actualRoas: 10,
         adSpend: 10,
         advertisingCost: 10,
         catalogRole: "parent",
         channelLabel: "mercadolivre",
-        children: [
-          expect.objectContaining({
-            catalogRole: "child",
-            sales: 2,
-            sku: "ABC-1-AZ",
-            variationLabel: "Cor: Azul",
-          }),
-        ],
+        children: [],
         commissionPct: 10,
         contributionMarginRatio: 0.4,
         coverImageUrl: "https://example.com/product-one.png",
         isActive: true,
         minimumRoas: 2.5,
         name: "Product One",
-        netLiquidSales: 4,
+        netLiquidSales: 1,
         packagingCost: 4,
-        performanceId: "perf_parent",
-        revenue: 400,
+        performanceId: "perf_1",
+        revenue: 100,
         returns: 1,
         roiRatio: 1.6,
+        sales: 2,
         shipping: 12,
         taxPct: 9,
-        totalPackagingCost: 16,
-        totalProductCost: 100,
-        totalProfit: 160,
+        totalPackagingCost: 4,
+        totalProductCost: 25,
+        totalProfit: 40,
         unitCost: 25,
         unitProfit: 40,
+      }),
+      expect.objectContaining({
+        actualRoas: 50,
+        adSpend: 4,
+        advertisingCost: 4,
+        catalogRole: "child",
+        channelLabel: "mercadolivre",
+        children: [],
+        commissionPct: 4,
+        contributionMarginRatio: 0.57,
+        coverImageUrl: "https://example.com/product-variation.png",
+        displayName: "Product One - Azul",
+        isActive: true,
+        minimumRoas: expect.closeTo(1.7543859649, 6),
+        name: "Product One - Azul",
+        netLiquidSales: 2,
+        packagingCost: 2,
+        parentProductId: "product_1",
+        performanceId: "perf_child_1",
+        revenue: 200,
+        returns: 0,
+        roiRatio: 2.28,
+        sales: 2,
+        shipping: 3,
+        sku: "ABC-1-AZ",
+        taxPct: 9,
+        totalPackagingCost: 4,
+        totalProductCost: 50,
+        totalProfit: 114,
+        unitCost: 25,
+        unitProfit: 57,
+        variationLabel: "Cor: Azul",
       }),
       expect.objectContaining({
         actualRoas: null,
@@ -474,6 +525,35 @@ describe("products foundation helpers", () => {
     expect(row.commissionPct).toBeCloseTo(35.25, 2);
   });
 
+  it("maps composition unit fields without multiplying them by sales", () => {
+    const [row] = buildProductTableRows(snapshot);
+
+    expect(row).toEqual(
+      expect.objectContaining({
+        fixedFeeUnit: 5,
+        marketplaceCommissionUnit: 10,
+        shippingOrFixedFeeSource: "shipping",
+        shippingOrFixedFeeUnit: 12,
+        shippingUnit: 12,
+      }),
+    );
+  });
+
+  it("computes net revenue subtracting commission and shipping/fixed fee totals", () => {
+    const [baseRow] = buildProductTableRows(snapshot);
+    const row = {
+      ...baseRow,
+      catalogRole: "standalone" as const,
+      children: [],
+      netLiquidSales: 3,
+      revenue: 89.7,
+      shippingOrFixedFeeUnit: 6.65,
+      totalCommission: 11.67,
+    };
+
+    expect(computeRowNetRevenue(row)).toBeCloseTo(58.08, 2);
+  });
+
   it("falls back to monthly performance commission totals when MELI analytics total is unavailable", () => {
     const commissionSnapshot = structuredClone(snapshot);
     const product = structuredClone(snapshot.products[1]);
@@ -572,7 +652,7 @@ describe("products foundation helpers", () => {
     expect(row.commissionPct).toBeCloseTo((10.53 / 89.7) * 100, 2);
   });
 
-  it("aggregates parent totalCommission from children even when parent analytics netSales matches the synthetic aggregate", () => {
+  it("keeps child monthly performance rows separate from parent rows when performance is flat", () => {
     const aggregationSnapshot = structuredClone(snapshot);
     const parent = structuredClone(snapshot.products[0]);
     parent.id = "product_parent";
@@ -645,10 +725,14 @@ describe("products foundation helpers", () => {
     ];
 
     const rows = buildProductTableRows(aggregationSnapshot);
-    const parentRow = rows.find((row) => row.catalogRole === "parent");
+    const parentRow = rows.find((row) => row.productId === "product_parent");
+    const childRowResult = rows.find((row) => row.productId === "product_child");
 
-    expect(parentRow).toBeDefined();
-    expect(parentRow?.totalCommission).toBeCloseTo(42.16, 2);
-    expect(parentRow?.commissionPct).toBeCloseTo((42.16 / 119.6) * 100, 2);
+    expect(parentRow).toBeUndefined();
+    expect(childRowResult).toBeDefined();
+    expect(childRowResult?.catalogRole).toBe("child");
+    expect(childRowResult?.children).toEqual([]);
+    expect(childRowResult?.totalCommission).toBeCloseTo(42.16, 2);
+    expect(childRowResult?.commissionPct).toBeCloseTo((42.16 / 119.6) * 100, 2);
   });
 });

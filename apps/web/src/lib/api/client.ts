@@ -93,11 +93,11 @@ export function createApiClient({
   credentials = "include",
   defaultHeaders,
 }: ApiClientConfig) {
-  async function request<T>(
+  async function executeRequest(
     method: "DELETE" | "GET" | "POST" | "PATCH",
     path: string,
     options: ApiRequestOptions = {},
-  ): Promise<T> {
+  ) {
     const { body, contentType } = normalizeBody(options.body);
     const headers = new Headers(defaultHeaders);
 
@@ -122,6 +122,16 @@ export function createApiClient({
       credentials,
     });
 
+    return response;
+  }
+
+  async function request<T>(
+    method: "DELETE" | "GET" | "POST" | "PATCH",
+    path: string,
+    options: ApiRequestOptions = {},
+  ): Promise<T> {
+    const response = await executeRequest(method, path, options);
+
     const payload = await parseResponse(response);
 
     if (!response.ok) {
@@ -135,6 +145,25 @@ export function createApiClient({
   }
 
   return {
+    async download(path: string, options?: Omit<ApiRequestOptions, "body">) {
+      const response = await executeRequest("GET", path, options);
+
+      if (!response.ok) {
+        const payload = await parseResponse(response);
+        throw new ApiClientError(
+          extractApiErrorMessage(
+            payload,
+            `API request failed with status ${response.status}`,
+          ),
+          {
+            status: response.status,
+            payload,
+          },
+        );
+      }
+
+      return response.blob();
+    },
     get<T>(path: string, options?: Omit<ApiRequestOptions, "body">) {
       return request<T>("GET", path, options);
     },
@@ -171,6 +200,9 @@ function getDefaultApiClient() {
 }
 
 export const apiClient = {
+  download(path: string, options?: Omit<ApiRequestOptions, "body">) {
+    return getDefaultApiClient().download(path, options);
+  },
   get<T>(path: string, options?: Omit<ApiRequestOptions, "body">) {
     return getDefaultApiClient().get<T>(path, options);
   },

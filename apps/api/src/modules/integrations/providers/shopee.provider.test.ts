@@ -89,7 +89,9 @@ describe("ShopeeProvider", () => {
     const provider = new ShopeeProvider(createEnv());
 
     await expect(
-      provider.exchangeCode("authorization-code", { externalAccountId: "987654" }),
+      provider.exchangeCode("authorization-code", {
+        externalAccountId: "987654",
+      }),
     ).resolves.toEqual(
       expect.objectContaining({
         accessToken: "access-token",
@@ -116,7 +118,9 @@ describe("ShopeeProvider", () => {
     );
     const provider = new ShopeeProvider(createEnv());
 
-    await expect(provider.refreshAccessToken(createConnection() as never)).resolves.toEqual(
+    await expect(
+      provider.refreshAccessToken(createConnection() as never),
+    ).resolves.toEqual(
       expect.objectContaining({
         accessToken: "new-access-token",
         refreshToken: "new-refresh-token",
@@ -153,7 +157,9 @@ describe("ShopeeProvider", () => {
           JSON.stringify({
             response: {
               more: false,
-              order_list: [{ order_sn: "ORDER-1", order_status: "READY_TO_SHIP" }],
+              order_list: [
+                { order_sn: "ORDER-1", order_status: "READY_TO_SHIP" },
+              ],
             },
           }),
           { headers: { "content-type": "application/json" }, status: 200 },
@@ -219,7 +225,10 @@ describe("ShopeeProvider", () => {
       }),
     );
     expect(result.orders[0]?.fees).toEqual([
-      expect.objectContaining({ amount: "25.00", feeType: "marketplace_commission" }),
+      expect.objectContaining({
+        amount: "25.00",
+        feeType: "marketplace_commission",
+      }),
       expect.objectContaining({ amount: "4.00", feeType: "fixed_fee" }),
       expect.objectContaining({ amount: "15.00", feeType: "shipping_cost" }),
     ]);
@@ -281,14 +290,18 @@ describe("ShopeeProvider", () => {
                   model_name: "Azul",
                   model_sku: "SKU-AZUL",
                   price_info: [{ current_price: 99.9 }],
-                  stock_info_v2: { seller_stock: [{ stock_location_id: "loc-1", stock: 4 }] },
+                  stock_info_v2: {
+                    seller_stock: [{ stock_location_id: "loc-1", stock: 4 }],
+                  },
                 },
                 {
                   model_id: 502,
                   model_name: "Preta",
                   model_sku: "SKU-PRETA",
                   price_info: [{ current_price: 109.9 }],
-                  stock_info_v2: { seller_stock: [{ stock_location_id: "loc-1", stock: 0 }] },
+                  stock_info_v2: {
+                    seller_stock: [{ stock_location_id: "loc-1", stock: 0 }],
+                  },
                 },
               ],
               next_offset: 0,
@@ -306,11 +319,15 @@ describe("ShopeeProvider", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchMock.mock.calls[0]?.[0].toString()).toContain("/api/v2/product/get_item_list");
+    expect(fetchMock.mock.calls[0]?.[0].toString()).toContain(
+      "/api/v2/product/get_item_list",
+    );
     expect(fetchMock.mock.calls[1]?.[0].toString()).toContain(
       "/api/v2/product/get_item_base_info",
     );
-    expect(fetchMock.mock.calls[2]?.[0].toString()).toContain("/api/v2/product/get_model_list");
+    expect(fetchMock.mock.calls[2]?.[0].toString()).toContain(
+      "/api/v2/product/get_model_list",
+    );
     expect(result).toEqual([
       expect.objectContaining({
         externalProductId: "101:501",
@@ -331,5 +348,41 @@ describe("ShopeeProvider", () => {
         title: "Camiseta Shopee - Preta",
       }),
     ]);
+  });
+
+  it("uses explicit manual range timestamps for historical syncs", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(1_718_184_000_000);
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          response: {
+            more: false,
+            order_list: [],
+          },
+        }),
+        { headers: { "content-type": "application/json" }, status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const provider = new ShopeeProvider(createEnv());
+
+    const result = await provider.syncOrders({
+      connection: createConnection() as never,
+      mode: "manual_range",
+      organizationId: "org_1",
+      range: {
+        endAt: "2026-06-20T23:59:59.999Z",
+        startAt: "2026-06-10T00:00:00.000Z",
+      },
+    });
+
+    const firstUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(firstUrl.searchParams.get("time_from")).toBe(
+      String(Date.parse("2026-06-10T00:00:00.000Z") / 1000),
+    );
+    expect(firstUrl.searchParams.get("time_to")).toBe(
+      String(Math.floor(Date.parse("2026-06-20T23:59:59.999Z") / 1000)),
+    );
+    expect(result.cursor).toBeNull();
   });
 });

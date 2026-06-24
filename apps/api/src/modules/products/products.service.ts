@@ -11,9 +11,17 @@ import {
   type FinancialMonthlyPerformanceInput,
 } from "@lucreii/domain";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { read, utils } from "xlsx";
-import type { ProductCatalogFinanceUpdateInput } from "@lucreii/validation";
-import { productImportRowSchema } from "@lucreii/validation";
+import { read, utils, write } from "xlsx";
+import type {
+  ProductCatalogExportQueryInput,
+  ProductCatalogFinanceUpdateInput,
+  ProductSpreadsheetUpdateRowInput,
+} from "@lucreii/validation";
+import {
+  productCatalogExportQuerySchema,
+  productImportRowSchema,
+  productSpreadsheetUpdateRowSchema,
+} from "@lucreii/validation";
 import type {
   AdCost,
   Company,
@@ -50,6 +58,7 @@ import type {
   ProductListItem,
   ProductMonthlyPerformanceDisplayRow,
   ProductPerformanceRow,
+  ProductSpreadsheetImportResult,
   ProductRecord,
   SyncedProductRecord,
   SyncStatusResponse,
@@ -71,6 +80,28 @@ type TenantContext = {
 type AnalyticsQueryInput = {
   companyId?: string;
   referenceMonth?: string;
+};
+
+type ProductCatalogExportRow = {
+  ID: string;
+  CANAL: string;
+  PRODUTO: string;
+  SKU: string;
+  PDV: number;
+  "CUSTO UNITÁRIO": number | "";
+  EMBALAGEM: number | "";
+  STATUS: "Ativo" | "Arquivado";
+  "CRIADO EM": string;
+};
+
+type FlattenedCatalogExportProduct = {
+  exportName: string;
+  product: ProductListItem;
+};
+
+type PerformanceCatalogLookup = {
+  byId: Map<string, ProductListItem>;
+  bySku: Map<string, ProductListItem>;
 };
 
 function getSaoPauloCurrentReferenceMonth(now = new Date()) {
@@ -109,6 +140,7 @@ type MercadoLivreCatalogGroup = {
 
 type WeightedPerformanceAccumulator = {
   advertisingCostTotal: number;
+  fixedFeeTotal: number;
   marketplaceCommissionTotal: number;
   netSalesTotal: number;
   packagingCostTotal: number;
@@ -116,7 +148,23 @@ type WeightedPerformanceAccumulator = {
   revenueTotal: number;
   salesQuantity: number;
   shippingFeeTotal: number;
+  shippingOrFixedFeeTotal: number;
   unitCostTotal: number;
+};
+
+type CompositionFeeSource = "shipping" | "fixed_fee" | "none";
+
+type ProductCompositionUnits = {
+  fixedFeeUnit: string;
+  marketplaceCommissionUnit: string;
+  shippingOrFixedFeeSource: CompositionFeeSource;
+  shippingOrFixedFeeUnit: string;
+  shippingUnit: string;
+};
+
+type SyncedProductUnitCompositionLookup = {
+  byProductId: Map<string, ProductCompositionUnits>;
+  bySku: Map<string, ProductCompositionUnits>;
 };
 
 function toCatalogGroupKey(itemId: string) {
@@ -126,6 +174,37 @@ function toCatalogGroupKey(itemId: string) {
 function extractMercadoLivreItemId(externalProductId: string) {
   const [itemId] = externalProductId.split(":");
   return itemId?.trim() ? itemId.trim() : null;
+}
+
+function readMercadoLivreSyncMetadata(
+  syncedProduct: Pick<SyncedProductRecord, "metadata">,
+): {
+  itemId: string | null;
+  variationId: string | null;
+} {
+  const metadata = syncedProduct.metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return {
+      itemId: null,
+      variationId: null,
+    };
+  }
+
+  const itemId =
+    "itemId" in metadata && typeof metadata.itemId === "string" && metadata.itemId.trim().length > 0
+      ? metadata.itemId.trim()
+      : null;
+  const variationId =
+    "variationId" in metadata &&
+    typeof metadata.variationId === "string" &&
+    metadata.variationId.trim().length > 0
+      ? metadata.variationId.trim()
+      : null;
+
+  return {
+    itemId,
+    variationId,
+  };
 }
 
 function toNumber(value: string | undefined) {
@@ -141,6 +220,104 @@ function toDecimalString(value: number, fractionDigits = 2) {
   return value.toFixed(fractionDigits);
 }
 
+function formatCatalogSpreadsheetDate(dateIso: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(dateIso));
+}
+
+function toCatalogChannelLabel(provider: string | null) {
+  if (provider === "mercadolivre") {
+    return "MELI";
+  }
+
+  if (provider === "shopee") {
+    return "Shopee";
+  }
+
+  if (provider === "shein") {
+    return "Shein";
+  }
+
+  return "Manual";
+}
+
+const SPREADSHEET_FIELD_LABELS: Record<string, string> = {
+  EMBALAGEM: "Embalagem",
+  ID: "ID",
+  "CUSTO UNITÁRIO": "Custo unitário",
+  "PREÇO DE VENDA": "Preço de venda",
+  PRODUTO: "Produto",
+  SKU: "SKU",
+  STATUS: "Status",
+};
+
+function formatSpreadsheetRawValue(value: unknown): string {
+  if (value === undefined || value === null) {
+    return "vazio";
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length === 0 ? "vazio" : `"${trimmed}"`;
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  return `"${String(value)}"`;
+}
+
+function formatSpreadsheetIssueMessage(
+  fieldName: string,
+  issue: { code: string; message: string },
+  rawValue: unknown,
+) {
+  const label = SPREADSHEET_FIELD_LABELS[fieldName] ?? fieldName;
+  const valueLabel = formatSpreadsheetRawValue(rawValue);
+
+  if (issue.code === "invalid_type" && fieldName === "STATUS") {
+    return `${label}: o valor ${valueLabel} deve ser 0 (inativo) ou 1 (ativo).`;
+  }
+
+  if (issue.code === "invalid_type" && fieldName === "ID") {
+    return `${label}: informe um identificador válido.`;
+  }
+
+  if (issue.code === "invalid_type" && (fieldName === "SKU" || fieldName === "PRODUTO")) {
+    return `${label}: campo obrigatório.`;
+  }
+
+  if (
+    issue.code === "invalid_type" ||
+    issue.message.toLowerCase().includes("número válido")
+  ) {
+    return `${label}: o valor ${valueLabel} não é um número válido. Use ponto como separador decimal (ex.: 12.50).`;
+  }
+
+  if (issue.message.toLowerCase().includes("maior ou igual a zero")) {
+    if (fieldName === "STATUS") {
+      return `${label}: o valor ${valueLabel} deve ser 0 (inativo) ou 1 (ativo).`;
+    }
+    return `${label}: o valor ${valueLabel} deve ser maior ou igual a zero.`;
+  }
+
+  if (fieldName === "ID" && issue.message.toLowerCase().includes("identificador")) {
+    return `${label}: o valor ${valueLabel} não é um identificador válido.`;
+  }
+
+  if (fieldName === "STATUS") {
+    return `${label}: o valor ${valueLabel} deve ser 0 (inativo) ou 1 (ativo).`;
+  }
+
+  if (issue.code === "too_small" || issue.code === "too_big") {
+    return `${label}: ${issue.message}`;
+  }
+
+  return `${label}: valor ${valueLabel} é inválido (${issue.message}).`;
+}
+
 function resolveNetSales(
   row: Pick<ProductMonthlyPerformanceDisplayRow, "salesQuantity" | "returnsQuantity">,
 ) {
@@ -153,6 +330,7 @@ function resolveNetSales(
 function createEmptyAccumulator(): WeightedPerformanceAccumulator {
   return {
     advertisingCostTotal: 0,
+    fixedFeeTotal: 0,
     marketplaceCommissionTotal: 0,
     netSalesTotal: 0,
     packagingCostTotal: 0,
@@ -160,8 +338,123 @@ function createEmptyAccumulator(): WeightedPerformanceAccumulator {
     revenueTotal: 0,
     salesQuantity: 0,
     shippingFeeTotal: 0,
+    shippingOrFixedFeeTotal: 0,
     unitCostTotal: 0,
   };
+}
+
+function buildMercadoLivreFallbackSku(input: {
+  externalProductId: string;
+  metadata: SyncedProductRecord["metadata"];
+}) {
+  const metadata = readMercadoLivreSyncMetadata({ metadata: input.metadata });
+  const itemId = metadata.itemId ?? extractMercadoLivreItemId(input.externalProductId);
+
+  if (!itemId) {
+    return null;
+  }
+
+  return metadata.variationId ? `ML-${itemId}-${metadata.variationId}` : `ML-${itemId}`;
+}
+
+function toResolvedShippingOrFixedFee(
+  shippingUnit: number,
+  fixedFeeUnit: number,
+): {
+  source: CompositionFeeSource;
+  value: number;
+} {
+  if (shippingUnit > 0) {
+    return {
+      source: "shipping",
+      value: shippingUnit,
+    };
+  }
+
+  if (fixedFeeUnit > 0) {
+    return {
+      source: "fixed_fee",
+      value: fixedFeeUnit,
+    };
+  }
+
+  return {
+    source: "none",
+    value: 0,
+  };
+}
+
+function buildSyncedProductUnitCompositionLookup(
+  syncedProducts: SyncedProductRecord[],
+): SyncedProductUnitCompositionLookup {
+  const byProductId = new Map<string, ProductCompositionUnits>();
+  const bySku = new Map<string, ProductCompositionUnits>();
+
+  for (const syncedProduct of syncedProducts) {
+    if (syncedProduct.provider !== "mercadolivre") {
+      continue;
+    }
+
+    const unitsSold = Math.max(0, syncedProduct.unitsSold);
+    const marketplaceCommissionUnit =
+      unitsSold > 0 ? toNumber(syncedProduct.marketplaceCommission) / unitsSold : 0;
+    const fixedFeeUnit =
+      unitsSold > 0 ? toNumber(syncedProduct.fixedFee) / unitsSold : 0;
+    const shippingUnit =
+      unitsSold > 0 ? toNumber(syncedProduct.shippingCost) / unitsSold : 0;
+    const resolvedShippingOrFixedFee = toResolvedShippingOrFixedFee(
+      shippingUnit,
+      fixedFeeUnit,
+    );
+    const compositionUnits: ProductCompositionUnits = {
+      fixedFeeUnit: toDecimalString(fixedFeeUnit),
+      marketplaceCommissionUnit: toDecimalString(marketplaceCommissionUnit),
+      shippingOrFixedFeeSource: resolvedShippingOrFixedFee.source,
+      shippingOrFixedFeeUnit: toDecimalString(resolvedShippingOrFixedFee.value),
+      shippingUnit: toDecimalString(shippingUnit),
+    };
+
+    if (syncedProduct.linkedProduct?.id) {
+      byProductId.set(syncedProduct.linkedProduct.id, compositionUnits);
+    }
+
+    const normalizedSku = normalizeComparableSku(syncedProduct.sku);
+    if (normalizedSku) {
+      bySku.set(normalizedSku, compositionUnits);
+    }
+
+    const normalizedFallbackSku = normalizeComparableSku(
+      buildMercadoLivreFallbackSku({
+        externalProductId: syncedProduct.externalProductId,
+        metadata: syncedProduct.metadata,
+      }),
+    );
+    if (normalizedFallbackSku) {
+      bySku.set(normalizedFallbackSku, compositionUnits);
+    }
+  }
+
+  return {
+    byProductId,
+    bySku,
+  };
+}
+
+function buildPerformanceCatalogLookup(
+  productsList: ProductListItem[],
+): PerformanceCatalogLookup {
+  const byId = new Map<string, ProductListItem>();
+  const bySku = new Map<string, ProductListItem>();
+
+  for (const product of productsList) {
+    byId.set(product.id, product);
+    const normalizedSku = normalizeComparableSku(product.sku);
+    if (normalizedSku) {
+      bySku.set(normalizedSku, product);
+    }
+  }
+
+  return { byId, bySku };
 }
 
 @Injectable()
@@ -444,13 +737,75 @@ export class ProductsService {
     };
   }
 
+  async exportProductsSpreadsheet(
+    context: TenantContext,
+    filters: ProductCatalogExportQueryInput = {},
+  ): Promise<Buffer> {
+    const scopedContext = await this.requireScopedCompanyContext(context);
+    const normalizedFilters = productCatalogExportQuerySchema.parse(filters);
+    const productsList = await this.listProducts(scopedContext);
+    const syncedProducts = await listSyncedProductsReadModel({
+      companyId: scopedContext.companyId,
+      db: this.db,
+      organizationId: scopedContext.organizationId,
+      productsList: productsList.map((product) => ({
+        companyId: product.companyId,
+        createdAt: new Date(product.createdAt),
+        id: product.id,
+        isActive: product.isActive,
+        name: product.name,
+        organizationId: product.organizationId,
+        sellingPrice: product.sellingPrice,
+        sku: product.sku,
+        updatedAt: new Date(product.updatedAt),
+      })),
+      providerSlug: "mercadolivre",
+    });
+    const groupedProducts = this.buildCatalogProducts(productsList, syncedProducts);
+    const flattenedProducts = this.flattenCatalogProductsForExport(
+      groupedProducts,
+    );
+    const search = normalizedFilters.search?.toLowerCase().trim() ?? "";
+    const marketplaces = normalizedFilters.marketplaces ?? [];
+
+    const rows = flattenedProducts
+      .filter(({ exportName, product }) => { 
+        if (search.length > 0) {
+          const matchesSearch =
+            exportName.toLowerCase().includes(search) ||
+            (product.sku?.toLowerCase().includes(search) ?? false);
+
+          if (!matchesSearch) {
+            return false;
+          }
+        }
+
+        if (marketplaces.length > 0) {
+          return marketplaces.includes(
+            (product.derivedFromProvider ?? "") as
+              | "mercadolivre"
+              | "shopee"
+              | "shein",
+          );
+        }
+
+        return true;
+      })
+      .map((entry) => this.toProductCatalogExportRow(entry));
+
+    const workbook = utils.book_new();
+    const worksheet = utils.json_to_sheet(rows);
+    utils.book_append_sheet(workbook, worksheet, "Catalogo");
+
+    return Buffer.from(
+      write(workbook, { bookType: "xlsx", type: "buffer" }),
+    );
+  }
+
   async importProducts(
     context: TenantContext,
     fileBuffer: Buffer,
-  ): Promise<{
-    imported: number;
-    errors: Array<{ row: number; message: string }>;
-  }> {
+  ): Promise<ProductSpreadsheetImportResult> {
     const scopedContext = await this.requireScopedCompanyContext(context);
     const wb = read(fileBuffer, { type: "buffer" });
     const ws = wb.Sheets[wb.SheetNames[0]];
@@ -471,14 +826,6 @@ export class ProductsService {
       );
     }
 
-    const requiredColumns = [
-      "PRODUTO",
-      "SKU",
-      "PREÇO DE VENDA",
-      "CUSTO UNITÁRIO",
-      "EMBALAGEM",
-      "STATUS",
-    ];
     const normalizedRows = rawRows.map((row) => {
       const normalized: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(row)) {
@@ -487,8 +834,74 @@ export class ProductsService {
       return normalized;
     });
 
+    if ("ID" in (normalizedRows[0] ?? {})) {
+      return this.importProductSpreadsheetUpdates(scopedContext, normalizedRows);
+    }
+
+    return this.importNewProductsFromSpreadsheet(scopedContext, normalizedRows);
+  }
+
+  private toProductCatalogExportRow(
+    input: FlattenedCatalogExportProduct,
+  ): ProductCatalogExportRow {
+    const { exportName, product } = input;
+    return {
+      ID: product.id,
+      CANAL: toCatalogChannelLabel(product.derivedFromProvider),
+      PRODUTO: exportName,
+      SKU: product.sku ?? "",
+      PDV: Number(product.sellingPrice),
+      "CUSTO UNITÁRIO": product.latestCost
+        ? Number(product.latestCost.amount)
+        : "",
+      EMBALAGEM: product.financeDefaults
+        ? Number(product.financeDefaults.packagingCost)
+        : "",
+      STATUS: product.isActive ? "Ativo" : "Arquivado",
+      "CRIADO EM": formatCatalogSpreadsheetDate(product.createdAt),
+    };
+  }
+
+  private flattenCatalogProductsForExport(
+    products: ProductListItem[],
+  ): FlattenedCatalogExportProduct[] {
+    return products.flatMap((product) => {
+      const rows: FlattenedCatalogExportProduct[] = [
+        {
+          exportName: product.name,
+          product,
+        },
+      ];
+
+      if (product.catalogRole === "parent" && product.children.length > 0) {
+        for (const child of product.children) {
+          rows.push({
+            exportName: child.variationLabel
+              ? `${product.name} | ${child.variationLabel}`
+              : child.name,
+            product: child,
+          });
+        }
+      }
+
+      return rows;
+    });
+  }
+
+  private async importNewProductsFromSpreadsheet(
+    scopedContext: Awaited<ReturnType<ProductsService["requireScopedCompanyContext"]>>,
+    normalizedRows: Record<string, unknown>[],
+  ): Promise<ProductSpreadsheetImportResult> {
+    const requiredColumns = [
+      "PRODUTO",
+      "SKU",
+      "PREÇO DE VENDA",
+      "CUSTO UNITÁRIO",
+      "EMBALAGEM",
+      "STATUS",
+    ];
     const missingColumns = requiredColumns.filter(
-      (col) => !(col in normalizedRows[0]),
+      (col) => !(col in normalizedRows[0]!),
     );
     if (missingColumns.length > 0) {
       throw new BadRequestException(
@@ -507,7 +920,6 @@ export class ProductsService {
     const existingSkus = await this.getCompanyNormalizedSkuSet(
       scopedContext.companyId,
     );
-
     const errors: Array<{ row: number; message: string }> = [];
     const validRows: Array<{
       product: {
@@ -522,15 +934,18 @@ export class ProductsService {
 
     for (let i = 0; i < normalizedRows.length; i++) {
       const rowNumber = i + 2;
-      const parsed = productImportRowSchema.safeParse(normalizedRows[i]);
+      const rawRow = normalizedRows[i];
+      const parsed = productImportRowSchema.safeParse(rawRow);
 
       if (!parsed.success) {
         const firstIssue = parsed.error.issues[0];
         const fieldName = firstIssue?.path.join(".") ?? "";
-        const message = firstIssue?.message ?? "Dados inválidos";
+        const rawValue = fieldName ? rawRow?.[fieldName] : undefined;
         errors.push({
           row: rowNumber,
-          message: fieldName ? `${fieldName}: ${message}` : message,
+          message: firstIssue
+            ? formatSpreadsheetIssueMessage(fieldName, firstIssue, rawValue)
+            : "Dados inválidos na linha.",
         });
         continue;
       }
@@ -541,7 +956,7 @@ export class ProductsService {
       if (!normalizedSku) {
         errors.push({
           row: rowNumber,
-          message: "SKU invÃ¡lido",
+          message: "SKU inválido",
         });
         continue;
       }
@@ -581,7 +996,193 @@ export class ProductsService {
       await this.createManualProduct(scopedContext, row);
     }
 
-    return { errors, imported: validRows.length };
+    return {
+      created: validRows.length,
+      errors,
+      imported: validRows.length,
+      updated: 0,
+    };
+  }
+
+  private async importProductSpreadsheetUpdates(
+    scopedContext: Awaited<ReturnType<ProductsService["requireScopedCompanyContext"]>>,
+    normalizedRows: Record<string, unknown>[],
+  ): Promise<ProductSpreadsheetImportResult> {
+    const requiredColumns = ["ID", "CUSTO UNITÁRIO", "EMBALAGEM"];
+    const missingColumns = requiredColumns.filter(
+      (col) => !(col in normalizedRows[0]!),
+    );
+    if (missingColumns.length > 0) {
+      throw new BadRequestException(
+        `Colunas obrigatórias não encontradas: ${missingColumns.join(", ")}`,
+      );
+    }
+
+    const errors: Array<{ row: number; message: string }> = [];
+    let updated = 0;
+
+    for (let i = 0; i < normalizedRows.length; i++) {
+      const rowNumber = i + 2;
+      const rawRow = normalizedRows[i];
+      const parsed = productSpreadsheetUpdateRowSchema.safeParse(rawRow);
+
+      if (!parsed.success) {
+        const firstIssue = parsed.error.issues[0];
+        const fieldName = firstIssue?.path.join(".") ?? "";
+        const rawValue = fieldName ? rawRow?.[fieldName] : undefined;
+        errors.push({
+          row: rowNumber,
+          message: firstIssue
+            ? formatSpreadsheetIssueMessage(fieldName, firstIssue, rawValue)
+            : "Dados inválidos na linha.",
+        });
+        continue;
+      }
+
+      const data = parsed.data;
+
+      if (
+        data["CUSTO UNITÁRIO"] === undefined &&
+        data.EMBALAGEM === undefined
+      ) {
+        errors.push({
+          row: rowNumber,
+          message: "Informe ao menos CUSTO UNITÁRIO ou EMBALAGEM.",
+        });
+        continue;
+      }
+
+      try {
+        const changed = await this.updateSpreadsheetCatalogFinanceById(
+          scopedContext.organizationId,
+          scopedContext.companyId,
+          data,
+        );
+
+        if (changed) {
+          updated += 1;
+        }
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+          errors.push({
+            row: rowNumber,
+            message: "Produto da planilha nao encontrado no catalogo.",
+          });
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    if (updated > 0) {
+      await this.financeService.materializeOrganizationMetrics(
+        scopedContext.organizationId,
+        scopedContext.companyId,
+      );
+    }
+
+    return {
+      created: 0,
+      errors,
+      imported: updated,
+      updated,
+    };
+  }
+
+  private async updateSpreadsheetCatalogFinanceById(
+    organizationId: string,
+    companyId: string,
+    input: ProductSpreadsheetUpdateRowInput,
+  ): Promise<boolean> {
+    const [productRow, existingCost] = await Promise.all([
+      this.db.query.products.findFirst({
+        where: (table) =>
+          and(
+            eq(table.id, input.ID),
+            eq(table.organizationId, organizationId),
+            eq(table.companyId, companyId),
+          ),
+        with: {
+          financeDefaults: true,
+        },
+      }),
+      this.db.query.productCosts.findFirst({
+        orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
+        where: (table) =>
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.companyId, companyId),
+            eq(table.productId, input.ID),
+          ),
+      }),
+    ]);
+
+    if (!productRow) {
+      throw new NotFoundException("Product not found.");
+    }
+
+    await this.db.transaction(async (tx) => {
+      if (input["CUSTO UNITÁRIO"] !== undefined) {
+        const nextUnitCost = Number(input["CUSTO UNITÁRIO"]).toFixed(2);
+
+        if (existingCost) {
+          await tx
+            .update(productCosts)
+            .set({
+              amount: nextUnitCost,
+              notes: "Atualizado via planilha",
+            })
+            .where(
+              and(
+                eq(productCosts.id, existingCost.id),
+                eq(productCosts.organizationId, organizationId),
+                eq(productCosts.companyId, companyId),
+              ),
+            )
+            .returning();
+        } else {
+          await tx
+            .insert(productCosts)
+            .values({
+              amount: nextUnitCost,
+              companyId,
+              costType: "base",
+              currency: "BRL",
+              effectiveFrom: null,
+              notes: "Atualizado via planilha",
+              organizationId,
+              productId: input.ID,
+            })
+            .returning();
+        }
+      }
+
+      if (input.EMBALAGEM !== undefined) {
+        const nextPackagingCost = Number(input.EMBALAGEM).toFixed(2);
+
+        if (productRow.financeDefaults) {
+          await tx
+            .update(productFinanceDefaults)
+            .set({
+              packagingCost: nextPackagingCost,
+            })
+            .where(eq(productFinanceDefaults.id, productRow.financeDefaults.id))
+            .returning();
+        } else {
+          await tx
+            .insert(productFinanceDefaults)
+            .values({
+              advertisingCost: "0",
+              packagingCost: nextPackagingCost,
+              productId: input.ID,
+            })
+            .returning();
+        }
+      }
+    });
+
+    return true;
   }
 
   private async resolveSingleActiveCompanyTaxRate(
@@ -779,99 +1380,6 @@ export class ProductsService {
       productId,
       input,
     );
-
-    const [existingProduct, existingCost] = await Promise.all([
-      this.db.query.products.findFirst({
-        where: (table) =>
-          and(eq(table.id, productId), eq(table.organizationId, organizationId)),
-        with: {
-          financeDefaults: true,
-        },
-      }),
-      this.db.query.productCosts.findFirst({
-        orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
-        where: (table) =>
-          and(
-            eq(table.organizationId, organizationId),
-            eq(table.productId, productId),
-          ),
-      }),
-    ]);
-
-    if (!existingProduct) {
-      throw new NotFoundException("Product not found.");
-    }
-    const ensuredExistingProduct = existingProduct!;
-
-    await this.db.transaction(async (tx) => {
-      if (existingCost) {
-        await tx
-          .update(productCosts)
-          .set({
-            amount: input.unitCost,
-            costType: existingCost.costType,
-            currency: existingCost.currency,
-            effectiveFrom: existingCost.effectiveFrom,
-            notes: "Atualizado pelo catálogo",
-          })
-          .where(
-            and(
-              eq(productCosts.id, existingCost.id),
-              eq(productCosts.organizationId, organizationId),
-            ),
-          )
-          .returning();
-      } else {
-        await tx
-          .insert(productCosts)
-          .values({
-            amount: input.unitCost,
-            companyId: scopedContext?.companyId ?? organizationId,
-            costType: "base",
-            currency: "BRL",
-            effectiveFrom: null,
-            notes: "Atualizado pelo catálogo",
-            organizationId,
-            productId,
-          })
-          .returning();
-      }
-
-      if (ensuredExistingProduct.financeDefaults) {
-        await tx
-          .update(productFinanceDefaults)
-          .set({
-            packagingCost: input.packagingCost,
-          })
-          .where(
-            eq(
-              productFinanceDefaults.id,
-              ensuredExistingProduct.financeDefaults.id,
-            ),
-          )
-          .returning();
-      } else {
-        await tx
-          .insert(productFinanceDefaults)
-          .values({
-            advertisingCost: "0",
-            packagingCost: input.packagingCost,
-            productId,
-          })
-          .returning();
-      }
-    });
-
-    await this.financeService.materializeOrganizationMetrics(
-      organizationId,
-      ensuredExistingProduct.companyId,
-    );
-
-    return this.getProductListItem(
-      organizationId,
-      productId,
-      ensuredExistingProduct.companyId,
-    );
   }
 
   async deleteProduct(
@@ -886,15 +1394,45 @@ export class ProductsService {
       : contextOrOrganizationId;
     await this.ensureProductAccess(organizationId, productId, scopedContext?.companyId);
 
-    await this.db
-      .delete(products)
-      .where(
+    const productsList = await this.db.query.products.findMany({
+      where: (table) =>
         and(
-          eq(products.id, productId),
-          eq(products.organizationId, organizationId),
-          ...(scopedContext ? [eq(products.companyId, scopedContext.companyId)] : []),
+          eq(table.organizationId, organizationId),
+          ...(scopedContext ? [eq(table.companyId, scopedContext.companyId)] : []),
         ),
-      );
+    });
+    const syncedProducts = await listSyncedProductsReadModel({
+      companyId: scopedContext?.companyId,
+      db: this.db,
+      organizationId,
+      productsList,
+      providerSlug: "mercadolivre",
+    });
+    const catalogGroups = this.buildMercadoLivreCatalogGroups(syncedProducts);
+    const targetGroup = [...catalogGroups.values()].find(
+      (group) => group.parentProductId === productId,
+    );
+    const targetProductIds = Array.from(
+      new Set(
+        targetGroup
+          ? [targetGroup.parentProductId, ...targetGroup.childProductIds]
+          : [productId],
+      ),
+    );
+
+    await this.db.transaction(async (tx) => {
+      for (const targetId of targetProductIds) {
+        await tx
+          .delete(products)
+          .where(
+            and(
+              eq(products.id, targetId),
+              eq(products.organizationId, organizationId),
+              ...(scopedContext ? [eq(products.companyId, scopedContext.companyId)] : []),
+            ),
+          );
+      }
+    });
 
     if (scopedContext) {
       await this.financeService.materializeOrganizationMetrics(
@@ -1315,20 +1853,7 @@ export class ProductsService {
     ]);
     const monthlyPerformanceRows =
       await this.readMonthlyPerformanceForAnalytics(context, scope);
-    const monthlyPerformanceDisplayRows = monthlyPerformanceRows.map((row) =>
-      this.toMonthlyPerformanceDisplayRow(row),
-    );
-    const enrichedFinanceSnapshot = {
-      ...financeSnapshot,
-      monthlyPerformance: monthlyPerformanceRows.map((row) =>
-        this.toFinancialMonthlyPerformance(
-          row,
-          rawProductRows,
-          scope.taxRateDefault,
-        ),
-      ),
-    };
-
+    const performanceCatalogLookup = buildPerformanceCatalogLookup(productsList);
     const syncedProducts = (
       await Promise.all(
         (["mercadolivre", "shopee", "shein"] as const).map((providerSlug) =>
@@ -1342,6 +1867,25 @@ export class ProductsService {
         ),
       )
     ).flat();
+    const syncedProductUnitLookup =
+      buildSyncedProductUnitCompositionLookup(syncedProducts);
+    const monthlyPerformanceDisplayRows = monthlyPerformanceRows.map((row) =>
+      this.toMonthlyPerformanceDisplayRow(
+        row,
+        performanceCatalogLookup,
+        syncedProductUnitLookup,
+      ),
+    );
+    const enrichedFinanceSnapshot = {
+      ...financeSnapshot,
+      monthlyPerformance: monthlyPerformanceRows.map((row) =>
+        this.toFinancialMonthlyPerformance(
+          row,
+          performanceCatalogLookup,
+          scope.taxRateDefault,
+        ),
+      ),
+    };
     const linkedMarketplaceSignalsByProductId = Object.fromEntries(
       syncedProducts
         .filter((product) => product.linkedProduct?.id)
@@ -1585,49 +2129,88 @@ export class ProductsService {
 
   private toFinancialMonthlyPerformance(
     row: ProductMonthlyPerformance,
-    productRows: Product[],
+    catalogLookup: PerformanceCatalogLookup,
     taxRateDefault: string,
   ): FinancialMonthlyPerformanceInput {
-    const matchedProduct =
-      (row.productId
-        ? productRows.find((product) => product.id === row.productId) ?? null
-        : null) ??
-      productRows.find(
-        (product) =>
-          normalizeComparableSku(product.sku) === normalizeComparableSku(row.sku),
-      ) ??
-      null;
+    const resolvedRow = this.resolveMonthlyPerformanceCatalogFinance(
+      row,
+      catalogLookup,
+    );
 
     return {
-      advertisingCost: String(row.advertisingCost),
-      channel: row.channel,
-      commissionRate: String(row.commissionRate),
-      id: row.id,
-      packagingCost: String(row.packagingCost),
-      productId: matchedProduct?.id ?? null,
-      returnsQuantity: row.returnsQuantity,
-      salePrice: String(row.salePrice),
-      salesQuantity: row.salesQuantity,
-      shippingFee: String(row.shippingFee),
-      sku: row.sku,
+      advertisingCost: resolvedRow.advertisingCost,
+      channel: resolvedRow.channel,
+      commissionRate: resolvedRow.commissionRate,
+      id: resolvedRow.id,
+      packagingCost: resolvedRow.packagingCost,
+      productId: resolvedRow.productId,
+      returnsQuantity: resolvedRow.returnsQuantity,
+      salePrice: resolvedRow.salePrice,
+      salesQuantity: resolvedRow.salesQuantity,
+      shippingFee: resolvedRow.shippingFee,
+      sku: resolvedRow.sku,
       taxRateDefault,
-      unitCost: String(row.unitCost),
+      unitCost: resolvedRow.unitCost,
     };
   }
 
   private toMonthlyPerformanceDisplayRow(
     row: ProductMonthlyPerformance,
+    catalogLookup: PerformanceCatalogLookup,
+    syncedProductUnitLookup: SyncedProductUnitCompositionLookup,
   ): ProductMonthlyPerformanceDisplayRow {
+    const resolvedRow = this.resolveMonthlyPerformanceCatalogFinance(
+      row,
+      catalogLookup,
+    );
+    const compositionUnits = this.resolveCompositionUnits(
+      resolvedRow,
+      syncedProductUnitLookup,
+    );
+
+    return {
+      advertisingCost: resolvedRow.advertisingCost,
+      channel: resolvedRow.channel,
+      commissionRate: resolvedRow.commissionRate,
+      fixedFeeUnit: compositionUnits.fixedFeeUnit,
+      id: resolvedRow.id,
+      marketplaceCommission: (
+        Number(resolvedRow.commissionRate) * Number(resolvedRow.salePrice)
+      ).toFixed(2),
+      marketplaceCommissionUnit: compositionUnits.marketplaceCommissionUnit,
+      packagingCost: resolvedRow.packagingCost,
+      productId: resolvedRow.productId,
+      productName: resolvedRow.productName,
+      referenceMonth: resolvedRow.referenceMonth,
+      returnsQuantity: resolvedRow.returnsQuantity,
+      salePrice: resolvedRow.salePrice,
+      salesQuantity: resolvedRow.salesQuantity,
+      shippingFee: resolvedRow.shippingFee,
+      shippingOrFixedFeeSource: compositionUnits.shippingOrFixedFeeSource,
+      shippingOrFixedFeeUnit: compositionUnits.shippingOrFixedFeeUnit,
+      shippingUnit: compositionUnits.shippingUnit,
+      sku: resolvedRow.sku,
+      unitCost: resolvedRow.unitCost,
+    };
+  }
+
+  private resolveMonthlyPerformanceCatalogFinance(
+    row: ProductMonthlyPerformance,
+    catalogLookup: PerformanceCatalogLookup,
+  ) {
+    const normalizedSku = normalizeComparableSku(row.sku);
+    const matchedProduct =
+      (row.productId ? catalogLookup.byId.get(row.productId) ?? null : null) ??
+      (normalizedSku ? catalogLookup.bySku.get(normalizedSku) ?? null : null);
+
     return {
       advertisingCost: String(row.advertisingCost),
       channel: row.channel,
       commissionRate: String(row.commissionRate),
       id: row.id,
-      marketplaceCommission: (
-        Number(row.commissionRate) * Number(row.salePrice)
-      ).toFixed(2),
-      packagingCost: String(row.packagingCost),
-      productId: row.productId,
+      packagingCost:
+        matchedProduct?.financeDefaults?.packagingCost ?? String(row.packagingCost),
+      productId: row.productId ?? matchedProduct?.id ?? null,
       productName: row.productName,
       referenceMonth: row.referenceMonth,
       returnsQuantity: row.returnsQuantity,
@@ -1635,7 +2218,68 @@ export class ProductsService {
       salesQuantity: row.salesQuantity,
       shippingFee: String(row.shippingFee),
       sku: row.sku,
-      unitCost: String(row.unitCost),
+      unitCost: matchedProduct?.latestCost?.amount ?? String(row.unitCost),
+    };
+  }
+
+  private resolveCompositionUnits(
+    row: Pick<
+      ProductMonthlyPerformanceDisplayRow,
+      | "channel"
+      | "commissionRate"
+      | "marketplaceCommission"
+      | "productId"
+      | "returnsQuantity"
+      | "salePrice"
+      | "salesQuantity"
+      | "shippingFee"
+      | "sku"
+    >,
+    syncedProductUnitLookup: SyncedProductUnitCompositionLookup,
+  ): ProductCompositionUnits {
+    const normalizedChannel = row.channel.trim().toLowerCase();
+    const netSales = resolveNetSales(row);
+    const syncedUnits =
+      (row.productId ? syncedProductUnitLookup.byProductId.get(row.productId) ?? null : null) ??
+      (normalizeComparableSku(row.sku)
+        ? syncedProductUnitLookup.bySku.get(normalizeComparableSku(row.sku)!) ?? null
+        : null);
+
+    const fallbackCommissionUnit =
+      toNumber(row.marketplaceCommission) > 0
+        ? toNumber(row.marketplaceCommission)
+        : toNumber(row.commissionRate) * toNumber(row.salePrice);
+    const marketplaceCommissionUnit =
+      normalizedChannel === "mercadolivre"
+        ? syncedUnits && toNumber(syncedUnits.marketplaceCommissionUnit) > 0
+          ? toNumber(syncedUnits.marketplaceCommissionUnit)
+          : fallbackCommissionUnit
+        : fallbackCommissionUnit;
+    const shippingUnit =
+      toNumber(row.shippingFee) > 0
+        ? toNumber(row.shippingFee)
+        : syncedUnits
+          ? toNumber(syncedUnits.shippingUnit)
+          : 0;
+    const fixedFeeUnit =
+      normalizedChannel === "mercadolivre" && syncedUnits
+        ? toNumber(syncedUnits.fixedFeeUnit)
+        : 0;
+    const resolvedShippingOrFixedFee = toResolvedShippingOrFixedFee(
+      shippingUnit,
+      fixedFeeUnit,
+    );
+
+    return {
+      fixedFeeUnit: toDecimalString(fixedFeeUnit),
+      marketplaceCommissionUnit: toDecimalString(
+        netSales > 0 ? marketplaceCommissionUnit : 0,
+      ),
+      shippingOrFixedFeeSource: resolvedShippingOrFixedFee.source,
+      shippingOrFixedFeeUnit: toDecimalString(
+        netSales > 0 ? resolvedShippingOrFixedFee.value : 0,
+      ),
+      shippingUnit: toDecimalString(netSales > 0 ? shippingUnit : 0),
     };
   }
 
@@ -1643,17 +2287,6 @@ export class ProductsService {
     products: ProductListItem[],
     monthlyPerformanceRows: ProductMonthlyPerformanceDisplayRow[],
   ): ProductPerformanceRow[] {
-    const monthlyPerformanceByProductId = new Map(
-      monthlyPerformanceRows
-        .filter((row): row is ProductMonthlyPerformanceDisplayRow & { productId: string } => row.productId !== null)
-        .map((row) => [row.productId, row] as const),
-    );
-    const monthlyPerformanceBySku = new Map(
-      monthlyPerformanceRows.map((row) => [row.sku, row] as const),
-    );
-    const matchedSkus = new Set<string>();
-    const matchedPerformanceIds = new Set<string>();
-    const rows: ProductPerformanceRow[] = [];
     const productById = new Map<string, ProductListItem>();
     const productBySku = new Map<string, ProductListItem>();
 
@@ -1671,62 +2304,33 @@ export class ProductsService {
       registerProduct(product);
     }
 
-    for (const product of products) {
-      if (product.catalogRole === "parent" && product.children.length > 0) {
-        const ownRow =
-          monthlyPerformanceByProductId.get(product.id) ??
-          (product.sku ? monthlyPerformanceBySku.get(product.sku) ?? null : null);
-        const childRows = product.children
-          .map((child) => {
-            const row =
-              monthlyPerformanceByProductId.get(child.id) ??
-              (child.sku ? monthlyPerformanceBySku.get(child.sku) ?? null : null);
-            return row ? this.toPerformanceRow(row, child, []) : null;
-          })
-          .filter((row): row is ProductPerformanceRow => row !== null);
-
-        if (!ownRow && childRows.length === 0) {
-          continue;
-        }
-
-        if (ownRow?.sku) {
-          matchedSkus.add(ownRow.sku);
-          matchedPerformanceIds.add(ownRow.id);
-        }
-        for (const childRow of childRows) {
-          matchedSkus.add(childRow.sku);
-          matchedPerformanceIds.add(childRow.id);
-        }
-
-        rows.push(this.aggregatePerformanceGroup(product, ownRow, childRows));
-        continue;
-      }
-
-      const ownRow =
-        monthlyPerformanceByProductId.get(product.id) ??
-        (product.sku ? monthlyPerformanceBySku.get(product.sku) ?? null : null);
-      if (!ownRow) {
-        continue;
-      }
-
-      matchedSkus.add(ownRow.sku);
-      matchedPerformanceIds.add(ownRow.id);
-      rows.push(this.toPerformanceRow(ownRow, product, []));
-    }
-
-    for (const row of monthlyPerformanceRows) {
-      if (matchedPerformanceIds.has(row.id) || matchedSkus.has(row.sku)) {
-        continue;
-      }
-
+    const performanceRows = monthlyPerformanceRows.map((row) => {
       const product =
         (row.productId ? productById.get(row.productId) ?? null : null) ??
         productBySku.get(row.sku) ??
         null;
-      rows.push(this.toPerformanceRow(row, product ?? null, []));
+      return this.toPerformanceRow(row, product ?? null, []);
+    });
+
+    const rowsByGroupKey = new Map<string, ProductPerformanceRow[]>();
+    for (const row of performanceRows) {
+      if (!row.catalogGroupKey) {
+        continue;
+      }
+
+      const groupedRows = rowsByGroupKey.get(row.catalogGroupKey) ?? [];
+      groupedRows.push(row);
+      rowsByGroupKey.set(row.catalogGroupKey, groupedRows);
     }
 
-    return rows;
+    return performanceRows.map((row) => {
+      if (row.catalogRole !== "parent" || !row.catalogGroupKey) {
+        return row;
+      }
+
+      const groupedRows = rowsByGroupKey.get(row.catalogGroupKey) ?? [row];
+      return this.applyWeightedCompositionUnitsToParentRow(row, groupedRows);
+    });
   }
 
   private toPerformanceRow(
@@ -1745,78 +2349,50 @@ export class ProductsService {
     };
   }
 
-  private aggregatePerformanceGroup(
-    parentProduct: ProductListItem,
-    ownRow: ProductMonthlyPerformanceDisplayRow | null,
-    childRows: ProductPerformanceRow[],
+  private applyWeightedCompositionUnitsToParentRow(
+    row: ProductPerformanceRow,
+    groupedRows: ProductPerformanceRow[],
   ): ProductPerformanceRow {
-    const sourceRows = [
-      ...(ownRow ? [ownRow] : []),
-      ...childRows,
-    ];
-    const firstRow = ownRow ?? childRows[0];
-    const totals = sourceRows.reduce((accumulator, row) => {
-      const netSales = resolveNetSales(row);
-      accumulator.salesQuantity += row.salesQuantity;
-      accumulator.returnsQuantity += row.returnsQuantity;
-      accumulator.netSalesTotal += netSales;
-      accumulator.revenueTotal += toNumber(row.salePrice) * netSales;
-      accumulator.marketplaceCommissionTotal +=
-        toNumber(row.marketplaceCommission) * netSales;
-      accumulator.shippingFeeTotal += toNumber(row.shippingFee) * netSales;
-      accumulator.packagingCostTotal += toNumber(row.packagingCost) * netSales;
-      accumulator.unitCostTotal += toNumber(row.unitCost) * netSales;
-      accumulator.advertisingCostTotal += toNumber(row.advertisingCost);
-      return accumulator;
-    }, createEmptyAccumulator());
+    const totals = groupedRows.reduce(
+      (accumulator, currentRow) => {
+        const netSales = resolveNetSales(currentRow);
+        if (netSales <= 0) {
+          return accumulator;
+        }
 
-    const netSalesTotal = totals.netSalesTotal;
-    const weightedSalePrice =
-      netSalesTotal > 0
-        ? totals.revenueTotal / netSalesTotal
-        : toNumber(firstRow?.salePrice);
-    const weightedMarketplaceCommission =
-      netSalesTotal > 0
-        ? totals.marketplaceCommissionTotal / netSalesTotal
-        : toNumber(firstRow?.marketplaceCommission);
-    const weightedShippingFee =
-      netSalesTotal > 0
-        ? totals.shippingFeeTotal / netSalesTotal
-        : toNumber(firstRow?.shippingFee);
-    const weightedPackagingCost =
-      netSalesTotal > 0
-        ? totals.packagingCostTotal / netSalesTotal
-        : toNumber(firstRow?.packagingCost);
-    const weightedUnitCost =
-      netSalesTotal > 0
-        ? totals.unitCostTotal / netSalesTotal
-        : toNumber(firstRow?.unitCost);
-    const commissionRate =
-      totals.revenueTotal > 0
-        ? totals.marketplaceCommissionTotal / totals.revenueTotal
-        : toNumber(firstRow?.commissionRate);
+        accumulator.fixedFeeTotal += toNumber(currentRow.fixedFeeUnit) * netSales;
+        accumulator.marketplaceCommissionTotal +=
+          toNumber(currentRow.marketplaceCommissionUnit) * netSales;
+        accumulator.netSalesTotal += netSales;
+        accumulator.shippingFeeTotal += toNumber(currentRow.shippingUnit) * netSales;
+        accumulator.shippingOrFixedFeeTotal +=
+          toNumber(currentRow.shippingOrFixedFeeUnit) * netSales;
+
+        return accumulator;
+      },
+      createEmptyAccumulator(),
+    );
+
+    if (totals.netSalesTotal <= 0) {
+      return row;
+    }
+
+    const weightedShippingUnit = totals.shippingFeeTotal / totals.netSalesTotal;
+    const weightedFixedFeeUnit = totals.fixedFeeTotal / totals.netSalesTotal;
+    const resolvedShippingOrFixedFee = toResolvedShippingOrFixedFee(
+      weightedShippingUnit,
+      weightedFixedFeeUnit,
+    );
 
     return {
-      advertisingCost: toDecimalString(totals.advertisingCostTotal),
-      catalogGroupKey: parentProduct.catalogGroupKey,
-      catalogRole: "parent",
-      channel: firstRow?.channel ?? "mercadolivre",
-      children: childRows,
-      commissionRate: toDecimalString(commissionRate, 6),
-      id: ownRow?.id ?? `${parentProduct.id}:${firstRow?.referenceMonth ?? "performance"}`,
-      marketplaceCommission: toDecimalString(weightedMarketplaceCommission),
-      packagingCost: toDecimalString(weightedPackagingCost),
-      parentProductId: null,
-      productId: parentProduct.id,
-      productName: parentProduct.name,
-      referenceMonth: firstRow?.referenceMonth ?? getSaoPauloCurrentReferenceMonth(),
-      returnsQuantity: totals.returnsQuantity,
-      salePrice: toDecimalString(weightedSalePrice),
-      salesQuantity: totals.salesQuantity,
-      shippingFee: toDecimalString(weightedShippingFee),
-      sku: parentProduct.sku ?? firstRow?.sku ?? parentProduct.id,
-      unitCost: toDecimalString(weightedUnitCost),
-      variationLabel: null,
+      ...row,
+      fixedFeeUnit: toDecimalString(weightedFixedFeeUnit),
+      marketplaceCommissionUnit: toDecimalString(
+        totals.marketplaceCommissionTotal / totals.netSalesTotal,
+      ),
+      shippingOrFixedFeeSource: resolvedShippingOrFixedFee.source,
+      shippingOrFixedFeeUnit: toDecimalString(resolvedShippingOrFixedFee.value),
+      shippingUnit: toDecimalString(weightedShippingUnit),
     };
   }
 
@@ -1848,98 +2424,22 @@ export class ProductsService {
         group.childProductIds.includes(productId),
     );
     if (!targetGroup) {
-      const [existingProduct, existingCost] = await Promise.all([
-        this.db.query.products.findFirst({
-          where: (table) =>
-            and(
-              eq(table.id, productId),
-              eq(table.organizationId, organizationId),
-              ...(companyId ? [eq(table.companyId, companyId)] : []),
-            ),
-          with: {
-            financeDefaults: true,
-          },
-        }),
-        this.db.query.productCosts.findFirst({
-          orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
-          where: (table) =>
-            and(
-              eq(table.organizationId, organizationId),
-              ...(companyId ? [eq(table.companyId, companyId)] : []),
-              eq(table.productId, productId),
-            ),
-        }),
-      ]);
+      return this.updateCatalogFinanceForSingleProduct(
+        organizationId,
+        companyId,
+        productId,
+        input,
+        false,
+      );
+    }
 
-      if (!existingProduct) {
-        throw new NotFoundException("Product not found.");
-      }
-
-      await this.db.transaction(async (tx) => {
-        if (existingCost) {
-          await tx
-            .update(productCosts)
-            .set({
-              amount: input.unitCost,
-              costType: existingCost.costType,
-              currency: existingCost.currency,
-              effectiveFrom: existingCost.effectiveFrom,
-              notes: "Atualizado pelo catálogo",
-            })
-            .where(
-              and(
-                eq(productCosts.id, existingCost.id),
-                eq(productCosts.organizationId, organizationId),
-                ...(companyId ? [eq(productCosts.companyId, companyId)] : []),
-              ),
-            )
-            .returning();
-        } else {
-          await tx
-            .insert(productCosts)
-            .values({
-              amount: input.unitCost,
-              companyId: existingProduct.companyId,
-              costType: "base",
-              currency: "BRL",
-              effectiveFrom: null,
-              notes: "Atualizado pelo catálogo",
-              organizationId,
-              productId,
-            })
-            .returning();
-        }
-
-        if (existingProduct.financeDefaults) {
-          await tx
-            .update(productFinanceDefaults)
-            .set({
-              packagingCost: input.packagingCost,
-            })
-            .where(
-              eq(productFinanceDefaults.id, existingProduct.financeDefaults.id),
-            )
-            .returning();
-        } else {
-          await tx
-            .insert(productFinanceDefaults)
-            .values({
-              advertisingCost: "0",
-              packagingCost: input.packagingCost,
-              productId,
-            })
-            .returning();
-        }
-      });
-
-      if (companyId) {
-        await this.financeService.materializeOrganizationMetrics(
-          organizationId,
-          companyId,
-        );
-      }
-
-      return this.getProductListItem(organizationId, productId, companyId);
+    if (targetGroup.parentProductId !== productId) {
+      return this.updateCatalogFinanceForSingleProduct(
+        organizationId,
+        companyId,
+        productId,
+        input,
+      );
     }
     const targetProductIds = Array.from(
       new Set([targetGroup.parentProductId, ...targetGroup.childProductIds]),
@@ -1986,60 +2486,14 @@ export class ProductsService {
         }
 
         const existingCost = existingCostByProductId.get(targetId) ?? null;
-        if (existingCost) {
-          await tx
-            .update(productCosts)
-            .set({
-              amount: input.unitCost,
-              costType: existingCost.costType,
-              currency: existingCost.currency,
-              effectiveFrom: existingCost.effectiveFrom,
-              notes: "Atualizado pelo catálogo",
-            })
-            .where(
-              and(
-                eq(productCosts.id, existingCost.id),
-                eq(productCosts.organizationId, organizationId),
-                ...(companyId ? [eq(productCosts.companyId, companyId)] : []),
-              ),
-            )
-            .returning();
-        } else {
-          await tx
-            .insert(productCosts)
-            .values({
-              amount: input.unitCost,
-              companyId: existingProduct.companyId,
-              costType: "base",
-              currency: "BRL",
-              effectiveFrom: null,
-              notes: "Atualizado pelo catálogo",
-              organizationId,
-              productId: targetId,
-            })
-            .returning();
-        }
-
-        if (existingProduct.financeDefaults) {
-          await tx
-            .update(productFinanceDefaults)
-            .set({
-              packagingCost: input.packagingCost,
-            })
-            .where(
-              eq(productFinanceDefaults.id, existingProduct.financeDefaults.id),
-            )
-            .returning();
-        } else {
-          await tx
-            .insert(productFinanceDefaults)
-            .values({
-              advertisingCost: "0",
-              packagingCost: input.packagingCost,
-              productId: targetId,
-            })
-            .returning();
-        }
+        await this.persistCatalogFinanceForProduct({
+          companyId,
+          existingCost,
+          existingProduct,
+          input,
+          organizationId,
+          tx,
+        });
       }
     });
 
@@ -2050,6 +2504,79 @@ export class ProductsService {
       );
     }
 
+    return this.getCatalogProductByIdForResponse(
+      organizationId,
+      companyId,
+      targetGroup.parentProductId,
+    );
+  }
+
+  private async updateCatalogFinanceForSingleProduct(
+    organizationId: string,
+    companyId: string | undefined,
+    productId: string,
+    input: ProductCatalogFinanceUpdateInput,
+    groupedResponse = true,
+  ): Promise<ProductListItem> {
+    const [existingProduct, existingCost] = await Promise.all([
+      this.db.query.products.findFirst({
+        where: (table) =>
+          and(
+            eq(table.id, productId),
+            eq(table.organizationId, organizationId),
+            ...(companyId ? [eq(table.companyId, companyId)] : []),
+          ),
+        with: {
+          financeDefaults: true,
+        },
+      }),
+      this.db.query.productCosts.findFirst({
+        orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
+        where: (table) =>
+          and(
+            eq(table.organizationId, organizationId),
+            ...(companyId ? [eq(table.companyId, companyId)] : []),
+            eq(table.productId, productId),
+          ),
+      }),
+    ]);
+
+    if (!existingProduct) {
+      throw new NotFoundException("Product not found.");
+    }
+
+    await this.db.transaction(async (tx) => {
+      await this.persistCatalogFinanceForProduct({ 
+        companyId, 
+        existingCost: existingCost ?? null, 
+        existingProduct, 
+        input, 
+        organizationId, 
+        tx, 
+      });
+    });
+
+    if (existingProduct.companyId) {
+      await this.financeService.materializeOrganizationMetrics(
+        organizationId,
+        existingProduct.companyId,
+      );
+    }
+
+    return groupedResponse
+      ? this.getCatalogProductByIdForResponse(
+          organizationId,
+          companyId,
+          productId,
+        )
+      : this.getProductListItem(organizationId, productId, companyId);
+  }
+
+  private async getCatalogProductByIdForResponse(
+    organizationId: string,
+    companyId: string | undefined,
+    productId: string,
+  ): Promise<ProductListItem> {
     const updatedProducts = await this.listProducts(
       companyId
         ? {
@@ -2076,17 +2603,100 @@ export class ProductsService {
     });
     const groupedProducts = this.buildCatalogProducts(
       updatedProducts,
-      updatedSyncedProducts.length > 0 ? updatedSyncedProducts : syncedProducts,
+      updatedSyncedProducts,
     );
-    const result = groupedProducts.find(
-      (product) => product.id === (targetGroup?.parentProductId ?? productId),
-    );
+    const result = this.findCatalogProductById(groupedProducts, productId);
 
     if (!result) {
       throw new NotFoundException("Product not found.");
     }
 
     return result;
+  }
+
+  private findCatalogProductById(
+    productsList: ProductListItem[],
+    productId: string,
+  ): ProductListItem | null {
+    for (const product of productsList) {
+      if (product.id === productId) {
+        return product;
+      }
+
+      const childMatch = this.findCatalogProductById(product.children, productId);
+      if (childMatch) {
+        return childMatch;
+      }
+    }
+
+    return null;
+  }
+
+  private async persistCatalogFinanceForProduct(input: { 
+    companyId: string | undefined; 
+    existingCost: ProductCost | null; 
+    existingProduct: Product & { financeDefaults: ProductFinanceDefaults | null }; 
+    input: ProductCatalogFinanceUpdateInput; 
+    organizationId: string; 
+    tx: Pick<DatabaseClient, "insert" | "update">; 
+  }) { 
+    if (input.existingCost) {
+      await input.tx
+        .update(productCosts)
+        .set({
+          amount: input.input.unitCost,
+          costType: input.existingCost.costType,
+          currency: input.existingCost.currency,
+          effectiveFrom: input.existingCost.effectiveFrom,
+          notes: "Atualizado pelo catálogo",
+        })
+        .where(
+          and(
+            eq(productCosts.id, input.existingCost.id),
+            eq(productCosts.organizationId, input.organizationId),
+            ...(input.companyId ? [eq(productCosts.companyId, input.companyId)] : []),
+          ),
+        )
+        .returning();
+    } else {
+      await input.tx
+        .insert(productCosts)
+        .values({
+          amount: input.input.unitCost,
+          companyId: input.existingProduct.companyId,
+          costType: "base",
+          currency: "BRL",
+          effectiveFrom: null,
+          notes: "Atualizado pelo catálogo",
+          organizationId: input.organizationId,
+          productId: input.existingProduct.id,
+        })
+        .returning();
+    }
+
+    if (input.existingProduct.financeDefaults) {
+      await input.tx
+        .update(productFinanceDefaults)
+        .set({
+          packagingCost: input.input.packagingCost,
+        })
+        .where(
+          eq(
+            productFinanceDefaults.id,
+            input.existingProduct.financeDefaults.id,
+          ),
+        )
+        .returning();
+    } else {
+      await input.tx
+        .insert(productFinanceDefaults)
+        .values({
+          advertisingCost: "0",
+          packagingCost: input.input.packagingCost,
+          productId: input.existingProduct.id,
+        })
+        .returning();
+    }
   }
 
   private buildMercadoLivreCatalogGroups(
@@ -2107,7 +2717,9 @@ export class ProductsService {
         continue;
       }
 
-      const itemId = extractMercadoLivreItemId(syncedProduct.externalProductId);
+      const metadata = readMercadoLivreSyncMetadata(syncedProduct);
+      const itemId =
+        metadata.itemId ?? extractMercadoLivreItemId(syncedProduct.externalProductId);
       if (!itemId) {
         continue;
       }
@@ -2116,9 +2728,10 @@ export class ProductsService {
       entries.push({
         externalProductId: syncedProduct.externalProductId,
         productId,
-        variationLabel: syncedProduct.externalProductId.includes(":")
-          ? syncedProduct.title?.trim() || null
-          : null,
+        variationLabel:
+          metadata.variationId !== null || syncedProduct.externalProductId.includes(":")
+            ? syncedProduct.title?.trim() || null
+            : null,
       });
       groupedEntries.set(itemId, entries);
     }

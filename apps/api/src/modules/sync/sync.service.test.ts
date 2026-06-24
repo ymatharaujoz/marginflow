@@ -40,7 +40,9 @@ function createService(envOverrides: Record<string, unknown> = {}) {
         findMany: vi.fn(),
       },
     },
-    transaction: vi.fn(async (callback: (tx: typeof db) => Promise<unknown>) => callback(db)),
+    transaction: vi.fn(async (callback: (tx: typeof db) => Promise<unknown>) =>
+      callback(db),
+    ),
     update: vi.fn(),
   };
   const financeService = {
@@ -111,7 +113,7 @@ describe("SyncService", () => {
       provider: "mercadolivre",
       refreshToken: "refresh",
       status: "connected",
-      tokenExpiresAt: new Date("2026-05-03T11:00:00.000Z"),
+      tokenExpiresAt: new Date("2026-07-03T11:00:00.000Z"),
       updatedAt: new Date("2026-05-01T11:00:00.000Z"),
     });
     db.query.syncRuns.findFirst
@@ -132,7 +134,11 @@ describe("SyncService", () => {
         windowKey: "2026-05-01:morning",
       });
 
-    const status = await service.getStatus("org_123", "company_123", "mercadolivre");
+    const status = await service.getStatus(
+      "org_123",
+      "company_123",
+      "mercadolivre",
+    );
 
     expect(status.availability.canRun).toBe(true);
     expect(status.availability.reason).toBe("available");
@@ -141,7 +147,10 @@ describe("SyncService", () => {
 
   it("allows the current window again for non-Mercado Livre providers when SYNC_RELAX_GUARDS is enabled outside production", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
-    const { db, service } = createService({ SYNC_RELAX_GUARDS: true, NODE_ENV: "development" });
+    const { db, service } = createService({
+      SYNC_RELAX_GUARDS: true,
+      NODE_ENV: "development",
+    });
     (service as unknown as { providers: unknown[] }).providers = [
       {
         createAuthorization: vi.fn(),
@@ -196,7 +205,10 @@ describe("SyncService", () => {
 
   it("keeps Shopee manual sync available without daily windows", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
-    const { db, service } = createService({ SYNC_RELAX_GUARDS: true, NODE_ENV: "production" });
+    const { db, service } = createService({
+      SYNC_RELAX_GUARDS: true,
+      NODE_ENV: "production",
+    });
     (service as unknown as { providers: unknown[] }).providers = [
       {
         createAuthorization: vi.fn(),
@@ -252,7 +264,10 @@ describe("SyncService", () => {
 
   it("keeps Shein manual sync available without daily windows", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
-    const { db, service } = createService({ SYNC_RELAX_GUARDS: true, NODE_ENV: "production" });
+    const { db, service } = createService({
+      SYNC_RELAX_GUARDS: true,
+      NODE_ENV: "production",
+    });
     (service as unknown as { providers: unknown[] }).providers = [
       {
         createAuthorization: vi.fn(),
@@ -307,8 +322,9 @@ describe("SyncService", () => {
   });
 
   it("runs a sync, stores imported data, and materializes finance metrics", async () => {
-    vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
-    const { db, financeService, service, syncPerformanceMaterializer } = createService();
+    vi.setSystemTime(new Date("2026-06-22T12:30:00.000Z"));
+    const { db, financeService, service, syncPerformanceMaterializer } =
+      createService();
     const provider = {
       createAuthorization: vi.fn(),
       disconnect: vi.fn(),
@@ -382,7 +398,7 @@ describe("SyncService", () => {
       provider: "mercadolivre",
       refreshToken: "refresh",
       status: "connected",
-      tokenExpiresAt: new Date("2026-05-03T11:00:00.000Z"),
+      tokenExpiresAt: new Date("2026-07-03T11:00:00.000Z"),
       updatedAt: new Date("2026-05-01T11:00:00.000Z"),
     });
     db.query.syncRuns.findFirst
@@ -448,6 +464,12 @@ describe("SyncService", () => {
           orders: 1,
           products: 1,
         },
+        trigger: {
+          manualRange: {
+            endAt: "2026-06-20T23:59:59.999Z",
+            startAt: "2026-06-10T00:00:00.000Z",
+          },
+        },
       },
       organizationId: "org_123",
       provider: "mercadolivre",
@@ -457,16 +479,38 @@ describe("SyncService", () => {
       windowKey: null,
     });
 
-    const response = await service.runSync("org_123", "company_123", "user_123", "mercadolivre");
+    const response = await service.runSync(
+      "org_123",
+      "company_123",
+      "user_123",
+      "mercadolivre",
+      {
+        endDate: "2026-06-20",
+        startDate: "2026-06-10",
+      },
+    );
 
     expect(provider.syncOrders).toHaveBeenCalledTimes(1);
-    expect(syncPerformanceMaterializer.materializeForSync).toHaveBeenCalledWith({
-      companyId: "company_123",
-      organizationId: "org_123",
-      providerSlug: "mercadolivre",
-      syncRunId: "sync_123",
-      userId: "user_123",
-    });
+    expect(provider.syncOrders).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connection: expect.objectContaining({ id: "conn_123" }),
+        mode: "manual_range",
+        organizationId: "org_123",
+        range: {
+          endAt: "2026-06-20T23:59:59.999Z",
+          startAt: "2026-06-10T00:00:00.000Z",
+        },
+      }),
+    );
+    expect(syncPerformanceMaterializer.materializeForSync).toHaveBeenCalledWith(
+      {
+        companyId: "company_123",
+        organizationId: "org_123",
+        providerSlug: "mercadolivre",
+        syncRunId: "sync_123",
+        userId: "user_123",
+      },
+    );
     expect(financeService.materializeOrganizationMetrics).toHaveBeenCalledWith(
       "org_123",
       "company_123",
@@ -474,6 +518,46 @@ describe("SyncService", () => {
     expect(response.run.counts.orders).toBe(1);
     expect(response.run.origin).toBe("manual");
     expect(response.availability.reason).toBe("available");
+    expect(response.run.manualRange).toEqual({
+      endAt: "2026-06-20T23:59:59.999Z",
+      startAt: "2026-06-10T00:00:00.000Z",
+    });
+  });
+
+  it("rejects manual ranges where start date is after end date", async () => {
+    vi.setSystemTime(new Date("2026-06-22T12:30:00.000Z"));
+    const { service } = createService();
+
+    await expect(
+      service.runSync("org_123", "company_123", "user_123", "mercadolivre", {
+        endDate: "2026-06-10",
+        startDate: "2026-06-11",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects manual ranges older than the rolling 30-day window", async () => {
+    vi.setSystemTime(new Date("2026-06-22T12:30:00.000Z"));
+    const { service } = createService();
+
+    await expect(
+      service.runSync("org_123", "company_123", "user_123", "mercadolivre", {
+        endDate: "2026-05-22",
+        startDate: "2026-05-20",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects manual ranges longer than one month", async () => {
+    vi.setSystemTime(new Date("2026-03-01T12:30:00.000Z"));
+    const { service } = createService();
+
+    await expect(
+      service.runSync("org_123", "company_123", "user_123", "mercadolivre", {
+        endDate: "2026-03-01",
+        startDate: "2026-01-30",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("keeps an expired Shopee connection available when it can refresh the token", async () => {
@@ -517,7 +601,8 @@ describe("SyncService", () => {
 
   it("fails the sync honestly when performance materialization cannot resolve an active company", async () => {
     vi.setSystemTime(new Date("2026-05-01T12:30:00.000Z"));
-    const { db, financeService, service, syncPerformanceMaterializer } = createService();
+    const { db, financeService, service, syncPerformanceMaterializer } =
+      createService();
     const provider = {
       createAuthorization: vi.fn(),
       disconnect: vi.fn(),
@@ -600,11 +685,14 @@ describe("SyncService", () => {
     });
 
     await expect(
-      service.runSync("org_123", "company_123", "user_123", "mercadolivre"),
-    ).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
-    expect(financeService.materializeOrganizationMetrics).not.toHaveBeenCalled();
+      service.runSync("org_123", "company_123", "user_123", "mercadolivre", {
+        endDate: "2026-05-20",
+        startDate: "2026-05-10",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(
+      financeService.materializeOrganizationMetrics,
+    ).not.toHaveBeenCalled();
   });
 
   it("ignores Mercado Livre notifications without user_id", async () => {
@@ -706,7 +794,8 @@ describe("SyncService", () => {
           value &&
           typeof value === "object" &&
           "externalProductId" in value &&
-          (value as { externalProductId?: unknown }).externalProductId === "MLB123:456"
+          (value as { externalProductId?: unknown }).externalProductId ===
+            "MLB123:456"
         ) {
           return {
             onConflictDoUpdate: vi.fn().mockReturnValue({
@@ -828,13 +917,18 @@ describe("SyncService", () => {
           value &&
           typeof value === "object" &&
           "externalProductId" in value &&
-          (value as { externalProductId?: unknown }).externalProductId === "MLB123:456"
+          (value as { externalProductId?: unknown }).externalProductId ===
+            "MLB123:456"
         ) {
           return {
             onConflictDoUpdate: vi.fn().mockImplementation((payload) => {
-              externalProductConflictSet = (payload as { set: Record<string, unknown> }).set;
+              externalProductConflictSet = (
+                payload as { set: Record<string, unknown> }
+              ).set;
               return {
-                returning: vi.fn().mockResolvedValue([{ id: "ext_prod_variant" }]),
+                returning: vi
+                  .fn()
+                  .mockResolvedValue([{ id: "ext_prod_variant" }]),
               };
             }),
           };

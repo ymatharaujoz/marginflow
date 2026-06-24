@@ -150,7 +150,9 @@ function timestampNow() {
 }
 
 function toMoney(value: unknown) {
-  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(2) : "0.00";
+  return typeof value === "number" && Number.isFinite(value)
+    ? value.toFixed(2)
+    : "0.00";
 }
 
 function positiveSum(...values: unknown[]) {
@@ -179,11 +181,17 @@ function externalProductId(item: ShopeeOrderItem) {
 }
 
 function dedupeProducts(products: IntegrationSyncProduct[]) {
-  return Array.from(new Map(products.map((product) => [product.externalProductId, product])).values());
+  return Array.from(
+    new Map(
+      products.map((product) => [product.externalProductId, product]),
+    ).values(),
+  );
 }
 
 function normalizeShopeeCatalogPrice(
-  priceInfo: Array<{ current_price?: number; original_price?: number }> | undefined,
+  priceInfo:
+    | Array<{ current_price?: number; original_price?: number }>
+    | undefined,
 ) {
   const first = priceInfo?.[0];
   return toMoney(first?.current_price ?? first?.original_price ?? 0);
@@ -197,7 +205,8 @@ function sumSellerStock(
     | undefined,
 ) {
   return (stockInfo?.seller_stock ?? []).reduce<number>(
-    (sum, entry) => sum + (typeof entry.stock === "number" ? Math.max(0, entry.stock) : 0),
+    (sum, entry) =>
+      sum + (typeof entry.stock === "number" ? Math.max(0, entry.stock) : 0),
     0,
   );
 }
@@ -265,7 +274,9 @@ export class ShopeeProvider implements IntegrationProvider {
       connectedAccountLabel: `Loja Shopee ${shopId}`,
       metadata: { shopId, tokenRequestId: payload.request_id ?? null },
       refreshToken: payload.refresh_token ?? null,
-      tokenExpiresAt: new Date(Date.now() + (payload.expire_in ?? 14400) * 1000),
+      tokenExpiresAt: new Date(
+        Date.now() + (payload.expire_in ?? 14400) * 1000,
+      ),
     };
   }
 
@@ -296,7 +307,9 @@ export class ShopeeProvider implements IntegrationProvider {
     return {
       accessToken: payload.access_token!,
       refreshToken: payload.refresh_token,
-      tokenExpiresAt: new Date(Date.now() + (payload.expire_in ?? 14400) * 1000),
+      tokenExpiresAt: new Date(
+        Date.now() + (payload.expire_in ?? 14400) * 1000,
+      ),
     };
   }
 
@@ -326,7 +339,9 @@ export class ShopeeProvider implements IntegrationProvider {
     const products: IntegrationCatalogProduct[] = [];
 
     for (const item of baseItems) {
-      products.push(...(await this.normalizeCatalogItem({ accessToken, item, shopId })));
+      products.push(
+        ...(await this.normalizeCatalogItem({ accessToken, item, shopId })),
+      );
     }
 
     return products;
@@ -348,7 +363,9 @@ export class ShopeeProvider implements IntegrationProvider {
     );
   }
 
-  async syncOrders(input: IntegrationSyncContext): Promise<IntegrationSyncResult> {
+  async syncOrders(
+    input: IntegrationSyncContext,
+  ): Promise<IntegrationSyncResult> {
     this.assertConfigured();
     const shopId = input.connection.externalAccountId;
     const accessToken = input.connection.accessToken;
@@ -359,24 +376,35 @@ export class ShopeeProvider implements IntegrationProvider {
       );
     }
 
-    const previousUpdateTime =
-      input.cursor && typeof input.cursor.updateTime === "number"
-        ? input.cursor.updateTime
-        : timestampNow() - FIRST_SYNC_LOOKBACK_SECONDS;
-    const timeTo = timestampNow();
-    const timeFrom = Math.max(
-      previousUpdateTime - CURSOR_OVERLAP_SECONDS,
-      timeTo - FIRST_SYNC_LOOKBACK_SECONDS,
-    );
+    const timeTo =
+      input.mode === "manual_range"
+        ? Math.floor(new Date(input.range.endAt).getTime() / 1000)
+        : timestampNow();
+    const timeFrom =
+      input.mode === "manual_range"
+        ? Math.floor(new Date(input.range.startAt).getTime() / 1000)
+        : Math.max(
+            (input.cursor && typeof input.cursor.updateTime === "number"
+              ? input.cursor.updateTime
+              : timestampNow() - FIRST_SYNC_LOOKBACK_SECONDS) -
+              CURSOR_OVERLAP_SECONDS,
+            timeTo - FIRST_SYNC_LOOKBACK_SECONDS,
+          );
     const orderNumbers = await this.fetchOrderNumbers({
       accessToken,
       shopId,
       timeFrom,
       timeTo,
     });
-    const details = await this.fetchOrderDetails({ accessToken, orderNumbers, shopId });
+    const details = await this.fetchOrderDetails({
+      accessToken,
+      orderNumbers,
+      shopId,
+    });
     const orders = await Promise.all(
-      details.map((order) => this.normalizeOrder({ accessToken, order, shopId })),
+      details.map((order) =>
+        this.normalizeOrder({ accessToken, order, shopId }),
+      ),
     );
     const products = dedupeProducts(
       orders.flatMap((order) =>
@@ -392,7 +420,7 @@ export class ShopeeProvider implements IntegrationProvider {
     );
 
     return {
-      cursor: { updateTime: timeTo },
+      cursor: input.mode === "manual_range" ? null : { updateTime: timeTo },
       orders,
       products,
     };
@@ -425,8 +453,9 @@ export class ShopeeProvider implements IntegrationProvider {
         ? Math.max(0, income.final_shipping_fee)
         : Math.max(
             0,
-            (income?.actual_shipping_fee ?? income?.estimated_shipping_fee ?? 0) -
-              positiveSum(income?.seller_shipping_discount),
+            (income?.actual_shipping_fee ??
+              income?.estimated_shipping_fee ??
+              0) - positiveSum(income?.seller_shipping_discount),
           );
     const fees: IntegrationSyncFee[] = [];
     if (commission > 0) {
@@ -455,10 +484,12 @@ export class ShopeeProvider implements IntegrationProvider {
     }
 
     const items = (input.order.item_list ?? []).map((item) => {
-      const quantity = item.model_quantity_purchased && item.model_quantity_purchased > 0
-        ? item.model_quantity_purchased
-        : 1;
-      const unitPrice = item.model_discounted_price ?? item.model_original_price ?? 0;
+      const quantity =
+        item.model_quantity_purchased && item.model_quantity_purchased > 0
+          ? item.model_quantity_purchased
+          : 1;
+      const unitPrice =
+        item.model_discounted_price ?? item.model_original_price ?? 0;
       return {
         externalProductId: externalProductId(item),
         quantity,
@@ -517,27 +548,33 @@ export class ShopeeProvider implements IntegrationProvider {
           .map((order) => order.order_sn)
           .filter((value): value is string => Boolean(value)),
       );
-      cursor = payload.response?.more ? payload.response.next_cursor ?? "" : "";
+      cursor = payload.response?.more
+        ? (payload.response.next_cursor ?? "")
+        : "";
     } while (cursor);
 
     return Array.from(new Set(orderNumbers));
   }
 
-  private async fetchCatalogItemIds(input: { accessToken: string; shopId: string }) {
+  private async fetchCatalogItemIds(input: {
+    accessToken: string;
+    shopId: string;
+  }) {
     const itemIds: number[] = [];
     let offset = 0;
     let hasNextPage = false;
 
     do {
-      const payload = await this.getAuthenticated<ShopeeCatalogItemListResponse>({
-        accessToken: input.accessToken,
-        params: {
-          offset: String(offset),
-          page_size: "100",
-        },
-        path: PRODUCT_ITEM_LIST_PATH,
-        shopId: input.shopId,
-      });
+      const payload =
+        await this.getAuthenticated<ShopeeCatalogItemListResponse>({
+          accessToken: input.accessToken,
+          params: {
+            offset: String(offset),
+            page_size: "100",
+          },
+          path: PRODUCT_ITEM_LIST_PATH,
+          shopId: input.shopId,
+        });
       itemIds.push(
         ...(payload.response?.item ?? [])
           .map((item) => item.item_id)
@@ -564,15 +601,16 @@ export class ShopeeProvider implements IntegrationProvider {
         continue;
       }
 
-      const payload = await this.getAuthenticated<ShopeeCatalogItemBaseInfoResponse>({
-        accessToken: input.accessToken,
-        params: {
-          item_id_list: itemIdChunk.join(","),
-          need_tax_info: "false",
-        },
-        path: PRODUCT_ITEM_BASE_INFO_PATH,
-        shopId: input.shopId,
-      });
+      const payload =
+        await this.getAuthenticated<ShopeeCatalogItemBaseInfoResponse>({
+          accessToken: input.accessToken,
+          params: {
+            item_id_list: itemIdChunk.join(","),
+            need_tax_info: "false",
+          },
+          path: PRODUCT_ITEM_BASE_INFO_PATH,
+          shopId: input.shopId,
+        });
       items.push(...(payload.response?.item_list ?? []));
     }
 
@@ -584,21 +622,24 @@ export class ShopeeProvider implements IntegrationProvider {
     itemId: number;
     shopId: string;
   }) {
-    const models: NonNullable<ShopeeCatalogModelListResponse["response"]>["model"] = [];
+    const models: NonNullable<
+      ShopeeCatalogModelListResponse["response"]
+    >["model"] = [];
     let offset = 0;
     let hasNextPage = false;
 
     do {
-      const payload = await this.getAuthenticated<ShopeeCatalogModelListResponse>({
-        accessToken: input.accessToken,
-        params: {
-          item_id: String(input.itemId),
-          offset: String(offset),
-          page_size: "50",
-        },
-        path: PRODUCT_MODEL_LIST_PATH,
-        shopId: input.shopId,
-      });
+      const payload =
+        await this.getAuthenticated<ShopeeCatalogModelListResponse>({
+          accessToken: input.accessToken,
+          params: {
+            item_id: String(input.itemId),
+            offset: String(offset),
+            page_size: "50",
+          },
+          path: PRODUCT_MODEL_LIST_PATH,
+          shopId: input.shopId,
+        });
       models.push(...(payload.response?.model ?? []));
       hasNextPage = payload.response?.has_next_page === true;
       offset = payload.response?.next_offset ?? 0;
@@ -620,9 +661,10 @@ export class ShopeeProvider implements IntegrationProvider {
     }
 
     const itemIdString = String(itemId);
-    const baseTitle = input.item.item_name?.trim() || `Produto Shopee ${itemIdString}`;
-    const images = (input.item.image?.image_url_list ?? []).filter((url: string) =>
-      url.startsWith("https://"),
+    const baseTitle =
+      input.item.item_name?.trim() || `Produto Shopee ${itemIdString}`;
+    const images = (input.item.image?.image_url_list ?? []).filter(
+      (url: string) => url.startsWith("https://"),
     );
     const baseStock = sumSellerStock(input.item.stock_info_v2);
     const hasBaseStock = input.item.stock_info_v2?.seller_stock !== undefined;
@@ -690,7 +732,8 @@ export class ShopeeProvider implements IntegrationProvider {
         accessToken: input.accessToken,
         params: {
           order_sn_list: orderNumberChunk.join(","),
-          response_optional_fields: "item_list,total_amount,pay_time,create_time,update_time",
+          response_optional_fields:
+            "item_list,total_amount,pay_time,create_time,update_time",
         },
         path: ORDER_DETAIL_PATH,
         shopId: input.shopId,
@@ -700,7 +743,11 @@ export class ShopeeProvider implements IntegrationProvider {
     return details;
   }
 
-  private fetchEscrow(input: { accessToken: string; orderNumber: string; shopId: string }) {
+  private fetchEscrow(input: {
+    accessToken: string;
+    orderNumber: string;
+    shopId: string;
+  }) {
     return this.getAuthenticated<ShopeeEscrowResponse>({
       accessToken: input.accessToken,
       params: { order_sn: input.orderNumber },
@@ -710,7 +757,9 @@ export class ShopeeProvider implements IntegrationProvider {
     });
   }
 
-  private async getAuthenticated<T extends { error?: string; message?: string }>(input: {
+  private async getAuthenticated<
+    T extends { error?: string; message?: string },
+  >(input: {
     accessToken: string;
     params: Record<string, string>;
     path: string;
@@ -733,7 +782,9 @@ export class ShopeeProvider implements IntegrationProvider {
       }
     }
 
-    const response = await fetch(url, { headers: { accept: "application/json" } });
+    const response = await fetch(url, {
+      headers: { accept: "application/json" },
+    });
     const payload = (await response.json()) as T;
     if ((!response.ok || payload.error) && !input.tolerateRemoteError) {
       throw new IntegrationProviderError(
@@ -752,7 +803,10 @@ export class ShopeeProvider implements IntegrationProvider {
     url.searchParams.set("sign", this.signPublic(path, timestamp));
     const response = await fetch(url, {
       body: JSON.stringify(body),
-      headers: { accept: "application/json", "content-type": "application/json" },
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
       method: "POST",
     });
     const payload = (await response.json()) as ShopeeTokenResponse;
@@ -769,18 +823,28 @@ export class ShopeeProvider implements IntegrationProvider {
     return this.sign(`${this.env.SHOPEE_PARTNER_ID}${path}${timestamp}`);
   }
 
-  private signShop(path: string, timestamp: number, accessToken: string, shopId: string) {
+  private signShop(
+    path: string,
+    timestamp: number,
+    accessToken: string,
+    shopId: string,
+  ) {
     return this.sign(
       `${this.env.SHOPEE_PARTNER_ID}${path}${timestamp}${accessToken}${shopId}`,
     );
   }
 
   private sign(value: string) {
-    return createHmac("sha256", this.env.SHOPEE_PARTNER_KEY ?? "").update(value).digest("hex");
+    return createHmac("sha256", this.env.SHOPEE_PARTNER_KEY ?? "")
+      .update(value)
+      .digest("hex");
   }
 
   private getRedirectUri() {
-    const apiBaseUrl = this.env.API_PUBLIC_BASE_URL ?? this.env.BETTER_AUTH_URL ?? "http://localhost:4000";
+    const apiBaseUrl =
+      this.env.API_PUBLIC_BASE_URL ??
+      this.env.BETTER_AUTH_URL ??
+      "http://localhost:4000";
     return (
       this.env.SHOPEE_REDIRECT_URI ??
       `${apiBaseUrl.replace(/\/$/, "")}/integrations/shopee/callback`

@@ -27,6 +27,16 @@ vi.mock("next/image", () => ({
   }) => React.createElement("img", { alt, src }),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => React.createElement("a", { href }, children),
+}));
+
 vi.mock("@/lib/api/client", () => ({
   ApiClientError: class ApiClientError extends Error {
     status: number;
@@ -161,7 +171,7 @@ beforeEach(() => {
 });
 
 describe("ProductTable", () => {
-  it("renders aggregated parent rows with expandable variation children", () => {
+  it("renders one row per variation using parent name above variation label", () => {
     const rows = [
       buildRow(1, {
         catalogGroupKey: "mercadolivre:MLB123",
@@ -174,7 +184,6 @@ describe("ProductTable", () => {
             displayName: "Produto 1",
             name: "Produto 1 - Azul",
             parentProductId: "2026-06-01:mercadolivre:SKU-1",
-            sales: 2,
             sku: "SKU-1-AZ",
             variationLabel: "Cor: Azul",
           }),
@@ -185,12 +194,10 @@ describe("ProductTable", () => {
             displayName: "Produto 1",
             name: "Produto 1 - Vermelho",
             parentProductId: "2026-06-01:mercadolivre:SKU-1",
-            sales: 3,
             sku: "SKU-1-VM",
             variationLabel: "Cor: Vermelho",
           }),
         ],
-        sales: 5,
       }),
     ];
 
@@ -202,15 +209,94 @@ describe("ProductTable", () => {
       />,
     );
 
-    expect(document.body.textContent).toContain("5");
-    expect(document.body.textContent).toContain("2 variações");
-    expect(document.body.textContent).not.toContain("Cor: Azul");
+    expect(document.querySelectorAll("tbody tr")).toHaveLength(2);
+    const firstProductCell = document.querySelector("tbody tr td:nth-child(2)")!;
+    expect(firstProductCell.textContent).toContain("Produto 1");
+    expect(firstProductCell.textContent).toContain("Cor: Azul");
+    expect(firstProductCell.textContent!.indexOf("Produto 1")).toBeLessThan(
+      firstProductCell.textContent!.indexOf("Cor: Azul"),
+    );
 
-    click(document.querySelector('button[aria-label="Expandir variações"]')!);
+    view.unmount();
+  });
 
-    expect(document.body.textContent).toContain("Cor: Azul");
-    expect(document.body.textContent).toContain("Cor: Vermelho");
-    expect(document.querySelectorAll("tbody tr")).toHaveLength(3);
+  it("renders product name above variation when flat row swaps those values", () => {
+    const rows = [
+      buildRow(1, {
+        displayName: "Cor: Azul",
+        name: "AcessÃ³rio De Celular - NÃ£o Ofertar",
+      }),
+    ];
+
+    const view = renderWithClient(
+      <ProductTable
+        onPageChange={() => {}}
+        pagination={{ currentPage: 1, pageSize: 10, totalItems: rows.length, totalPages: 1 }}
+        rows={rows}
+      />,
+    );
+
+    const productCell = document.querySelector("tbody tr td:nth-child(2)")!;
+    expect(productCell.textContent).toContain("AcessÃ³rio De Celular - NÃ£o Ofertar");
+    expect(productCell.textContent).toContain("Cor: Azul");
+    expect(productCell.textContent!.indexOf("AcessÃ³rio De Celular - NÃ£o Ofertar")).toBeLessThan(
+      productCell.textContent!.indexOf("Cor: Azul"),
+    );
+
+    view.unmount();
+  });
+
+  it("shows cost alert count, catalog link, and green or orange currency icons", () => {
+    const rows = [
+      buildRow(1),
+      buildRow(2, {
+        packagingCost: 0,
+        unitCost: 0,
+      }),
+    ];
+
+    const view = renderWithClient(
+      <ProductTable
+        onPageChange={() => {}}
+        pagination={{ currentPage: 1, pageSize: 10, totalItems: rows.length, totalPages: 1 }}
+        rows={rows}
+      />,
+    );
+
+    expect(document.body.textContent).toContain("VocÃª tem 1 produto para atualizar custos.");
+    const catalogLink = Array.from(document.querySelectorAll("a")).find((link) =>
+      link.textContent?.includes("Atualizar custos"),
+    ) as HTMLAnchorElement;
+    expect(catalogLink.getAttribute("href")).toBe("/app/products/catalog");
+
+    const configured = document.querySelector('[data-testid="cost-status-2026-06-01:mercadolivre:SKU-1"]');
+    const pending = document.querySelector('[data-testid="cost-status-2026-06-01:mercadolivre:SKU-2"]');
+    expect(configured?.getAttribute("aria-label")).toBe("Custos configurados");
+    expect(pending?.getAttribute("aria-label")).toBe("Custos pendentes");
+    expect(configured?.getAttribute("style")).toMatch(/0e7a6f|14,\s*122,\s*111/);
+    expect(pending?.getAttribute("style")).toMatch(/f59e0b|245,\s*158,\s*11/);
+
+    view.unmount();
+  });
+
+  it("renders only requested columns including total profit", () => {
+    const rows = [buildRow(1, { netLiquidSales: 3, unitProfit: 26.01, sellingPrice: 29.9 })];
+
+    const view = renderWithClient(
+      <ProductTable
+        onPageChange={() => {}}
+        pagination={{ currentPage: 1, pageSize: 10, totalItems: rows.length, totalPages: 1 }}
+        rows={rows}
+      />,
+    );
+
+    expect(document.body.textContent).toContain("PreÃ§o de Venda");
+    expect(document.body.textContent).toContain("Margem ContribuiÃ§Ã£o");
+    expect(document.body.textContent).toContain("Lucro Total");
+    expect(document.body.textContent).toContain("R$ 78,03");
+    expect(document.body.textContent).not.toContain("ROAS Real");
+    expect(document.body.textContent).not.toContain("Lucro UnitÃ¡rio");
+    expect(document.body.textContent).not.toContain("ROAS MÃ­nimo");
 
     view.unmount();
   });
@@ -229,7 +315,7 @@ describe("ProductTable", () => {
 
     click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Composição")!);
     expect(document.body.textContent).toContain("Composição de Preço");
-    expect(document.body.textContent).toContain("Comissão MELI");
+    expect(document.body.textContent).toContain("Comissão");
     expect(document.body.textContent).toContain("Investimento em Publicidade");
 
     click(document.querySelector('[aria-label="Close"]')!);
@@ -272,7 +358,7 @@ describe("ProductTable", () => {
 
     keydown(document, "Escape");
 
-    expect(document.body.textContent).not.toContain("Visão Geral de Vendas");
+    expect(document.body.textContent).not.toContain("VisÃ£o Geral de Vendas");
     expect((document.querySelector('input[placeholder="Nome ou SKU do produto..."]') as HTMLInputElement).value).toBe("Produto 1");
 
     view.unmount();

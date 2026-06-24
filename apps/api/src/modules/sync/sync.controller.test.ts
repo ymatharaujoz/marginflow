@@ -41,7 +41,10 @@ describe("sync controller", () => {
     billingService = app.get(BillingService);
     entitlementsService = app.get(EntitlementsService);
     syncService = app.get(SyncService);
-    vi.spyOn(billingService, "reconcileOrganizationSubscriptionWithStripe").mockResolvedValue(undefined);
+    vi.spyOn(
+      billingService,
+      "reconcileOrganizationSubscriptionWithStripe",
+    ).mockResolvedValue(undefined);
   });
 
   afterAll(async () => {
@@ -69,7 +72,10 @@ describe("sync controller", () => {
         name: "Mateus",
       },
     });
-    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
       customer: null,
       entitled: true,
       organizationId: "org_123",
@@ -141,7 +147,8 @@ describe("sync controller", () => {
         currentWindowLabel: "Morning",
         currentWindowSlot: "morning",
         lastSuccessfulSyncAt: "2026-05-01T12:05:00.000Z",
-        message: "This daily sync window was already used. Wait for the next window to open.",
+        message:
+          "This daily sync window was already used. Wait for the next window to open.",
         nextAvailableAt: "2026-05-01T15:00:00.000Z",
         provider: "mercadolivre",
         reason: "window_already_used",
@@ -172,7 +179,9 @@ describe("sync controller", () => {
     const response = await app.inject({
       method: "POST",
       payload: {
+        endDate: "2026-05-20",
         provider: "mercadolivre",
+        startDate: "2026-05-10",
       },
       url: "/sync/run",
     });
@@ -189,6 +198,10 @@ describe("sync controller", () => {
       "company_123",
       "user_123",
       "mercadolivre",
+      {
+        endDate: "2026-05-20",
+        startDate: "2026-05-10",
+      },
     );
   });
 

@@ -142,7 +142,7 @@ describe("SyncPerformanceMaterializerService", () => {
       expect.objectContaining({
         advertisingCost: "15.00",
         channel: "mercadolivre",
-        commissionRate: "0.061700",
+        commissionRate: "0.051700",
         companyId: "company_1",
         packagingCost: "2.00",
         productId: "product_1",

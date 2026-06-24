@@ -29,6 +29,52 @@ function optionalTrimmedString(max: number) {
     .or(z.literal("").transform(() => null));
 }
 
+function optionalQueryString(max: number) {
+  return z
+    .string()
+    .trim()
+    .max(max)
+    .transform((value) => (value.length > 0 ? value : undefined))
+    .optional();
+}
+
+function optionalSpreadsheetMoneyField(label: string) {
+  return z.preprocess((value) => {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    if (typeof value === "string" && value.trim().length === 0) {
+      return undefined;
+    }
+
+    return value;
+  }, z.coerce
+    .number({
+      error: (issue) =>
+        issue.code === "invalid_type"
+          ? `${label} deve ser um número válido`
+          : undefined,
+    })
+    .nonnegative({
+      error: `${label} deve ser maior ou igual a zero`,
+    })
+    .optional());
+}
+
+function spreadsheetMoneyField(label: string) {
+  return z.coerce
+    .number({
+      error: (issue) =>
+        issue.code === "invalid_type"
+          ? `${label} deve ser um número válido`
+          : undefined,
+    })
+    .nonnegative({
+      error: `${label} deve ser maior ou igual a zero`,
+    });
+}
+
 export const productFormSchema = z.object({
   isActive: z.boolean().default(true),
   name: z.string().trim().min(1).max(255),
@@ -120,17 +166,81 @@ export const productAnalyticsQuerySchema = z.object({
   referenceMonth: optionalReferenceMonthField,
 });
 
+export const productCatalogExportQuerySchema = z.object({
+  marketplaces: z
+    .preprocess((value) => {
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      if (typeof value !== "string") {
+        return [];
+      }
+
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+    }, z.array(z.enum(["mercadolivre", "shopee", "shein"])).default([]))
+    .optional(),
+  search: optionalQueryString(255),
+});
+
 export const productImportRowSchema = z.object({
-  PRODUTO: z.string().trim().min(1, "Nome do produto é obrigatório").max(255),
-  SKU: z.coerce.string().trim().min(1, "SKU é obrigatório").max(128),
-  "PREÇO DE VENDA": z.coerce.number().nonnegative("Preço de venda deve ser >= 0"),
-  "CUSTO UNITÁRIO": z.coerce.number().nonnegative("Custo unitário deve ser >= 0"),
-  EMBALAGEM: z.coerce.number().nonnegative("Embalagem deve ser >= 0"),
-  STATUS: z.coerce.number().refine((v) => v === 0 || v === 1, "STATUS deve ser 0 ou 1"),
+  PRODUTO: z
+    .string({
+      error: (issue) =>
+        issue.code === "invalid_type"
+          ? "Nome do produto é obrigatório"
+          : undefined,
+    })
+    .trim()
+    .min(1, "Nome do produto é obrigatório")
+    .max(255),
+  SKU: z
+    .coerce
+    .string({
+      error: (issue) =>
+        issue.code === "invalid_type" ? "SKU é obrigatório" : undefined,
+    })
+    .trim()
+    .min(1, "SKU é obrigatório")
+    .max(128),
+  "PREÇO DE VENDA": spreadsheetMoneyField("Preço de venda"),
+  "CUSTO UNITÁRIO": spreadsheetMoneyField("Custo unitário"),
+  EMBALAGEM: spreadsheetMoneyField("Embalagem"),
+  STATUS: z.coerce
+    .number({
+      error: (issue) =>
+        issue.code === "invalid_type"
+          ? "STATUS deve ser um número (0 ou 1)"
+          : undefined,
+    })
+    .refine((v) => v === 0 || v === 1, "STATUS deve ser 0 (inativo) ou 1 (ativo)"),
+});
+
+export const productSpreadsheetUpdateRowSchema = z.object({
+  ID: z.preprocess(
+    (value) => (typeof value === "string" ? value : String(value ?? "")),
+    z
+      .string({
+        error: (issue) =>
+          issue.code === "invalid_type"
+            ? "ID é obrigatório"
+            : undefined,
+      })
+      .trim()
+      .uuid("ID deve ser um identificador válido (UUID)"),
+  ),
+  "CUSTO UNITÁRIO": optionalSpreadsheetMoneyField("Custo unitário"),
+  EMBALAGEM: optionalSpreadsheetMoneyField("Embalagem"),
 });
 
 export type ProductFormInput = z.infer<typeof productFormSchema>;
 export type ProductImportRowInput = z.infer<typeof productImportRowSchema>;
+export type ProductSpreadsheetUpdateRowInput = z.infer<
+  typeof productSpreadsheetUpdateRowSchema
+>;
 export type ProductUpdateInput = z.infer<typeof productUpdateSchema>;
 export type ProductManualCreateInput = z.infer<typeof productManualCreateSchema>;
 export type ProductCatalogFinanceUpdateInput = z.infer<
@@ -144,3 +254,6 @@ export type ManualExpenseFormInput = z.infer<typeof manualExpenseFormSchema>;
 export type ManualExpenseUpdateInput = z.infer<typeof manualExpenseUpdateSchema>;
 export type SyncedProductLinkInput = z.infer<typeof syncedProductLinkSchema>;
 export type ProductAnalyticsQueryInput = z.infer<typeof productAnalyticsQuerySchema>;
+export type ProductCatalogExportQueryInput = z.infer<
+  typeof productCatalogExportQuerySchema
+>;

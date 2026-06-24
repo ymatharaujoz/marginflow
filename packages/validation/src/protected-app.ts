@@ -231,6 +231,11 @@ export const syncImportCountsSchema = z.object({
   fees: z.number().int().min(0),
 });
 
+export const manualSyncRangeSchema = z.object({
+  startAt: isoDateTimeField("Manual sync start"),
+  endAt: isoDateTimeField("Manual sync end"),
+});
+
 export const syncAvailabilitySchema = z.object({
   provider: integrationProviderSchema,
   canRun: z.boolean(),
@@ -247,6 +252,7 @@ export const syncRunRecordSchema = z.object({
   id: z.string().trim().min(1),
   provider: integrationProviderSchema,
   origin: syncRunOriginSchema,
+  manualRange: manualSyncRangeSchema.nullable().optional().default(null),
   status: z.string().trim().min(1),
   windowKey: z.string().trim().min(1).nullable(),
   startedAt: z.string().trim().min(1).nullable(),
@@ -341,7 +347,9 @@ export const productListItemSchema: z.ZodType<any> = z.lazy(() =>
   z
     .object({
       catalogGroupKey: z.string().trim().min(1).nullable().default(null),
-      catalogRole: z.enum(["parent", "child", "standalone"]).default("standalone"),
+      catalogRole: z
+        .enum(["parent", "child", "standalone"])
+        .default("standalone"),
       coverImageUrl: z
         .string()
         .url()
@@ -486,6 +494,13 @@ export const productMonthlyPerformanceRowSchema = z.object({
   packagingCost: decimalField("Packaging cost"),
   advertisingCost: decimalField("Advertising cost"),
   marketplaceCommission: decimalField("Marketplace commission").optional(),
+  marketplaceCommissionUnit: decimalField("Marketplace commission unit").optional(),
+  fixedFeeUnit: decimalField("Fixed fee unit").optional(),
+  shippingUnit: decimalField("Shipping unit").optional(),
+  shippingOrFixedFeeUnit: decimalField("Shipping or fixed fee unit").optional(),
+  shippingOrFixedFeeSource: z
+    .enum(["shipping", "fixed_fee", "none"])
+    .optional(),
 });
 
 export const productPerformanceRowSchema: z.ZodType<any> = z.lazy(() =>
@@ -493,7 +508,9 @@ export const productPerformanceRowSchema: z.ZodType<any> = z.lazy(() =>
     .object({
       ...productMonthlyPerformanceRowSchema.shape,
       catalogGroupKey: z.string().trim().min(1).nullable().default(null),
-      catalogRole: z.enum(["parent", "child", "standalone"]).default("standalone"),
+      catalogRole: z
+        .enum(["parent", "child", "standalone"])
+        .default("standalone"),
       children: z.array(productPerformanceRowSchema).default([]),
       parentProductId: z.string().trim().min(1).nullable().default(null),
       variationLabel: z.string().trim().min(1).nullable().default(null),

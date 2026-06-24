@@ -20,6 +20,7 @@ import {
 } from "@lucreii/database";
 import type {
   IntegrationProviderSlug,
+  ManualSyncRange,
   RunSyncResponse,
   SyncAvailability,
   SyncImportCounts,
@@ -38,7 +39,10 @@ import {
   type IntegrationSyncCursor,
   type IntegrationSyncResult,
 } from "@/modules/integrations/integrations.types";
-import { resolveSyncWindowState, resolveSyncWindowStateAtNextOpenHour } from "./sync-window";
+import {
+  resolveSyncWindowState,
+  resolveSyncWindowStateAtNextOpenHour,
+} from "./sync-window";
 import { SyncPerformanceMaterializerService } from "./sync-performance-materializer.service";
 
 function toIsoString(value: Date | string | null | undefined) {
@@ -58,7 +62,9 @@ function isExpired(value: Date | string | null | undefined) {
   return date.getTime() <= Date.now();
 }
 
-function normalizeMetadataCounts(value: Record<string, unknown> | null | undefined): SyncImportCounts {
+function normalizeMetadataCounts(
+  value: Record<string, unknown> | null | undefined,
+): SyncImportCounts {
   const counts = (
     value &&
     typeof value === "object" &&
@@ -71,17 +77,25 @@ function normalizeMetadataCounts(value: Record<string, unknown> | null | undefin
 
   return {
     fees:
-      counts && typeof counts.fees === "number" && Number.isFinite(counts.fees) ? counts.fees : 0,
+      counts && typeof counts.fees === "number" && Number.isFinite(counts.fees)
+        ? counts.fees
+        : 0,
     items:
-      counts && typeof counts.items === "number" && Number.isFinite(counts.items)
+      counts &&
+      typeof counts.items === "number" &&
+      Number.isFinite(counts.items)
         ? counts.items
         : 0,
     orders:
-      counts && typeof counts.orders === "number" && Number.isFinite(counts.orders)
+      counts &&
+      typeof counts.orders === "number" &&
+      Number.isFinite(counts.orders)
         ? counts.orders
         : 0,
     products:
-      counts && typeof counts.products === "number" && Number.isFinite(counts.products)
+      counts &&
+      typeof counts.products === "number" &&
+      Number.isFinite(counts.products)
         ? counts.products
         : 0,
   };
@@ -120,7 +134,11 @@ function buildOrderMetadata(order: {
 
   if (existingReturnMap) {
     for (const [sku, quantity] of Object.entries(existingReturnMap)) {
-      if (typeof quantity === "number" && Number.isFinite(quantity) && quantity > 0) {
+      if (
+        typeof quantity === "number" &&
+        Number.isFinite(quantity) &&
+        quantity > 0
+      ) {
         returnQuantityBySku[sku] = Math.max(0, Math.trunc(quantity));
       }
     }
@@ -150,12 +168,16 @@ function buildOrderMetadata(order: {
   return metadata;
 }
 
-function normalizeRunOrigin(value: Record<string, unknown> | null | undefined): SyncRunOrigin {
+function normalizeRunOrigin(
+  value: Record<string, unknown> | null | undefined,
+): SyncRunOrigin {
   return value?.origin === "automatic" ? "automatic" : "manual";
 }
 
 function normalizeString(value: unknown) {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
 }
 
 function normalizeNullableUpdateString(value: string | null | undefined) {
@@ -165,6 +187,55 @@ function normalizeNullableUpdateString(value: string | null | undefined) {
 
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : undefined;
+}
+
+type ManualSyncRequest = {
+  startDate: string;
+  endDate: string;
+};
+
+function parseDateOnlyAsUtc(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) {
+    throw new BadRequestException("Periodo de sincronizacao invalido.");
+  }
+
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+}
+
+function endOfUtcDay(value: Date) {
+  return new Date(
+    Date.UTC(
+      value.getUTCFullYear(),
+      value.getUTCMonth(),
+      value.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
+}
+
+function addUtcMonths(value: Date, months: number) {
+  const targetYear = value.getUTCFullYear();
+  const targetMonth = value.getUTCMonth() + months;
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(targetYear, targetMonth + 1, 0),
+  ).getUTCDate();
+  const targetDay = Math.min(value.getUTCDate(), lastDayOfTargetMonth);
+
+  return new Date(
+    Date.UTC(
+      targetYear,
+      targetMonth,
+      targetDay,
+      value.getUTCHours(),
+      value.getUTCMinutes(),
+      value.getUTCSeconds(),
+      value.getUTCMilliseconds(),
+    ),
+  );
 }
 
 type SyncTriggerSummary = {
@@ -180,6 +251,7 @@ type SyncTriggerSummary = {
 type ExecuteSyncInput = {
   connection: MarketplaceConnection;
   companyId: string;
+  manualRange: ManualSyncRange | null;
   organizationId: string;
   providerSlug: IntegrationProviderSlug;
   triggerMetadata: Record<string, unknown>;
@@ -250,18 +322,36 @@ export class SyncService {
     providerSlug?: IntegrationProviderSlug,
   ): Promise<SyncStatusResponse> {
     const companyId = providerSlug ? companyIdOrProviderSlug : organizationId;
-    const resolvedProviderSlug = (providerSlug ?? companyIdOrProviderSlug) as IntegrationProviderSlug;
+    const resolvedProviderSlug = (providerSlug ??
+      companyIdOrProviderSlug) as IntegrationProviderSlug;
     const provider = this.getProvider(resolvedProviderSlug);
     const [connection, activeRun, lastCompletedRun] = await Promise.all([
       this.findConnection(organizationId, companyId, resolvedProviderSlug),
-      this.findLatestRun(organizationId, companyId, resolvedProviderSlug, "processing"),
-      this.findLatestRun(organizationId, companyId, resolvedProviderSlug, "completed"),
+      this.findLatestRun(
+        organizationId,
+        companyId,
+        resolvedProviderSlug,
+        "processing",
+      ),
+      this.findLatestRun(
+        organizationId,
+        companyId,
+        resolvedProviderSlug,
+        "completed",
+      ),
     ]);
 
     return {
       activeRun: activeRun ? this.toRunRecord(activeRun) : null,
-      availability: this.buildAvailability(provider, connection, activeRun, lastCompletedRun),
-      lastCompletedRun: lastCompletedRun ? this.toRunRecord(lastCompletedRun) : null,
+      availability: this.buildAvailability(
+        provider,
+        connection,
+        activeRun,
+        lastCompletedRun,
+      ),
+      lastCompletedRun: lastCompletedRun
+        ? this.toRunRecord(lastCompletedRun)
+        : null,
     };
   }
 
@@ -270,28 +360,50 @@ export class SyncService {
     companyIdOrUserId: string,
     userIdOrProviderSlug: string,
     providerSlug?: IntegrationProviderSlug,
+    manualSyncRequest?: ManualSyncRequest,
   ): Promise<RunSyncResponse> {
     const companyId = providerSlug ? companyIdOrUserId : organizationId;
     const userId = providerSlug ? userIdOrProviderSlug : companyIdOrUserId;
-    const resolvedProviderSlug = (providerSlug ?? userIdOrProviderSlug) as IntegrationProviderSlug;
+    const resolvedProviderSlug = (providerSlug ??
+      userIdOrProviderSlug) as IntegrationProviderSlug;
     const provider = this.getProvider(resolvedProviderSlug);
     const [connection, activeRun, lastCompletedRun] = await Promise.all([
       this.findConnection(organizationId, companyId, resolvedProviderSlug),
-      this.findLatestRun(organizationId, companyId, resolvedProviderSlug, "processing"),
-      this.findLatestRun(organizationId, companyId, resolvedProviderSlug, "completed"),
+      this.findLatestRun(
+        organizationId,
+        companyId,
+        resolvedProviderSlug,
+        "processing",
+      ),
+      this.findLatestRun(
+        organizationId,
+        companyId,
+        resolvedProviderSlug,
+        "completed",
+      ),
     ]);
-    const availability = this.buildAvailability(provider, connection, activeRun, lastCompletedRun);
+    const availability = this.buildAvailability(
+      provider,
+      connection,
+      activeRun,
+      lastCompletedRun,
+    );
 
     if (!availability.canRun || !connection) {
       throw this.toAvailabilityException(availability);
     }
 
+    const manualRange = this.normalizeManualSyncRequest(manualSyncRequest);
+
     return this.executeSync({
       connection,
       companyId,
+      manualRange,
       organizationId,
       providerSlug: resolvedProviderSlug,
-      triggerMetadata: {},
+      triggerMetadata: {
+        manualRange,
+      },
       triggerOrigin: "manual",
       userId,
     });
@@ -339,9 +451,15 @@ export class SyncService {
       };
     }
 
-    const connection = await this.findMercadoLivreConnectionByExternalAccountId(summary.userId);
+    const connection = await this.findMercadoLivreConnectionByExternalAccountId(
+      summary.userId,
+    );
 
-    if (!connection || connection.status !== "connected" || !connection.accessToken) {
+    if (
+      !connection ||
+      connection.status !== "connected" ||
+      !connection.accessToken
+    ) {
       return {
         accepted: true,
         reason: "connection_not_found",
@@ -380,6 +498,7 @@ export class SyncService {
     await this.executeSync({
       connection,
       companyId: connection.companyId,
+      manualRange: null,
       organizationId: connection.organizationId,
       providerSlug: "mercadolivre",
       triggerMetadata: {
@@ -397,9 +516,13 @@ export class SyncService {
     };
   }
 
-  async handleShopeeNotification(input: ShopeeNotificationInput): Promise<MercadoLivreNotificationResult> {
+  async handleShopeeNotification(
+    input: ShopeeNotificationInput,
+  ): Promise<MercadoLivreNotificationResult> {
     const shopId =
-      input.shopId !== undefined && input.shopId !== null ? String(input.shopId).trim() : null;
+      input.shopId !== undefined && input.shopId !== null
+        ? String(input.shopId).trim()
+        : null;
     const orderNumber =
       input.data && typeof input.data.ordersn === "string"
         ? input.data.ordersn
@@ -411,28 +534,62 @@ export class SyncService {
       attempts: null,
       notificationId: orderNumber,
       resource: orderNumber ? `/orders/${orderNumber}` : null,
-      sent: input.timestamp ? new Date(input.timestamp * 1000).toISOString() : null,
+      sent: input.timestamp
+        ? new Date(input.timestamp * 1000).toISOString()
+        : null,
       topic: input.code !== undefined ? `shopee:${input.code}` : "shopee",
       userId: shopId,
     };
     const provider = this.getProvider("shopee");
 
     if (!shopId) {
-      return { accepted: true, reason: "missing_user_id", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "missing_user_id",
+        status: "ignored",
+        summary,
+      };
     }
     if (input.code !== 3 || !orderNumber) {
-      return { accepted: true, reason: "ignored_topic", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "ignored_topic",
+        status: "ignored",
+        summary,
+      };
     }
     if (!provider.isConfigured()) {
-      return { accepted: true, reason: "provider_unavailable", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "provider_unavailable",
+        status: "ignored",
+        summary,
+      };
     }
     if (!provider.supportsSync()) {
-      return { accepted: true, reason: "provider_unsupported", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "provider_unsupported",
+        status: "ignored",
+        summary,
+      };
     }
 
-    const connection = await this.findConnectionByExternalAccountId("shopee", shopId);
-    if (!connection || connection.status !== "connected" || !connection.accessToken) {
-      return { accepted: true, reason: "connection_not_found", status: "ignored", summary };
+    const connection = await this.findConnectionByExternalAccountId(
+      "shopee",
+      shopId,
+    );
+    if (
+      !connection ||
+      connection.status !== "connected" ||
+      !connection.accessToken
+    ) {
+      return {
+        accepted: true,
+        reason: "connection_not_found",
+        status: "ignored",
+        summary,
+      };
     }
 
     const activeRun = await this.findLatestRun(
@@ -454,6 +611,7 @@ export class SyncService {
     await this.executeSync({
       connection,
       companyId: connection.companyId,
+      manualRange: null,
       organizationId: connection.organizationId,
       providerSlug: "shopee",
       triggerMetadata: { notification: summary },
@@ -464,39 +622,79 @@ export class SyncService {
     return { accepted: true, reason: "started", status: "started", summary };
   }
 
-  async handleSheinNotification(input: SheinNotificationInput): Promise<MercadoLivreNotificationResult> {
+  async handleSheinNotification(
+    input: SheinNotificationInput,
+  ): Promise<MercadoLivreNotificationResult> {
     const sellerId =
-      input.sellerId !== undefined && input.sellerId !== null ? String(input.sellerId).trim() : null;
+      input.sellerId !== undefined && input.sellerId !== null
+        ? String(input.sellerId).trim()
+        : null;
     const orderId =
-      input.orderId !== undefined && input.orderId !== null ? String(input.orderId).trim() : null;
+      input.orderId !== undefined && input.orderId !== null
+        ? String(input.orderId).trim()
+        : null;
     const event = input.event?.trim().toLowerCase() ?? "";
     const summary: SyncTriggerSummary = {
       applicationId: null,
       attempts: null,
       notificationId: orderId,
       resource: orderId ? `/orders/${orderId}` : null,
-      sent: input.timestamp ? new Date(input.timestamp * 1000).toISOString() : null,
+      sent: input.timestamp
+        ? new Date(input.timestamp * 1000).toISOString()
+        : null,
       topic: event ? `shein:${event}` : "shein",
       userId: sellerId,
     };
     const provider = this.getProvider("shein");
 
     if (!sellerId) {
-      return { accepted: true, reason: "missing_user_id", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "missing_user_id",
+        status: "ignored",
+        summary,
+      };
     }
     if (!orderId || !event.includes("order")) {
-      return { accepted: true, reason: "ignored_topic", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "ignored_topic",
+        status: "ignored",
+        summary,
+      };
     }
     if (!provider.isConfigured()) {
-      return { accepted: true, reason: "provider_unavailable", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "provider_unavailable",
+        status: "ignored",
+        summary,
+      };
     }
     if (!provider.supportsSync()) {
-      return { accepted: true, reason: "provider_unsupported", status: "ignored", summary };
+      return {
+        accepted: true,
+        reason: "provider_unsupported",
+        status: "ignored",
+        summary,
+      };
     }
 
-    const connection = await this.findConnectionByExternalAccountId("shein", sellerId);
-    if (!connection || connection.status !== "connected" || !connection.accessToken) {
-      return { accepted: true, reason: "connection_not_found", status: "ignored", summary };
+    const connection = await this.findConnectionByExternalAccountId(
+      "shein",
+      sellerId,
+    );
+    if (
+      !connection ||
+      connection.status !== "connected" ||
+      !connection.accessToken
+    ) {
+      return {
+        accepted: true,
+        reason: "connection_not_found",
+        status: "ignored",
+        summary,
+      };
     }
 
     const activeRun = await this.findLatestRun(
@@ -518,6 +716,7 @@ export class SyncService {
     await this.executeSync({
       connection,
       companyId: connection.companyId,
+      manualRange: null,
       organizationId: connection.organizationId,
       providerSlug: "shein",
       triggerMetadata: { notification: summary },
@@ -530,14 +729,18 @@ export class SyncService {
 
   private async executeSync(input: ExecuteSyncInput): Promise<RunSyncResponse> {
     const provider = this.getProvider(input.providerSlug);
-    const connection = await this.refreshConnectionIfNeeded(provider, input.connection);
-    const lastCompletedRun = await this.findLatestRun(
-      input.organizationId,
-      input.companyId,
-      input.providerSlug,
-      "completed",
+    const connection = await this.refreshConnectionIfNeeded(
+      provider,
+      input.connection,
     );
-    const requestedCursor = this.readCursorFromRun(lastCompletedRun);
+    const lastCursorSourceRun = input.manualRange
+      ? null
+      : await this.findLatestCursorSourceRun(
+          input.organizationId,
+          input.companyId,
+          input.providerSlug,
+        );
+    const requestedCursor = this.readCursorFromRun(lastCursorSourceRun);
     const [pendingRun] = await this.db
       .insert(syncRuns)
       .values({
@@ -569,11 +772,21 @@ export class SyncService {
     let response: RunSyncResponse | null = null;
 
     try {
-      const syncResult = await provider.syncOrders({
-        connection,
-        cursor: requestedCursor,
-        organizationId: input.organizationId,
-      });
+      const syncResult = await provider.syncOrders(
+        input.manualRange
+          ? {
+              connection,
+              mode: "manual_range",
+              organizationId: input.organizationId,
+              range: input.manualRange,
+            }
+          : {
+              connection,
+              cursor: requestedCursor,
+              mode: "incremental",
+              organizationId: input.organizationId,
+            },
+      );
       const counts = await this.persistSyncResult({
         companyId: input.companyId,
         connection,
@@ -607,8 +820,8 @@ export class SyncService {
             importCounts: counts,
             origin: input.triggerOrigin,
             requestedCursor,
-            resultCursor: syncResult.cursor,
             trigger: input.triggerMetadata,
+            ...(input.manualRange ? {} : { resultCursor: syncResult.cursor }),
           },
           status: "completed",
           updatedAt: new Date(),
@@ -623,7 +836,11 @@ export class SyncService {
 
       response = {
         availability: (
-          await this.getStatus(input.organizationId, input.companyId, input.providerSlug)
+          await this.getStatus(
+            input.organizationId,
+            input.companyId,
+            input.providerSlug,
+          )
         ).availability,
         run: this.toRunRecord(completedRun),
       };
@@ -636,7 +853,10 @@ export class SyncService {
           errorSummary: error instanceof Error ? error.message : "Sync failed.",
           finishedAt: new Date(),
           metadata: {
-            ...(getMetadataObject(processingRun.metadata) as Record<string, unknown>),
+            ...(getMetadataObject(processingRun.metadata) as Record<
+              string,
+              unknown
+            >),
             origin: input.triggerOrigin,
             requestedCursor,
             trigger: input.triggerMetadata,
@@ -684,7 +904,9 @@ export class SyncService {
       sent: normalizeString(input.sent),
       topic: normalizeString(input.topic),
       userId:
-        input.userId !== undefined && input.userId !== null ? String(input.userId).trim() : null,
+        input.userId !== undefined && input.userId !== null
+          ? String(input.userId).trim()
+          : null,
     };
   }
 
@@ -695,7 +917,10 @@ export class SyncService {
     return topic.includes("order") || resource.includes("/orders/");
   }
 
-  private async markAutomaticRerunPending(connectionId: string, summary: SyncTriggerSummary) {
+  private async markAutomaticRerunPending(
+    connectionId: string,
+    summary: SyncTriggerSummary,
+  ) {
     const connection = await this.db.query.marketplaceConnections.findFirst({
       where: (table) => eq(table.id, connectionId),
     });
@@ -731,7 +956,8 @@ export class SyncService {
       return;
     }
 
-    const notificationSummary = this.readLastAutomaticNotificationSummary(connection);
+    const notificationSummary =
+      this.readLastAutomaticNotificationSummary(connection);
 
     await this.db
       .update(marketplaceConnections)
@@ -751,7 +977,11 @@ export class SyncService {
       "processing",
     );
 
-    if (activeRun || connection.status !== "connected" || !connection.accessToken) {
+    if (
+      activeRun ||
+      connection.status !== "connected" ||
+      !connection.accessToken
+    ) {
       return;
     }
 
@@ -762,6 +992,7 @@ export class SyncService {
     await this.executeSync({
       connection,
       companyId,
+      manualRange: null,
       organizationId,
       providerSlug,
       triggerMetadata: {
@@ -776,9 +1007,9 @@ export class SyncService {
   private readAutomaticRerunPending(connection: MarketplaceConnection) {
     return Boolean(
       connection.metadata &&
-        typeof connection.metadata === "object" &&
-        "automaticRerunPending" in connection.metadata &&
-        connection.metadata.automaticRerunPending,
+      typeof connection.metadata === "object" &&
+      "automaticRerunPending" in connection.metadata &&
+      connection.metadata.automaticRerunPending,
     );
   }
 
@@ -800,7 +1031,8 @@ export class SyncService {
     return {
       applicationId: normalizeString(notification.applicationId),
       attempts:
-        typeof notification.attempts === "number" && Number.isFinite(notification.attempts)
+        typeof notification.attempts === "number" &&
+        Number.isFinite(notification.attempts)
           ? notification.attempts
           : null,
       notificationId: normalizeString(notification.notificationId),
@@ -812,7 +1044,92 @@ export class SyncService {
   }
 
   private resolveWindowKeyForRun(providerSlug: IntegrationProviderSlug) {
-    return this.isRealtimeProvider(providerSlug) ? null : resolveSyncWindowState().currentWindowKey;
+    return this.isRealtimeProvider(providerSlug)
+      ? null
+      : resolveSyncWindowState().currentWindowKey;
+  }
+
+  private normalizeManualSyncRequest(
+    input?: ManualSyncRequest,
+  ): ManualSyncRange {
+    if (!input?.startDate || !input.endDate) {
+      throw new BadRequestException(
+        "Selecione data inicial e final para a sincronizacao manual.",
+      );
+    }
+
+    const startAtDate = parseDateOnlyAsUtc(input.startDate);
+    const endAtDate = endOfUtcDay(parseDateOnlyAsUtc(input.endDate));
+
+    if (startAtDate.getTime() > endAtDate.getTime()) {
+      throw new BadRequestException(
+        "Data inicial nao pode ser maior que data final.",
+      );
+    }
+
+    const now = new Date();
+    const todayStart = new Date(
+      Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+        0,
+        0,
+        0,
+        0,
+      ),
+    );
+    const oldestAllowedStart = new Date(
+      todayStart.getTime() - 30 * 24 * 60 * 60 * 1000,
+    );
+    const newestAllowedEnd = endOfUtcDay(todayStart);
+
+    if (
+      startAtDate.getTime() < oldestAllowedStart.getTime() ||
+      endAtDate.getTime() > newestAllowedEnd.getTime()
+    ) {
+      throw new BadRequestException(
+        "Periodo manual deve ficar dentro dos ultimos 30 dias.",
+      );
+    }
+
+    const maxEndAt = endOfUtcDay(addUtcMonths(startAtDate, 1));
+    if (endAtDate.getTime() > maxEndAt.getTime()) {
+      throw new BadRequestException(
+        "Periodo manual nao pode ultrapassar 1 mes.",
+      );
+    }
+
+    return {
+      endAt: endAtDate.toISOString(),
+      startAt: startAtDate.toISOString(),
+    };
+  }
+
+  private async findLatestCursorSourceRun(
+    organizationId: string,
+    companyId: string,
+    providerSlug: IntegrationProviderSlug,
+  ) {
+    const runs =
+      (await this.db.query.syncRuns.findMany({
+        orderBy: (table) => [desc(table.createdAt)],
+        where: (table) =>
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.companyId, companyId),
+            eq(table.provider, providerSlug),
+            eq(table.status, "completed"),
+          ),
+      })) ?? [];
+
+    for (const run of runs) {
+      if (!this.readManualRangeFromMetadata(run.metadata)) {
+        return run;
+      }
+    }
+
+    return null;
   }
 
   private buildAvailability(
@@ -822,24 +1139,35 @@ export class SyncService {
     lastCompletedRun: SyncRun | null,
   ): SyncAvailability {
     const isRealtimeProvider = this.isRealtimeProvider(provider.provider);
-    const relaxGuards = Boolean(this.env.SYNC_RELAX_GUARDS) && this.env.NODE_ENV !== "production";
+    const relaxGuards =
+      Boolean(this.env.SYNC_RELAX_GUARDS) && this.env.NODE_ENV !== "production";
     const rawWindowState = resolveSyncWindowState();
     const windowState =
       !isRealtimeProvider && relaxGuards && !rawWindowState.syncOpen
         ? resolveSyncWindowStateAtNextOpenHour()
         : rawWindowState;
     const lastSuccessfulSyncAt =
-      toIsoString(lastCompletedRun?.finishedAt) ?? toIsoString(connection?.lastSyncedAt);
+      toIsoString(lastCompletedRun?.finishedAt) ??
+      toIsoString(connection?.lastSyncedAt);
 
     if (!provider.isConfigured()) {
       return {
         canRun: false,
-        currentWindowKey: isRealtimeProvider ? null : windowState.currentWindowKey,
-        currentWindowLabel: isRealtimeProvider ? null : windowState.currentWindowLabel,
-        currentWindowSlot: isRealtimeProvider ? null : windowState.currentWindowSlot,
+        currentWindowKey: isRealtimeProvider
+          ? null
+          : windowState.currentWindowKey,
+        currentWindowLabel: isRealtimeProvider
+          ? null
+          : windowState.currentWindowLabel,
+        currentWindowSlot: isRealtimeProvider
+          ? null
+          : windowState.currentWindowSlot,
         lastSuccessfulSyncAt,
-        message: "Provider credentials are not configured in the API environment yet.",
-        nextAvailableAt: isRealtimeProvider ? null : windowState.nextAvailableAt,
+        message:
+          "Provider credentials are not configured in the API environment yet.",
+        nextAvailableAt: isRealtimeProvider
+          ? null
+          : windowState.nextAvailableAt,
         provider: provider.provider,
         reason: "provider_unavailable",
       };
@@ -848,26 +1176,48 @@ export class SyncService {
     if (!provider.supportsSync()) {
       return {
         canRun: false,
-        currentWindowKey: isRealtimeProvider ? null : windowState.currentWindowKey,
-        currentWindowLabel: isRealtimeProvider ? null : windowState.currentWindowLabel,
-        currentWindowSlot: isRealtimeProvider ? null : windowState.currentWindowSlot,
+        currentWindowKey: isRealtimeProvider
+          ? null
+          : windowState.currentWindowKey,
+        currentWindowLabel: isRealtimeProvider
+          ? null
+          : windowState.currentWindowLabel,
+        currentWindowSlot: isRealtimeProvider
+          ? null
+          : windowState.currentWindowSlot,
         lastSuccessfulSyncAt,
-        message: "This provider is connected structurally but does not support live sync yet.",
-        nextAvailableAt: isRealtimeProvider ? null : windowState.nextAvailableAt,
+        message:
+          "This provider is connected structurally but does not support live sync yet.",
+        nextAvailableAt: isRealtimeProvider
+          ? null
+          : windowState.nextAvailableAt,
         provider: provider.provider,
         reason: "provider_sync_unsupported",
       };
     }
 
-    if (!connection || connection.status !== "connected" || !connection.accessToken) {
+    if (
+      !connection ||
+      connection.status !== "connected" ||
+      !connection.accessToken
+    ) {
       return {
         canRun: false,
-        currentWindowKey: isRealtimeProvider ? null : windowState.currentWindowKey,
-        currentWindowLabel: isRealtimeProvider ? null : windowState.currentWindowLabel,
-        currentWindowSlot: isRealtimeProvider ? null : windowState.currentWindowSlot,
+        currentWindowKey: isRealtimeProvider
+          ? null
+          : windowState.currentWindowKey,
+        currentWindowLabel: isRealtimeProvider
+          ? null
+          : windowState.currentWindowLabel,
+        currentWindowSlot: isRealtimeProvider
+          ? null
+          : windowState.currentWindowSlot,
         lastSuccessfulSyncAt,
-        message: "Connect this marketplace account before running the first sync.",
-        nextAvailableAt: isRealtimeProvider ? null : windowState.nextAvailableAt,
+        message:
+          "Connect this marketplace account before running the first sync.",
+        nextAvailableAt: isRealtimeProvider
+          ? null
+          : windowState.nextAvailableAt,
         provider: provider.provider,
         reason: "provider_disconnected",
       };
@@ -879,12 +1229,21 @@ export class SyncService {
     ) {
       return {
         canRun: false,
-        currentWindowKey: isRealtimeProvider ? null : windowState.currentWindowKey,
-        currentWindowLabel: isRealtimeProvider ? null : windowState.currentWindowLabel,
-        currentWindowSlot: isRealtimeProvider ? null : windowState.currentWindowSlot,
+        currentWindowKey: isRealtimeProvider
+          ? null
+          : windowState.currentWindowKey,
+        currentWindowLabel: isRealtimeProvider
+          ? null
+          : windowState.currentWindowLabel,
+        currentWindowSlot: isRealtimeProvider
+          ? null
+          : windowState.currentWindowSlot,
         lastSuccessfulSyncAt,
-        message: "Stored provider token expired. Reconnect the account before syncing again.",
-        nextAvailableAt: isRealtimeProvider ? null : windowState.nextAvailableAt,
+        message:
+          "Stored provider token expired. Reconnect the account before syncing again.",
+        nextAvailableAt: isRealtimeProvider
+          ? null
+          : windowState.nextAvailableAt,
         provider: provider.provider,
         reason: "provider_needs_reconnect",
       };
@@ -893,12 +1252,20 @@ export class SyncService {
     if (activeRun) {
       return {
         canRun: false,
-        currentWindowKey: isRealtimeProvider ? null : windowState.currentWindowKey,
-        currentWindowLabel: isRealtimeProvider ? null : windowState.currentWindowLabel,
-        currentWindowSlot: isRealtimeProvider ? null : windowState.currentWindowSlot,
+        currentWindowKey: isRealtimeProvider
+          ? null
+          : windowState.currentWindowKey,
+        currentWindowLabel: isRealtimeProvider
+          ? null
+          : windowState.currentWindowLabel,
+        currentWindowSlot: isRealtimeProvider
+          ? null
+          : windowState.currentWindowSlot,
         lastSuccessfulSyncAt,
         message: "A sync is already in progress for this provider.",
-        nextAvailableAt: isRealtimeProvider ? null : windowState.nextAvailableAt,
+        nextAvailableAt: isRealtimeProvider
+          ? null
+          : windowState.nextAvailableAt,
         provider: provider.provider,
         reason: "sync_in_progress",
       };
@@ -912,21 +1279,26 @@ export class SyncService {
           currentWindowLabel: null,
           currentWindowSlot: null,
           lastSuccessfulSyncAt,
-          message: "Sync is unavailable overnight. The next daily window opens at 06:00.",
+          message:
+            "Sync is unavailable overnight. The next daily window opens at 06:00.",
           nextAvailableAt: windowState.nextAvailableAt,
           provider: provider.provider,
           reason: "outside_window",
         };
       }
 
-      if (lastCompletedRun?.windowKey && lastCompletedRun.windowKey === windowState.currentWindowKey) {
+      if (
+        lastCompletedRun?.windowKey &&
+        lastCompletedRun.windowKey === windowState.currentWindowKey
+      ) {
         return {
           canRun: false,
           currentWindowKey: windowState.currentWindowKey,
           currentWindowLabel: windowState.currentWindowLabel,
           currentWindowSlot: windowState.currentWindowSlot,
           lastSuccessfulSyncAt,
-          message: "This daily sync window was already used. Wait for the next window to open.",
+          message:
+            "This daily sync window was already used. Wait for the next window to open.",
           nextAvailableAt: windowState.nextAvailableAt,
           provider: provider.provider,
           reason: "window_already_used",
@@ -936,9 +1308,15 @@ export class SyncService {
 
     return {
       canRun: true,
-      currentWindowKey: isRealtimeProvider ? null : windowState.currentWindowKey,
-      currentWindowLabel: isRealtimeProvider ? null : windowState.currentWindowLabel,
-      currentWindowSlot: isRealtimeProvider ? null : windowState.currentWindowSlot,
+      currentWindowKey: isRealtimeProvider
+        ? null
+        : windowState.currentWindowKey,
+      currentWindowLabel: isRealtimeProvider
+        ? null
+        : windowState.currentWindowLabel,
+      currentWindowSlot: isRealtimeProvider
+        ? null
+        : windowState.currentWindowSlot,
       lastSuccessfulSyncAt,
       message: isRealtimeProvider
         ? `${provider.displayName} auto-sync is active. New sales also trigger synchronization automatically.`
@@ -960,7 +1338,9 @@ export class SyncService {
     return this.db.transaction(async (tx) => {
       const productIdsByExternalId = new Map<string, string>();
 
-      for (const product of input.syncResult.products.filter((entry) => entry.externalProductId)) {
+      for (const product of input.syncResult.products.filter(
+        (entry) => entry.externalProductId,
+      )) {
         const nextSku = normalizeNullableUpdateString(product.sku);
         const nextTitle = normalizeNullableUpdateString(product.title);
         const [storedProduct] = await tx
@@ -1039,16 +1419,21 @@ export class SyncService {
             id: externalOrders.id,
           });
 
-        await tx.delete(externalOrderItems).where(eq(externalOrderItems.externalOrderId, storedOrder.id));
-        await tx.delete(externalFees).where(eq(externalFees.externalOrderId, storedOrder.id));
+        await tx
+          .delete(externalOrderItems)
+          .where(eq(externalOrderItems.externalOrderId, storedOrder.id));
+        await tx
+          .delete(externalFees)
+          .where(eq(externalFees.externalOrderId, storedOrder.id));
 
         for (const item of order.items) {
           itemCount += 1;
 
           await tx.insert(externalOrderItems).values({
             externalOrderId: storedOrder.id,
-            externalProductId:
-              item.externalProductId ? (productIdsByExternalId.get(item.externalProductId) ?? null) : null,
+            externalProductId: item.externalProductId
+              ? (productIdsByExternalId.get(item.externalProductId) ?? null)
+              : null,
             organizationId: input.organizationId,
             quantity: item.quantity,
             totalPrice: item.totalPrice,
@@ -1080,10 +1465,14 @@ export class SyncService {
   }
 
   private getProvider(providerSlug: IntegrationProviderSlug) {
-    const provider = this.providers.find((entry) => entry.provider === providerSlug);
+    const provider = this.providers.find(
+      (entry) => entry.provider === providerSlug,
+    );
 
     if (!provider) {
-      throw new BadRequestException(`Unsupported sync provider "${providerSlug}".`);
+      throw new BadRequestException(
+        `Unsupported sync provider "${providerSlug}".`,
+      );
     }
 
     return provider;
@@ -1115,7 +1504,11 @@ export class SyncService {
       : Number.POSITIVE_INFINITY;
     const refreshSoon = expiresAt <= Date.now() + 5 * 60 * 1000;
 
-    if (!refreshSoon || !provider.refreshAccessToken || !connection.refreshToken) {
+    if (
+      !refreshSoon ||
+      !provider.refreshAccessToken ||
+      !connection.refreshToken
+    ) {
       return connection;
     }
 
@@ -1140,8 +1533,13 @@ export class SyncService {
     };
   }
 
-  private async findMercadoLivreConnectionByExternalAccountId(externalAccountId: string) {
-    return this.findConnectionByExternalAccountId("mercadolivre", externalAccountId);
+  private async findMercadoLivreConnectionByExternalAccountId(
+    externalAccountId: string,
+  ) {
+    return this.findConnectionByExternalAccountId(
+      "mercadolivre",
+      externalAccountId,
+    );
   }
 
   private async findConnectionByExternalAccountId(
@@ -1195,6 +1593,39 @@ export class SyncService {
     return normalizeCursor(run.metadata as Record<string, unknown>);
   }
 
+  private readManualRangeFromMetadata(
+    value: Record<string, unknown> | null | undefined,
+  ): ManualSyncRange | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+
+    const trigger =
+      "trigger" in value && value.trigger && typeof value.trigger === "object"
+        ? (value.trigger as Record<string, unknown>)
+        : null;
+    const manualRange =
+      trigger &&
+      "manualRange" in trigger &&
+      trigger.manualRange &&
+      typeof trigger.manualRange === "object"
+        ? (trigger.manualRange as Record<string, unknown>)
+        : null;
+
+    if (
+      !manualRange ||
+      typeof manualRange.startAt !== "string" ||
+      typeof manualRange.endAt !== "string"
+    ) {
+      return null;
+    }
+
+    return {
+      endAt: manualRange.endAt,
+      startAt: manualRange.startAt,
+    };
+  }
+
   private toAvailabilityException(availability: SyncAvailability) {
     switch (availability.reason) {
       case "provider_unavailable":
@@ -1221,6 +1652,7 @@ export class SyncService {
       errorSummary: run.errorSummary ?? null,
       finishedAt: toIsoString(run.finishedAt),
       id: run.id,
+      manualRange: this.readManualRangeFromMetadata(metadata),
       origin: normalizeRunOrigin(metadata),
       provider: run.provider as IntegrationProviderSlug,
       startedAt: toIsoString(run.startedAt),

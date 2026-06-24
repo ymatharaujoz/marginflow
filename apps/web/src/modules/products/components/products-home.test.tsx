@@ -14,6 +14,7 @@ import { ProductsHome } from "./products-home";
 const { apiClientMocks, refetchMock, refreshMock } = vi.hoisted(() => ({
   apiClientMocks: {
     delete: vi.fn(),
+    download: vi.fn(),
     patch: vi.fn(),
   },
   refetchMock: vi.fn(),
@@ -56,12 +57,19 @@ vi.mock("../hooks/use-product-data", () => ({
             {
               catalogGroupKey: "meli:MLB123",
               catalogRole: "child",
-              coverImageUrl: "https://example.com/product-variation.png",
-              createdAt: "2026-06-17T10:00:00.000Z",
-              children: [],
-              derivedFromProvider: "mercadolivre",
-              financeDefaults: null,
-              id: "product_2",
+              coverImageUrl: "https://example.com/product-variation.png", 
+              createdAt: "2026-06-17T10:00:00.000Z", 
+              children: [], 
+              derivedFromProvider: "mercadolivre", 
+              financeDefaults: {
+                advertisingCost: "0.00",
+                createdAt: "2026-06-17T10:00:00.000Z",
+                id: "defaults_2",
+                packagingCost: "2.25",
+                productId: "product_2",
+                updatedAt: "2026-06-17T10:00:00.000Z",
+              }, 
+              id: "product_2", 
               images: [
                 {
                   externalIdentifier: null,
@@ -71,9 +79,21 @@ vi.mock("../hooks/use-product-data", () => ({
                   source: "manual",
                   url: "https://example.com/product-variation.png",
                 },
-              ],
-              isActive: true,
-              latestCost: null,
+              ], 
+              isActive: true, 
+              latestCost: {
+                amount: "19.00",
+                companyId: "company_1",
+                costType: "base",
+                createdAt: "2026-06-17T10:00:00.000Z",
+                currency: "BRL",
+                effectiveFrom: null,
+                id: "cost_2",
+                notes: null,
+                organizationId: "org_1",
+                productId: "product_2",
+                updatedAt: "2026-06-17T10:00:00.000Z",
+              }, 
               name: "Kit Mercado Livre - Azul",
               organizationId: "org_1",
               parentProductId: "product_1",
@@ -82,9 +102,16 @@ vi.mock("../hooks/use-product-data", () => ({
               updatedAt: "2026-06-17T10:00:00.000Z",
               variationLabel: "Cor: Azul",
             },
-          ],
-          derivedFromProvider: "mercadolivre",
-          financeDefaults: null,
+          ], 
+          derivedFromProvider: "mercadolivre", 
+          financeDefaults: {
+            advertisingCost: "0.00",
+            createdAt: "2026-06-17T10:00:00.000Z",
+            id: "defaults_1",
+            packagingCost: "4.50",
+            productId: "product_1",
+            updatedAt: "2026-06-17T10:00:00.000Z",
+          }, 
           id: "product_1",
           images: [
             {
@@ -95,9 +122,21 @@ vi.mock("../hooks/use-product-data", () => ({
               source: "manual",
               url: "https://example.com/product.png",
             },
-          ],
-          isActive: true,
-          latestCost: null,
+          ], 
+          isActive: true, 
+          latestCost: {
+            amount: "30.00",
+            companyId: "company_1",
+            costType: "base",
+            createdAt: "2026-06-17T10:00:00.000Z",
+            currency: "BRL",
+            effectiveFrom: null,
+            id: "cost_1",
+            notes: null,
+            organizationId: "org_1",
+            productId: "product_1",
+            updatedAt: "2026-06-17T10:00:00.000Z",
+          }, 
           name: "Kit Mercado Livre",
           organizationId: "org_1",
           parentProductId: null,
@@ -203,27 +242,72 @@ function renderProductsHome() {
 
 afterEach(() => {
   document.body.innerHTML = "";
+  vi.restoreAllMocks();
 });
 
 beforeEach(() => {
   refreshMock.mockReset();
   refetchMock.mockReset();
   apiClientMocks.delete.mockReset();
+  apiClientMocks.download.mockReset();
   apiClientMocks.patch.mockReset();
   vi.stubGlobal("confirm", vi.fn(() => true));
+  vi.stubGlobal(
+    "URL",
+    Object.assign(globalThis.URL ?? class {}, {
+      createObjectURL: vi.fn(() => "blob:catalog"),
+      revokeObjectURL: vi.fn(),
+    }),
+  );
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 });
 
-describe("ProductsHome catalog modal", () => {
-  it("keeps catalog table visible when products have no cost", () => {
+describe("ProductsHome catalog modal", () => { 
+  it("keeps catalog table visible when products exist", () => { 
+    const view = renderProductsHome(); 
+ 
+    expect(document.body.textContent).toContain("Produtos do cat"); 
+    expect(document.body.textContent).toContain("Kit Mercado Livre"); 
+    expect(document.body.textContent).not.toContain("Kit Mercado Livre - Azul"); 
+    expect(document.body.textContent).not.toContain("Cadastre custos de produto"); 
+ 
+    view.unmount(); 
+  }); 
+
+  it("exports filtered catalog rows as xlsx using current search and marketplace filters", async () => {
+    apiClientMocks.download.mockResolvedValue(new Blob(["xlsx"]));
+
     const view = renderProductsHome();
 
-    expect(document.body.textContent).toContain("Produtos do cat");
-    expect(document.body.textContent).toContain("Kit Mercado Livre");
-    expect(document.body.textContent).not.toContain("Kit Mercado Livre - Azul");
-    expect(
-      document.querySelector('[aria-label="Produto sem custos cadastrados"]'),
-    ).not.toBeNull();
-    expect(document.body.textContent).not.toContain("Cadastre custos de produto");
+    click(
+      Array.from(document.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("Filtros"),
+      )!,
+    );
+
+    const searchInput = document.querySelector('input[placeholder*="Nome ou SKU"]') as HTMLInputElement;
+    changeInputValue(searchInput, "Kit");
+
+    click(
+      Array.from(document.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("MELI"),
+      )!,
+    );
+
+    await act(async () => {
+      click(
+        Array.from(document.querySelectorAll("button")).find((button) =>
+          button.textContent?.includes("Exportar"),
+        )!,
+      );
+      await Promise.resolve();
+    });
+
+    expect(apiClientMocks.download).toHaveBeenCalledWith(
+      "/products/export?search=Kit&marketplaces=mercadolivre",
+    );
+    expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
 
     view.unmount();
   });
@@ -296,7 +380,12 @@ describe("ProductsHome catalog modal", () => {
     view.unmount();
   });
 
-  it("expands parent rows to show child variations and routes child edits back to parent", async () => {
+  it("expands parent rows to show child variations with own costs and allows saving child finance", async () => {
+    apiClientMocks.patch.mockResolvedValue({
+      data: { id: "product_2" },
+      error: null,
+    });
+
     const view = renderProductsHome();
 
     click(
@@ -310,34 +399,57 @@ describe("ProductsHome catalog modal", () => {
     });
 
     expect(document.body.textContent).toContain("Kit Mercado Livre - Azul");
+    expect(document.body.textContent).toMatch(/R\$\s*19,00/);
+    expect(document.body.textContent).toMatch(/R\$\s*2,25/);
 
     click(document.querySelector('[data-testid="child-product-row"]')!);
 
     expect(document.body.textContent).toContain("Informações Financeiras");
     expect(document.body.textContent).toContain(
-      "Edite custo e embalagem no produto principal",
+      "Salvar aqui altera apenas esta varia",
     );
 
     const unitCostInput = document.querySelector('input[name="unitCost"]') as HTMLInputElement;
     const packagingInput = document.querySelector('input[name="packagingCost"]') as HTMLInputElement;
-    expect(unitCostInput.disabled).toBe(true);
-    expect(packagingInput.disabled).toBe(true);
+    expect(unitCostInput.disabled).toBe(false);
+    expect(packagingInput.disabled).toBe(false);
+    expect(unitCostInput.value).toContain("19");
+    expect(packagingInput.value).toContain("2");
 
     expect(
       Array.from(document.querySelectorAll("button")).some((button) =>
         button.textContent?.includes("Excluir produto"),
       ),
-    ).toBe(false);
+    ).toBe(true);
+
+    changeInputValue(unitCostInput, "21.50");
+    changeInputValue(packagingInput, "2.75");
+
+    act(() => {
+      unitCostInput.dispatchEvent(new Event("focusout", { bubbles: true }));
+      packagingInput.dispatchEvent(new Event("focusout", { bubbles: true }));
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     click(
       Array.from(document.querySelectorAll("button")).find((button) =>
-        button.textContent?.includes("Ir para produto principal"),
+        button.textContent?.includes("Salvar"),
       )!,
     );
 
-    expect(document.body.textContent).toContain(
-      "Salvar aqui sobrescreve custo e embalagem de todas as varia",
-    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(apiClientMocks.patch).toHaveBeenCalledWith("/products/product_2/catalog-finance", {
+      body: {
+        packagingCost: "2.75",
+        unitCost: "21.50",
+      },
+    });
 
     view.unmount();
   });

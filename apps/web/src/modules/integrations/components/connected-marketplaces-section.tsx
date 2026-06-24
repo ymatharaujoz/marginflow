@@ -65,7 +65,7 @@ const marketplaceMeta: Record<
   },
   shein: {
     name: "Shein",
-    description: "Conecte catálogo, pedidos e eventos automáticos da Shein.",
+    description: "Sincronize pedidos, produtos, taxas e frete automaticamente.",
     brandColor: "#111111",
     brandColorSoft: "rgba(17, 17, 17, 0.10)",
     icon: (

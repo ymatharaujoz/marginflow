@@ -52,6 +52,11 @@ export type ProductTableRow = {
   sellingPrice: number;
   commissionPct: number;
   shipping: number;
+  marketplaceCommissionUnit?: number;
+  fixedFeeUnit?: number;
+  shippingUnit?: number;
+  shippingOrFixedFeeUnit?: number;
+  shippingOrFixedFeeSource?: "shipping" | "fixed_fee" | "none";
   taxPct: number;
   packagingCost: number;
   /** Embalagem total: packagingCost × netLiquidSales */

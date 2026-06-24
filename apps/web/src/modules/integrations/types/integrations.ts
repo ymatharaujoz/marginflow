@@ -1,11 +1,17 @@
 import type {
   IntegrationConnectionRecord,
   IntegrationProviderSlug,
+  RunSyncRequest,
   SyncRunRecord,
   SyncStatusResponse,
 } from "@lucreii/types";
 
-export type { IntegrationConnectionRecord, IntegrationProviderSlug, SyncRunRecord, SyncStatusResponse };
+export type {
+  IntegrationConnectionRecord,
+  IntegrationProviderSlug,
+  SyncRunRecord,
+  SyncStatusResponse,
+};
 
 export interface IntegrationsHubProps {
   initialMessage: string | null;
@@ -31,7 +37,7 @@ export interface UseIntegrationsDataReturn {
   };
   syncMutation: {
     isPending: boolean;
-    mutate: () => void;
+    mutate: (payload: RunSyncRequest) => void;
   };
   connectMutation: {
     isPending: boolean;

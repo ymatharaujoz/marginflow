@@ -17,7 +17,7 @@ import {
 import { Badge, Button, Modal, cn } from "@lucreii/ui";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { productCatalogQueryKey, formatReferenceMonthPtBr } from "../hooks/use-product-data";
-import { computeRowCommissionTotal, computeRowNetRevenue } from "../calculations/product-insights";
+import { computeRowNetRevenue } from "../calculations/product-insights";
 import { CurrencyInput, parseCurrencyValue } from "./currency-input";
 import type { ProductTableRow } from "../types/products";
 import { formatMoney, formatNumber } from "../utils/formatters";
@@ -314,13 +314,7 @@ export function ProductDetailsModal({
     return null;
   }
 
-  const totalCommission = row.totalCommission;
-  const parentCommission =
-    row.catalogRole === "parent" && row.children.length > 0
-      ? row.children[0].totalCommission
-      : null;
-  const displayedCommission = parentCommission ?? totalCommission;
-  const netRevenue = row.revenue - displayedCommission;
+  const netRevenue = computeRowNetRevenue(row);
 
   return (
     <Modal
@@ -449,13 +443,13 @@ export function ProductDetailsModal({
                       icon={<Package className="h-3 w-3" />}
                     />
                     <MetricCard
-                      label="Comissão MELI"
-                      value={formatMoney(displayedCommission)}
+                      label="Comissão"
+                      value={formatMoney(row.marketplaceCommissionUnit ?? 0)}
                       icon={<Percent className="h-3 w-3" />}
                     />
                     <MetricCard
-                      label="Frete"
-                      value={formatMoney(row.shipping)}
+                      label="Frete/Custo Fixo"
+                      value={formatMoney(row.shippingOrFixedFeeUnit ?? 0)}
                       icon={<Truck className="h-3 w-3" />}
                     />
                     <MetricCard

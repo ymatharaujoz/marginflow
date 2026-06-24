@@ -133,6 +133,27 @@ describe("createApiClient", () => {
     );
   });
 
+  it("downloads binary payloads as blob", async () => {
+    const client = createApiClient({
+      baseUrl: "http://localhost:4000",
+      fetchFn: async () =>
+        new Response(new Blob(["xlsx"]), {
+          status: 200,
+          headers: {
+            "content-type":
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          },
+        }),
+    });
+
+    const blob = await client.download("/products/export");
+
+    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.type).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+  });
+
   it("throws an ApiContractError when protected payload shape is invalid", async () => {
     const client = createApiClient({
       baseUrl: "http://localhost:4000",

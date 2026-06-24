@@ -6,6 +6,7 @@ import type {
   IntegrationConnectionRecord,
   IntegrationConnectResponse,
   IntegrationProviderSlug,
+  RunSyncRequest,
   RunSyncResponse,
   SyncStatusResponse,
 } from "@lucreii/types";
@@ -14,14 +15,20 @@ import { ordersQueryKey } from "@/modules/orders";
 
 const integrationsQueryKey = ["integrations"] as const;
 async function fetchIntegrations(): Promise<IntegrationConnectionRecord[]> {
-  const response = await apiClient.get<{ data: IntegrationConnectionRecord[]; error: null }>("/integrations");
+  const response = await apiClient.get<{
+    data: IntegrationConnectionRecord[];
+    error: null;
+  }>("/integrations");
   return response.data;
 }
 
-async function fetchSyncStatus(provider: IntegrationProviderSlug): Promise<SyncStatusResponse> {
-  const response = await apiClient.get<{ data: SyncStatusResponse; error: null }>(
-    `/sync/status?provider=${provider}`,
-  );
+async function fetchSyncStatus(
+  provider: IntegrationProviderSlug,
+): Promise<SyncStatusResponse> {
+  const response = await apiClient.get<{
+    data: SyncStatusResponse;
+    error: null;
+  }>(`/sync/status?provider=${provider}`);
   return response.data;
 }
 
@@ -49,9 +56,10 @@ export function useIntegrationsData(
 
   const connectMutation = useMutation({
     mutationFn: async (provider: IntegrationProviderSlug) => {
-      const response = await apiClient.post<{ data: IntegrationConnectResponse; error: null }>(
-        `/integrations/${provider}/connect`,
-      );
+      const response = await apiClient.post<{
+        data: IntegrationConnectResponse;
+        error: null;
+      }>(`/integrations/${provider}/connect`);
       return response.data;
     },
     onSuccess: (data) => {
@@ -61,9 +69,10 @@ export function useIntegrationsData(
 
   const disconnectMutation = useMutation({
     mutationFn: async (provider: IntegrationProviderSlug) => {
-      const response = await apiClient.post<{ data: IntegrationConnectionRecord; error: null }>(
-        `/integrations/${provider}/disconnect`,
-      );
+      const response = await apiClient.post<{
+        data: IntegrationConnectionRecord;
+        error: null;
+      }>(`/integrations/${provider}/disconnect`);
       return response.data;
     },
     onSuccess: async () => {
@@ -73,16 +82,21 @@ export function useIntegrationsData(
   });
 
   const syncMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.post<{ data: RunSyncResponse; error: null }>("/sync/run", {
-        body: { provider: syncProvider },
+    mutationFn: async (payload: RunSyncRequest) => {
+      const response = await apiClient.post<{
+        data: RunSyncResponse;
+        error: null;
+      }>("/sync/run", {
+        body: payload,
       });
       return response.data;
     },
     onSuccess: async (data) => {
       options.onSyncSuccess?.(data);
       await queryClient.invalidateQueries({ queryKey: integrationsQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ["sync-status", syncProvider] });
+      await queryClient.invalidateQueries({
+        queryKey: ["sync-status", syncProvider],
+      });
       await queryClient.invalidateQueries({ queryKey: ordersQueryKey });
       router.refresh();
     },
@@ -93,7 +107,9 @@ export function useIntegrationsData(
     syncStatusQuery.refetch();
   };
 
-  const activeConnection = integrationsQuery.data?.find((c) => c.provider === syncProvider);
+  const activeConnection = integrationsQuery.data?.find(
+    (c) => c.provider === syncProvider,
+  );
 
   return {
     integrationsQuery: {

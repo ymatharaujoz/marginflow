@@ -1,5 +1,5 @@
 import type { MarketplaceConnection } from "@lucreii/database";
-import type { IntegrationProviderSlug } from "@lucreii/types";
+import type { IntegrationProviderSlug, ManualSyncRange } from "@lucreii/types";
 
 export type IntegrationProviderAuthorization = {
   authorizationUrl: string;
@@ -85,10 +85,19 @@ export type IntegrationSyncOrder = {
 };
 
 export type IntegrationSyncContext = {
-  connection: MarketplaceConnection;
-  cursor: IntegrationSyncCursor;
   organizationId: string;
-};
+} & (
+  | {
+      connection: MarketplaceConnection;
+      cursor: IntegrationSyncCursor;
+      mode?: "incremental";
+    }
+  | {
+      connection: MarketplaceConnection;
+      mode: "manual_range";
+      range: ManualSyncRange;
+    }
+);
 
 export type IntegrationSyncResult = {
   cursor: IntegrationSyncCursor;

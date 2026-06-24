@@ -139,7 +139,29 @@ describe("ProductsShell import sources modal", () => {
     expect(document.body.textContent).toContain("Mercado Livre");
     expect(document.body.textContent).toContain("Shopee");
     expect(document.body.textContent).toContain("Shein");
-    expect(document.body.textContent).toContain("Importar produtos");
+    expect(document.body.textContent).toContain("Importar");
+
+    view.unmount();
+  });
+
+  it("explains spreadsheet reimport for unit cost and packaging updates", () => {
+    const view = mount(
+      <ProductsShell organizationName="Lucreii">
+        <ImportTrigger />
+      </ProductsShell>,
+    );
+
+    click(document.querySelector("button")!);
+    click(
+      Array.from(document.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("Planilha Excel"),
+      )!,
+    );
+
+    expect(document.body.textContent).toContain("Importar por planilha");
+    expect(document.body.textContent).toContain("reimport");
+    expect(document.body.textContent).toContain("CUSTO UNIT");
+    expect(document.body.textContent).toContain("EMBALAGEM");
 
     view.unmount();
   });

@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Plus,
   Upload,
+  Download,
   AlertCircle,
   AlertTriangle,
   Package,
@@ -51,7 +52,7 @@ import {
 } from "../hooks/use-product-data";
 import { buildMarketplaceSyncNotice } from "../calculations/product-insights";
 import { formatMoney } from "../utils/formatters";
-import type { CatalogStats, ProductMarketplaceNotice } from "../types/products";
+import type { ProductMarketplaceNotice } from "../types/products";
 
 interface ProductsHomeProps {
   view?: "catalog" | "performance";
@@ -203,10 +204,7 @@ function EmptyCatalogState({
   );
 }
 
-function NoCostsState({
-  stats,
-  onAdd,
-}: { stats: CatalogStats } & { onAdd?: () => void }) {
+function NoCostsState() {
   return (
     <motion.div variants={fadeInVariants} initial="hidden" animate="visible">
       <Card
@@ -223,10 +221,8 @@ function NoCostsState({
                 Cadastre custos de produto
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                Você tem {stats.totalProducts} produto
-                {stats.totalProducts > 1 ? "s" : ""} mas nenhum custo
-                registrado. Os custos são essenciais para calcular margens e
-                lucratividade.
+                Você tem produtos sem custo cadastrado. Os custos são
+                essencias para calcular margens e lucratividade.
               </p>
             </div>
           </div>
@@ -364,16 +360,12 @@ function ProductImagePreview({
 function CatalogProductDetailsModal({
   onClose,
   onDeleted,
-  onOpenParent,
   onSaved,
-  parentProduct,
   product,
 }: {
   onClose: () => void;
   onDeleted: () => Promise<unknown> | unknown;
-  onOpenParent: (product: ProductListItem) => void;
   onSaved: () => Promise<unknown> | unknown;
-  parentProduct: ProductListItem | null;
   product: ProductListItem | null;
 }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -400,8 +392,6 @@ function CatalogProductDetailsModal({
   useEffect(() => {
     setHeroFailed(false);
   }, [firstImage?.url]);
-
-  const isChildRedirect = product?.catalogRole === "child" && parentProduct !== null;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -499,10 +489,6 @@ function CatalogProductDetailsModal({
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (isChildRedirect) {
-                onOpenParent(parentProduct);
-                return;
-              }
               if (saveMutation.isPending || deleteMutation.isPending) return;
               saveMutation.mutate();
             }}
@@ -540,10 +526,10 @@ function CatalogProductDetailsModal({
                     Informações Financeiras
                   </h3>
                   <p className="text-[11px] text-muted-foreground/70">
-                    {isChildRedirect
-                      ? "Edite custo e embalagem no produto principal"
-                      : product.catalogRole === "parent"
-                        ? "Salvar aqui sobrescreve custo e embalagem de todas as variações"
+                    {product.catalogRole === "parent"
+                      ? "Salvar aqui sobrescreve custo e embalagem de todas as variações."
+                      : product.catalogRole === "child"
+                        ? "Salvar aqui altera apenas esta variação."
                         : "Preencha os custos do produto"}
                   </p>
                 </div>
@@ -554,13 +540,12 @@ function CatalogProductDetailsModal({
                     className="text-xs font-medium text-muted-foreground"
                     htmlFor="catalog-unit-cost"
                   >
-                    Custo unitário <span className="text-error">*</span>
+                    Custo Unitário <span className="text-error">*</span>
                   </label>
                   <div className="mt-2">
                     <CurrencyInput
                       id="catalog-unit-cost"
                       name="unitCost"
-                      disabled={isChildRedirect}
                       onChange={(val) =>
                         setForm((curr) => ({ ...curr, unitCost: val }))
                       }
@@ -581,7 +566,6 @@ function CatalogProductDetailsModal({
                     <CurrencyInput
                       id="catalog-packaging-cost"
                       name="packagingCost"
-                      disabled={isChildRedirect}
                       onChange={(val) =>
                         setForm((curr) => ({ ...curr, packagingCost: val }))
                       }
@@ -596,7 +580,7 @@ function CatalogProductDetailsModal({
                     className="text-xs font-medium text-muted-foreground"
                     htmlFor="catalog-selling-price"
                   >
-                    PDV
+                    Preço de Venda
                   </label>
                   <div className="mt-2">
                     <CurrencyInput
@@ -620,28 +604,27 @@ function CatalogProductDetailsModal({
 
             {/* Barra de ações */}
             <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/30 pt-6">
-              {!isChildRedirect ? (
-                <Button
-                  onClick={() => {
-                    if (!window.confirm("Excluir este produto do catálogo?")) {
-                      return;
-                    }
-                    deleteMutation.mutate();
-                  }}
-                  type="button"
-                  variant="ghost"
-                  className="border border-error/20 text-error hover:bg-error/5 hover:text-error"
-                >
-                  Excluir produto
-                </Button>
-              ) : (
-                <div />
-              )}
+              <Button
+                loading={deleteMutation.isPending}
+                onClick={() => {
+                  if (!window.confirm("Excluir este produto do catálogo?")) {
+                    return;
+                  }
+                  deleteMutation.mutate();
+                }}
+                type="button"
+                variant="danger"
+                disabled={saveMutation.isPending || deleteMutation.isPending}
+              >
+                Excluir produto
+              </Button>
               <Button
                 type="submit"
                 className="px-6"
+                disabled={saveMutation.isPending || deleteMutation.isPending}
+                loading={saveMutation.isPending}
               >
-                {isChildRedirect ? "Ir para produto principal" : "Salvar"}
+                Salvar
               </Button>
             </div>
           </form>
@@ -696,7 +679,7 @@ function CatalogProductsTable({
                     SKU
                   </th>
                   <th className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    PDV
+                    Preço de Venda
                   </th>
                   <th className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Custo unitário
@@ -706,9 +689,6 @@ function CatalogProductsTable({
                   </th>
                   <th className="sticky top-0 z-10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Status
-                  </th>
-                  <th className="sticky top-0 z-10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Criado em
                   </th>
                 </tr>
               </thead>
@@ -767,9 +747,6 @@ function CatalogProductsTable({
                       {product.isActive ? "Ativo" : "Arquivado"}
                     </Badge>
                   </td>
-                  <td className="px-3 py-3 text-sm text-muted-foreground">
-                    {formatProductDate(product.createdAt)}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -777,14 +754,12 @@ function CatalogProductsTable({
           </div>
         </div>
       </Card>
-      <CatalogProductDetailsModal
-        onDeleted={onRefresh}
-        onClose={() => setSelectedProduct(null)}
-        onOpenParent={() => {}}
-        onSaved={onRefresh}
-        parentProduct={null}
-        product={selectedProduct}
-      />
+      <CatalogProductDetailsModal 
+        onDeleted={onRefresh} 
+        onClose={() => setSelectedProduct(null)} 
+        onSaved={onRefresh} 
+        product={selectedProduct} 
+      /> 
     </>
   );
 }
@@ -901,12 +876,10 @@ function CatalogProductsHierarchyTable({
 }: {
   onRefresh: () => Promise<unknown> | unknown;
   products: ReturnType<typeof useProductData>["products"];
-}) {
-  const [expandedParentIds, setExpandedParentIds] = useState<string[]>([]);
-  const [selectedParentProduct, setSelectedParentProduct] =
-    useState<ProductListItem | null>(null);
-  const [selectedProduct, setSelectedProduct] =
-    useState<ProductListItem | null>(null);
+}) { 
+  const [expandedParentIds, setExpandedParentIds] = useState<string[]>([]); 
+  const [selectedProduct, setSelectedProduct] = 
+    useState<ProductListItem | null>(null); 
 
   const [sortConfig, setSortConfig] = useState<{
     key: CatalogSortKey;
@@ -916,6 +889,7 @@ function CatalogProductsHierarchyTable({
   const [selectedMarketplaces, setSelectedMarketplaces] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleSort = (key: CatalogSortKey) => {
     let direction: CatalogSortDirection = "asc";
@@ -980,6 +954,35 @@ function CatalogProductsHierarchyTable({
     setCurrentPage(1);
   };
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const params = new URLSearchParams();
+
+      if (searchFilter.trim()) {
+        params.set("search", searchFilter.trim());
+      }
+
+      if (selectedMarketplaces.length > 0) {
+        params.set("marketplaces", selectedMarketplaces.join(","));
+      }
+
+      const blob = await apiClient.download(
+        `/products/export${params.size > 0 ? `?${params.toString()}` : ""}`,
+      );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `catalogo-produtos-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const SortIcon = ({ column }: { column: CatalogSortKey }) => {
     if (sortConfig?.key !== column) {
       return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
@@ -1006,7 +1009,7 @@ function CatalogProductsHierarchyTable({
   return (
     <>
       <Card padding="lg" className="min-w-0 flex flex-1 flex-col overflow-hidden min-h-0">
-        <div className="mb-4 flex items-center justify-between shrink-0">
+        <div className="mb-4 flex items-center justify-between gap-3 shrink-0">
           <div>
             <h3 className="text-sm font-semibold text-foreground">
               Produtos do catálogo
@@ -1016,17 +1019,32 @@ function CatalogProductsHierarchyTable({
             </p>
           </div>
 
-          <button
-            onClick={() => setShowFilters((value) => !value)}
-            className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium transition-all duration-[var(--transition-fast)] ${
-              showFilters || hasActiveFilters
-                ? "bg-accent text-accent-foreground shadow-sm"
-                : "border border-border bg-surface-strong text-muted-foreground hover:border-border-strong hover:text-foreground"
-            }`}
-          >
-            <Filter className="h-3.5 w-3.5" />
-            Filtros
-          </button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              className="gap-2"
+              disabled={isExporting}
+              onClick={() => {
+                void handleExport();
+              }}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {isExporting ? "Exportando..." : "Exportar"}
+            </Button>
+
+            <button
+              onClick={() => setShowFilters((value) => !value)}
+              className={`inline-flex items-center gap-1.5 rounded-[var(--radius-md)] px-3 py-1.5 text-xs font-medium transition-all duration-[var(--transition-fast)] ${
+                showFilters || hasActiveFilters
+                  ? "bg-accent text-accent-foreground shadow-sm"
+                  : "border border-border bg-surface-strong text-muted-foreground hover:border-border-strong hover:text-foreground"
+              }`}
+            >
+              <Filter className="h-3.5 w-3.5" />
+              Filtros
+            </button>
+          </div>
         </div>
 
         {showFilters ? (
@@ -1153,7 +1171,7 @@ function CatalogProductsHierarchyTable({
                   className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    PDV
+                    Preço de Venda
                     <SortIcon column="sellingPrice" />
                   </div>
                 </th>
@@ -1184,15 +1202,6 @@ function CatalogProductsHierarchyTable({
                     <SortIcon column="isActive" />
                   </div>
                 </th>
-                <th
-                  onClick={() => handleSort("createdAt")}
-                  className="sticky top-0 z-10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
-                >
-                  <div className="flex items-center gap-1">
-                    Criado em
-                    <SortIcon column="createdAt" />
-                  </div>
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -1204,7 +1213,6 @@ function CatalogProductsHierarchyTable({
                     <tr
                       className="cursor-pointer border-b border-border/50 hover:bg-surface-strong/30"
                       onClick={() => {
-                        setSelectedParentProduct(null);
                         setSelectedProduct(product);
                       }}
                     >
@@ -1220,7 +1228,18 @@ function CatalogProductsHierarchyTable({
                           />
                           <span className="flex items-center gap-2">
                             <span className="flex flex-col">
-                              <span>{product.name}</span>
+                              <span className="inline-flex items-center gap-2">
+                                <span>{product.name}</span>
+                                {product.latestCost ? null : (
+                                  <span
+                                    aria-label="Produto sem custos cadastrados"
+                                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning"
+                                    title="Produto sem custos cadastrados"
+                                  >
+                                    <AlertTriangle className="h-3.5 w-3.5" />
+                                  </span>
+                                )}
+                              </span>
                               {product.catalogRole === "parent" && product.children.length > 0 ? (
                                 <button
                                   aria-label={`${isExpanded ? "Recolher" : "Expandir"} variações`}
@@ -1244,15 +1263,6 @@ function CatalogProductsHierarchyTable({
                                 </button>
                               ) : null}
                             </span>
-                            {product.latestCost ? null : (
-                              <span
-                                aria-label="Produto sem custos cadastrados"
-                                className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-warning/10 text-warning"
-                                title="Produto sem custos cadastrados"
-                              >
-                                <AlertTriangle className="h-3.5 w-3.5" />
-                              </span>
-                            )}
                           </span>
                         </div>
                       </td>
@@ -1283,9 +1293,6 @@ function CatalogProductsHierarchyTable({
                           {product.isActive ? "Ativo" : "Arquivado"}
                         </Badge>
                       </td>
-                      <td className="px-3 py-3 text-sm text-muted-foreground">
-                        {formatProductDate(product.createdAt)}
-                      </td>
                     </tr>
 
                     {product.catalogRole === "parent" && isExpanded
@@ -1297,7 +1304,6 @@ function CatalogProductsHierarchyTable({
                               data-testid="child-product-row"
                               className="cursor-pointer border-b border-border/30 hover:bg-surface-strong/20"
                               onClick={() => {
-                                setSelectedParentProduct(product);
                                 setSelectedProduct(child);
                               }}
                             >
@@ -1325,7 +1331,18 @@ function CatalogProductsHierarchyTable({
                                     url={child.coverImageUrl}
                                   />
                                   <span className="flex flex-col">
-                                    <span>{child.name}</span>
+                                    <span className="inline-flex items-center gap-2">
+                                      <span>{child.name}</span>
+                                      {child.latestCost ? null : (
+                                        <span
+                                          aria-label="Produto sem custos cadastrados"
+                                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning"
+                                          title="Produto sem custos cadastrados"
+                                        >
+                                          <AlertTriangle className="h-3.5 w-3.5" />
+                                        </span>
+                                      )}
+                                    </span>
                                     {child.variationLabel ? (
                                       <span className="text-xs font-normal text-muted-foreground">
                                         {child.variationLabel}
@@ -1334,22 +1351,22 @@ function CatalogProductsHierarchyTable({
                                   </span>
                                 </div>
                               </td>
-                              <td className="px-3 py-3 text-sm text-muted-foreground">
-                                {child.sku ?? "Sem SKU"}
-                              </td>
-                              <td className="px-3 py-3 text-right text-sm text-muted-foreground/40">
-                                {formatMoney(Number(product.sellingPrice))}
-                              </td>
-                              <td className="px-3 py-3 text-right text-sm text-muted-foreground/40">
-                                {product.latestCost
-                                  ? formatMoney(Number(product.latestCost.amount))
-                                  : "—"}
-                              </td>
-                              <td className="px-3 py-3 text-right text-sm text-muted-foreground/40">
-                                {product.financeDefaults
-                                  ? formatMoney(Number(product.financeDefaults.packagingCost))
-                                  : "—"}
-                              </td>
+                              <td className="px-3 py-3 text-sm text-muted-foreground"> 
+                                {child.sku ?? "Sem SKU"} 
+                              </td> 
+                              <td className="px-3 py-3 text-right text-sm text-foreground"> 
+                                {formatMoney(Number(child.sellingPrice))} 
+                              </td> 
+                              <td className="px-3 py-3 text-right text-sm text-foreground"> 
+                                {child.latestCost 
+                                  ? formatMoney(Number(child.latestCost.amount)) 
+                                  : "—"} 
+                              </td> 
+                              <td className="px-3 py-3 text-right text-sm text-foreground"> 
+                                {child.financeDefaults 
+                                  ? formatMoney(Number(child.financeDefaults.packagingCost)) 
+                                  : "—"} 
+                              </td> 
                               <td className="px-3 py-3 text-left">
                                 <Badge
                                   variant={child.isActive ? "success" : "neutral"}
@@ -1360,9 +1377,6 @@ function CatalogProductsHierarchyTable({
                                   />
                                   {child.isActive ? "Ativo" : "Arquivado"}
                                 </Badge>
-                              </td>
-                              <td className="px-3 py-3 text-sm text-muted-foreground">
-                                {formatProductDate(child.createdAt)}
                               </td>
                             </tr>
                           );
@@ -1394,20 +1408,14 @@ function CatalogProductsHierarchyTable({
           </div>
         ) : null}
       </Card>
-      <CatalogProductDetailsModal
-        onDeleted={onRefresh}
-        onClose={() => {
-          setSelectedParentProduct(null);
-          setSelectedProduct(null);
-        }}
-        onOpenParent={(product) => {
-          setSelectedParentProduct(null);
-          setSelectedProduct(product);
-        }}
-        onSaved={onRefresh}
-        parentProduct={selectedParentProduct}
-        product={selectedProduct}
-      />
+      <CatalogProductDetailsModal 
+        onDeleted={onRefresh} 
+        onClose={() => { 
+          setSelectedProduct(null); 
+        }} 
+        onSaved={onRefresh} 
+        product={selectedProduct} 
+      /> 
     </>
   );
 }
@@ -1504,23 +1512,6 @@ export function ProductsHome({
     );
   }
 
-  if (view !== "catalog" && financialState === "no-costs" && stats) {
-    return (
-      <motion.div
-        variants={fadeInVariants}
-        initial="hidden"
-        animate="visible"
-        className="space-y-6"
-      >
-        <ProductHeader title="Performance" stats={stats} />
-        {marketplaceNotice ? (
-          <MarketplaceNoticeCard notice={marketplaceNotice} />
-        ) : null}
-        <NoCostsState stats={stats} onAdd={handleAddProduct} />
-      </motion.div>
-    );
-  }
-
   return (
     <motion.div
       variants={containerVariants}
@@ -1545,6 +1536,10 @@ export function ProductsHome({
       ) : null}
 
       {view === "catalog" ? <hr className="border-border/60" /> : null}
+
+      {view === "performance" && financialState === "no-costs" ? (
+        <NoCostsState />
+      ) : null}
 
       <section className="min-w-0 flex flex-1 flex-col min-h-0">
         {view === "catalog" ? (

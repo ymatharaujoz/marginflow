@@ -510,6 +510,87 @@ describe("products controller", () => {
     });
   });
 
+  it("exports catalog spreadsheet as xlsx attachment", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: {
+        id: "org_123",
+        name: "Org",
+        role: "owner",
+        slug: "org",
+      },
+      selectedCompanyId: "company_123",
+      session: {
+        expiresAt: new Date("2026-04-22T00:00:00.000Z"),
+        id: "session_123",
+      },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(
+      entitlementsService,
+      "requireActiveEntitlement",
+    ).mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(
+      productsService as ProductsService & {
+        exportProductsSpreadsheet: (
+          context: {
+            organizationId: string;
+            selectedCompanyId?: string | null;
+            userId: string;
+          },
+          filters: { marketplaces?: string[]; search?: string },
+        ) => Promise<Buffer>;
+      },
+      "exportProductsSpreadsheet",
+    ).mockResolvedValueOnce(Buffer.from("xlsx"));
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/products/export?search=kit&marketplaces=mercadolivre,shopee",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(
+      (productsService as ProductsService & {
+        exportProductsSpreadsheet: (
+          context: {
+            organizationId: string;
+            selectedCompanyId?: string | null;
+            userId: string;
+          },
+          filters: { marketplaces?: string[]; search?: string },
+        ) => Promise<Buffer>;
+      }).exportProductsSpreadsheet,
+    ).toHaveBeenCalledWith(
+      {
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      },
+      {
+        marketplaces: ["mercadolivre", "shopee"],
+        search: "kit",
+      },
+    );
+    expect(response.headers["content-type"]).toContain(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(response.headers["content-disposition"]).toContain(
+      "attachment;",
+    );
+    expect(response.body).toBe("xlsx");
+  });
+
   it("deletes a product from catalog", async () => {
     vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
       organization: {

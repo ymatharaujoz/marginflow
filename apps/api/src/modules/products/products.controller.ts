@@ -1,5 +1,19 @@
-import { BadRequestException, Body, Controller, Delete, Get, Inject, Param, Patch, Post, Query, Req, UseGuards } from "@nestjs/common";
-import type { FastifyRequest } from "fastify";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from "@nestjs/common";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import "@fastify/multipart";
 import { AuthGuard } from "@/modules/auth/auth.guard";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
@@ -8,6 +22,7 @@ import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
 import { ProductsService } from "./products.service";
 import {
   CreateManualProductRequestDto,
+  ProductCatalogExportQueryDto,
   CreateProductRequestDto,
   ProductAnalyticsQueryDto,
   UpdateProductCatalogFinanceRequestDto,
@@ -50,6 +65,33 @@ export class ProductsController {
       ),
       error: null,
     };
+  }
+
+  @Get("export")
+  async exportProducts(
+    @CurrentAuthContext() authContext: AuthenticatedRequestContext,
+    @Query() query: ProductCatalogExportQueryDto,
+    @Res() reply: FastifyReply,
+  ) {
+    const buffer = await this.productsService.exportProductsSpreadsheet(
+      {
+        organizationId: authContext.organization!.id,
+        selectedCompanyId: authContext.selectedCompanyId ?? null,
+        userId: authContext.user.id,
+      },
+      query,
+    );
+
+    reply.header(
+      "content-type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    reply.header(
+      "content-disposition",
+      `attachment; filename="catalogo-produtos-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+    );
+
+    return reply.send(buffer);
   }
 
   @Post()

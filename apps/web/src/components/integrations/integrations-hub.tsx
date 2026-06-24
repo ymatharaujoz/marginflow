@@ -15,6 +15,10 @@ import {
   ErrorState,
   useIntegrationsData,
 } from "@/modules/integrations";
+import {
+  buildManualSyncPayload,
+  validateManualSyncRange,
+} from "@/modules/integrations/lib/manual-sync-range";
 import type { IntegrationProviderSlug, RunSyncResponse } from "@lucreii/types";
 
 interface IntegrationsHubProps {
@@ -23,8 +27,13 @@ interface IntegrationsHubProps {
   organizationName: string;
 }
 
-export function IntegrationsHub({ initialMessage, initialStatus, organizationName }: IntegrationsHubProps) {
-  const [syncProvider, setSyncProvider] = useState<IntegrationProviderSlug>("mercadolivre");
+export function IntegrationsHub({
+  initialMessage,
+  initialStatus,
+  organizationName,
+}: IntegrationsHubProps) {
+  const [syncProvider, setSyncProvider] =
+    useState<IntegrationProviderSlug>("mercadolivre");
   // Estado de mensagens (vindas da URL ou ações do usuário)
   const [message, setMessage] = useState<string | null>(() => {
     if (!initialMessage) return null;
@@ -37,8 +46,15 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
   );
 
   // Estados de ações em andamento
-  const [busyProvider, setBusyProvider] = useState<IntegrationProviderSlug | null>(null);
-  const [busyAction, setBusyAction] = useState<"connect" | "disconnect" | null>(null);
+  const [busyProvider, setBusyProvider] =
+    useState<IntegrationProviderSlug | null>(null);
+  const [busyAction, setBusyAction] = useState<"connect" | "disconnect" | null>(
+    null,
+  );
+  const [manualSyncDates, setManualSyncDates] = useState({
+    endDate: "",
+    startDate: "",
+  });
 
   // Fetch de dados
   const {
@@ -51,7 +67,9 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
   } = useIntegrationsData(syncProvider, {
     onSyncSuccess: (data: RunSyncResponse) => {
       const n = data.run.counts.orders;
-      setMessage(`Sincronização finalizada com ${n} pedido${n === 1 ? "" : "s"} importado${n === 1 ? "" : "s"}.`);
+      setMessage(
+        `Sincronização finalizada com ${n} pedido${n === 1 ? "" : "s"} importado${n === 1 ? "" : "s"}.`,
+      );
       setMessageTone("neutral");
     },
   });
@@ -78,7 +96,11 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
           setMessageTone("neutral");
         },
         onError: (error) => {
-          setMessage(error instanceof ApiClientError ? error.message : "Não foi possível desconectar.");
+          setMessage(
+            error instanceof ApiClientError
+              ? error.message
+              : "Não foi possível desconectar.",
+          );
           setMessageTone("critical");
           setBusyAction(null);
           setBusyProvider(null);
@@ -96,7 +118,9 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
 
     if (syncStatusQuery.error) {
       setMessage(
-        syncStatusQuery.error instanceof Error ? syncStatusQuery.error.message : "Erro ao carregar status.",
+        syncStatusQuery.error instanceof Error
+          ? syncStatusQuery.error.message
+          : "Erro ao carregar status.",
       );
       setMessageTone("critical");
       return;
@@ -121,12 +145,23 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
         "provider_unavailable",
         "provider_sync_unsupported",
       ]);
-      setMessageTone(criticalReasons.has(status.availability.reason) ? "critical" : "neutral");
+      setMessageTone(
+        criticalReasons.has(status.availability.reason)
+          ? "critical"
+          : "neutral",
+      );
       return;
     }
 
-    syncMutation.mutate();
-  }, [syncMutation, syncStatusQuery]);
+    const validation = validateManualSyncRange(manualSyncDates);
+    if (!validation.isValid) {
+      setMessage(validation.error);
+      setMessageTone("critical");
+      return;
+    }
+
+    syncMutation.mutate(buildManualSyncPayload(syncProvider, manualSyncDates));
+  }, [manualSyncDates, syncMutation, syncProvider, syncStatusQuery]);
 
   // Estados de loading e erro
   if (integrationsQuery.isLoading) {
@@ -137,15 +172,23 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
     return <ErrorState error={integrationsQuery.error} onRetry={refetchAll} />;
   }
 
-  const displayMessage = message ? translateApiMessage(message) || message : null;
-  const activeConnection = integrationsQuery.data?.find((c) => c.provider === syncProvider);
+  const displayMessage = message
+    ? translateApiMessage(message) || message
+    : null;
+  const activeConnection = integrationsQuery.data?.find(
+    (c) => c.provider === syncProvider,
+  );
   const isConnected = activeConnection?.status === "connected";
   const lastCompletedRun = syncStatusQuery.data?.lastCompletedRun;
+  const manualSyncValidation = validateManualSyncRange(manualSyncDates);
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-10">
-      
-
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-10"
+    >
       {/* Banner de Mensagem */}
       {displayMessage && (
         <motion.div
@@ -206,11 +249,13 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
           </h2>
         </div>
         <div className="flex w-fit rounded-lg border border-border bg-surface-strong p-1">
-          {([
-            ["mercadolivre", "Mercado Livre"],
-            ["shopee", "Shopee"],
-            ["shein", "Shein"],
-          ] as const).map(([provider, label]) => (
+          {(
+            [
+              ["mercadolivre", "Mercado Livre"],
+              ["shopee", "Shopee"],
+              ["shein", "Shein"],
+            ] as const
+          ).map(([provider, label]) => (
             <button
               key={provider}
               type="button"
@@ -246,13 +291,24 @@ export function IntegrationsHub({ initialMessage, initialStatus, organizationNam
           </div>
           <SyncControlCard
             syncStatus={syncStatusQuery.data}
+            endDate={manualSyncDates.endDate}
             isLoading={syncStatusQuery.isLoading}
             isSyncing={syncMutation.isPending}
+            onEndDateChange={(value) =>
+              setManualSyncDates((current) => ({ ...current, endDate: value }))
+            }
+            onStartDateChange={(value) =>
+              setManualSyncDates((current) => ({
+                ...current,
+                startDate: value,
+              }))
+            }
             onSyncClick={handleSyncClick}
+            rangeError={manualSyncValidation.error}
+            startDate={manualSyncDates.startDate}
           />
         </section>
       )}
-
     </motion.div>
   );
 }

@@ -1,5 +1,16 @@
 import type { IntegrationProviderSlug } from "./integrations";
 
+export type ManualSyncRange = {
+  startAt: string;
+  endAt: string;
+};
+
+export type RunSyncRequest = {
+  provider: IntegrationProviderSlug;
+  startDate: string;
+  endDate: string;
+};
+
 export type SyncAvailabilityReason =
   | "available"
   | "outside_window"
@@ -37,6 +48,7 @@ export type SyncRunRecord = {
   id: string;
   provider: IntegrationProviderSlug;
   origin: SyncRunOrigin;
+  manualRange?: ManualSyncRange | null;
   status: string;
   windowKey: string | null;
   startedAt: string | null;

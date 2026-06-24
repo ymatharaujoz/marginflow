@@ -71,8 +71,13 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
   }));
 
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className={`space-y-4 ${className}`}>
-      <motion.div variants={slideInUpVariants}>
+    <motion.div
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className={`flex h-full flex-col gap-4 ${className}`}
+    >
+      <motion.div variants={slideInUpVariants} className="flex-1">
         <Card padding="md" className="h-full">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -140,8 +145,8 @@ export function ChartsSection({ data, className = "" }: ChartsSectionProps) {
         </Card>
       </motion.div>
 
-      <motion.div variants={slideInUpVariants}>
-        <Card padding="md">
+      <motion.div variants={slideInUpVariants} className="flex-1">
+        <Card padding="md" className="h-full">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-foreground/5">

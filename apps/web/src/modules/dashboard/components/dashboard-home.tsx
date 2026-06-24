@@ -134,11 +134,12 @@ export function DashboardHome({ activeCompany, companyName }: DashboardHomeProps
 
       {chartsQuery.data && (
         <section className="grid items-stretch gap-4 lg:grid-cols-[1fr_300px]">
-          <ChartsSection data={chartsQuery.data} />
-          <div className="flex flex-col gap-3">
+          <ChartsSection data={chartsQuery.data} className="h-full" />
+          <div className="flex h-full flex-col gap-3">
             <MarketplacesSection
               data={chartsQuery.data}
               syncStatusByProvider={syncStatusByProvider}
+              className={summaryQuery.data ? "" : "flex-1"}
             />
             {summaryQuery.data && <InsightsSection data={summaryQuery.data} className="flex-1" />}
           </div>

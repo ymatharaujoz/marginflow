@@ -3,6 +3,7 @@ import {
   dashboardProfitabilityApiResponseSchema,
   productAnalyticsSnapshotApiResponseSchema,
   productListItemSchema,
+  syncRunRecordSchema,
 } from "./protected-app";
 
 describe("@lucreii/validation protected app schemas", () => {
@@ -304,6 +305,132 @@ describe("@lucreii/validation protected app schemas", () => {
     expect(result.success).toBe(false);
   });
 
+  it("preserves MELI composition unit fields in product analytics payloads", () => {
+    const result = productAnalyticsSnapshotApiResponseSchema.safeParse({
+      data: {
+        adCosts: [],
+        catalogStats: {
+          activeProducts: 1,
+          archivedProducts: 0,
+          pendingSyncProducts: 0,
+          productsWithCost: 1,
+          productsWithoutCost: 0,
+          syncedProductsTotal: 1,
+          totalAdCosts: 0,
+          totalManualExpenses: 0,
+          totalProductCosts: 1,
+          totalProducts: 1,
+        },
+        dataGaps: [],
+        financialState: "ready",
+        manualExpenses: [],
+        mercadoLivreSyncStatus: {
+          activeRun: null,
+          availability: {
+            canRun: true,
+            currentWindowKey: "2026-05-13-morning",
+            currentWindowLabel: "Manha",
+            currentWindowSlot: "morning",
+            lastSuccessfulSyncAt: null,
+            message: "Sync is available for the current daily window.",
+            nextAvailableAt: "2026-05-13T09:00:00.000Z",
+            provider: "mercadolivre",
+            reason: "available",
+          },
+          lastCompletedRun: null,
+        },
+        monthlyPerformanceRows: [
+          {
+            advertisingCost: "0.00",
+            channel: "mercadolivre",
+            commissionRate: "0.130000",
+            fixedFeeUnit: "6.65",
+            id: "perf_1",
+            marketplaceCommission: "3.89",
+            marketplaceCommissionUnit: "3.89",
+            packagingCost: "2.50",
+            productId: "prod_1",
+            productName: "Produto um",
+            referenceMonth: "2026-05-01",
+            returnsQuantity: 0,
+            salePrice: "29.90",
+            salesQuantity: 1,
+            shippingFee: "0.00",
+            shippingOrFixedFeeSource: "fixed_fee",
+            shippingOrFixedFeeUnit: "6.65",
+            shippingUnit: "0.00",
+            sku: "ML-MLB4797573777-19683084422",
+            unitCost: "23.00",
+          },
+        ],
+        performanceRows: [
+          {
+            advertisingCost: "0.00",
+            catalogGroupKey: null,
+            catalogRole: "standalone",
+            channel: "mercadolivre",
+            children: [],
+            commissionRate: "0.130000",
+            fixedFeeUnit: "6.65",
+            id: "perf_1",
+            marketplaceCommission: "3.89",
+            marketplaceCommissionUnit: "3.89",
+            packagingCost: "2.50",
+            parentProductId: null,
+            productId: "prod_1",
+            productName: "Produto um",
+            referenceMonth: "2026-05-01",
+            returnsQuantity: 0,
+            salePrice: "29.90",
+            salesQuantity: 1,
+            shippingFee: "0.00",
+            shippingOrFixedFeeSource: "fixed_fee",
+            shippingOrFixedFeeUnit: "6.65",
+            shippingUnit: "0.00",
+            sku: "ML-MLB4797573777-19683084422",
+            unitCost: "23.00",
+            variationLabel: null,
+          },
+        ],
+        productCosts: [],
+        productRows: [],
+        products: [],
+        scope: {
+          companyId: null,
+          companyRequired: false,
+          referenceMonth: "2026-05-01",
+          taxRateDefault: "0.000000",
+        },
+        syncedProducts: [],
+      },
+      error: null,
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data.data.monthlyPerformanceRows[0]).toEqual(
+      expect.objectContaining({
+        fixedFeeUnit: "6.65",
+        marketplaceCommissionUnit: "3.89",
+        shippingOrFixedFeeSource: "fixed_fee",
+        shippingOrFixedFeeUnit: "6.65",
+        shippingUnit: "0.00",
+      }),
+    );
+    expect(result.data.data.performanceRows[0]).toEqual(
+      expect.objectContaining({
+        fixedFeeUnit: "6.65",
+        marketplaceCommissionUnit: "3.89",
+        shippingOrFixedFeeSource: "fixed_fee",
+        shippingOrFixedFeeUnit: "6.65",
+        shippingUnit: "0.00",
+      }),
+    );
+  });
+
   it("accepts analytics snapshots with explicit Infinity fail-safe values", () => {
     const result = productAnalyticsSnapshotApiResponseSchema.safeParse({
       data: {
@@ -364,7 +491,10 @@ describe("@lucreii/validation protected app schemas", () => {
             advertisingCost: "0.00",
             channel: "unknown",
             commissionRate: "0.000000",
+            fixedFeeUnit: "6.65",
             id: "perf_2",
+            marketplaceCommission: "3.89",
+            marketplaceCommissionUnit: "3.89",
             packagingCost: "0.00",
             productId: "product_2",
             productName: "Produto Dois",
@@ -373,7 +503,10 @@ describe("@lucreii/validation protected app schemas", () => {
             salePrice: "80.00",
             salesQuantity: 0,
             shippingFee: "0.00",
+            shippingOrFixedFeeSource: "fixed_fee",
+            shippingOrFixedFeeUnit: "6.65",
             sku: "XYZ-1",
+            shippingUnit: "0.00",
             unitCost: "0.00",
           },
         ],
@@ -385,7 +518,10 @@ describe("@lucreii/validation protected app schemas", () => {
             channel: "unknown",
             children: [],
             commissionRate: "0.000000",
+            fixedFeeUnit: "6.65",
             id: "perf_2",
+            marketplaceCommission: "3.89",
+            marketplaceCommissionUnit: "3.89",
             packagingCost: "0.00",
             parentProductId: null,
             productId: "product_2",
@@ -395,7 +531,10 @@ describe("@lucreii/validation protected app schemas", () => {
             salePrice: "80.00",
             salesQuantity: 0,
             shippingFee: "0.00",
+            shippingOrFixedFeeSource: "fixed_fee",
+            shippingOrFixedFeeUnit: "6.65",
             sku: "XYZ-1",
+            shippingUnit: "0.00",
             unitCost: "0.00",
             variationLabel: null,
           },
@@ -581,5 +720,33 @@ describe("@lucreii/validation protected app schemas", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts sync run records with manual historical range metadata", () => {
+    const result = syncRunRecordSchema.safeParse({
+      counts: {
+        fees: 0,
+        items: 0,
+        orders: 1,
+        products: 0,
+      },
+      createdAt: "2026-06-22T12:00:00.000Z",
+      cursor: null,
+      errorSummary: null,
+      finishedAt: "2026-06-22T12:05:00.000Z",
+      id: "sync_manual_1",
+      manualRange: {
+        endAt: "2026-06-20T23:59:59.999Z",
+        startAt: "2026-06-10T00:00:00.000Z",
+      },
+      origin: "manual",
+      provider: "mercadolivre",
+      startedAt: "2026-06-22T12:01:00.000Z",
+      status: "completed",
+      updatedAt: "2026-06-22T12:05:00.000Z",
+      windowKey: null,
+    });
+
+    expect(result.success).toBe(true);
   });
 });

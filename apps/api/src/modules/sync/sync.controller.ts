@@ -1,4 +1,13 @@
-import { BadRequestException, Body, Controller, Get, Inject, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { CurrentAuthContext } from "@/modules/auth/current-auth-context";
 import type { AuthenticatedRequestContext } from "@/modules/auth/auth.types";
 import { EntitlementGuard } from "@/modules/billing/entitlement.guard";
@@ -20,7 +29,11 @@ export class SyncController {
   ) {
     const companyId = this.requireSelectedCompanyId(authContext);
     return {
-      data: await this.syncService.getStatus(authContext.organization!.id, companyId, query.provider),
+      data: await this.syncService.getStatus(
+        authContext.organization!.id,
+        companyId,
+        query.provider,
+      ),
       error: null,
     };
   }
@@ -37,6 +50,10 @@ export class SyncController {
         companyId,
         authContext.user.id,
         body.provider,
+        {
+          endDate: body.endDate,
+          startDate: body.startDate,
+        },
       ),
       error: null,
     };

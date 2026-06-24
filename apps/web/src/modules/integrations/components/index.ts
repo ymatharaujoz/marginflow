@@ -3,5 +3,6 @@ export { IntegrationsList } from "./integrations-list";
 export { ConnectedMarketplacesSection } from "./connected-marketplaces-section";
 export { SyncStatusGrid } from "./sync-status-grid";
 export { SyncControlCard } from "./sync-control-card";
+export { ManualSyncRangeErrorBanner } from "./manual-sync-range-error-banner";
 export { LoadingIntegrations } from "./loading-integrations";
 export { ErrorState } from "./error-state";

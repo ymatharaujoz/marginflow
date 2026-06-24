@@ -6,6 +6,7 @@ import {
   productCatalogFinanceUpdateSchema,
   productCostFormSchema,
   productCostUpdateSchema,
+  productCatalogExportQuerySchema,
   productFormSchema,
   productAnalyticsQuerySchema,
   productManualCreateSchema,
@@ -19,6 +20,7 @@ import type {
   ProductCatalogFinanceUpdateInput,
   ProductCostFormInput,
   ProductCostUpdateInput,
+  ProductCatalogExportQueryInput,
   ProductAnalyticsQueryInput,
   ProductFormInput,
   ProductManualCreateInput,
@@ -64,6 +66,15 @@ export class ProductAnalyticsQueryDto implements ProductAnalyticsQueryInput {
 
   companyId?: string;
   referenceMonth?: string;
+}
+
+export class ProductCatalogExportQueryDto
+  implements ProductCatalogExportQueryInput
+{
+  static schema = productCatalogExportQuerySchema;
+
+  marketplaces?: Array<"mercadolivre" | "shopee" | "shein">;
+  search?: string;
 }
 
 export class UpdateProductCatalogFinanceRequestDto

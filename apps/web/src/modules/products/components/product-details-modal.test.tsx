@@ -97,8 +97,13 @@ afterEach(() => {
 });
 
 describe("ProductDetailsModal", () => {
-  it("shows total MELI commission for the selected row", () => {
-    const row = buildRow({ taxPct: 13 });
+  it("shows unit marketplace commission and shipping composition values", () => {
+    const row = {
+      ...buildRow({ taxPct: 13 }),
+      marketplaceCommissionUnit: 3.51,
+      shippingOrFixedFeeSource: "shipping" as const,
+      shippingOrFixedFeeUnit: 9,
+    };
     const view = renderWithClient(
       <ProductDetailsModal onClose={() => {}} open row={row} />,
     );
@@ -107,21 +112,54 @@ describe("ProductDetailsModal", () => {
 
     const text = normalizedTextContent();
 
-    expect(text).toContain("Comissão MELI");
-    expect(text).toContain("R$ 31,62");
-    expect(text).not.toContain("R$ 3,51");
+    expect(text).toContain("Comissão");
+    expect(text).not.toContain("Comissão MELI");
+    expect(text).toContain("R$ 3,51");
+    expect(text).not.toContain("R$ 31,62");
+    expect(text).toContain("Frete/Custo Fixo");
+    expect(text).toContain("R$ 9,00");
     expect(text).toContain("Imposto");
     expect(text).toContain("13%");
 
     view.unmount();
   });
 
-  it("still renders the total commission for a single-unit row", () => {
-    const row = buildRow({
-      netLiquidSales: 1,
-      sales: 1,
-      totalCommission: 11.67,
-    });
+  it("falls back to fixed fee when shipping is unavailable", () => {
+    const row = {
+      ...buildRow({
+        netLiquidSales: 1,
+        sales: 1,
+        totalCommission: 3.89,
+      }),
+      marketplaceCommissionUnit: 3.89,
+      shippingOrFixedFeeSource: "fixed_fee" as const,
+      shippingOrFixedFeeUnit: 6.65,
+    };
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Composição")!);
+
+    const text = normalizedTextContent();
+
+    expect(text).toContain("R$ 3,89");
+    expect(text).toContain("R$ 6,65");
+
+    view.unmount();
+  });
+
+  it("still renders the unit commission for a single-unit row", () => {
+    const row = {
+      ...buildRow({
+        netLiquidSales: 1,
+        sales: 1,
+        totalCommission: 11.67,
+      }),
+      marketplaceCommissionUnit: 11.67,
+      shippingOrFixedFeeSource: "none" as const,
+      shippingOrFixedFeeUnit: 0,
+    };
     const view = renderWithClient(
       <ProductDetailsModal onClose={() => {}} open row={row} />,
     );
@@ -134,23 +172,33 @@ describe("ProductDetailsModal", () => {
   });
 
   it("derives net revenue as FATURAMENTO - COMISSÃO MELI (composition value) for a parent row with variations", () => {
-    const child = buildRow({
-      id: "child-1",
-      netLiquidSales: 1,
-      sales: 1,
-      sku: "CHILD-1",
-      totalCommission: 10.54,
-    });
-    const row = buildRow({
-      catalogRole: "parent",
-      children: [child],
-      id: "parent-1",
-      netLiquidSales: 4,
-      revenue: 119.6,
-      sales: 4,
-      sku: "PARENT-1",
-      totalCommission: 100,
-    });
+    const child = {
+      ...buildRow({
+        id: "child-1",
+        netLiquidSales: 1,
+        sales: 1,
+        sku: "CHILD-1",
+        totalCommission: 10.54,
+      }),
+      marketplaceCommissionUnit: 10.54,
+      shippingOrFixedFeeSource: "none" as const,
+      shippingOrFixedFeeUnit: 0,
+    };
+    const row = {
+      ...buildRow({
+        catalogRole: "parent",
+        children: [child],
+        id: "parent-1",
+        netLiquidSales: 4,
+        revenue: 119.6,
+        sales: 4,
+        sku: "PARENT-1",
+        totalCommission: 100,
+      }),
+      marketplaceCommissionUnit: 10.54,
+      shippingOrFixedFeeSource: "none" as const,
+      shippingOrFixedFeeUnit: 0,
+    };
     const view = renderWithClient(
       <ProductDetailsModal onClose={() => {}} open row={row} />,
     );
@@ -189,7 +237,12 @@ describe("ProductDetailsModal", () => {
   });
 
   it("calculates net revenue as FATURAMENTO - COMISSÃO MELI regardless of unit/total ambiguity", () => {
-    const row = buildRow({ totalCommission: 10.54 });
+    const row = {
+      ...buildRow({ totalCommission: 10.54 }),
+      marketplaceCommissionUnit: 10.54,
+      shippingOrFixedFeeSource: "none" as const,
+      shippingOrFixedFeeUnit: 0,
+    };
     const view = renderWithClient(
       <ProductDetailsModal onClose={() => {}} open row={row} />,
     );
@@ -198,6 +251,54 @@ describe("ProductDetailsModal", () => {
 
     expect(text).toContain("Receita Líquida");
     expect(text).toContain("R$ 79,16");
+
+    view.unmount();
+  });
+
+  it("calculates net revenue subtracting commission and fixed fee totals for multi-sale rows", () => {
+    const row = {
+      ...buildRow({
+        netLiquidSales: 3,
+        revenue: 89.7,
+        sales: 3,
+        totalCommission: 11.67,
+      }),
+      marketplaceCommissionUnit: 3.89,
+      shippingOrFixedFeeSource: "fixed_fee" as const,
+      shippingOrFixedFeeUnit: 6.65,
+    };
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    const text = normalizedTextContent();
+
+    expect(text).toContain("Receita Líquida");
+    expect(text).toContain("R$ 58,08");
+
+    view.unmount();
+  });
+
+  it("renders resolved unit cost and packaging for a variation row", () => {
+    const row = buildRow({
+      catalogRole: "child",
+      packagingCost: 2.75,
+      parentProductId: "parent-1",
+      unitCost: 21.5,
+      variationLabel: "Cor: Azul",
+    });
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Composição")!);
+
+    const text = normalizedTextContent();
+
+    expect(text).toContain("Custo Unitário");
+    expect(text).toContain("Embalagem");
+    expect(text).toContain("R$ 21,50");
+    expect(text).toContain("R$ 2,75");
 
     view.unmount();
   });
