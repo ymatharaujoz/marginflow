@@ -396,14 +396,14 @@ export function ProductTable({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  Você tem {productsMissingCostCount} produto{productsMissingCostCount === 1 ? "" : "s"} para atualizar custos.
+                  Você tem {productsMissingCostCount} produto{productsMissingCostCount === 1 ? "" : "s"} para atualizar custos
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   Configure custo unitário e embalagem no catálogo para liberar análises mais confiáveis.
                 </p>
               </div>
               <Button asChild size="sm" variant="secondary">
-                <Link href="/app/products/catalog">Atualizar custos</Link>
+                <Link href="/app/products/catalog">Ir para catálogo</Link>
               </Button>
             </div>
           </div>
@@ -531,7 +531,7 @@ export function ProductTable({
                   className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[160px]"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Preço de Venda
+                    PDV
                     <SortIcon column="sellingPrice" />
                   </div>
                 </th>

@@ -594,7 +594,7 @@ export class FinanceService {
       return legacyRows.map((row) => ({
         ...row,
         linkedProductId: null,
-        metadata: null,
+        metadata: {},
         provider: "mercadolivre",
       }));
     }

@@ -1063,7 +1063,7 @@ export function OrdersHome() {
                           onSort={handleItemSort}
                           sortConfig={itemSortConfig}
                         >
-                          Margem de Contribuição %
+                          Margem de Contribuição
                         </ItemSortableHeader>
                         <ItemSortableHeader
                           align="right"

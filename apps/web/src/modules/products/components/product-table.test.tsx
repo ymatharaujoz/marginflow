@@ -263,9 +263,9 @@ describe("ProductTable", () => {
       />,
     );
 
-    expect(document.body.textContent).toContain("Voc\u00ea tem 1 produto para atualizar custos.");
+    expect(document.body.textContent).toContain("Você tem 1 produto para atualizar custos");
     const catalogLink = Array.from(document.querySelectorAll("a")).find((link) =>
-      link.textContent?.includes("Atualizar custos"),
+      link.textContent?.includes("Ir para catálogo"),
     ) as HTMLAnchorElement;
     expect(catalogLink.getAttribute("href")).toBe("/app/products/catalog");
 

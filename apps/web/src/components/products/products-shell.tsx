@@ -1681,16 +1681,6 @@ export function ProductsShell({
               </div>
             </motion.div>
 
-            <motion.p
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, duration: 0.3 }}
-              className="text-sm leading-relaxed text-foreground"
-            >
-              Use esta planilha para reimportar produtos já cadastrados e
-              atualizar o custo unitário e a embalagem sem perder o histórico.
-            </motion.p>
-
             <div className="space-y-3">
               <motion.p
                 initial={{ opacity: 0 }}
