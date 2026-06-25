@@ -119,7 +119,7 @@ describe("ProductDetailsModal", () => {
     expect(text).toContain("Frete/Custo Fixo");
     expect(text).toContain("R$ 9,00");
     expect(text).toContain("Imposto");
-    expect(text).toContain("13%");
+    expect(text).toContain("R$ 3,89 (13%)");
 
     view.unmount();
   });
@@ -299,6 +299,64 @@ describe("ProductDetailsModal", () => {
     expect(text).toContain("Embalagem");
     expect(text).toContain("R$ 21,50");
     expect(text).toContain("R$ 2,75");
+
+    view.unmount();
+  });
+
+  it("renders profitability tab with unit profit, ROI, and minimum ROAS", () => {
+    const row = buildRow({
+      minimumRoas: 4.77,
+      roiRatio: 0.41,
+      unitProfit: 6.76,
+    });
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    const profitabilityTab = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Lucratividade",
+    );
+
+    expect(profitabilityTab).toBeDefined();
+    click(profitabilityTab!);
+
+    const text = normalizedTextContent();
+
+    expect(text).toContain("Lucratividade Unitária");
+    expect(text).toContain("Lucro Unitário");
+    expect(text).toContain("ROI");
+    expect(text).toContain("ROAS Mínimo");
+    expect(text).toContain("R$ 6,76");
+    expect(text).toContain("0.4%");
+    expect(text).toContain("21.0%");
+    expect(text).not.toContain("4,77x");
+    expect(text).not.toContain("Lucro por unidade vendida");
+
+    view.unmount();
+  });
+
+  it("renders em dash placeholders for null profitability values", () => {
+    const row = buildRow({
+      minimumRoas: null,
+      roiRatio: null,
+      unitProfit: null,
+    });
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    const profitabilityTab = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Lucratividade",
+    );
+
+    click(profitabilityTab!);
+
+    const text = normalizedTextContent();
+
+    expect(text).toContain("Lucro Unitário");
+    expect(text).toContain("ROI");
+    expect(text).toContain("ROAS Mínimo");
+    expect(text).toContain("—");
 
     view.unmount();
   });

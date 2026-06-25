@@ -32,6 +32,7 @@ export function buildDashboardProductRows(data: DashboardProfitabilityResponse):
 
     return {
       id: product.productId,
+      coverImageUrl: product.coverImageUrl ?? null,
       name: product.productName,
       sku: product.sku,
       channelLabel: product.channel,

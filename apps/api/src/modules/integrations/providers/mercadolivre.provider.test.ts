@@ -393,7 +393,7 @@ describe("MercadoLivreProvider", () => {
     });
 
     const fetchShipmentSellerCostSpy = vi
-      .spyOn(provider as never, "fetchShipmentSellerCost" as never)
+      .spyOn(provider as any, "fetchShipmentSellerCost")
       .mockResolvedValue(null);
 
     const shippingCost = await (provider as any).resolveShippingCost(
@@ -437,7 +437,7 @@ describe("MercadoLivreProvider", () => {
     });
 
     const fetchShipmentSellerCostSpy = vi
-      .spyOn(provider as never, "fetchShipmentSellerCost" as never)
+      .spyOn(provider as any, "fetchShipmentSellerCost")
       .mockResolvedValue(null);
 
     const shippingCost = await (provider as any).resolveShippingCost(

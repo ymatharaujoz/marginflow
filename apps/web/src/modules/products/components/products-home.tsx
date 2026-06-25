@@ -679,7 +679,7 @@ function CatalogProductsTable({
                     SKU
                   </th>
                   <th className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Preço de Venda
+                    PDV
                   </th>
                   <th className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Custo unitário

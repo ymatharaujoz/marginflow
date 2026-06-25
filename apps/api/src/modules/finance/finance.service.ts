@@ -19,6 +19,7 @@ import {
   type ExternalProduct,
   type Product,
   type ProductCost,
+  type ProductImage,
 } from "@lucreii/database";
 import type {
   DashboardChannelProfitabilityRow,
@@ -34,13 +35,24 @@ import { DATABASE_CLIENT } from "@/common/tokens";
 
 type ProductCostRow = Pick<ProductCost, "amount" | "createdAt" | "effectiveFrom">;
 type SnapshotProductRow = Product & {
+  images: ProductImage[];
   productCosts: ProductCost[];
 };
 type SnapshotOrderRow = ExternalOrder & {
   fees: ExternalFee[];
   items: ExternalOrderItem[];
 };
-type SnapshotExternalProductRow = Pick<ExternalProduct, "id" | "linkedProductId" | "sku">;
+type SnapshotExternalProductRow = Pick<
+  ExternalProduct,
+  "externalProductId" | "id" | "linkedProductId" | "metadata" | "provider" | "sku" | "title"
+>;
+type ProductPresentation = {
+  coverImageUrl: string | null;
+  productName: string;
+};
+type ProductPresentationRow = Product & {
+  images: ProductImage[];
+};
 
 export function normalizeSku(value: string | null | undefined) {
   if (!value) {
@@ -99,6 +111,164 @@ function isMissingExternalProductReviewColumns(error: unknown) {
   );
 }
 
+function getPrimaryImageUrl(images: ProductImage[]) {
+  return (
+    [...images]
+      .sort((left, right) => left.position - right.position)[0]?.url ?? null
+  );
+}
+
+function toCatalogGroupKey(itemId: string) {
+  return `mercadolivre:${itemId}`;
+}
+
+function extractMercadoLivreItemId(externalProductId: string) {
+  const [itemId] = externalProductId.split(":");
+  return itemId?.trim() ? itemId.trim() : null;
+}
+
+function readMercadoLivreSyncMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+) {
+  if (!metadata || typeof metadata !== "object") {
+    return {
+      itemId: null,
+      variationId: null,
+    };
+  }
+
+  const itemId =
+    typeof metadata.itemId === "string" && metadata.itemId.trim().length > 0
+      ? metadata.itemId.trim()
+      : null;
+  const variationId =
+    typeof metadata.variationId === "string" &&
+    metadata.variationId.trim().length > 0
+      ? metadata.variationId.trim()
+      : null;
+
+  return {
+    itemId,
+    variationId,
+  };
+}
+
+function isMercadoLivreVariationProduct(externalProduct: SnapshotExternalProductRow) {
+  if (externalProduct.provider !== "mercadolivre") {
+    return false;
+  }
+
+  const metadata = readMercadoLivreSyncMetadata(
+    (externalProduct.metadata ?? {}) as Record<string, unknown>,
+  );
+
+  return (
+    metadata.variationId !== null ||
+    externalProduct.externalProductId.includes(":")
+  );
+}
+
+function selectPreferredExternalProduct(
+  externalProducts: SnapshotExternalProductRow[],
+) {
+  return (
+    externalProducts.find((externalProduct) =>
+      isMercadoLivreVariationProduct(externalProduct),
+    ) ?? externalProducts[0] ?? null
+  );
+}
+
+function buildProductPresentationMap(
+  products: ProductPresentationRow[],
+  externalProductRows: SnapshotExternalProductRow[],
+) {
+  const productById = new Map(products.map((product) => [product.id, product] as const));
+  const parentTitleByGroupKey = new Map<string, string>();
+  const externalProductsByLinkedProductId = new Map<string, SnapshotExternalProductRow[]>();
+
+  for (const externalProduct of externalProductRows) {
+    if (externalProduct.linkedProductId) {
+      externalProductsByLinkedProductId.set(externalProduct.linkedProductId, [
+        ...(externalProductsByLinkedProductId.get(externalProduct.linkedProductId) ?? []),
+        externalProduct,
+      ]);
+    }
+
+    if (externalProduct.provider !== "mercadolivre") {
+      continue;
+    }
+
+    const metadata = readMercadoLivreSyncMetadata(
+      (externalProduct.metadata ?? {}) as Record<string, unknown>,
+    );
+    const itemId =
+      metadata.itemId ?? extractMercadoLivreItemId(externalProduct.externalProductId);
+    const isVariation =
+      metadata.variationId !== null ||
+      externalProduct.externalProductId.includes(":");
+    const trimmedTitle = externalProduct.title?.trim() || null;
+
+    if (!itemId || isVariation || !trimmedTitle) {
+      continue;
+    }
+
+    parentTitleByGroupKey.set(toCatalogGroupKey(itemId), trimmedTitle);
+  }
+
+  const presentations = new Map<string, ProductPresentation>();
+
+  for (const product of products) {
+    const linkedExternalProducts = externalProductsByLinkedProductId.get(product.id) ?? [];
+    const primaryExternalProduct = selectPreferredExternalProduct(linkedExternalProducts);
+    const coverImageUrl = getPrimaryImageUrl(product.images);
+    let productName = product.name;
+
+    if (primaryExternalProduct?.provider === "mercadolivre") {
+      const metadata = readMercadoLivreSyncMetadata(
+        (primaryExternalProduct.metadata ?? {}) as Record<string, unknown>,
+      );
+      const itemId =
+        metadata.itemId ?? extractMercadoLivreItemId(primaryExternalProduct.externalProductId);
+      const isVariation =
+        metadata.variationId !== null ||
+        primaryExternalProduct.externalProductId.includes(":");
+      const variationTitle = primaryExternalProduct.title?.trim() || product.name;
+      const parentTitle = itemId ? parentTitleByGroupKey.get(toCatalogGroupKey(itemId)) : null;
+
+      if (isVariation && parentTitle && parentTitle !== variationTitle) {
+        productName = `${parentTitle} | ${variationTitle}`;
+      } else if (variationTitle) {
+        productName = variationTitle;
+      }
+    } else if (primaryExternalProduct?.title?.trim()) {
+      productName = primaryExternalProduct.title.trim();
+    }
+
+    presentations.set(product.id, {
+      coverImageUrl,
+      productName,
+    });
+  }
+
+  for (const [productId, linkedRows] of externalProductsByLinkedProductId) {
+    if (presentations.has(productId)) {
+      continue;
+    }
+
+    const product = productById.get(productId);
+    if (!product) {
+      continue;
+    }
+
+    presentations.set(productId, {
+      coverImageUrl: getPrimaryImageUrl(product.images),
+      productName: linkedRows[0]?.title?.trim() || product.name,
+    });
+  }
+
+  return presentations;
+}
+
 @Injectable()
 export class FinanceService {
   constructor(
@@ -120,6 +290,7 @@ export class FinanceService {
             eq(table.companyId, companyId),
           ),
         with: {
+          images: true,
           productCosts: {
             orderBy: (table) => [desc(table.effectiveFrom), desc(table.createdAt)],
           },
@@ -212,6 +383,22 @@ export class FinanceService {
     );
     const overview = buildFinanceOverview(snapshot);
     const productProfitability = buildProductProfitabilityMetrics(snapshot);
+    const productRows = await this.db.query.products.findMany({
+      where: (table) =>
+        and(
+          eq(table.organizationId, organizationId),
+          eq(table.companyId, companyId),
+        ),
+      with: {
+        images: {
+          orderBy: (table) => [table.position],
+        },
+      },
+    });
+    const productPresentationById = buildProductPresentationMap(
+      productRows as ProductPresentationRow[],
+      await this.readExternalProductsForFinance(organizationId, companyId),
+    );
 
     return {
       channels: overview.channels.map<DashboardChannelProfitabilityRow>((channel) => ({
@@ -226,6 +413,7 @@ export class FinanceService {
       productProfitability: productProfitability.map<DashboardProductProfitabilityRow>((metric) => ({
         adSpend: metric.adSpend,
         channel: metric.channel,
+        coverImageUrl: productPresentationById.get(metric.productId)?.coverImageUrl ?? null,
         grossProfit: metric.grossProfit,
         margin: metric.margin,
         marketplaceCommission: metric.marketplaceCommission,
@@ -233,7 +421,7 @@ export class FinanceService {
         packagingCost: metric.packagingCost,
         productCost: metric.productCost,
         productId: metric.productId,
-        productName: metric.productName,
+        productName: productPresentationById.get(metric.productId)?.productName ?? metric.productName,
         returns: metric.returns,
         revenue: metric.revenue,
         roi: metric.roi,
@@ -368,9 +556,13 @@ export class FinanceService {
     try {
       return await this.db
         .select({
+          externalProductId: externalProducts.externalProductId,
           id: externalProducts.id,
           linkedProductId: externalProducts.linkedProductId,
+          metadata: externalProducts.metadata,
+          provider: externalProducts.provider,
           sku: externalProducts.sku,
+          title: externalProducts.title,
         })
         .from(externalProducts)
         .where(
@@ -386,8 +578,10 @@ export class FinanceService {
 
       const legacyRows = await this.db
         .select({
+          externalProductId: externalProducts.externalProductId,
           id: externalProducts.id,
           sku: externalProducts.sku,
+          title: externalProducts.title,
         })
         .from(externalProducts)
         .where(
@@ -400,6 +594,8 @@ export class FinanceService {
       return legacyRows.map((row) => ({
         ...row,
         linkedProductId: null,
+        metadata: null,
+        provider: "mercadolivre",
       }));
     }
   }

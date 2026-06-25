@@ -29,20 +29,36 @@ function isoDateTimeField(label: string) {
 }
 
 const integrationProviderSchema = z.enum(["mercadolivre", "shopee", "shein"]);
+const orderCanonicalStatusSchema = z.enum([
+  "confirmed",
+  "payment_required",
+  "payment_in_process",
+  "partially_paid",
+  "paid",
+  "partially_refunded",
+  "pending_cancel",
+  "cancelled",
+]);
 
 export const orderListFiltersSchema = z.object({
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().min(1).max(100).optional(),
   search: z.string().trim().min(1).optional(),
   provider: integrationProviderSchema.optional(),
-  status: z.string().trim().min(1).optional(),
+  status: orderCanonicalStatusSchema.optional(),
+});
+
+export const orderStatusOptionSchema = z.object({
+  label: z.string().trim().min(1),
+  value: orderCanonicalStatusSchema,
 });
 
 export const orderListItemSchema = z.object({
   id: z.string().trim().min(1),
   orderId: z.string().trim().min(1),
   provider: integrationProviderSchema,
-  status: z.string().trim().min(1),
+  status: orderCanonicalStatusSchema,
+  sourceStatus: z.string().trim().min(1),
   statusLabel: z.string().trim().min(1),
   orderedAt: isoDateTimeField("Ordered at").nullable(),
   orderDate: isoDateField("Order date").nullable(),
@@ -57,7 +73,17 @@ export const orderListItemSchema = z.object({
   itemsSold: z.number().int().min(0),
 });
 
+export const ordersListSummarySchema = z.object({
+  grossRevenue: decimalField("Gross revenue"),
+  grossProfit: decimalField("Gross profit"),
+  averageMargin: decimalField("Average margin"),
+  ordersCount: z.number().int().min(0),
+  unitsSold: z.number().int().min(0),
+});
+
 export const ordersListResponseSchema = z.object({
+  summary: ordersListSummarySchema,
+  availableStatuses: z.array(orderStatusOptionSchema),
   items: z.array(orderListItemSchema),
   page: z.coerce.number().int().min(1),
   pageSize: z.coerce.number().int().min(1),
@@ -66,17 +92,36 @@ export const ordersListResponseSchema = z.object({
 });
 
 export const orderLineItemSchema = z.object({
+  channel: integrationProviderSchema,
+  contributionMarginPercent: decimalField("Contribution margin percent").nullable(),
+  displayName: z.string().trim().min(1),
   id: z.string().trim().min(1),
   linkedProductId: z.string().trim().min(1).nullable(),
   imageUrl: z.string().trim().url().nullable().optional(),
+  netRevenueAmount: decimalField("Net revenue amount"),
+  orderedAt: isoDateTimeField("Ordered at").nullable(),
   productName: z.string().trim().min(1),
   sku: z.string().trim().min(1).nullable(),
   quantity: z.number().int().min(0),
+  totalProfitAmount: decimalField("Total profit amount").nullable(),
   unitPrice: decimalField("Unit price"),
   totalPrice: decimalField("Total price"),
 });
 
+export const orderCompositionSchema = z.object({
+  revenueAmount: decimalField("Revenue amount"),
+  netRevenueAmount: decimalField("Net revenue amount"),
+  productCostAmount: decimalField("Product cost amount"),
+  marketplaceCommissionAmount: decimalField("Marketplace commission amount"),
+  shippingOrFixedFeeAmount: decimalField("Shipping or fixed fee amount"),
+  packagingCostAmount: decimalField("Packaging cost amount"),
+  hasIncompleteCostData: z.boolean(),
+  missingLinkedItemsCount: z.number().int().min(0),
+  missingCostItemsCount: z.number().int().min(0),
+});
+
 export const orderDetailsSchema = z.object({
+  composition: orderCompositionSchema,
   order: orderListItemSchema,
   items: z.array(orderLineItemSchema),
 });

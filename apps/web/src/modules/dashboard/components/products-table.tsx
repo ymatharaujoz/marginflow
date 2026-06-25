@@ -1,19 +1,39 @@
 "use client";
 
 import Link from "next/link";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Package, ArrowUpRight } from "lucide-react";
-import { Card, EmptyState, Badge } from "@lucreii/ui";
+import {
+  ArrowUpDown,
+  ArrowUpRight,
+  Banknote,
+  ChevronDown,
+  ChevronUp,
+  Package,
+  TrendingUp,
+} from "lucide-react";
+import { Badge, Card, EmptyState, cn } from "@lucreii/ui";
 import { StatusBadge } from "@/components/ui-premium/status-badge";
 import { slideInUpVariants } from "@/lib/animations";
 import type { DashboardProfitabilityResponse } from "@lucreii/types";
 import { buildDashboardProductRows } from "../calculations/product-rows";
-import { formatMoney, formatPercent, formatNumber } from "../utils/formatters";
+import { formatMoney, formatNumber, formatPercent } from "../utils/formatters";
 
 interface ProductsTableProps {
   data: DashboardProfitabilityResponse;
   className?: string;
 }
+
+type ProductsRankingMode = "sales" | "profit";
+type SortDirection = "asc" | "desc" | null;
+type ProductSortKey =
+  | "channel"
+  | "name"
+  | "health"
+  | "sales"
+  | "returns"
+  | "revenue"
+  | "profit";
 
 const healthBadgeConfig = {
   critical: { status: "error" as const, label: "Crítico" },
@@ -51,13 +71,192 @@ function getChannelBadge(channel: string) {
   return <Badge>{channel}</Badge>;
 }
 
+function ProductImagePreview({
+  alt,
+  url,
+}: {
+  alt: string;
+  url: string | null;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  if (!url || failed) {
+    return (
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+        <Package className="h-4 w-4 text-accent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-8 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-strong">
+      <img
+        alt={alt}
+        className="h-full w-full object-cover"
+        decoding="async"
+        loading="lazy"
+        src={url}
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
+
+function getProductSortValue(
+  row: ReturnType<typeof buildDashboardProductRows>[number],
+  key: ProductSortKey,
+) {
+  switch (key) {
+    case "channel":
+      return row.channelLabel;
+    case "name":
+      return row.name;
+    case "health":
+      return row.health;
+    case "sales":
+      return row.sales;
+    case "returns":
+      return row.returns;
+    case "revenue":
+      return row.revenue;
+    case "profit":
+      return row.profit;
+    default:
+      return null;
+  }
+}
+
+function compareValues(
+  a: string | number | null,
+  b: string | number | null,
+  direction: "asc" | "desc",
+) {
+  if (a === b) {
+    return 0;
+  }
+  if (a === null) {
+    return 1;
+  }
+  if (b === null) {
+    return -1;
+  }
+  if (typeof a === "string" && typeof b === "string") {
+    return direction === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+  }
+  return direction === "asc" ? Number(a) - Number(b) : Number(b) - Number(a);
+}
+
+function ProductsSortIcon({
+  column,
+  sortConfig,
+}: {
+  column: ProductSortKey;
+  sortConfig: { key: ProductSortKey; direction: SortDirection } | null;
+}) {
+  if (sortConfig?.key !== column) {
+    return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
+  }
+
+  return sortConfig.direction === "asc" ? (
+    <ChevronUp className="h-3.5 w-3.5 text-accent" />
+  ) : (
+    <ChevronDown className="h-3.5 w-3.5 text-accent" />
+  );
+}
+
+function ProductsSortableHeader({
+  align = "left",
+  children,
+  className,
+  column,
+  onSort,
+  sortConfig,
+  width,
+}: {
+  align?: "left" | "right" | "center";
+  children: React.ReactNode;
+  className?: string;
+  column: ProductSortKey;
+  onSort: (key: ProductSortKey) => void;
+  sortConfig: { key: ProductSortKey; direction: SortDirection } | null;
+  width?: number | string;
+}) {
+  return (
+    <th
+      onClick={() => onSort(column)}
+      style={width !== undefined ? { width } : undefined}
+      className={cn(
+        "cursor-pointer select-none px-3 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground",
+        align === "left" && "text-left",
+        align === "right" && "text-right",
+        align === "center" && "text-center",
+        className,
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center gap-1",
+          align === "right" && "justify-end",
+          align === "center" && "justify-center",
+        )}
+      >
+        {children}
+        <ProductsSortIcon column={column} sortConfig={sortConfig} />
+      </div>
+    </th>
+  );
+}
+
 export function ProductsTable({ data, className = "" }: ProductsTableProps) {
   const allRows = buildDashboardProductRows(data);
-  // Pegar apenas os 5 melhores produtos (ordenados por lucro)
-  const rows = allRows
-    .filter((row) => row.netSales > 0) // Excluir produtos sem vendas
-    .sort((a, b) => b.profit - a.profit)
-    .slice(0, 5);
+  const [rankingMode, setRankingMode] = useState<ProductsRankingMode>("profit");
+  const [sortConfig, setSortConfig] = useState<{
+    key: ProductSortKey;
+    direction: SortDirection;
+  } | null>(null);
+
+  const rankedRows = useMemo(() => {
+    const rankingKey = rankingMode === "sales" ? "sales" : "profit";
+
+    return allRows
+      .filter((row) => row.netSales > 0)
+      .sort((left, right) =>
+        compareValues(
+          getProductSortValue(left, rankingKey),
+          getProductSortValue(right, rankingKey),
+          "desc",
+        ),
+      )
+      .slice(0, 10);
+  }, [allRows, rankingMode]);
+
+  const rows = useMemo(() => {
+    if (!sortConfig?.direction) {
+      return rankedRows;
+    }
+
+    const { key, direction } = sortConfig;
+
+    return [...rankedRows].sort((left, right) =>
+      compareValues(
+        getProductSortValue(left, key),
+        getProductSortValue(right, key),
+        direction,
+      ),
+    );
+  }, [rankedRows, sortConfig]);
+
+  const handleSort = (key: ProductSortKey) => {
+    let direction: SortDirection = "asc";
+
+    if (sortConfig?.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    } else if (sortConfig?.key === key && sortConfig.direction === "desc") {
+      direction = null;
+    }
+
+    setSortConfig(direction ? { key, direction } : null);
+  };
 
   if (rows.length === 0) {
     return (
@@ -89,45 +288,130 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
       <Card padding="lg" className={className}>
         <div className="mb-5 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-foreground">TOP 5 Produtos</h3>
-            <p className="text-xs text-muted-foreground">Maiores lucros por SKU</p>
+            <h3 className="text-sm font-semibold text-foreground">TOP 10 Produtos</h3>
+            <p className="text-xs text-muted-foreground">
+              {rankingMode === "profit" ? "Maiores lucros por SKU" : "Melhores vendas por SKU"}
+            </p>
           </div>
-          <Link
-            href="/app/products"
-            className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent-strong"
-          >
-            Ver todos
-            <ArrowUpRight className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex items-center gap-3">
+            <div
+              role="tablist"
+              aria-label="Modo de ranking"
+              className="relative inline-flex items-center rounded-full border border-border/60 bg-gradient-to-b from-surface/70 to-surface/30 p-[3px] shadow-[inset_0_1px_2px_rgba(0,0,0,0.05),inset_0_-1px_0_rgba(255,255,255,0.04)]"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rankingMode === "profit"}
+                onClick={() => {
+                  setRankingMode("profit");
+                  setSortConfig(null);
+                }}
+                className={cn(
+                  "relative inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+                  rankingMode === "profit"
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground/70",
+                )}
+              >
+                {rankingMode === "profit" ? (
+                  <motion.span
+                    layoutId="products-ranking-pill"
+                    className="absolute inset-0 rounded-full bg-gradient-to-b from-background to-surface shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_-4px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-border/50"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                ) : null}
+                <Banknote
+                  className={cn(
+                    "relative z-10 h-3.5 w-3.5 transition-colors",
+                    rankingMode === "profit" ? "text-accent" : "",
+                  )}
+                />
+                <span className="relative z-10">Lucros</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={rankingMode === "sales"}
+                onClick={() => {
+                  setRankingMode("sales");
+                  setSortConfig(null);
+                }}
+                className={cn(
+                  "relative inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+                  rankingMode === "sales"
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground/70",
+                )}
+              >
+                {rankingMode === "sales" ? (
+                  <motion.span
+                    layoutId="products-ranking-pill"
+                    className="absolute inset-0 rounded-full bg-gradient-to-b from-background to-surface shadow-[0_1px_2px_rgba(0,0,0,0.08),0_4px_14px_-4px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-border/50"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                ) : null}
+                <TrendingUp
+                  className={cn(
+                    "relative z-10 h-3.5 w-3.5 transition-colors",
+                    rankingMode === "sales" ? "text-accent" : "",
+                  )}
+                />
+                <span className="relative z-10">Vendas</span>
+              </button>
+            </div>
+            <div className="hidden h-5 w-px bg-border/60 sm:block" />
+            <Link
+              href="/app/products"
+              className="flex items-center gap-1 text-xs font-medium text-accent transition-colors hover:text-accent-strong"
+            >
+              Ver todos
+              <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
         </div>
 
-        {/* Scroll horizontal para a tabela expandida */}
-        <div className="overflow-x-auto -mx-2 px-2">
+        <div className="-mx-2 overflow-x-auto px-2">
           <div className="min-w-[960px]">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-strong/95">
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <ProductsSortableHeader
+                    align="center"
+                    column="channel"
+                    onSort={handleSort}
+                    sortConfig={sortConfig}
+                  >
                     Canal
-                  </th>
-                  <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  </ProductsSortableHeader>
+                  <ProductsSortableHeader
+                    column="name"
+                    onSort={handleSort}
+                    sortConfig={sortConfig}
+                    width={420}
+                  >
                     Produto
-                  </th>
-                  <th className="px-3 py-3 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  </ProductsSortableHeader>
+                  <ProductsSortableHeader
+                    align="center"
+                    column="health"
+                    onSort={handleSort}
+                    sortConfig={sortConfig}
+                  >
                     Saúde
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  </ProductsSortableHeader>
+                  <ProductsSortableHeader align="right" column="sales" onSort={handleSort} sortConfig={sortConfig}>
                     Vendas
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  </ProductsSortableHeader>
+                  <ProductsSortableHeader align="right" column="returns" onSort={handleSort} sortConfig={sortConfig}>
                     Devoluções
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  </ProductsSortableHeader>
+                  <ProductsSortableHeader align="right" column="revenue" onSort={handleSort} sortConfig={sortConfig}>
                     Receita
-                  </th>
-                  <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  </ProductsSortableHeader>
+                  <ProductsSortableHeader align="right" column="profit" onSort={handleSort} sortConfig={sortConfig}>
                     Lucro
-                  </th>
+                  </ProductsSortableHeader>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -145,14 +429,16 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                     >
                       <td className="px-3 py-3 text-center">{getChannelBadge(row.channelLabel)}</td>
 
-                      <td className="px-3 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
-                            <Package className="h-4 w-4 text-accent" />
-                          </div>
-                          <div className="min-w-0 max-w-[300px]">
-                            <p className="truncate text-sm font-medium text-foreground">{row.name}</p>
-                            <p className="truncate font-mono text-xs text-muted-foreground">{row.sku || "—"}</p>
+                      <td className="px-3 py-3 align-top" style={{ width: 420, maxWidth: 420 }}>
+                        <div className="flex items-start gap-2 min-w-0">
+                          <ProductImagePreview alt={row.name} url={row.coverImageUrl} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium leading-snug text-foreground whitespace-normal break-words line-clamp-2">
+                              {row.name}
+                            </p>
+                            <p className="mt-0.5 font-mono text-xs text-muted-foreground whitespace-normal break-all">
+                              {row.sku || "—"}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -187,7 +473,6 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
                           {formatMoney(row.profit)}
                         </span>
                       </td>
-
                     </motion.tr>
                   );
                 })}
@@ -195,7 +480,6 @@ export function ProductsTable({ data, className = "" }: ProductsTableProps) {
             </table>
           </div>
         </div>
-
       </Card>
     </motion.div>
   );

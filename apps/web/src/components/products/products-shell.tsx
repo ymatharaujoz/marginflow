@@ -1694,7 +1694,7 @@ export function ProductsShell({
                 {[
                   { label: "PRODUTO", desc: "Nome do produto" },
                   { label: "SKU", desc: "Código do item" },
-                  { label: "PREÇO DE VENDA", desc: "Valor de venda" },
+                  { label: "PDV", desc: "Valor de venda" },
                   { label: "CUSTO UNITÁRIO", desc: "Custo de cada unidade" },
                   { label: "EMBALAGEM", desc: "Custo da embalagem" },
                   { label: "STATUS", desc: "1 para ativo, 0 para inativo" },

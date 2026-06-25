@@ -64,6 +64,7 @@ const profitability = {
     {
       adSpend: "10.00",
       channel: "mercadolivre",
+      coverImageUrl: "https://example.com/premium-notebook.png",
       grossProfit: "130.00",
       margin: "65.00",
       marketplaceCommission: "20.00",
@@ -175,6 +176,7 @@ describe("dashboard foundation helpers", () => {
     expect(rows[0]).toMatchObject({
       channelLabel: "mercadolivre",
       commission: 20,
+      coverImageUrl: "https://example.com/premium-notebook.png",
       health: "scalable",
       name: "Premium Notebook",
       productCost: 50,
@@ -191,7 +193,7 @@ describe("dashboard foundation helpers", () => {
   it("renders the top products table from profitability data", () => {
     const markup = renderToStaticMarkup(createElement(ProductsTable, { data: profitability }));
 
-    expect(markup).toContain("TOP 5 Produtos");
+    expect(markup).toContain("TOP 10 Produtos");
     expect(markup).toContain("Maiores lucros por SKU");
   });
 });

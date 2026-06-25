@@ -273,6 +273,7 @@ export const dashboardRecentSyncResponseSchema = z.object({
 export const dashboardProductProfitabilityRowSchema = z.object({
   productId: z.string().trim().min(1),
   productName: z.string().trim().min(1),
+  coverImageUrl: z.string().url().startsWith("https://").nullable().default(null),
   sku: z.string().trim().min(1).nullable(),
   channel: z.string().trim().min(1),
   summary: dashboardSummaryMetricsSchema,

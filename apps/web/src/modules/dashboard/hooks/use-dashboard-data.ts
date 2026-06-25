@@ -15,11 +15,13 @@ import {
   dashboardSummaryApiResponseSchema,
 } from "@lucreii/validation";
 import { ApiClientError, apiClient } from "@/lib/api/client";
+import { fetchOrders } from "@/modules/orders/hooks/use-orders-data";
 import { deriveBusinessStatus, determineDashboardFinancialState } from "../calculations/financial-state";
 
 const dashboardSummaryQueryKey = ["dashboard-summary"] as const;
 const dashboardChartsQueryKey = ["dashboard-charts"] as const;
 const dashboardProfitabilityQueryKey = ["dashboard-profitability"] as const;
+const dashboardOrdersSummaryQueryKey = ["dashboard-orders-summary"] as const;
 
 function readSelectedCompanyIdFromBrowserCookie() {
   if (typeof document === "undefined") {
@@ -76,6 +78,16 @@ export async function fetchDashboardProfitability(
 
 export function useDashboardData(provider: IntegrationProviderSlug | null = null) {
   const selectedCompanyId = readSelectedCompanyIdFromBrowserCookie();
+  const ordersSummaryQuery = useQuery({
+    queryFn: () =>
+      fetchOrders({
+        page: 1,
+        pageSize: 1,
+        ...(provider ? { provider } : {}),
+      }),
+    queryKey: [...dashboardOrdersSummaryQueryKey, selectedCompanyId, provider],
+    retry: 2,
+  });
   const summaryQuery = useQuery({
     queryFn: () => fetchDashboardSummary(provider),
     queryKey: [...dashboardSummaryQueryKey, selectedCompanyId, provider],
@@ -104,6 +116,7 @@ export function useDashboardData(provider: IntegrationProviderSlug | null = null
   const businessStatus = deriveBusinessStatus(summaryQuery.data);
 
   return {
+    ordersSummaryQuery,
     summaryQuery,
     chartsQuery,
     profitabilityQuery,

@@ -2,8 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Minus, DollarSign, Percent, Scale, Settings2, PiggyBank } from "lucide-react";
-import type { Company, DashboardProfitabilityResponse, DashboardSummaryResponse } from "@lucreii/types";
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  DollarSign,
+  Percent,
+  Scale,
+  Settings2,
+  PiggyBank,
+} from "lucide-react";
+import type {
+  Company,
+  DashboardProfitabilityResponse,
+  DashboardSummaryResponse,
+  OrdersListSummary,
+} from "@lucreii/types";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { containerVariants, itemVariants } from "@/lib/animations";
 import { Card, Button, Input } from "@lucreii/ui";
@@ -16,6 +30,7 @@ import { formatMoney, formatPercent } from "../utils/formatters";
 interface DashboardFinancialIndicatorsProps {
   activeCompany: Company | null;
   data: DashboardProfitabilityResponse;
+  ordersSummary?: OrdersListSummary;
   summary?: DashboardSummaryResponse;
 }
 
@@ -45,9 +60,20 @@ const iconBgStyles = {
   error: "bg-error/10 text-error",
 };
 
-function IndicatorCard({ label, value, subValue, icon, variant = "default", trend }: IndicatorCardProps) {
+function IndicatorCard({
+  label,
+  value,
+  subValue,
+  icon,
+  variant = "default",
+  trend,
+}: IndicatorCardProps) {
   const TrendIcon =
-    trend?.direction === "up" ? TrendingUp : trend?.direction === "down" ? TrendingDown : Minus;
+    trend?.direction === "up"
+      ? TrendingUp
+      : trend?.direction === "down"
+        ? TrendingDown
+        : Minus;
 
   const trendColorClass =
     trend?.direction === "up"
@@ -71,9 +97,9 @@ function IndicatorCard({ label, value, subValue, icon, variant = "default", tren
           <div className="flex items-center gap-2">
             <span
               className={`
-              inline-flex h-5 w-5 items-center justify-center rounded-md
-              ${iconBgStyles[variant]}
-            `}
+                inline-flex h-5 w-5 items-center justify-center rounded-md
+                ${iconBgStyles[variant]}
+              `}
             >
               {icon}
             </span>
@@ -113,6 +139,7 @@ function normalizeNumber(value: string | number | undefined | null): number {
 export function DashboardFinancialIndicators({
   activeCompany,
   data,
+  ordersSummary,
   summary,
 }: DashboardFinancialIndicatorsProps) {
   const [fixedCost, setFixedCost] = useState<number>(0);
@@ -127,7 +154,6 @@ export function DashboardFinancialIndicators({
     const nextFixedCost = activeCompany ? Number.parseFloat(activeCompany.fixedCostDefault) || 0 : 0;
     const nextTaxPercent = activeCompany ? (Number.parseFloat(activeCompany.taxRateDefault) || 0) * 100 : 0;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFixedCost(nextFixedCost);
     setTaxPercent(nextTaxPercent);
     setFixedCostInput(formatCurrencyInput(nextFixedCost));
@@ -137,27 +163,20 @@ export function DashboardFinancialIndicators({
   const financials = useMemo(() => {
     let totalRevenue = 0;
     let totalProfit = 0;
-    let totalAdSpend = 0;
 
     for (const product of data.products) {
       totalRevenue += parseDecimal(product.revenue);
       totalProfit += parseDecimal(product.grossProfit);
-      totalAdSpend += parseDecimal(product.adSpend);
     }
 
     const averageMargin = totalRevenue > 0 ? totalProfit / totalRevenue : 0;
-    const breakEvenPoint = averageMargin > 0 ? fixedCost / averageMargin : 0;
-    const netProfit = totalProfit - fixedCost - totalAdSpend;
 
     return {
       averageMargin,
-      breakEvenPoint,
-      netProfit,
-      totalAdSpend,
       totalProfit,
       totalRevenue,
     };
-  }, [data.products, fixedCost]);
+  }, [data.products]);
 
   const cancelEditing = useCallback(() => {
     setFixedCostInput(formatCurrencyInput(fixedCost));
@@ -181,9 +200,12 @@ export function DashboardFinancialIndicators({
         fixedCostInput,
         taxPercentInput,
       });
-      const response = await apiClient.patch<{ data: Company; error: null }>(`/companies/${activeCompany.id}`, {
-        body: patch,
-      });
+      const response = await apiClient.patch<{ data: Company; error: null }>(
+        `/companies/${activeCompany.id}`,
+        {
+          body: patch,
+        },
+      );
       const nextFixedCost = Number.parseFloat(response.data.fixedCostDefault) || 0;
       const nextTaxPercent = (Number.parseFloat(response.data.taxRateDefault) || 0) * 100;
 
@@ -206,35 +228,26 @@ export function DashboardFinancialIndicators({
     }
   }, [activeCompany, fixedCostInput, taxPercentInput]);
 
-  const getNetProfitVariant = (): IndicatorCardProps["variant"] => {
-    if (financials.netProfit > 0) return "success";
-    if (financials.netProfit < 0) return "error";
-    return "warning";
-  };
-
-  const getNetProfitTrend = () => {
-    const percentOfRevenue =
-      financials.totalRevenue > 0 ? (financials.netProfit / financials.totalRevenue) * 100 : 0;
-
-    if (financials.netProfit > 0) {
-      return {
-        direction: "up" as const,
-        value: `${percentOfRevenue.toFixed(1)}% do faturamento`,
-      };
-    }
-    if (financials.netProfit < 0) {
-      return {
-        direction: "down" as const,
-        value: `${percentOfRevenue.toFixed(1)}% do faturamento`,
-      };
-    }
-    return { direction: "neutral" as const, value: "Break-even" };
-  };
-
-  const revenue = summary ? normalizeNumber(summary.summary.grossRevenue) : financials.totalRevenue;
-  const revenueSub = summary
-    ? `${summary.summary.ordersCount} pedidos · ${summary.summary.unitsSold} unidades`
-    : `${data.products.length} produtos`;
+  const totalRevenue =
+    ordersSummary
+      ? normalizeNumber(ordersSummary.grossRevenue)
+      : summary
+        ? normalizeNumber(summary.summary.grossRevenue)
+        : financials.totalRevenue;
+  const totalProfit = ordersSummary
+    ? normalizeNumber(ordersSummary.grossProfit)
+    : financials.totalProfit;
+  const averageMargin = ordersSummary
+    ? normalizeNumber(ordersSummary.averageMargin)
+    : financials.averageMargin;
+  const breakEvenPoint = averageMargin > 0 ? fixedCost / averageMargin : 0;
+  const netProfit = totalProfit - fixedCost;
+  const revenueSub = ordersSummary
+    ? `${ordersSummary.ordersCount} pedidos · ${ordersSummary.unitsSold} unidades`
+    : summary
+      ? `${summary.summary.ordersCount} pedidos · ${summary.summary.unitsSold} unidades`
+      : `${data.products.length} produtos`;
+  const netProfitPercentOfRevenue = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
 
   return (
     <motion.div
@@ -246,7 +259,7 @@ export function DashboardFinancialIndicators({
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <IndicatorCard
           label="Faturamento"
-          value={formatMoney(revenue)}
+          value={formatMoney(totalRevenue)}
           subValue={revenueSub}
           icon={<DollarSign className="h-4 w-4" />}
           variant="default"
@@ -254,49 +267,52 @@ export function DashboardFinancialIndicators({
 
         <IndicatorCard
           label="Margem Média"
-          value={formatPercent(financials.averageMargin)}
-          subValue={financials.totalProfit >= 0 ? "Lucrativo" : "Prejuízo"}
+          value={formatPercent(averageMargin)}
+          subValue={totalProfit >= 0 ? "Lucrativo" : "Prejuízo"}
           icon={<Percent className="h-4 w-4" />}
           variant={
-            financials.averageMargin > 0.2
+            averageMargin > 0.2
               ? "success"
-              : financials.averageMargin > 0
+              : averageMargin > 0
                 ? "warning"
                 : "error"
           }
           trend={{
             direction:
-              financials.averageMargin > 0.3
+              averageMargin > 0.3
                 ? "up"
-                : financials.averageMargin > 0
+                : averageMargin > 0
                   ? "neutral"
                   : "down",
-            value: `Lucro: ${formatMoney(financials.totalProfit)}`,
+            value: `Lucro: ${formatMoney(totalProfit)}`,
           }}
         />
 
         <IndicatorCard
           label="Ponto de Equilíbrio"
-          value={formatMoney(financials.breakEvenPoint)}
+          value={formatMoney(breakEvenPoint)}
           subValue="Meta para cobrir custo fixo"
           icon={<Scale className="h-4 w-4" />}
-          variant={financials.totalRevenue >= financials.breakEvenPoint ? "success" : "warning"}
+          variant={totalRevenue >= breakEvenPoint ? "success" : "warning"}
           trend={{
-            direction: financials.totalRevenue >= financials.breakEvenPoint ? "up" : "down",
-            value:
-              financials.totalRevenue >= financials.breakEvenPoint
-                ? "Meta atingida"
-                : "Abaixo da meta",
+            direction: totalRevenue >= breakEvenPoint ? "up" : "down",
+            value: totalRevenue >= breakEvenPoint ? "Meta atingida" : "Abaixo da meta",
           }}
         />
 
         <IndicatorCard
           label="Lucro Líquido"
-          value={formatMoney(financials.netProfit)}
+          value={formatMoney(netProfit)}
           subValue="Após custos fixos e publicidade"
           icon={<PiggyBank className="h-4 w-4" />}
-          variant={getNetProfitVariant()}
-          trend={getNetProfitTrend()}
+          variant={netProfit > 0 ? "success" : netProfit < 0 ? "error" : "warning"}
+          trend={{
+            direction: netProfit > 0 ? "up" : netProfit < 0 ? "down" : "neutral",
+            value:
+              netProfit === 0
+                ? "Break-even"
+                : `${netProfitPercentOfRevenue.toFixed(1)}% do faturamento`,
+          }}
         />
       </div>
 
@@ -313,7 +329,7 @@ export function DashboardFinancialIndicators({
                     <h3 className="text-sm font-semibold text-foreground">Custo e Imposto</h3>
                     <p className="text-xs text-muted-foreground">
                       {activeCompany
-                        ? `${activeCompany.razaoSocial}`
+                        ? activeCompany.razaoSocial
                         : "Nenhuma empresa ativa disponivel"}
                     </p>
                   </div>

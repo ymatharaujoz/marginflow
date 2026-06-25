@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -361,8 +361,8 @@ export function ProductTable({
           <p className="text-xs text-muted-foreground">Grade mensal de produtos</p>
         </div>
         <EmptyState
-          title="Nenhum dado mensal neste mÃªs"
-          description="Selecione outra competÃªncia"
+          title="Nenhum dado mensal neste mês"
+          description="Selecione outra competência"
           icon={<Package className="h-6 w-6" />}
         />
       </Card>
@@ -396,14 +396,14 @@ export function ProductTable({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold text-foreground">
-                  VocÃª tem {productsMissingCostCount} produto{productsMissingCostCount === 1 ? "" : "s"} para atualizar custos.
+                  Você tem {productsMissingCostCount} produto{productsMissingCostCount === 1 ? "" : "s"} para atualizar custos
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Configure custo unitÃ¡rio e embalagem no catÃ¡logo para liberar anÃ¡lises mais confiÃ¡veis.
+                  Configure custo unitário e embalagem no catálogo para liberar análises mais confiáveis.
                 </p>
               </div>
               <Button asChild size="sm" variant="secondary">
-                <Link href="/app/products/catalog">Atualizar custos</Link>
+                <Link href="/app/products/catalog">Ir para catálogo</Link>
               </Button>
             </div>
           </div>
@@ -507,19 +507,19 @@ export function ProductTable({
                 </th>
                 <th
                   onClick={() => handleSort("parentName")}
-                  className="sticky top-0 z-10 w-[320px] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  className="sticky top-0 z-10 w-[360px] px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
                 >
                   <div className="flex items-center gap-1">
                     Produto
                     <SortIcon column="parentName" />
                   </div>
                 </th>
-                <th className="sticky top-0 z-10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-surface-strong/95 min-w-[140px]">
+                <th className="sticky top-0 z-10 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-surface-strong/95 min-w-[100px]">
                   SKU
                 </th>
                 <th
                   onClick={() => handleSort("sales")}
-                  className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
+                  className="sticky top-0 z-10 px-2 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95"
                 >
                   <div className="flex items-center justify-end gap-1">
                     Vendas
@@ -531,7 +531,7 @@ export function ProductTable({
                   className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[160px]"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    PreÃ§o de Venda
+                    PDV
                     <SortIcon column="sellingPrice" />
                   </div>
                 </th>
@@ -540,7 +540,7 @@ export function ProductTable({
                   className="sticky top-0 z-10 px-3 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground cursor-pointer select-none hover:text-foreground bg-surface-strong/95 min-w-[160px]"
                 >
                   <div className="flex items-center justify-end gap-1">
-                    Margem ContribuiÃ§Ã£o
+                    Margem Contribuição
                     <SortIcon column="contributionMarginRatio" />
                   </div>
                 </th>
@@ -578,12 +578,23 @@ export function ProductTable({
                   <td className="px-3 py-3 text-left">
                     <div className="flex items-center gap-3">
                       <ProductImagePreview alt={parentName} url={row.coverImageUrl} />
-                      <DollarSign
-                        aria-label={hasCostsConfigured ? "Custos configurados" : "Custos pendentes"}
-                        className="h-4 w-4 shrink-0"
+                      <span
+                        aria-label={hasCostsConfigured ? "Precificado" : "Não precificado"}
+                        className={cn(
+                          "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                          hasCostsConfigured
+                            ? "border-success/30 bg-success/10"
+                            : "border-warning/30 bg-warning/10",
+                        )}
                         data-testid={`cost-status-${row.id}`}
-                        style={{ color: hasCostsConfigured ? "#0e7a6f" : "#f59e0b" }}
-                      />
+                        title={hasCostsConfigured ? "Precificado" : "Não precificado"}
+                      >
+                        <DollarSign
+                          aria-hidden="true"
+                          className="h-3.5 w-3.5"
+                          style={{ color: hasCostsConfigured ? "#0e7a6f" : "#f59e0b" }}
+                        />
+                      </span>
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-medium text-foreground">{parentName}</span>
                         {variationName ? (
@@ -595,7 +606,7 @@ export function ProductTable({
                   <td className="px-3 py-3 text-left">
                     <span className="text-xs font-mono text-muted-foreground">{row.sku || "â€”"}</span>
                   </td>
-                  <td className="px-3 py-3 text-right">
+                  <td className="px-2 py-3 text-right">
                     <span className="text-sm text-foreground">{formatNumber(row.sales)}</span>
                   </td>
                   <td className="px-3 py-3 text-right">

@@ -90,8 +90,11 @@ export function ProductFinancialIndicators({ rows }: ProductFinancialIndicatorsP
     return rows.reduce((sum, row) => sum + computeRowCommissionTotal(row), 0);
   }, [rows]);
 
-  const totalShipping = useMemo(() => {
-    return rows.reduce((sum, row) => sum + row.shipping * row.netLiquidSales, 0);
+  const totalShippingAndFixedFee = useMemo(() => {
+    return rows.reduce((sum, row) => {
+      const perUnit = row.shipping + (row.fixedFeeUnit ?? 0);
+      return sum + perUnit * row.netLiquidSales;
+    }, 0);
   }, [rows]);
 
   const totalAdvertising = useMemo(() => {
@@ -116,28 +119,28 @@ export function ProductFinancialIndicators({ rows }: ProductFinancialIndicatorsP
         <IndicatorCard
           label="Receita Líquida"
           value={formatMoney(totalNetRevenue)}
-          subValue="Faturamento − comissões"
+          subValue="Faturamento − Comissões"
           icon={<TrendingUp className="h-4 w-4" />}
           variant={totalNetRevenue < 0 ? "error" : "default"}
         />
         <IndicatorCard
           label="Comissão Marketplaces"
           value={formatMoney(totalCommission)}
-          subValue="Total de comissões para marketplaces"
+          subValue="Total de comissões"
           icon={<Percent className="h-4 w-4" />}
           variant="default"
         />
         <IndicatorCard
-          label="Frete"
-          value={formatMoney(totalShipping)}
-          subValue="Total dos custos de frete"
+          label="Frete/Taxa Fixa"
+          value={formatMoney(totalShippingAndFixedFee)}
+          subValue="Total de fretes e taxas"
           icon={<Receipt className="h-4 w-4" />}
           variant="default"
         />
         <IndicatorCard
           label="Publicidade"
           value={formatMoney(totalAdvertising)}
-          subValue="Investimento total em publicidade"
+          subValue="Total investido em publicidade"
           icon={<Megaphone className="h-4 w-4" />}
           variant="default"
         />

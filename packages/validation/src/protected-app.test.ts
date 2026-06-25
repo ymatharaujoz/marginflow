@@ -158,6 +158,7 @@ describe("@lucreii/validation protected app schemas", () => {
           {
             adSpend: "10.00",
             channel: "mercadolivre",
+            coverImageUrl: "https://http2.mlstatic.com/premium-notebook.jpg",
             grossProfit: "130.00",
             margin: "65.00",
             marketplaceCommission: "20.00",

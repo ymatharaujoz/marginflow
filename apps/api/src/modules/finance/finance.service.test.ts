@@ -108,19 +108,31 @@ describe("FinanceService", () => {
     const { db, service } = createFinanceServiceFixture();
     const externalProductsSelectWhere = vi.fn().mockResolvedValue([
       {
+        externalProductId: "MLB-001",
         id: "external_product_1",
         linkedProductId: null,
+        metadata: {},
+        provider: "mercadolivre",
         sku: "abc-1",
+        title: "Product One",
       },
       {
+        externalProductId: "MLB-002",
         id: "external_product_2",
         linkedProductId: null,
+        metadata: {},
+        provider: "mercadolivre",
         sku: "MISSING",
+        title: "Produto sem match",
       },
       {
+        externalProductId: "SHP-003",
         id: "external_product_3",
         linkedProductId: null,
+        metadata: {},
+        provider: "shopee",
         sku: "XYZ-1",
+        title: "Product Two",
       },
     ]);
     const externalProductsSelectFrom = vi.fn(() => ({
@@ -133,6 +145,12 @@ describe("FinanceService", () => {
       {
         createdAt: new Date("2026-04-28T10:00:00.000Z"),
         id: "product_1",
+        images: [
+          {
+            position: 0,
+            url: "https://example.com/product-one.png",
+          },
+        ],
         isActive: true,
         name: "Product One",
         organizationId: "org_123",
@@ -154,6 +172,12 @@ describe("FinanceService", () => {
       {
         createdAt: new Date("2026-04-28T10:00:00.000Z"),
         id: "product_2",
+        images: [
+          {
+            position: 0,
+            url: "https://example.com/product-two.png",
+          },
+        ],
         isActive: true,
         name: "Product Two",
         organizationId: "org_123",
@@ -304,14 +328,18 @@ describe("FinanceService", () => {
     ]);
     expect(readModel.productProfitability).toEqual([
       expect.objectContaining({
+        coverImageUrl: "https://example.com/product-one.png",
         productId: "product_1",
+        productName: "Product One",
         summary: expect.objectContaining({
           grossRevenue: "200.00",
           netProfit: "120.00",
         }),
       }),
       expect.objectContaining({
+        coverImageUrl: "https://example.com/product-two.png",
         productId: "product_2",
+        productName: "Product Two",
         summary: expect.objectContaining({
           grossRevenue: "50.00",
           netProfit: "45.00",
@@ -353,17 +381,19 @@ describe("FinanceService", () => {
         metricDate: "2026-04-29",
       }),
     ]);
-    expect(db.select).toHaveBeenCalledTimes(2);
-    expect(externalProductsSelectFrom).toHaveBeenCalledTimes(2);
-    expect(externalProductsSelectWhere).toHaveBeenCalledTimes(2);
+    expect(db.select).toHaveBeenCalledTimes(4);
+    expect(externalProductsSelectFrom).toHaveBeenCalledTimes(4);
+    expect(externalProductsSelectWhere).toHaveBeenCalledTimes(4);
   });
 
   it("falls back to legacy external product columns when review-link fields are missing", async () => {
     const { db, service } = createFinanceServiceFixture();
     const legacyExternalProductsWhere = vi.fn().mockResolvedValue([
       {
+        externalProductId: "MLB-001",
         id: "external_product_1",
         sku: "ABC-1",
+        title: "Product One",
       },
     ]);
     const legacyExternalProductsFrom = vi.fn(() => ({
@@ -376,17 +406,21 @@ describe("FinanceService", () => {
       error.code = "42703";
       throw error;
     });
-    db.select
-      .mockImplementationOnce(() => ({
-        from: modernExternalProductsFrom,
-      }))
-      .mockImplementationOnce(() => ({
-        from: legacyExternalProductsFrom,
-      }));
+    let selectCalls = 0;
+    db.select.mockImplementation(() => {
+      selectCalls += 1;
+      return {
+        from:
+          selectCalls % 2 === 1
+            ? modernExternalProductsFrom
+            : legacyExternalProductsFrom,
+      };
+    });
     db.query.products.findMany.mockResolvedValue([
       {
         createdAt: new Date("2026-04-28T10:00:00.000Z"),
         id: "product_1",
+        images: [],
         isActive: true,
         name: "Product One",
         organizationId: "org_123",
@@ -420,8 +454,93 @@ describe("FinanceService", () => {
     const readModel = await service.buildDashboardReadModel("org_123", "company_123");
 
     expect(readModel.summary.grossRevenue).toBe("100.00");
-    expect(db.select).toHaveBeenCalledTimes(2);
-    expect(legacyExternalProductsWhere).toHaveBeenCalledTimes(1);
+    expect(db.select).toHaveBeenCalledTimes(4);
+    expect(legacyExternalProductsWhere).toHaveBeenCalledTimes(2);
+  });
+
+  it("resolves Mercado Livre variation profitability names as parent plus variation", async () => {
+    const { db, service } = createFinanceServiceFixture();
+    const externalProductsSelectWhere = vi.fn().mockResolvedValue([
+      {
+        externalProductId: "MLB123",
+        id: "external_parent",
+        linkedProductId: null,
+        metadata: { itemId: "MLB123", variationId: null },
+        provider: "mercadolivre",
+        sku: "SKU-PARENT",
+        title: "Acessório de Celular",
+      },
+      {
+        externalProductId: "MLB123:456",
+        id: "external_child",
+        linkedProductId: "product_child",
+        metadata: { itemId: "MLB123", variationId: "456" },
+        provider: "mercadolivre",
+        sku: "SKU-PRETO",
+        title: "Cor: Preto",
+      },
+    ]);
+    const externalProductsSelectFrom = vi.fn(() => ({
+      where: externalProductsSelectWhere,
+    }));
+    db.select.mockReturnValue({
+      from: externalProductsSelectFrom,
+    });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-28T10:00:00.000Z"),
+        id: "product_child",
+        images: [
+          {
+            position: 0,
+            url: "https://example.com/cor-preto.png",
+          },
+        ],
+        isActive: true,
+        name: "Cor: Preto",
+        organizationId: "org_123",
+        productCosts: [
+          {
+            amount: "10.00",
+            createdAt: new Date("2026-04-20T10:00:00.000Z"),
+            effectiveFrom: "2026-04-20",
+          },
+        ],
+        sellingPrice: "30.00",
+        sku: "SKU-PRETO",
+      },
+    ]);
+    db.query.externalOrders.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-28T10:00:00.000Z"),
+        fees: [],
+        id: "order_1",
+        items: [
+          {
+            externalProductId: "external_child",
+            id: "item_1",
+            quantity: 1,
+            totalPrice: "30.00",
+            unitPrice: "30.00",
+          },
+        ],
+        orderedAt: new Date("2026-04-28T10:00:00.000Z"),
+        provider: "mercadolivre",
+        totalAmount: "30.00",
+      },
+    ]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+
+    const readModel = await service.buildDashboardReadModel("org_123", "company_123");
+
+    expect(readModel.productProfitability).toEqual([
+      expect.objectContaining({
+        coverImageUrl: "https://example.com/cor-preto.png",
+        productId: "product_child",
+        productName: "Acessório de Celular | Cor: Preto",
+      }),
+    ]);
   });
 
   it("re-materializes daily and product metrics deterministically for the organization", async () => {

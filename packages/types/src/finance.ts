@@ -30,6 +30,7 @@ export type DashboardDailyMetricPoint = {
 export type DashboardProductProfitabilityRow = {
   productId: string;
   productName: string;
+  coverImageUrl: string | null;
   sku: string | null;
   channel: string;
   summary: DashboardSummaryMetrics;

@@ -141,6 +141,17 @@ describe("DashboardHome", () => {
       error: null,
       financialState: "ready",
       isLoading: false,
+      ordersSummaryQuery: {
+        data: {
+          summary: {
+            averageMargin: "0.10",
+            grossProfit: "100.00",
+            grossRevenue: "1000.00",
+            ordersCount: 2,
+            unitsSold: 3,
+          },
+        },
+      },
       profitabilityQuery: { data: { channels: [], products: [] } },
       refetchAll: vi.fn(),
       summaryQuery: { data: { cards: [], summary: {} } },

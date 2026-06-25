@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle,
+  BarChart3,
   DollarSign,
   Package,
   Percent,
@@ -20,7 +21,7 @@ import { productCatalogQueryKey, formatReferenceMonthPtBr } from "../hooks/use-p
 import { computeRowNetRevenue } from "../calculations/product-insights";
 import { CurrencyInput, parseCurrencyValue } from "./currency-input";
 import type { ProductTableRow } from "../types/products";
-import { formatMoney, formatNumber } from "../utils/formatters";
+import { formatMoney, formatNumber, formatPercent } from "../utils/formatters";
 
 type ProductDetailsModalProps = {
   onClose: () => void;
@@ -28,7 +29,7 @@ type ProductDetailsModalProps = {
   row: ProductTableRow | null;
 };
 
-type TabKey = "overview" | "composition";
+type TabKey = "overview" | "profitability" | "composition";
 
 type SectionCardProps = {
   title: string;
@@ -363,6 +364,7 @@ export function ProductDetailsModal({
                 tabs={[
                   { key: "overview", label: "Visão Geral" },
                   { key: "composition", label: "Composição" },
+                  { key: "profitability", label: "Lucratividade" },
                 ]}
               />
             </div>
@@ -459,7 +461,7 @@ export function ProductDetailsModal({
                     />
                     <MetricCard
                       label="Imposto"
-                      value={`${row.taxPct}%`}
+                      value={`${formatMoney((row.sellingPrice * row.taxPct) / 100)} (${row.taxPct}%)`}
                       icon={<Percent className="h-3 w-3" />}
                     />
                   </div>
@@ -495,6 +497,57 @@ export function ProductDetailsModal({
                     Salvar
                   </Button>
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === "profitability" && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25 }}
+                className="space-y-4"
+              >
+                <SectionCard
+                  title="Lucratividade Unitária"
+                  icon={<TrendingUp className="h-4 w-4 text-accent" />}
+                >
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <MetricCard
+                      label="Lucro Unitário"
+                      value={formatMoney(row.unitProfit)}
+                      icon={<DollarSign className="h-3 w-3" />}
+                      variant={
+                        row.unitProfit === null
+                          ? "default"
+                          : row.unitProfit < 0
+                            ? "negative"
+                            : "highlight"
+                      }
+                    />
+                    <MetricCard
+                      label="ROI"
+                      value={formatPercent(row.roiRatio)}
+                      icon={<Percent className="h-3 w-3" />}
+                      variant={
+                        row.roiRatio === null
+                          ? "default"
+                          : row.roiRatio < 0
+                            ? "negative"
+                            : "highlight"
+                      }
+                    />
+                    <MetricCard
+                      label="ROAS Mínimo"
+                      value={formatPercent(
+                        row.minimumRoas !== null && row.minimumRoas > 0
+                          ? 100 / row.minimumRoas
+                          : null,
+                      )}
+                      icon={<BarChart3 className="h-3 w-3" />}
+                      variant="highlight"
+                    />
+                  </div>
+                </SectionCard>
               </motion.div>
             )}
           </motion.form>

@@ -1,4 +1,5 @@
 import { orderListFiltersSchema } from "@lucreii/validation";
+import type { OrderCanonicalStatus } from "@lucreii/types";
 
 export class OrderListFiltersDto {
   static schema = orderListFiltersSchema;
@@ -7,5 +8,5 @@ export class OrderListFiltersDto {
   pageSize?: number;
   search?: string;
   provider?: "mercadolivre" | "shopee" | "shein";
-  status?: string;
+  status?: OrderCanonicalStatus;
 }

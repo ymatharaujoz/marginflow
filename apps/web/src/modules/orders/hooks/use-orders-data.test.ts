@@ -32,6 +32,14 @@ describe("orders protected fetchers", () => {
 
   it("uses protected orders list endpoint as data source", async () => {
     apiClientMock.getValidatedData.mockResolvedValue({
+      summary: {
+        averageMargin: "0.00",
+        grossProfit: "0.00",
+        grossRevenue: "0.00",
+        ordersCount: 0,
+        unitsSold: 0,
+      },
+      availableStatuses: [],
       items: [],
       page: 1,
       pageSize: 20,
@@ -55,14 +63,31 @@ describe("orders protected fetchers", () => {
 
   it("uses protected order detail endpoint as data source", async () => {
     apiClientMock.getValidatedData.mockResolvedValue({
+      composition: {
+        hasIncompleteCostData: false,
+        marketplaceCommissionAmount: "0.00",
+        missingCostItemsCount: 0,
+        missingLinkedItemsCount: 0,
+        netRevenueAmount: "0.00",
+        packagingCostAmount: "0.00",
+        productCostAmount: "0.00",
+        revenueAmount: "0.00",
+        shippingOrFixedFeeAmount: "0.00",
+      },
       items: [
         {
+          channel: "mercadolivre",
+          contributionMarginPercent: "12.00",
+          displayName: "Produto 1",
           id: "item_1",
           imageUrl: "https://cdn.example.com/product-1-cover.jpg",
           linkedProductId: "product_1",
+          netRevenueAmount: "100.00",
+          orderedAt: "2026-06-20T10:15:00.000Z",
           productName: "Produto 1",
           quantity: 2,
           sku: "SKU-1",
+          totalProfitAmount: "12.00",
           totalPrice: "120.00",
           unitPrice: "60.00",
         },
@@ -72,12 +97,13 @@ describe("orders protected fetchers", () => {
           currency: "BRL",
           fixedCostAmount: "0.00",
           id: "order_row_1",
-        itemsSold: 0,
-        orderDate: "2026-06-20",
-        orderId: "MLB-1001",
+          itemsSold: 0,
+          orderDate: "2026-06-20",
+          orderId: "MLB-1001",
           orderedAt: "2026-06-20T10:15:00.000Z",
           provider: "mercadolivre",
           shippingAmount: "0.00",
+          sourceStatus: "paid",
           tariffAmount: "0.00",
           status: "paid",
           statusLabel: "Pagamento aprovado",
@@ -141,7 +167,7 @@ describe("orders protected fetchers", () => {
       pageSize: 20,
       provider: "shopee",
       search: "SHP-1001",
-      status: "completed",
+      status: "paid",
     });
 
     expect(useQueryMock).toHaveBeenCalledWith(
@@ -153,7 +179,7 @@ describe("orders protected fetchers", () => {
           20,
           "SHP-1001",
           "shopee",
-          "completed",
+          "paid",
         ],
       }),
     );

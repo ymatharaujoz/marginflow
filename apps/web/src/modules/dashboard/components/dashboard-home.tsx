@@ -72,6 +72,7 @@ function ErrorState({ error, onRetry }: { error: Error; onRetry: () => void }) {
 export function DashboardHome({ activeCompany, companyName }: DashboardHomeProps) {
   const [providerFilter, setProviderFilter] = useState<IntegrationProviderSlug | null>(null);
   const {
+    ordersSummaryQuery,
     summaryQuery,
     chartsQuery,
     profitabilityQuery,
@@ -127,6 +128,7 @@ export function DashboardHome({ activeCompany, companyName }: DashboardHomeProps
           <DashboardFinancialIndicators
             activeCompany={activeCompany}
             data={profitabilityQuery.data}
+            ordersSummary={ordersSummaryQuery.data?.summary}
             summary={summaryQuery.data ?? undefined}
           />
         </section>

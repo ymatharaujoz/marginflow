@@ -263,7 +263,7 @@ describe("ProductTable", () => {
       />,
     );
 
-    expect(document.body.textContent).toContain("VocÃª tem 1 produto para atualizar custos.");
+    expect(document.body.textContent).toContain("Voc\u00ea tem 1 produto para atualizar custos.");
     const catalogLink = Array.from(document.querySelectorAll("a")).find((link) =>
       link.textContent?.includes("Atualizar custos"),
     ) as HTMLAnchorElement;
@@ -271,10 +271,14 @@ describe("ProductTable", () => {
 
     const configured = document.querySelector('[data-testid="cost-status-2026-06-01:mercadolivre:SKU-1"]');
     const pending = document.querySelector('[data-testid="cost-status-2026-06-01:mercadolivre:SKU-2"]');
-    expect(configured?.getAttribute("aria-label")).toBe("Custos configurados");
-    expect(pending?.getAttribute("aria-label")).toBe("Custos pendentes");
-    expect(configured?.getAttribute("style")).toMatch(/0e7a6f|14,\s*122,\s*111/);
-    expect(pending?.getAttribute("style")).toMatch(/f59e0b|245,\s*158,\s*11/);
+    expect(configured?.getAttribute("aria-label")).toBe("Precificado");
+    expect(pending?.getAttribute("aria-label")).toBe("Não precificado");
+    expect(configured?.getAttribute("title")).toBe("Precificado");
+    expect(pending?.getAttribute("title")).toBe("Não precificado");
+    const configuredIcon = configured?.querySelector("svg");
+    const pendingIcon = pending?.querySelector("svg");
+    expect(configuredIcon?.getAttribute("style")).toMatch(/0e7a6f|14,\s*122,\s*111/);
+    expect(pendingIcon?.getAttribute("style")).toMatch(/f59e0b|245,\s*158,\s*11/);
 
     view.unmount();
   });
@@ -290,13 +294,13 @@ describe("ProductTable", () => {
       />,
     );
 
-    expect(document.body.textContent).toContain("PreÃ§o de Venda");
-    expect(document.body.textContent).toContain("Margem ContribuiÃ§Ã£o");
+    expect(document.body.textContent).toContain("Pre\u00e7o de Venda");
+    expect(document.body.textContent).toContain("Margem Contribui\u00e7\u00e3o");
     expect(document.body.textContent).toContain("Lucro Total");
-    expect(document.body.textContent).toContain("R$ 78,03");
+    expect(document.body.textContent).toContain("R$ 78,03");
     expect(document.body.textContent).not.toContain("ROAS Real");
-    expect(document.body.textContent).not.toContain("Lucro UnitÃ¡rio");
-    expect(document.body.textContent).not.toContain("ROAS MÃ­nimo");
+    expect(document.body.textContent).not.toContain("Lucro Unit\u00e1rio");
+    expect(document.body.textContent).not.toContain("ROAS M\u00ednimo");
 
     view.unmount();
   });

@@ -66,6 +66,14 @@ describe("orders controller", () => {
       subscription: null,
     });
     vi.spyOn(ordersService, "listOrders").mockResolvedValueOnce({
+      summary: {
+        averageMargin: "0.00",
+        grossProfit: "0.00",
+        grossRevenue: "0.00",
+        ordersCount: 0,
+        unitsSold: 0,
+      },
+      availableStatuses: [],
       items: [],
       page: 1,
       pageSize: 10,
@@ -113,6 +121,17 @@ describe("orders controller", () => {
       subscription: null,
     });
     vi.spyOn(ordersService, "getOrderDetails").mockResolvedValueOnce({
+      composition: {
+        hasIncompleteCostData: false,
+        marketplaceCommissionAmount: "0.00",
+        missingCostItemsCount: 0,
+        missingLinkedItemsCount: 0,
+        netRevenueAmount: "0.00",
+        packagingCostAmount: "0.00",
+        productCostAmount: "0.00",
+        revenueAmount: "0.00",
+        shippingOrFixedFeeAmount: "0.00",
+      },
       items: [],
       order: {
         createdAt: "2026-06-20T12:00:00.000Z",
@@ -125,6 +144,7 @@ describe("orders controller", () => {
         orderedAt: "2026-06-20T10:15:00.000Z",
         provider: "mercadolivre",
         shippingAmount: "0.00",
+        sourceStatus: "paid",
         tariffAmount: "0.00",
         status: "paid",
         statusLabel: "Pagamento aprovado",

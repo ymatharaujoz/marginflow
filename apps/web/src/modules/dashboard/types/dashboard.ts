@@ -47,6 +47,7 @@ export type DashboardKpiItem = {
 export type DashboardProductDetailRow = {
   id: string;
   name: string;
+  coverImageUrl: string | null;
   sku: string | null;
   channelLabel: string;
   // Sales metrics
