@@ -2706,6 +2706,7 @@ export class ProductsService {
       string,
       Array<{
         externalProductId: string;
+        isVariation: boolean;
         productId: string;
         variationLabel: string | null;
       }>
@@ -2725,13 +2726,13 @@ export class ProductsService {
       }
 
       const entries = groupedEntries.get(itemId) ?? [];
+      const isVariation =
+        metadata.variationId !== null || syncedProduct.externalProductId.includes(":");
       entries.push({
         externalProductId: syncedProduct.externalProductId,
+        isVariation,
         productId,
-        variationLabel:
-          metadata.variationId !== null || syncedProduct.externalProductId.includes(":")
-            ? syncedProduct.title?.trim() || null
-            : null,
+        variationLabel: isVariation ? syncedProduct.title?.trim() || null : null,
       });
       groupedEntries.set(itemId, entries);
     }
@@ -2739,20 +2740,31 @@ export class ProductsService {
     const groups = new Map<string, MercadoLivreCatalogGroup>();
 
     for (const [itemId, entries] of groupedEntries.entries()) {
-      const dedupedEntries = entries.filter(
-        (entry, index, allEntries) =>
-          allEntries.findIndex(
-            (candidate) => candidate.productId === entry.productId,
-          ) === index,
-      );
+      const dedupedEntriesByProductId = new Map<
+        string,
+        (typeof entries)[number]
+      >();
+
+      for (const entry of entries) {
+        const currentEntry = dedupedEntriesByProductId.get(entry.productId);
+        if (!currentEntry) {
+          dedupedEntriesByProductId.set(entry.productId, entry);
+          continue;
+        }
+
+        if (currentEntry.isVariation && !entry.isVariation) {
+          dedupedEntriesByProductId.set(entry.productId, entry);
+        }
+      }
+
+      const dedupedEntries = [...dedupedEntriesByProductId.values()];
 
       if (dedupedEntries.length < 2) {
         continue;
       }
 
       const explicitParent =
-        dedupedEntries.find((entry) => !entry.externalProductId.includes(":")) ??
-        dedupedEntries[0];
+        dedupedEntries.find((entry) => !entry.isVariation) ?? dedupedEntries[0];
       const childEntries = dedupedEntries.filter(
         (entry) => entry.productId !== explicitParent!.productId,
       );
