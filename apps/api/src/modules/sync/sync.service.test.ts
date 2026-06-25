@@ -516,12 +516,21 @@ describe("SyncService", () => {
       "company_123",
     );
     expect(response.run.counts.orders).toBe(1);
+    expect(response.run.cursor).toBeNull();
     expect(response.run.origin).toBe("manual");
     expect(response.availability.reason).toBe("available");
     expect(response.run.manualRange).toEqual({
       endAt: "2026-06-20T23:59:59.999Z",
       startAt: "2026-06-10T00:00:00.000Z",
     });
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        (db.update.mock.results[0]?.value.set.mock.calls[0]?.[0] as {
+          metadata?: Record<string, unknown>;
+        })?.metadata ?? {},
+        "resultCursor",
+      ),
+    ).toBe(false);
   });
 
   it("rejects manual ranges where start date is after end date", async () => {

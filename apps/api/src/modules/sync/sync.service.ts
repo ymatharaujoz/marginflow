@@ -819,6 +819,7 @@ export class SyncService {
           metadata: {
             importCounts: counts,
             origin: input.triggerOrigin,
+            ...(syncResult.metadata ? { providerMetadata: syncResult.metadata } : {}),
             requestedCursor,
             trigger: input.triggerMetadata,
             ...(input.manualRange ? {} : { resultCursor: syncResult.cursor }),
@@ -828,6 +829,12 @@ export class SyncService {
         })
         .where(eq(syncRuns.id, processingRun.id))
         .returning();
+
+      if (input.manualRange && syncResult.metadata) {
+        this.logger.log(
+          `${input.providerSlug} manual sync diagnostics ${JSON.stringify(syncResult.metadata)}`,
+        );
+      }
 
       await this.financeService.materializeOrganizationMetrics(
         input.organizationId,

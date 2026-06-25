@@ -101,6 +101,7 @@ export type IntegrationSyncContext = {
 
 export type IntegrationSyncResult = {
   cursor: IntegrationSyncCursor;
+  metadata?: Record<string, unknown>;
   orders: IntegrationSyncOrder[];
   products: IntegrationSyncProduct[];
 };

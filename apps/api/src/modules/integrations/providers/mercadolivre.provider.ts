@@ -407,6 +407,15 @@ function toOptionalString(value: number | string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
+function toTimestamp(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const timestamp = new Date(value).getTime();
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
+
 function resolveMercadoLivreReturnQuantity(
   item: MercadoLivreOrderItemResponse,
 ) {
@@ -651,23 +660,30 @@ export class MercadoLivreProvider implements IntegrationProvider {
       );
     }
 
-    const orderedAfter =
-      input.mode === "manual_range"
-        ? input.range.startAt
-        : input.cursor &&
-            typeof input.cursor === "object" &&
-            typeof input.cursor.orderedAfter === "string"
-          ? input.cursor.orderedAfter
-          : null;
-    const orderedBefore =
-      input.mode === "manual_range" ? input.range.endAt : null;
+    const incrementalOrderedAfter =
+      input.mode === "incremental" &&
+      input.cursor &&
+      typeof input.cursor === "object" &&
+      typeof input.cursor.orderedAfter === "string"
+        ? input.cursor.orderedAfter
+        : null;
 
-    const orders = await this.fetchOrders({
-      accessToken: input.connection.accessToken,
-      accountId,
-      orderedAfter,
-      orderedBefore,
-    });
+    const orderFetchResult =
+      input.mode === "manual_range"
+        ? await this.fetchOrders({
+            accessToken: input.connection.accessToken,
+            accountId,
+            mode: "manual_range",
+            rangeEndAt: input.range.endAt,
+            rangeStartAt: input.range.startAt,
+          })
+        : await this.fetchOrders({
+            accessToken: input.connection.accessToken,
+            accountId,
+            mode: "incremental",
+            orderedAfter: incrementalOrderedAfter,
+          });
+    const { metadata, orders } = orderFetchResult;
 
     const products = dedupeProducts(
       orders.flatMap((order) =>
@@ -696,7 +712,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
             return latest === null || order.orderedAt > latest
               ? order.orderedAt
               : latest;
-          }, orderedAfter);
+          }, incrementalOrderedAfter);
 
     return {
       cursor: nextOrderedAfter
@@ -706,6 +722,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
         : input.mode === "incremental"
           ? input.cursor
           : null,
+      metadata,
       orders,
       products,
     };
@@ -894,27 +911,66 @@ export class MercadoLivreProvider implements IntegrationProvider {
     return response!;
   }
 
-  private async fetchOrders(input: {
-    accessToken: string;
-    accountId: string;
-    orderedAfter: string | null;
-    orderedBefore: string | null;
+  private resolveSaleTimestamp(input: {
+    date_closed?: string;
+    date_created?: string;
   }) {
+    return input.date_closed ?? input.date_created ?? null;
+  }
+
+  private isManualRangeOrderWithinRange(
+    order: IntegrationSyncOrder,
+    range: {
+      endAt: string;
+      startAt: string;
+    },
+  ) {
+    const orderedAt = toTimestamp(order.orderedAt);
+    const startAt = toTimestamp(range.startAt);
+    const endAt = toTimestamp(range.endAt);
+
+    if (orderedAt === null || startAt === null || endAt === null) {
+      return false;
+    }
+
+    return orderedAt >= startAt && orderedAt <= endAt;
+  }
+
+  private async fetchOrders(
+    input:
+      | {
+          accessToken: string;
+          accountId: string;
+          mode: "incremental";
+          orderedAfter: string | null;
+        }
+      | {
+          accessToken: string;
+          accountId: string;
+          mode: "manual_range";
+          rangeEndAt: string;
+          rangeStartAt: string;
+        },
+  ) {
     const collected: IntegrationSyncOrder[] = [];
     let offset = 0;
     const limit = 50;
     let pageCount = 0;
+    let rawOrderCount = 0;
     let total = Number.POSITIVE_INFINITY;
 
-    while (offset < total && pageCount < 4) {
+    while (offset < total) {
       const url = new URL("https://api.mercadolibre.com/orders/search");
       url.searchParams.set("limit", String(limit));
       url.searchParams.set("offset", String(offset));
       url.searchParams.set("seller", input.accountId);
       url.searchParams.set("sort", "date_desc");
 
-      if (input.orderedAfter) {
+      if (input.mode === "incremental" && input.orderedAfter) {
         url.searchParams.set("order.date_created.from", input.orderedAfter);
+      }
+      if (input.mode === "manual_range") {
+        url.searchParams.set("order.date_created.to", input.rangeEndAt);
       }
 
       const response = await fetch(url, {
@@ -943,14 +999,17 @@ export class MercadoLivreProvider implements IntegrationProvider {
           }),
         ),
       );
-      collected.push(
-        ...pageOrders.filter((order) => {
-          if (!input.orderedBefore || !order.orderedAt) {
-            return true;
-          }
+      rawOrderCount += pageOrders.length;
 
-          return order.orderedAt <= input.orderedBefore;
-        }),
+      collected.push(
+        ...pageOrders.filter((order) =>
+          input.mode === "manual_range"
+            ? this.isManualRangeOrderWithinRange(order, {
+                endAt: input.rangeEndAt,
+                startAt: input.rangeStartAt,
+              })
+            : true,
+        ),
       );
       total = payload.paging?.total ?? pageOrders.length;
       offset += payload.paging?.limit ?? limit;
@@ -961,7 +1020,21 @@ export class MercadoLivreProvider implements IntegrationProvider {
       }
     }
 
-    return collected;
+    return {
+      metadata:
+        input.mode === "manual_range"
+          ? {
+              fetchedOrderCount: rawOrderCount,
+              fetchedPageCount: pageCount,
+              importedOrderCount: collected.length,
+              rangeEndAt: input.rangeEndAt,
+              rangeStartAt: input.rangeStartAt,
+              saleDateField: "date_closed_or_date_created",
+              searchUpperBoundField: "order.date_created.to",
+            }
+          : undefined,
+      orders: collected,
+    };
   }
 
   private async normalizeOrder(
@@ -1035,7 +1108,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
         tags: order.tags ?? [],
         titleByExternalProductId,
       },
-      orderedAt: order.date_closed ?? order.date_created ?? null,
+      orderedAt: this.resolveSaleTimestamp(order),
       status: order.status ?? "imported",
       totalAmount: toDecimalString(order.total_amount),
     };

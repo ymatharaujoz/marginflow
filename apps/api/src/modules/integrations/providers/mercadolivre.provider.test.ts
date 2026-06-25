@@ -1,6 +1,50 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MercadoLivreProvider } from "./mercadolivre.provider";
 
+function createProvider() {
+  return new MercadoLivreProvider({
+    API_DB_POOL_MAX: 5,
+    API_HOST: "127.0.0.1",
+    API_PORT: 4000,
+    BETTER_AUTH_SECRET: "secret",
+    BETTER_AUTH_URL: "http://localhost:4000",
+    DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+    MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+    MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+    MERCADOLIVRE_REDIRECT_URI:
+      "http://localhost:4000/integrations/mercadolivre/callback",
+    NODE_ENV: "test",
+    STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+    STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+    STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+    STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+    STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+    STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+    STRIPE_SECRET_KEY: "stripe",
+    STRIPE_WEBHOOK_SECRET: "webhook",
+    SYNC_RELAX_GUARDS: false,
+    WEB_APP_ORIGIN: "http://localhost:3000",
+  });
+}
+
+function createSyncConnection() {
+  return {
+    accessToken: "token_123",
+    companyId: "company_1",
+    createdAt: new Date("2026-05-14T10:00:00.000Z"),
+    externalAccountId: "123456",
+    id: "conn_1",
+    lastSyncedAt: null,
+    metadata: {},
+    organizationId: "org_1",
+    provider: "mercadolivre" as const,
+    refreshToken: null,
+    status: "connected" as const,
+    tokenExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-05-14T10:00:00.000Z"),
+  };
+}
+
 describe("MercadoLivreProvider", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -1330,30 +1374,86 @@ describe("MercadoLivreProvider", () => {
     ]);
   });
 
-  it("limits manual range syncs to the requested end date and returns no incremental cursor", async () => {
-    const provider = new MercadoLivreProvider({
-      API_DB_POOL_MAX: 5,
-      API_HOST: "127.0.0.1",
-      API_PORT: 4000,
-      BETTER_AUTH_SECRET: "secret",
-      BETTER_AUTH_URL: "http://localhost:4000",
-      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
-      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
-      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
-      MERCADOLIVRE_REDIRECT_URI:
-        "http://localhost:4000/integrations/mercadolivre/callback",
-      NODE_ENV: "test",
-      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
-      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
-      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
-      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
-      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
-      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
-      STRIPE_SECRET_KEY: "stripe",
-      STRIPE_WEBHOOK_SECRET: "webhook",
-      SYNC_RELAX_GUARDS: false,
-      WEB_APP_ORIGIN: "http://localhost:3000",
+  it("fetches all manual sync pages and filters sales by closing date within range", async () => {
+    const provider = createProvider();
+    const totalOrders = 251;
+    const pageSize = 50;
+    const fetchMock = vi.fn();
+
+    for (let offset = 0; offset < totalOrders; offset += pageSize) {
+      const pageOrders = Array.from(
+        { length: Math.min(pageSize, totalOrders - offset) },
+        (_, index) => {
+          const orderNumber = offset + index + 1;
+
+          return {
+            currency_id: "BRL",
+            date_closed: `2026-05-${String((orderNumber % 20) + 1).padStart(2, "0")}T10:00:00.000Z`,
+            date_created: "2026-04-28T10:00:00.000Z",
+            id: orderNumber,
+            order_items: [
+              {
+                item: {
+                  id: `MLB${orderNumber}`,
+                  seller_sku: `SKU-${orderNumber}`,
+                  title: `Produto ${orderNumber}`,
+                },
+                quantity: 1,
+                sale_fee: 10,
+                unit_price: 100,
+              },
+            ],
+            payments: [{ fee_amount: 3, shipping_cost: 5 }],
+            total_amount: 100,
+          };
+        },
+      );
+
+      fetchMock.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: pageSize, offset, total: totalOrders },
+            results: pageOrders,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+    }
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: createSyncConnection(),
+      mode: "manual_range",
+      organizationId: "org_1",
+      range: {
+        endAt: "2026-05-20T23:59:59.999Z",
+        startAt: "2026-05-01T00:00:00.000Z",
+      },
     });
+
+    const firstRequestUrl = fetchMock.mock.calls[0]?.[0].toString() ?? "";
+    const lastRequestUrl =
+      fetchMock.mock.calls[fetchMock.mock.calls.length - 1]?.[0].toString() ??
+      "";
+
+    expect(firstRequestUrl).toContain(
+      "order.date_created.to=2026-05-20T23%3A59%3A59.999Z",
+    );
+    expect(firstRequestUrl).not.toContain("order.date_created.from=");
+    expect(lastRequestUrl).toContain("offset=250");
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(result.orders).toHaveLength(totalOrders);
+    expect(result.orders[0]?.externalOrderId).toBe("1");
+    expect(result.orders.at(-1)?.externalOrderId).toBe("251");
+    expect(result.cursor).toBeNull();
+  });
+
+  it("includes manual sync orders created before range when they close within range", async () => {
+    const provider = createProvider();
 
     const fetchMock = vi
       .fn()
@@ -1364,7 +1464,8 @@ describe("MercadoLivreProvider", () => {
             results: [
               {
                 currency_id: "BRL",
-                date_created: "2026-05-15T10:00:00.000Z",
+                date_closed: "2026-05-15T10:00:00.000Z",
+                date_created: "2026-05-01T10:00:00.000Z",
                 id: 123,
                 order_items: [
                   {
@@ -1383,6 +1484,7 @@ describe("MercadoLivreProvider", () => {
               },
               {
                 currency_id: "BRL",
+                date_closed: "2026-05-25T10:00:00.000Z",
                 date_created: "2026-05-25T10:00:00.000Z",
                 id: 124,
                 order_items: [
@@ -1424,21 +1526,7 @@ describe("MercadoLivreProvider", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await provider.syncOrders({
-      connection: {
-        accessToken: "token_123",
-        companyId: "company_1",
-        createdAt: new Date("2026-05-14T10:00:00.000Z"),
-        externalAccountId: "123456",
-        id: "conn_1",
-        lastSyncedAt: null,
-        metadata: {},
-        organizationId: "org_1",
-        provider: "mercadolivre",
-        refreshToken: null,
-        status: "connected",
-        tokenExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-05-14T10:00:00.000Z"),
-      },
+      connection: createSyncConnection(),
       mode: "manual_range",
       organizationId: "org_1",
       range: {
@@ -1448,10 +1536,64 @@ describe("MercadoLivreProvider", () => {
     });
 
     expect(fetchMock.mock.calls[0]?.[0].toString()).toContain(
-      "order.date_created.from=2026-05-10T00%3A00%3A00.000Z",
+      "order.date_created.to=2026-05-20T23%3A59%3A59.999Z",
     );
     expect(result.orders).toHaveLength(1);
     expect(result.orders[0]?.externalOrderId).toBe("123");
+    expect(result.cursor).toBeNull();
+  });
+
+  it("excludes manual sync orders that close after the selected range", async () => {
+    const provider = createProvider();
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          paging: { limit: 50, offset: 0, total: 1 },
+          results: [
+            {
+              currency_id: "BRL",
+              date_closed: "2026-05-21T00:00:00.000Z",
+              date_created: "2026-05-18T10:00:00.000Z",
+              id: 125,
+              order_items: [
+                {
+                  item: {
+                    id: "MLB125",
+                    seller_sku: "SKU-125",
+                    title: "Produto 125",
+                  },
+                  quantity: 1,
+                  sale_fee: 10,
+                  unit_price: 100,
+                },
+              ],
+              payments: [{ fee_amount: 3, shipping_cost: 5 }],
+              total_amount: 100,
+            },
+          ],
+        }),
+        {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        },
+      ),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: createSyncConnection(),
+      mode: "manual_range",
+      organizationId: "org_1",
+      range: {
+        endAt: "2026-05-20T23:59:59.999Z",
+        startAt: "2026-05-10T00:00:00.000Z",
+      },
+    });
+
+    expect(result.orders).toEqual([]);
+    expect(result.products).toEqual([]);
     expect(result.cursor).toBeNull();
   });
 
