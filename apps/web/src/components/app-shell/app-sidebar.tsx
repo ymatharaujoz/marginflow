@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, X, ChevronDown } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
@@ -127,7 +128,6 @@ export function AppSidebar({
   isMobile?: boolean;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [expandedMenu, setExpandedMenu] = useState<string | null>(null);
 
   useEffect(() => {
@@ -222,8 +222,10 @@ export function AppSidebar({
                 transition={{ delay: index * 0.05, duration: 0.3 }}
                 className="relative"
               >
-                {/* Parent button */}
-                <button
+                {/* Parent item (Link — supports Ctrl/Cmd/middle-click to open in new tab) */}
+                <Link
+                  href={link.href}
+                  prefetch={!hasChildren}
                   className={cn(
                     "group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5",
                     "text-[13px] font-medium transition-all duration-[var(--transition-fast)]",
@@ -234,14 +236,14 @@ export function AppSidebar({
                     !collapsed && parentActive && "bg-accent-soft/50",
                     !collapsed && !parentActive && "hover:bg-foreground/[0.03]"
                   )}
-                  onClick={() => {
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                    if (e.button !== 0) return;
                     if (hasChildren) {
+                      e.preventDefault();
                       toggleMenu(link.href);
-                    } else {
-                      router.push(link.href);
                     }
                   }}
-                  type="button"
                 >
                   {/* Active indicator - left border */}
                   {parentActive && (
@@ -295,7 +297,7 @@ export function AppSidebar({
                       <div className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 border-4 border-transparent border-r-foreground" />
                     </div>
                   )}
-                </button>
+                </Link>
 
                 {/* Expanded sub-menu (non-collapsed) */}
                 <AnimatePresence>
@@ -311,7 +313,9 @@ export function AppSidebar({
                         const childActive = isActive(child.href);
                         return (
                           <li key={child.href}>
-                            <button
+                            <Link
+                              href={child.href}
+                              prefetch={false}
                               className={cn(
                                 "group flex w-full items-center gap-2 rounded-md py-2 pr-3 pl-10",
                                 "text-[12px] font-medium transition-all duration-[var(--transition-fast)]",
@@ -319,8 +323,6 @@ export function AppSidebar({
                                   ? "text-accent-strong bg-accent-soft/30"
                                   : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.03]"
                               )}
-                              onClick={() => router.push(child.href)}
-                              type="button"
                             >
                               <span
                                 className={cn(
@@ -331,7 +333,7 @@ export function AppSidebar({
                                 )}
                               />
                               <span className="truncate">{child.label}</span>
-                            </button>
+                            </Link>
                           </li>
                         );
                       })}
@@ -355,8 +357,10 @@ export function AppSidebar({
                       {link.children!.map((child) => {
                         const childActive = isActive(child.href);
                         return (
-                          <button
+                          <Link
                             key={child.href}
+                            href={child.href}
+                            prefetch={false}
                             className={cn(
                               "flex w-full items-center gap-2 rounded-md px-2.5 py-2",
                               "text-[12px] font-medium transition-all duration-[var(--transition-fast)]",
@@ -364,11 +368,11 @@ export function AppSidebar({
                                 ? "text-accent-strong bg-accent-soft/30"
                                 : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.03]"
                             )}
-                            onClick={() => {
+                            onClick={(e) => {
+                              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                              if (e.button !== 0) return;
                               setExpandedMenu(null);
-                              router.push(child.href);
                             }}
-                            type="button"
                           >
                             <span
                               className={cn(
@@ -379,7 +383,7 @@ export function AppSidebar({
                               )}
                             />
                             <span className="truncate">{child.label}</span>
-                          </button>
+                          </Link>
                         );
                       })}
                       <div className="absolute left-0 top-4 -translate-x-1 border-4 border-transparent border-r-surface-strong" />
