@@ -447,6 +447,8 @@ function CatalogProductDetailsModal({
     },
   });
 
+  const isSyntheticParent = product?.isSyntheticParent ?? false;
+
   return (
       <Modal
         className="w-[94vw] max-w-5xl"
@@ -522,6 +524,11 @@ function CatalogProductDetailsModal({
                   <DollarSign className="h-4 w-4 text-accent" />
                 </div>
                 <div>
+                  {isSyntheticParent ? (
+                    <p className="text-[11px] text-muted-foreground/70">
+                      Pai lógico do anúncio. Edite custos apenas nas variações vinculadas.
+                    </p>
+                  ) : null}
                   <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-accent">
                     Informações Financeiras
                   </h3>
@@ -544,6 +551,7 @@ function CatalogProductDetailsModal({
                   </label>
                   <div className="mt-2">
                     <CurrencyInput
+                      disabled={isSyntheticParent}
                       id="catalog-unit-cost"
                       name="unitCost"
                       onChange={(val) =>
@@ -564,6 +572,7 @@ function CatalogProductDetailsModal({
                   </label>
                   <div className="mt-2">
                     <CurrencyInput
+                      disabled={isSyntheticParent}
                       id="catalog-packaging-cost"
                       name="packagingCost"
                       onChange={(val) =>
@@ -604,6 +613,7 @@ function CatalogProductDetailsModal({
 
             {/* Barra de ações */}
             <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/30 pt-6">
+              {!isSyntheticParent && (
               <Button
                 loading={deleteMutation.isPending}
                 onClick={() => {
@@ -618,10 +628,11 @@ function CatalogProductDetailsModal({
               >
                 Excluir produto
               </Button>
+              )}
               <Button
                 type="submit"
                 className="px-6"
-                disabled={saveMutation.isPending || deleteMutation.isPending}
+                disabled={isSyntheticParent || saveMutation.isPending || deleteMutation.isPending}
                 loading={saveMutation.isPending}
               >
                 Salvar

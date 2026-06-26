@@ -133,6 +133,7 @@ export type ProductListItem = ProductRecord & {
   derivedFromProvider: "mercadolivre" | null;
   latestCost: ProductCostRecord | null;
   financeDefaults: ProductFinanceDefaultsRecord | null;
+  isSyntheticParent: boolean;
   parentProductId: string | null;
   variationLabel: string | null;
 };
@@ -289,6 +290,7 @@ export type ProductPerformanceRow = ProductMonthlyPerformanceDisplayRow & {
   catalogGroupKey: string | null;
   catalogRole: ProductCatalogRole;
   children: ProductPerformanceRow[];
+  isSyntheticParent: boolean;
   parentProductId: string | null;
   variationLabel: string | null;
 };

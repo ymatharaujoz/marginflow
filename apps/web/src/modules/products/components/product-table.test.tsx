@@ -88,6 +88,7 @@ function buildRow(index: number, overrides: Partial<ProductTableRow> = {}): Prod
     unitProfit: 20,
     variationLabel: null,
     ...overrides,
+    isSyntheticParent: overrides.isSyntheticParent ?? false,
   };
 }
 
@@ -294,7 +295,7 @@ describe("ProductTable", () => {
       />,
     );
 
-    expect(document.body.textContent).toContain("Pre\u00e7o de Venda");
+    expect(document.body.textContent).toContain("PDV");
     expect(document.body.textContent).toContain("Margem Contribui\u00e7\u00e3o");
     expect(document.body.textContent).toContain("Lucro Total");
     expect(document.body.textContent?.replace(/\u00a0/g, " ")).toContain("R$ 78,03");

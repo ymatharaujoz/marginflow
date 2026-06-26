@@ -36,6 +36,7 @@ export type ProductTableRow = {
   catalogGroupKey: string | null;
   catalogRole: "parent" | "child" | "standalone";
   children: ProductTableRow[];
+  isSyntheticParent: boolean;
   name: string;
   displayName: string;
   parentProductId: string | null;

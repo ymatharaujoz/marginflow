@@ -2145,6 +2145,128 @@ describe("MercadoLivreProvider", () => {
     );
   });
 
+  it("prefers manual seller_sku values for parent and variations before legacy and fallback SKUs", async () => {
+    const provider = new MercadoLivreProvider({
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      NODE_ENV: "test",
+    } as never);
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: ["MLB900"],
+            scroll_id: "active-next",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [],
+            scroll_id: "active-next",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            results: [],
+            scroll_id: "paused-next",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              code: 200,
+              body: {
+                id: "MLB900",
+                title: "Tenis Casual",
+                price: 199.9,
+                seller_custom_field: "TENIS-LEGACY",
+                seller_sku: "TENIS-PAI-MANUAL",
+                status: "active",
+                attributes: [],
+                pictures: [
+                  {
+                    id: "PIC-1",
+                    secure_url: "https://http2.mlstatic.com/tenis-1.jpg",
+                  },
+                ],
+                variations: [
+                  {
+                    id: 11,
+                    seller_custom_field: "TENIS-AZUL-LEGACY",
+                    seller_sku: "TENIS-AZUL-39",
+                    price: 209.9,
+                    picture_ids: ["PIC-1"],
+                    attribute_combinations: [
+                      { name: "Cor", value_name: "Azul" },
+                      { name: "Tamanho", value_name: "39" },
+                    ],
+                  },
+                  {
+                    id: 12,
+                    seller_custom_field: "TENIS-PRETO-LEGACY",
+                    seller_sku: "TENIS-PRETO-40",
+                    price: 219.9,
+                    picture_ids: ["PIC-1"],
+                    attribute_combinations: [
+                      { name: "Cor", value_name: "Preto" },
+                      { name: "Tamanho", value_name: "40" },
+                    ],
+                  },
+                ],
+              },
+            },
+          ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.importCatalog({
+      connection: {
+        accessToken: "access-token",
+        externalAccountId: "seller-1",
+      } as never,
+      organizationId: "org-1",
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        externalProductId: "MLB900",
+        metadata: { itemId: "MLB900", variationId: null },
+        sku: "TENIS-PAI-MANUAL",
+      }),
+      expect.objectContaining({
+        externalProductId: "MLB900:11",
+        metadata: { itemId: "MLB900", variationId: "11" },
+        sku: "TENIS-AZUL-39",
+      }),
+      expect.objectContaining({
+        externalProductId: "MLB900:12",
+        metadata: { itemId: "MLB900", variationId: "12" },
+        sku: "TENIS-PRETO-40",
+      }),
+    ]);
+  });
+
   it("falls back to shipment detail order_cost when shipment costs payload omits senders", async () => {
     const provider = new MercadoLivreProvider({
       API_DB_POOL_MAX: 5,

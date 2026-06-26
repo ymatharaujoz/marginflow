@@ -400,6 +400,189 @@ function buildProductLookupMaps(products: ProductListItem[]) {
   return { byId, bySku };
 }
 
+function buildProductRowKey(row: Pick<ProductTableRow, "id" | "performanceId" | "productId">) {
+  return row.productId ?? `${row.id}:${row.performanceId}`;
+}
+
+function buildSyntheticParentRow(
+  parent: ProductListItem,
+  children: ProductTableRow[],
+): ProductTableRow | null {
+  if (children.length === 0) {
+    return null;
+  }
+
+  const totals = children.reduce(
+    (accumulator, child) => {
+      accumulator.adSpend += child.adSpend;
+      accumulator.netLiquidSales += child.netLiquidSales;
+      accumulator.revenue += child.revenue;
+      accumulator.returns += child.returns;
+      accumulator.sales += child.sales;
+      accumulator.shipping += child.shipping;
+      accumulator.totalCommission += child.totalCommission;
+      accumulator.totalPackagingCost += child.totalPackagingCost;
+      accumulator.totalProductCost += child.totalProductCost;
+      accumulator.totalProfit += child.totalProfit;
+      return accumulator;
+    },
+    {
+      adSpend: 0,
+      netLiquidSales: 0,
+      revenue: 0,
+      returns: 0,
+      sales: 0,
+      shipping: 0,
+      totalCommission: 0,
+      totalPackagingCost: 0,
+      totalProductCost: 0,
+      totalProfit: 0,
+    },
+  );
+  const weightedUnitMetric = (
+    selector: (row: ProductTableRow) => number,
+  ) =>
+    totals.netLiquidSales > 0
+      ? children.reduce(
+          (sum, child) => sum + selector(child) * child.netLiquidSales,
+          0,
+        ) / totals.netLiquidSales
+      : 0;
+  const contributionMarginRatio =
+    totals.revenue > 0 ? totals.totalProfit / totals.revenue : null;
+  const roiRatio =
+    totals.totalProductCost > 0 ? totals.totalProfit / totals.totalProductCost : null;
+
+  return {
+    actualRoas: totals.adSpend > 0 ? totals.revenue / totals.adSpend : null,
+    adSpend: totals.adSpend,
+    advertisingCost: totals.adSpend,
+    catalogGroupKey: parent.catalogGroupKey,
+    catalogRole: "parent",
+    channelLabel: children[0]?.channelLabel ?? "mercadolivre",
+    children,
+    commissionPct: totals.revenue > 0 ? (totals.totalCommission / totals.revenue) * 100 : 0,
+    contributionMarginRatio,
+    coverImageUrl: parent.coverImageUrl,
+    displayName: parent.name,
+    fixedFeeUnit: weightedUnitMetric((row) => row.fixedFeeUnit ?? 0),
+    id: parent.id,
+    isActive: parent.isActive,
+      isSyntheticParent: Boolean(parent.isSyntheticParent),
+    marketplaceCommissionUnit: weightedUnitMetric(
+      (row) => row.marketplaceCommissionUnit ?? 0,
+    ),
+    minimumRoas:
+      contributionMarginRatio !== null && contributionMarginRatio > 0
+        ? 1 / contributionMarginRatio
+        : null,
+    name: parent.name,
+    netLiquidSales: totals.netLiquidSales,
+    packagingCost: weightedUnitMetric((row) => row.packagingCost),
+    parentProductId: null,
+    performanceId: `synthetic:${parent.id}:${children[0]?.referenceMonth ?? "unknown"}`,
+    productId: parent.isSyntheticParent ? null : parent.id,
+    referenceMonth: children[0]?.referenceMonth ?? "",
+    returns: totals.returns,
+    revenue: totals.revenue,
+    roiRatio,
+    sales: totals.sales,
+    sellingPrice: weightedUnitMetric((row) => row.sellingPrice),
+    shipping: totals.shipping,
+    shippingOrFixedFeeSource: children[0]?.shippingOrFixedFeeSource,
+    shippingOrFixedFeeUnit: weightedUnitMetric(
+      (row) => row.shippingOrFixedFeeUnit ?? 0,
+    ),
+    shippingUnit: weightedUnitMetric((row) => row.shippingUnit ?? 0),
+    sku: parent.sku ?? children[0]?.sku ?? "",
+    taxPct: weightedUnitMetric((row) => row.taxPct),
+    totalCommission: totals.totalCommission,
+    totalPackagingCost: totals.totalPackagingCost,
+    totalProductCost: totals.totalProductCost,
+    totalProfit: totals.totalProfit,
+    unitCost: weightedUnitMetric((row) => row.unitCost),
+    unitProfit:
+      totals.netLiquidSales > 0 ? totals.totalProfit / totals.netLiquidSales : null,
+    variationLabel: null,
+  };
+}
+
+function groupCatalogRows(
+  products: ProductListItem[],
+  flatRows: ProductTableRow[],
+): ProductTableRow[] {
+  const rowByProductId = new Map(
+    flatRows
+      .filter((row): row is ProductTableRow & { productId: string } => row.productId !== null)
+      .map((row) => [row.productId, row] as const),
+  );
+  const rowBySku = new Map(flatRows.map((row) => [row.sku, row] as const));
+  const consumedKeys = new Set<string>();
+  const groupedRows: ProductTableRow[] = [];
+
+  const resolveRowForProduct = (product: ProductListItem) =>
+    rowByProductId.get(product.id) ??
+    (product.sku ? rowBySku.get(product.sku) ?? null : null);
+
+  for (const product of products) {
+    if (product.catalogRole === "parent" && product.children.length > 0) {
+      const childRows = product.children
+        .map((child) => resolveRowForProduct(child))
+        .filter((row): row is ProductTableRow => row !== null);
+
+      const parentRow = resolveRowForProduct(product);
+      const groupedParent =
+        parentRow !== null
+          ? {
+              ...parentRow,
+              catalogGroupKey: product.catalogGroupKey,
+              catalogRole: "parent" as const,
+              children: childRows,
+              displayName: product.name,
+              isSyntheticParent: Boolean(product.isSyntheticParent),
+              name: product.name,
+              parentProductId: null,
+              productId: product.isSyntheticParent ? null : product.id,
+              sku: product.sku ?? parentRow.sku,
+              variationLabel: null,
+            }
+          : buildSyntheticParentRow(product, childRows);
+
+      if (groupedParent) {
+        groupedRows.push(groupedParent);
+        consumedKeys.add(buildProductRowKey(groupedParent));
+        for (const childRow of childRows) {
+          consumedKeys.add(buildProductRowKey(childRow));
+        }
+      }
+
+      continue;
+    }
+
+    const standaloneRow = resolveRowForProduct(product);
+    if (!standaloneRow) {
+      continue;
+    }
+
+    const key = buildProductRowKey(standaloneRow);
+    if (consumedKeys.has(key)) {
+      continue;
+    }
+
+    groupedRows.push(standaloneRow);
+    consumedKeys.add(key);
+  }
+
+  for (const row of flatRows) {
+    const key = buildProductRowKey(row);
+    if (!consumedKeys.has(key)) {
+      groupedRows.push(row);
+    }
+  }
+
+  return groupedRows;
+}
+
 export function buildProductTableRows(data: ProductCatalogData): ProductTableRow[] {
   const { byId, bySku } = buildProductLookupMaps(data.products);
   const productAnalyticsById = new Map(
@@ -479,6 +662,7 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
       displayName: productName,
       id: row.productId ?? row.id,
       isActive: product?.isActive ?? true,
+      isSyntheticParent: product?.isSyntheticParent ?? false,
       name: productName,
       fixedFeeUnit: toNumber(row.fixedFeeUnit),
       marketplaceCommissionUnit: toNumber(row.marketplaceCommissionUnit),
@@ -517,16 +701,19 @@ export function buildProductTableRows(data: ProductCatalogData): ProductTableRow
   };
 
   if (data.performanceRows.length > 0) {
-    return data.performanceRows.map(mapPerformanceRow);
+    return groupCatalogRows(data.products, data.performanceRows.map(mapPerformanceRow));
   }
 
-  return data.monthlyPerformanceRows.map((row) =>
-    mapRow(
-      row,
-      (row.productId ? byId.get(row.productId) ?? null : null) ??
-        bySku.get(row.sku) ??
-        null,
-      [],
+  return groupCatalogRows(
+    data.products,
+    data.monthlyPerformanceRows.map((row) =>
+      mapRow(
+        row,
+        (row.productId ? byId.get(row.productId) ?? null : null) ??
+          bySku.get(row.sku) ??
+          null,
+        [],
+      ),
     ),
   );
 }

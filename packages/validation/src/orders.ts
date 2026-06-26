@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createApiSuccessResponseSchema } from "./protected-app";
 
-const decimalPattern = /^-?\d+(?:\.\d{1,2})?$/;
+const decimalPattern = /^-?\d+(?:\.\d{1,4})?$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 function decimalField(label: string) {

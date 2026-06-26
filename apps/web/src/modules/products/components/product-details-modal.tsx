@@ -315,6 +315,7 @@ export function ProductDetailsModal({
     return null;
   }
 
+  const isSyntheticParent = row.isSyntheticParent;
   const netRevenue = computeRowNetRevenue(row);
 
   return (
@@ -473,12 +474,13 @@ export function ProductDetailsModal({
                     >
                       Investimento em Publicidade
                     </label>
-                    <div className="mt-2">
-                      <CurrencyInput
-                        id="performance-advertising-cost"
-                        name="advertisingCost"
-                        onChange={setAdvertisingCost}
-                        placeholder="0,00"
+                  <div className="mt-2">
+                    <CurrencyInput
+                      disabled={isSyntheticParent}
+                      id="performance-advertising-cost"
+                      name="advertisingCost"
+                      onChange={setAdvertisingCost}
+                      placeholder="0,00"
                         required
                         value={advertisingCost}
                       />
@@ -491,9 +493,14 @@ export function ProductDetailsModal({
                     {errorMessage}
                   </div>
                 ) : null}
+                {isSyntheticParent ? (
+                  <div className="rounded-[var(--radius-md)] border border-border/40 bg-surface/60 px-3 py-2.5 text-sm text-muted-foreground">
+                    Pai lógico do anúncio. A composição consolidada aparece aqui, mas a edição continua nas variações.
+                  </div>
+                ) : null}
 
                 <div className="flex justify-end border-t border-border/30 pt-4">
-                  <Button disabled={updateMutation.isPending} type="submit">
+                  <Button disabled={isSyntheticParent || updateMutation.isPending} type="submit">
                     Salvar
                   </Button>
                 </div>

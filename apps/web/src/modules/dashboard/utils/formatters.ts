@@ -16,7 +16,7 @@ export function formatMoney(
 
 export function formatPercent(
   value: number | string | null | undefined,
-  options?: { digits?: number },
+  options?: { digits?: number; truncate?: boolean },
 ) {
   const numeric = normalizeNumber(value);
   if (numeric === null) return "â€”";
@@ -25,7 +25,15 @@ export function formatPercent(
     return "0.0%";
   }
 
-  return `${numeric.toFixed(options?.digits ?? 1)}%`;
+  const digits = options?.digits ?? 1;
+  const factor = 10 ** digits;
+
+  if (options?.truncate) {
+    const truncated = Math.trunc(numeric * factor) / factor;
+    return `${truncated.toFixed(digits)}%`;
+  }
+
+  return `${numeric.toFixed(digits)}%`;
 }
 
 export function formatNumber(value: number | string | null | undefined) {

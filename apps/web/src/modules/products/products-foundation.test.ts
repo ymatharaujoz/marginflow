@@ -93,6 +93,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       catalogRole: "parent",
       channel: "mercadolivre",
       children: [],
+      isSyntheticParent: false,
       commissionRate: "0.100000",
       fixedFeeUnit: "5.00",
       id: "perf_1",
@@ -120,6 +121,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       catalogRole: "child",
       channel: "mercadolivre",
       children: [],
+      isSyntheticParent: false,
       commissionRate: "0.100000",
       fixedFeeUnit: "0.00",
       id: "perf_child_1",
@@ -147,6 +149,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       catalogRole: "standalone",
       channel: "unknown",
       children: [],
+      isSyntheticParent: false,
       commissionRate: "0.000000",
       fixedFeeUnit: "0.00",
       id: "perf_2",
@@ -260,6 +263,7 @@ const snapshot: ProductAnalyticsSnapshot = {
           id: "product_1a",
           images: [],
           isActive: true,
+          isSyntheticParent: false,
           latestCost: null,
           name: "Product One - Azul",
           organizationId: "org_123",
@@ -275,6 +279,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       id: "product_1",
       images: [],
       isActive: true,
+      isSyntheticParent: false,
       latestCost: {
         amount: "25.00",
         companyId: "company_1",
@@ -308,6 +313,7 @@ const snapshot: ProductAnalyticsSnapshot = {
       id: "product_2",
       images: [],
       isActive: true,
+      isSyntheticParent: false,
       latestCost: null,
       name: "Product Two",
       organizationId: "org_123",
@@ -363,11 +369,18 @@ describe("products foundation helpers", () => {
         advertisingCost: 10,
         catalogRole: "parent",
         channelLabel: "mercadolivre",
-        children: [],
+        children: [
+          expect.objectContaining({
+            catalogRole: "child",
+            parentProductId: "product_1",
+            variationLabel: "Cor: Azul",
+          }),
+        ],
         commissionPct: 10,
         contributionMarginRatio: 0.4,
         coverImageUrl: "https://example.com/product-one.png",
         isActive: true,
+        isSyntheticParent: false,
         minimumRoas: 2.5,
         name: "Product One",
         netLiquidSales: 1,
@@ -386,38 +399,6 @@ describe("products foundation helpers", () => {
         unitProfit: 40,
       }),
       expect.objectContaining({
-        actualRoas: 50,
-        adSpend: 4,
-        advertisingCost: 4,
-        catalogRole: "child",
-        channelLabel: "mercadolivre",
-        children: [],
-        commissionPct: 4,
-        contributionMarginRatio: 0.57,
-        coverImageUrl: "https://example.com/product-variation.png",
-        displayName: "Product One - Azul",
-        isActive: true,
-        minimumRoas: expect.closeTo(1.7543859649, 6),
-        name: "Product One - Azul",
-        netLiquidSales: 2,
-        packagingCost: 2,
-        parentProductId: "product_1",
-        performanceId: "perf_child_1",
-        revenue: 200,
-        returns: 0,
-        roiRatio: 2.28,
-        sales: 2,
-        shipping: 3,
-        sku: "ABC-1-AZ",
-        taxPct: 9,
-        totalPackagingCost: 4,
-        totalProductCost: 50,
-        totalProfit: 114,
-        unitCost: 25,
-        unitProfit: 57,
-        variationLabel: "Cor: Azul",
-      }),
-      expect.objectContaining({
         actualRoas: null,
         adSpend: 0,
         advertisingCost: 0,
@@ -428,6 +409,7 @@ describe("products foundation helpers", () => {
         contributionMarginRatio: null,
         coverImageUrl: null,
         isActive: true,
+        isSyntheticParent: false,
         minimumRoas: null,
         name: "Product Two",
         netLiquidSales: 0,
@@ -652,7 +634,7 @@ describe("products foundation helpers", () => {
     expect(row.commissionPct).toBeCloseTo((10.53 / 89.7) * 100, 2);
   });
 
-  it("keeps child monthly performance rows separate from parent rows when performance is flat", () => {
+  it("groups child monthly performance rows under the parent when catalog hierarchy exists", () => {
     const aggregationSnapshot = structuredClone(snapshot);
     const parent = structuredClone(snapshot.products[0]);
     parent.id = "product_parent";
@@ -728,11 +710,13 @@ describe("products foundation helpers", () => {
     const parentRow = rows.find((row) => row.productId === "product_parent");
     const childRowResult = rows.find((row) => row.productId === "product_child");
 
-    expect(parentRow).toBeUndefined();
-    expect(childRowResult).toBeDefined();
-    expect(childRowResult?.catalogRole).toBe("child");
-    expect(childRowResult?.children).toEqual([]);
-    expect(childRowResult?.totalCommission).toBeCloseTo(42.16, 2);
-    expect(childRowResult?.commissionPct).toBeCloseTo((42.16 / 119.6) * 100, 2);
+    expect(parentRow).toBeDefined();
+    expect(parentRow?.catalogRole).toBe("parent");
+    expect(parentRow?.children).toHaveLength(1);
+    expect(parentRow?.children[0]?.catalogRole).toBe("child");
+    expect(parentRow?.children[0]?.productId).toBe("product_child");
+    expect(parentRow?.totalCommission).toBeCloseTo(42.16, 2);
+    expect(parentRow?.commissionPct).toBeCloseTo((42.16 / 119.6) * 100, 2);
+    expect(childRowResult).toBeUndefined();
   });
 });

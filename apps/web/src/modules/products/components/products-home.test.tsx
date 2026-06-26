@@ -11,7 +11,7 @@ declare global {
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 import { ProductsHome } from "./products-home";
 
-const { apiClientMocks, refetchMock, refreshMock } = vi.hoisted(() => ({
+const { apiClientMocks, refetchMock, refreshMock, useProductDataMock } = vi.hoisted(() => ({
   apiClientMocks: {
     delete: vi.fn(),
     download: vi.fn(),
@@ -19,6 +19,7 @@ const { apiClientMocks, refetchMock, refreshMock } = vi.hoisted(() => ({
   },
   refetchMock: vi.fn(),
   refreshMock: vi.fn(),
+  useProductDataMock: vi.fn(),
 }));
 
 vi.mock("next/image", () => ({
@@ -45,137 +46,139 @@ vi.mock("../calculations/product-insights", () => ({
 
 vi.mock("../hooks/use-product-data", () => ({
   formatReferenceMonthPtBr: () => "junho de 2026",
-  useProductData: () => ({
-    data: {
-      products: [
-        {
-          catalogGroupKey: "meli:MLB123",
-          catalogRole: "parent",
-          coverImageUrl: "https://example.com/product.png",
-          createdAt: "2026-06-17T10:00:00.000Z",
-          children: [
-            {
-              catalogGroupKey: "meli:MLB123",
-              catalogRole: "child",
-              coverImageUrl: "https://example.com/product-variation.png", 
-              createdAt: "2026-06-17T10:00:00.000Z", 
-              children: [], 
-              derivedFromProvider: "mercadolivre", 
-              financeDefaults: {
-                advertisingCost: "0.00",
-                createdAt: "2026-06-17T10:00:00.000Z",
-                id: "defaults_2",
-                packagingCost: "2.25",
-                productId: "product_2",
-                updatedAt: "2026-06-17T10:00:00.000Z",
-              }, 
-              id: "product_2", 
-              images: [
-                {
-                  externalIdentifier: null,
-                  id: "image_2",
-                  position: 0,
-                  productId: "product_2",
-                  source: "manual",
-                  url: "https://example.com/product-variation.png",
-                },
-              ], 
-              isActive: true, 
-              latestCost: {
-                amount: "19.00",
-                companyId: "company_1",
-                costType: "base",
-                createdAt: "2026-06-17T10:00:00.000Z",
-                currency: "BRL",
-                effectiveFrom: null,
-                id: "cost_2",
-                notes: null,
-                organizationId: "org_1",
-                productId: "product_2",
-                updatedAt: "2026-06-17T10:00:00.000Z",
-              }, 
-              name: "Kit Mercado Livre - Azul",
-              organizationId: "org_1",
-              parentProductId: "product_1",
-              sellingPrice: "149.90",
-              sku: "ML-001-AZ",
-              updatedAt: "2026-06-17T10:00:00.000Z",
-              variationLabel: "Cor: Azul",
-            },
-          ], 
-          derivedFromProvider: "mercadolivre", 
-          financeDefaults: {
-            advertisingCost: "0.00",
-            createdAt: "2026-06-17T10:00:00.000Z",
-            id: "defaults_1",
-            packagingCost: "4.50",
-            productId: "product_1",
-            updatedAt: "2026-06-17T10:00:00.000Z",
-          }, 
-          id: "product_1",
-          images: [
-            {
-              externalIdentifier: null,
-              id: "image_1",
-              position: 0,
-              productId: "product_1",
-              source: "manual",
-              url: "https://example.com/product.png",
-            },
-          ], 
-          isActive: true, 
-          latestCost: {
-            amount: "30.00",
-            companyId: "company_1",
-            costType: "base",
-            createdAt: "2026-06-17T10:00:00.000Z",
-            currency: "BRL",
-            effectiveFrom: null,
-            id: "cost_1",
-            notes: null,
-            organizationId: "org_1",
-            productId: "product_1",
-            updatedAt: "2026-06-17T10:00:00.000Z",
-          }, 
-          name: "Kit Mercado Livre",
-          organizationId: "org_1",
-          parentProductId: null,
-          sellingPrice: "149.90",
-          sku: "ML-001",
-          updatedAt: "2026-06-17T10:00:00.000Z",
-          variationLabel: null,
-        },
-      ],
-      scope: {
-        companyId: null,
-      },
-    },
-    error: null,
-    financialState: "no-costs",
-    goToPage: vi.fn(),
-    isLoading: false,
-    isUnauthorized: false,
-    pagination: { currentPage: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
-    referenceMonth: "2026-06-01",
-    referenceMonthSelectOptions: ["2026-06-01"],
-    refetch: refetchMock,
-    refresh: refreshMock,
-    rows: [],
-    setReferenceMonth: vi.fn(),
-    stats: {
-      activeProducts: 1,
-      archivedProducts: 0,
-      pendingSyncProducts: 0,
-      productsWithCost: 0,
-      productsWithoutCost: 1,
-      syncedProductsTotal: 0,
-      totalAdCosts: 0,
-      totalManualExpenses: 0,
-      totalProductCosts: 0,
-      totalProducts: 1,
-    },
-  }),
+  useProductData: useProductDataMock,
 }));
+
+useProductDataMock.mockReturnValue({
+  data: {
+    products: [
+      {
+        catalogGroupKey: "meli:MLB123",
+        catalogRole: "parent",
+        coverImageUrl: "https://example.com/product.png",
+        createdAt: "2026-06-17T10:00:00.000Z",
+        children: [
+          {
+            catalogGroupKey: "meli:MLB123",
+            catalogRole: "child",
+            coverImageUrl: "https://example.com/product-variation.png", 
+            createdAt: "2026-06-17T10:00:00.000Z", 
+            children: [], 
+            derivedFromProvider: "mercadolivre", 
+            financeDefaults: {
+              advertisingCost: "0.00",
+              createdAt: "2026-06-17T10:00:00.000Z",
+              id: "defaults_2",
+              packagingCost: "2.25",
+              productId: "product_2",
+              updatedAt: "2026-06-17T10:00:00.000Z",
+            }, 
+            id: "product_2", 
+            images: [
+              {
+                externalIdentifier: null,
+                id: "image_2",
+                position: 0,
+                productId: "product_2",
+                source: "manual",
+                url: "https://example.com/product-variation.png",
+              },
+            ], 
+            isActive: true, 
+            latestCost: {
+              amount: "19.00",
+              companyId: "company_1",
+              costType: "base",
+              createdAt: "2026-06-17T10:00:00.000Z",
+              currency: "BRL",
+              effectiveFrom: null,
+              id: "cost_2",
+              notes: null,
+              organizationId: "org_1",
+              productId: "product_2",
+              updatedAt: "2026-06-17T10:00:00.000Z",
+            }, 
+            name: "Kit Mercado Livre - Azul",
+            organizationId: "org_1",
+            parentProductId: "product_1",
+            sellingPrice: "149.90",
+            sku: "ML-001-AZ",
+            updatedAt: "2026-06-17T10:00:00.000Z",
+            variationLabel: "Cor: Azul",
+          },
+        ], 
+        derivedFromProvider: "mercadolivre", 
+        financeDefaults: {
+          advertisingCost: "0.00",
+          createdAt: "2026-06-17T10:00:00.000Z",
+          id: "defaults_1",
+          packagingCost: "4.50",
+          productId: "product_1",
+          updatedAt: "2026-06-17T10:00:00.000Z",
+        }, 
+        id: "product_1",
+        images: [
+          {
+            externalIdentifier: null,
+            id: "image_1",
+            position: 0,
+            productId: "product_1",
+            source: "manual",
+            url: "https://example.com/product.png",
+          },
+        ], 
+        isActive: true, 
+        latestCost: {
+          amount: "30.00",
+          companyId: "company_1",
+          costType: "base",
+          createdAt: "2026-06-17T10:00:00.000Z",
+          currency: "BRL",
+          effectiveFrom: null,
+          id: "cost_1",
+          notes: null,
+          organizationId: "org_1",
+          productId: "product_1",
+          updatedAt: "2026-06-17T10:00:00.000Z",
+        }, 
+        name: "Kit Mercado Livre",
+        organizationId: "org_1",
+        parentProductId: null,
+        sellingPrice: "149.90",
+        sku: "ML-001",
+        updatedAt: "2026-06-17T10:00:00.000Z",
+        variationLabel: null,
+      },
+    ],
+    scope: {
+      companyId: null,
+    },
+  },
+  error: null,
+  financialState: "no-costs",
+  goToPage: vi.fn(),
+  isLoading: false,
+  isUnauthorized: false,
+  pagination: { currentPage: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
+  referenceMonth: "2026-06-01",
+  referenceMonthSelectOptions: ["2026-06-01"],
+  refetch: refetchMock,
+  refresh: refreshMock,
+  rows: [],
+  setReferenceMonth: vi.fn(),
+  stats: {
+    activeProducts: 1,
+    archivedProducts: 0,
+    pendingSyncProducts: 0,
+    productsWithCost: 0,
+    productsWithoutCost: 1,
+    syncedProductsTotal: 0,
+    totalAdCosts: 0,
+    totalManualExpenses: 0,
+    totalProductCosts: 0,
+    totalProducts: 1,
+  },
+});
 
 vi.mock("@/lib/api/client", () => ({
   ApiClientError: class ApiClientError extends Error {
@@ -450,6 +453,83 @@ describe("ProductsHome catalog modal", () => {
         unitCost: "21.50",
       },
     });
+
+    view.unmount();
+  });
+
+  it("blocks finance editing and deletion for a synthetic parent catalog row", async () => {
+    const useProductData = await import("../hooks/use-product-data");
+    vi.mocked(useProductData.useProductData).mockReturnValue({
+      data: {
+        products: [
+          {
+            catalogGroupKey: "meli:MLB999",
+            catalogRole: "parent",
+            companyId: "company_1",
+            coverImageUrl: null,
+            createdAt: "2026-06-17T10:00:00.000Z",
+            children: [],
+            derivedFromProvider: "mercadolivre",
+            financeDefaults: null,
+            id: "synthetic-parent:mercadolivre:MLB999",
+            images: [],
+            isActive: true,
+            isSyntheticParent: true,
+            latestCost: null,
+            name: "Tenis Run Pro",
+            organizationId: "org_1",
+            parentProductId: null,
+            sellingPrice: "199.90",
+            sku: "TENIS-RUN-PRO",
+            updatedAt: "2026-06-17T10:00:00.000Z",
+            variationLabel: null,
+          },
+        ],
+        scope: {
+          companyId: null,
+        },
+      },
+      error: null,
+      financialState: "no-costs",
+      goToPage: vi.fn(),
+      isLoading: false,
+      isUnauthorized: false,
+      pagination: { currentPage: 1, pageSize: 10, totalItems: 1, totalPages: 1 },
+      referenceMonth: "2026-06-01",
+      referenceMonthSelectOptions: ["2026-06-01"],
+      refetch: refetchMock,
+      refresh: refreshMock,
+      rows: [],
+      setReferenceMonth: vi.fn(),
+      stats: {
+        activeProducts: 1,
+        archivedProducts: 0,
+        pendingSyncProducts: 0,
+        productsWithCost: 0,
+        productsWithoutCost: 1,
+        syncedProductsTotal: 0,
+        totalAdCosts: 0,
+        totalManualExpenses: 0,
+        totalProductCosts: 0,
+        totalProducts: 1,
+      },
+    } as never);
+
+    const view = renderProductsHome();
+
+    click(document.querySelector("tbody tr")!);
+
+    const unitCostInput = document.querySelector('input[name="unitCost"]') as HTMLInputElement;
+    const packagingInput = document.querySelector('input[name="packagingCost"]') as HTMLInputElement;
+
+    expect(unitCostInput.disabled).toBe(true);
+    expect(packagingInput.disabled).toBe(true);
+    expect(
+      Array.from(document.querySelectorAll("button")).some((button) =>
+        button.textContent?.includes("Excluir produto"),
+      ),
+    ).toBe(false);
+    expect(document.body.textContent).toContain("Pai lógico do anúncio");
 
     view.unmount();
   });

@@ -134,7 +134,11 @@ const PRODUCT_SKU_UNIQUE_INDEX = "products_company_normalized_sku_key";
 type MercadoLivreCatalogGroup = {
   childProductIds: string[];
   groupKey: string;
-  parentProductId: string;
+  parentProductId: string | null;
+  parentSku: string | null;
+  parentSyntheticId: string | null;
+  parentTitle: string | null;
+  representativeProductId: string | null;
   variationLabelByProductId: Map<string, string | null>;
 };
 
@@ -169,6 +173,10 @@ type SyncedProductUnitCompositionLookup = {
 
 function toCatalogGroupKey(itemId: string) {
   return `mercadolivre:${itemId}`;
+}
+
+function buildSyntheticCatalogParentId(groupKey: string) {
+  return `synthetic-parent:${groupKey}`;
 }
 
 function extractMercadoLivreItemId(externalProductId: string) {
@@ -602,6 +610,7 @@ export class ProductsService {
       catalogRole: "standalone",
       children: [],
       derivedFromProvider: providerByProductId.get(productRow.id) ?? null,
+      isSyntheticParent: false,
       ...this.toProductRecord(productRow, productRow.images),
       latestCost: latestCosts.get(productRow.id) ?? null,
       financeDefaults: productRow.financeDefaults
@@ -1418,7 +1427,7 @@ export class ProductsService {
           ? [targetGroup.parentProductId, ...targetGroup.childProductIds]
           : [productId],
       ),
-    );
+    ).filter((targetId): targetId is string => targetId !== null);
 
     await this.db.transaction(async (tx) => {
       for (const targetId of targetProductIds) {
@@ -1984,10 +1993,11 @@ export class ProductsService {
     expenseRows: ManualExpenseRecord[];
     syncedProducts: ProductAnalyticsSnapshot["syncedProducts"];
   }): ProductAnalyticsCatalogStats {
-    const activeProducts = input.productRows.filter(
+    const realProducts = input.productRows.filter((product) => !product.isSyntheticParent);
+    const activeProducts = realProducts.filter(
       (product) => product.isActive,
     ).length;
-    const productsWithCost = input.productRows.filter(
+    const productsWithCost = realProducts.filter(
       (product) => product.isActive && product.latestCost !== null,
     ).length;
     const pendingSyncProducts = input.syncedProducts.filter(
@@ -1996,7 +2006,7 @@ export class ProductsService {
 
     return {
       activeProducts,
-      archivedProducts: input.productRows.length - activeProducts,
+      archivedProducts: realProducts.length - activeProducts,
       pendingSyncProducts,
       productsWithCost,
       productsWithoutCost: activeProducts - productsWithCost,
@@ -2004,7 +2014,7 @@ export class ProductsService {
       totalAdCosts: input.adCostRows.length,
       totalManualExpenses: input.expenseRows.length,
       totalProductCosts: input.costRows.length,
-      totalProducts: input.productRows.length,
+      totalProducts: realProducts.length,
     };
   }
 
@@ -2012,11 +2022,13 @@ export class ProductsService {
     productRows: ProductAnalyticsSnapshot["productRows"],
     productsList: ProductListItem[],
   ): ProductAnalyticsSnapshot["financialState"] {
-    if (productsList.length === 0) {
+    const realProducts = productsList.filter((product) => !product.isSyntheticParent);
+
+    if (realProducts.length === 0) {
       return "empty";
     }
 
-    const activeProducts = productsList.filter((product) => product.isActive);
+    const activeProducts = realProducts.filter((product) => product.isActive);
 
     if (activeProducts.length === 0) {
       return "insufficient";
@@ -2343,6 +2355,7 @@ export class ProductsService {
       catalogGroupKey: product?.catalogGroupKey ?? null,
       catalogRole: product?.catalogRole ?? "standalone",
       children,
+      isSyntheticParent: product?.isSyntheticParent ?? false,
       parentProductId: product?.parentProductId ?? null,
       productId: row.productId ?? product?.id ?? null,
       variationLabel: product?.variationLabel ?? null,
@@ -2707,14 +2720,16 @@ export class ProductsService {
       Array<{
         externalProductId: string;
         isVariation: boolean;
-        productId: string;
+        productId: string | null;
+        sku: string | null;
+        title: string | null;
         variationLabel: string | null;
       }>
     >();
 
     for (const syncedProduct of syncedProducts) {
       const productId = syncedProduct.linkedProduct?.id ?? null;
-      if (syncedProduct.provider !== "mercadolivre" || !productId) {
+      if (syncedProduct.provider !== "mercadolivre") {
         continue;
       }
 
@@ -2732,6 +2747,8 @@ export class ProductsService {
         externalProductId: syncedProduct.externalProductId,
         isVariation,
         productId,
+        sku: syncedProduct.sku,
+        title: syncedProduct.title?.trim() || null,
         variationLabel: isVariation ? syncedProduct.title?.trim() || null : null,
       });
       groupedEntries.set(itemId, entries);
@@ -2740,12 +2757,13 @@ export class ProductsService {
     const groups = new Map<string, MercadoLivreCatalogGroup>();
 
     for (const [itemId, entries] of groupedEntries.entries()) {
-      const dedupedEntriesByProductId = new Map<
-        string,
-        (typeof entries)[number]
-      >();
+      const dedupedEntriesByProductId = new Map<string, (typeof entries)[number]>();
 
       for (const entry of entries) {
+        if (!entry.productId) {
+          continue;
+        }
+
         const currentEntry = dedupedEntriesByProductId.get(entry.productId);
         if (!currentEntry) {
           dedupedEntriesByProductId.set(entry.productId, entry);
@@ -2758,26 +2776,42 @@ export class ProductsService {
       }
 
       const dedupedEntries = [...dedupedEntriesByProductId.values()];
+      const parentEntry = entries.find((entry) => !entry.isVariation) ?? null;
 
-      if (dedupedEntries.length < 2) {
+      if (dedupedEntries.length === 0) {
         continue;
       }
 
-      const explicitParent =
-        dedupedEntries.find((entry) => !entry.isVariation) ?? dedupedEntries[0];
-      const childEntries = dedupedEntries.filter(
-        (entry) => entry.productId !== explicitParent!.productId,
-      );
+      const explicitParent = dedupedEntries.find((entry) => !entry.isVariation) ?? null;
+      const childEntries = explicitParent
+        ? dedupedEntries.filter((entry) => entry.productId !== explicitParent.productId)
+        : dedupedEntries;
+
+      if (childEntries.length === 0) {
+        continue;
+      }
+
       const variationLabelByProductId = new Map<string, string | null>();
 
       for (const entry of dedupedEntries) {
-        variationLabelByProductId.set(entry.productId, entry.variationLabel);
+        if (entry.productId) {
+          variationLabelByProductId.set(entry.productId, entry.variationLabel);
+        }
       }
 
-      groups.set(toCatalogGroupKey(itemId), {
-        childProductIds: childEntries.map((entry) => entry.productId),
-        groupKey: toCatalogGroupKey(itemId),
-        parentProductId: explicitParent!.productId,
+      const groupKey = toCatalogGroupKey(itemId);
+
+      groups.set(groupKey, {
+        childProductIds: childEntries
+          .map((entry) => entry.productId)
+          .filter((productId): productId is string => productId !== null),
+        groupKey,
+        parentProductId: explicitParent?.productId ?? null,
+        parentSku: parentEntry?.sku ?? explicitParent?.sku ?? null,
+        parentSyntheticId: explicitParent ? null : buildSyntheticCatalogParentId(groupKey),
+        parentTitle: parentEntry?.title ?? explicitParent?.title ?? null,
+        representativeProductId:
+          explicitParent?.productId ?? childEntries[0]?.productId ?? null,
         variationLabelByProductId,
       });
     }
@@ -2791,6 +2825,7 @@ export class ProductsService {
     catalogRole: ProductListItem["catalogRole"];
     children?: ProductListItem[];
     derivedFromProvider?: ProductListItem["derivedFromProvider"];
+    isSyntheticParent?: boolean;
     parentProductId?: string | null;
     variationLabel?: string | null;
   }): ProductListItem {
@@ -2800,10 +2835,33 @@ export class ProductsService {
       catalogRole: input.catalogRole,
       children: input.children ?? [],
       derivedFromProvider: input.derivedFromProvider ?? null,
+      isSyntheticParent: input.isSyntheticParent ?? false,
       parentProductId:
         input.parentProductId === undefined ? null : input.parentProductId,
       variationLabel:
         input.variationLabel === undefined ? null : input.variationLabel,
+    };
+  }
+
+  private buildSyntheticCatalogParent(
+    baseProduct: ProductListItem,
+    group: MercadoLivreCatalogGroup,
+    children: ProductListItem[],
+  ): ProductListItem {
+    return {
+      ...baseProduct,
+      id: group.parentSyntheticId ?? buildSyntheticCatalogParentId(group.groupKey),
+      name: group.parentTitle ?? baseProduct.name,
+      sku: group.parentSku ?? baseProduct.sku,
+      latestCost: null,
+      financeDefaults: null,
+      catalogGroupKey: group.groupKey,
+      catalogRole: "parent",
+      children,
+      derivedFromProvider: "mercadolivre",
+      isSyntheticParent: true,
+      parentProductId: null,
+      variationLabel: null,
     };
   }
 
@@ -2813,12 +2871,15 @@ export class ProductsService {
   ): ProductListItem[] {
     const groups = this.buildMercadoLivreCatalogGroups(syncedProducts);
     const parentGroupByProductId = new Map<string, MercadoLivreCatalogGroup>();
-    const groupedProductIds = new Set<string>();
+    const childGroupByProductId = new Map<string, MercadoLivreCatalogGroup>();
+    const emittedSyntheticGroups = new Set<string>();
 
     for (const group of groups.values()) {
-      parentGroupByProductId.set(group.parentProductId, group);
+      if (group.parentProductId) {
+        parentGroupByProductId.set(group.parentProductId, group);
+      }
       for (const childProductId of group.childProductIds) {
-        groupedProductIds.add(childProductId);
+        childGroupByProductId.set(childProductId, group);
       }
     }
 
@@ -2840,6 +2901,7 @@ export class ProductsService {
               catalogRole: "child",
               children: [],
               derivedFromProvider: "mercadolivre",
+              isSyntheticParent: false,
               parentProductId: group.parentProductId,
               variationLabel:
                 group.variationLabelByProductId.get(childProduct.id) ?? null,
@@ -2853,13 +2915,52 @@ export class ProductsService {
             catalogRole: "parent",
             children,
             derivedFromProvider: "mercadolivre",
+            isSyntheticParent: false,
             parentProductId: null,
             variationLabel: null,
           }),
         ];
       }
 
-      if (groupedProductIds.has(product.id)) {
+      const childGroup = childGroupByProductId.get(product.id);
+
+      if (childGroup) {
+        if (childGroup.parentProductId || emittedSyntheticGroups.has(childGroup.groupKey)) {
+          return [];
+        }
+
+        emittedSyntheticGroups.add(childGroup.groupKey);
+        const children = childGroup.childProductIds
+          .map((childProductId) => productById.get(childProductId) ?? null)
+          .filter((childProduct): childProduct is ProductListItem => childProduct !== null)
+          .map((childProduct) =>
+            this.toCatalogProductListItem({
+              base: childProduct,
+              catalogGroupKey: childGroup.groupKey,
+              catalogRole: "child",
+              children: [],
+              derivedFromProvider: "mercadolivre",
+              isSyntheticParent: false,
+              parentProductId: childGroup.parentSyntheticId,
+              variationLabel:
+                childGroup.variationLabelByProductId.get(childProduct.id) ?? null,
+            }),
+          );
+        const representativeProduct =
+          (childGroup.representativeProductId
+            ? productById.get(childGroup.representativeProductId) ?? null
+            : null) ?? product;
+
+        return [
+          this.buildSyntheticCatalogParent(
+            representativeProduct,
+            childGroup,
+            children,
+          ),
+        ];
+      }
+
+      if (childGroupByProductId.has(product.id)) {
         return [];
       }
 
@@ -2869,6 +2970,7 @@ export class ProductsService {
           catalogRole: "standalone",
           children: [],
           derivedFromProvider: product.derivedFromProvider,
+          isSyntheticParent: false,
         }),
       ];
     });
@@ -3028,6 +3130,7 @@ export class ProductsService {
       children: [],
       ...this.toProductRecord(productRow, productRow.images),
       derivedFromProvider,
+      isSyntheticParent: false,
       latestCost:
         productCostRows.length > 0
           ? this.toProductCostRecord(productCostRows[0]!)

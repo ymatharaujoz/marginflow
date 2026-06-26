@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const decimalPattern = /^-?\d+(?:\.\d{1,2})?$/;
+const decimalPattern = /^-?\d+(?:\.\d{1,4})?$/;
 const decimalRatePattern = /^-?\d+(?:\.\d{1,6})?$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 

@@ -612,9 +612,9 @@ function buildOrdersSummary(rows: OrderRow[]): OrdersListSummary {
   const averageMargin = grossRevenue > 0 ? grossProfit / grossRevenue : 0;
 
   return {
-    averageMargin: averageMargin.toFixed(2),
-    grossProfit: grossProfit.toFixed(2),
-    grossRevenue: grossRevenue.toFixed(2),
+    averageMargin: averageMargin.toFixed(4),
+    grossProfit: grossProfit.toFixed(4),
+    grossRevenue: grossRevenue.toFixed(4),
     ordersCount: rows.length,
     unitsSold,
   };

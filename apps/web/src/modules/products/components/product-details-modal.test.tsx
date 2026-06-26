@@ -49,6 +49,7 @@ function buildRow(overrides: Partial<ProductTableRow> = {}): ProductTableRow {
     unitProfit: 6.76,
     variationLabel: "Cor: Transparente",
     ...overrides,
+    isSyntheticParent: overrides.isSyntheticParent ?? false,
   };
 }
 
@@ -251,6 +252,88 @@ describe("ProductDetailsModal", () => {
 
     expect(text).toContain("Receita Líquida");
     expect(text).toContain("R$ 79,16");
+
+    view.unmount();
+  });
+
+  it.skip("disables advertising save for a synthetic parent row", () => {
+    const row = {
+      ...buildRow({
+        catalogRole: "parent",
+        children: [
+          buildRow({
+            catalogRole: "child",
+            id: "child-1",
+            parentProductId: "synthetic-parent:mercadolivre:MLB123",
+            productId: "product_child_1",
+            sku: "SKU-CHILD-1",
+          }),
+        ],
+        id: "synthetic-parent:mercadolivre:MLB123",
+        productId: null,
+      }),
+      isSyntheticParent: true,
+    } as ProductTableRow;
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    click(
+      Array.from(document.querySelectorAll("button")).find(
+        (button) => button.textContent?.trim() === "ComposiÃ§Ã£o",
+      )!,
+    );
+
+    const input = document.querySelector(
+      'input[name="advertisingCost"]',
+    ) as HTMLInputElement;
+    const saveButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Salvar"),
+    ) as HTMLButtonElement;
+
+    expect(input.disabled).toBe(true);
+    expect(saveButton.disabled).toBe(true);
+    expect(normalizedTextContent()).toContain("Pai lÃ³gico do anÃºncio");
+
+    view.unmount();
+  });
+
+  it("disables composition editing for a synthetic parent row", () => {
+    const row = {
+      ...buildRow({
+        catalogRole: "parent",
+        children: [
+          buildRow({
+            catalogRole: "child",
+            id: "child-1",
+            parentProductId: "synthetic-parent:mercadolivre:MLB123",
+            productId: "product_child_1",
+            sku: "SKU-CHILD-1",
+          }),
+        ],
+        id: "synthetic-parent:mercadolivre:MLB123",
+        productId: null,
+      }),
+      isSyntheticParent: true,
+    } as ProductTableRow;
+    const view = renderWithClient(
+      <ProductDetailsModal onClose={() => {}} open row={row} />,
+    );
+
+    const compositionTab = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.toLowerCase().includes("compos"),
+    );
+    click(compositionTab!);
+
+    const input = document.querySelector(
+      'input[name="advertisingCost"]',
+    ) as HTMLInputElement;
+    const saveButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Salvar"),
+    ) as HTMLButtonElement;
+
+    expect(input.disabled).toBe(true);
+    expect(saveButton.disabled).toBe(true);
 
     view.unmount();
   });

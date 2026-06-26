@@ -2806,6 +2806,200 @@ describe("ProductsService", () => {
     ]);
   });
 
+  it("builds a synthetic Mercado Livre parent when only child variations are linked", async () => {
+    const { db, financeService, service } = createService();
+
+    db.query.companies.findMany.mockResolvedValue([
+      {
+        id: "company_1",
+        isActive: true,
+        taxRateDefault: "0.120000",
+      },
+    ]);
+    db.query.products.findMany
+      .mockResolvedValueOnce([
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          financeDefaults: null,
+          id: "product_boot_39_blue",
+          images: [],
+          isActive: true,
+          name: "Tenis Run Pro 39 Azul",
+          organizationId: "org_1",
+          sellingPrice: "199.90",
+          sku: "TENIS-RUN-PRO-39-AZ",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          financeDefaults: null,
+          id: "product_boot_40_black",
+          images: [],
+          isActive: true,
+          name: "Tenis Run Pro 40 Preto",
+          organizationId: "org_1",
+          sellingPrice: "199.90",
+          sku: "TENIS-RUN-PRO-40-PR",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          id: "product_boot_39_blue",
+          isActive: true,
+          name: "Tenis Run Pro 39 Azul",
+          organizationId: "org_1",
+          sellingPrice: "199.90",
+          sku: "TENIS-RUN-PRO-39-AZ",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          id: "product_boot_40_black",
+          isActive: true,
+          name: "Tenis Run Pro 40 Preto",
+          organizationId: "org_1",
+          sellingPrice: "199.90",
+          sku: "TENIS-RUN-PRO-40-PR",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+      ]);
+    db.query.productCosts.findMany.mockResolvedValue([]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+    db.query.productMonthlyPerformance.findMany.mockResolvedValue([]);
+    financeService.buildFinanceSnapshot.mockResolvedValue({
+      adCosts: [],
+      manualExpenses: [],
+      monthlyPerformance: [],
+      orders: [],
+      productCosts: [],
+      products: [],
+    });
+    financeService.materializeOrganizationMetrics.mockResolvedValue(undefined);
+    db.query.productCosts.findFirst.mockResolvedValue(null);
+    db.query.externalProducts.findMany.mockResolvedValue([]);
+    vi.mocked(listSyncedProductsReadModel).mockResolvedValue([
+      {
+        externalProductId: "MLBBOOT123:39-AZ",
+        fixedFee: "0.00",
+        grossRevenue: "0.00",
+        id: "external_boot_39_blue",
+        lastOrderedAt: null,
+        latestUnitPrice: null,
+        linkedProduct: {
+          id: "product_boot_39_blue",
+          isActive: true,
+          name: "Tenis Run Pro 39 Azul",
+          sku: "TENIS-RUN-PRO-39-AZ",
+        },
+        marketplaceCommission: "0.00",
+        metadata: {
+          itemId: "MLBBOOT123",
+          variationId: "39-AZ",
+        },
+        netMarketplaceTake: "0.00",
+        orderCount: 0,
+        provider: "mercadolivre",
+        reviewStatus: "linked_to_existing_product",
+        shippingCost: "0.00",
+        sku: "TENIS-RUN-PRO-39-AZ",
+        suggestedMatches: [],
+        title: "Cor: Azul | Tamanho: 39",
+        unitsSold: 0,
+      } as never,
+      {
+        externalProductId: "MLBBOOT123:40-PR",
+        fixedFee: "0.00",
+        grossRevenue: "0.00",
+        id: "external_boot_40_black",
+        lastOrderedAt: null,
+        latestUnitPrice: null,
+        linkedProduct: {
+          id: "product_boot_40_black",
+          isActive: true,
+          name: "Tenis Run Pro 40 Preto",
+          sku: "TENIS-RUN-PRO-40-PR",
+        },
+        marketplaceCommission: "0.00",
+        metadata: {
+          itemId: "MLBBOOT123",
+          variationId: "40-PR",
+        },
+        netMarketplaceTake: "0.00",
+        orderCount: 0,
+        provider: "mercadolivre",
+        reviewStatus: "linked_to_existing_product",
+        shippingCost: "0.00",
+        sku: "TENIS-RUN-PRO-40-PR",
+        suggestedMatches: [],
+        title: "Cor: Preto | Tamanho: 40",
+        unitsSold: 0,
+      } as never,
+      {
+        externalProductId: "MLBBOOT123",
+        fixedFee: "0.00",
+        grossRevenue: "0.00",
+        id: "external_boot_parent",
+        lastOrderedAt: null,
+        latestUnitPrice: null,
+        linkedProduct: null,
+        marketplaceCommission: "0.00",
+        metadata: {
+          itemId: "MLBBOOT123",
+          variationId: null,
+        },
+        netMarketplaceTake: "0.00",
+        orderCount: 0,
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        shippingCost: "0.00",
+        sku: "TENIS-RUN-PRO",
+        suggestedMatches: [],
+        title: "Tenis Run Pro",
+        unitsSold: 0,
+      } as never,
+    ]);
+
+    const snapshot = await service.getAnalyticsSnapshot({
+      organizationId: "org_1",
+      userId: "user_1",
+    });
+
+    expect(snapshot.products).toEqual([
+      expect.objectContaining({
+        catalogGroupKey: "mercadolivre:MLBBOOT123",
+        catalogRole: "parent",
+        id: "synthetic-parent:mercadolivre:MLBBOOT123",
+        isSyntheticParent: true,
+        parentProductId: null,
+        sku: "TENIS-RUN-PRO",
+        name: "Tenis Run Pro",
+        children: [
+          expect.objectContaining({
+            catalogRole: "child",
+            id: "product_boot_39_blue",
+            isSyntheticParent: false,
+            parentProductId: "synthetic-parent:mercadolivre:MLBBOOT123",
+            variationLabel: "Cor: Azul | Tamanho: 39",
+          }),
+          expect.objectContaining({
+            catalogRole: "child",
+            id: "product_boot_40_black",
+            isSyntheticParent: false,
+            parentProductId: "synthetic-parent:mercadolivre:MLBBOOT123",
+            variationLabel: "Cor: Preto | Tamanho: 40",
+          }),
+        ],
+      }),
+    ]);
+  });
+
   it("replicates catalog finance updates from parent product to linked Mercado Livre variations", async () => {
     const { db, financeService, service } = createService();
     const txUpdate = vi.fn().mockReturnValue({

@@ -169,10 +169,7 @@ export function DashboardFinancialIndicators({
       totalProfit += parseDecimal(product.grossProfit);
     }
 
-    const averageMargin = totalRevenue > 0 ? totalProfit / totalRevenue : 0;
-
     return {
-      averageMargin,
       totalProfit,
       totalRevenue,
     };
@@ -237,9 +234,7 @@ export function DashboardFinancialIndicators({
   const totalProfit = ordersSummary
     ? normalizeNumber(ordersSummary.grossProfit)
     : financials.totalProfit;
-  const averageMargin = ordersSummary
-    ? normalizeNumber(ordersSummary.averageMargin)
-    : financials.averageMargin;
+  const averageMargin = totalRevenue > 0 ? totalProfit / totalRevenue : 0;
   const breakEvenPoint = averageMargin > 0 ? fixedCost / averageMargin : 0;
   const netProfit = totalProfit - fixedCost;
   const revenueSub = ordersSummary
@@ -267,8 +262,8 @@ export function DashboardFinancialIndicators({
 
         <IndicatorCard
           label="Margem Média"
-          value={formatPercent(averageMargin)}
-          subValue={totalProfit >= 0 ? "Lucrativo" : "Prejuízo"}
+          value={formatPercent(averageMargin * 100, { digits: 2, truncate: true })}
+          subValue={`Lucro Total: ${formatMoney(totalProfit)}`}
           icon={<Percent className="h-4 w-4" />}
           variant={
             averageMargin > 0.2
@@ -284,7 +279,7 @@ export function DashboardFinancialIndicators({
                 : averageMargin > 0
                   ? "neutral"
                   : "down",
-            value: `Lucro: ${formatMoney(totalProfit)}`,
+            value: totalProfit >= 0 ? "Lucrativo" : "Prejuízo",
           }}
         />
 
