@@ -39,7 +39,7 @@ import {
   cn,
 } from "@lucreii/ui";
 import type { ProductListItem } from "@lucreii/types";
-import { CurrencyInput } from "./currency-input";
+import { CurrencyInput, parseCurrencyValue } from "./currency-input";
 import { ApiClientError, apiClient } from "@/lib/api/client";
 import { containerVariants, fadeInVariants } from "@/lib/animations";
 import { SkeletonGrid } from "@/components/ui-premium/skeleton-grid";
@@ -332,6 +332,19 @@ function buildCatalogFinanceForm(product: ProductListItem): CatalogFinanceFormVa
   };
 }
 
+function readCatalogFinanceFormValues(
+  formElement: HTMLFormElement,
+): CatalogFinanceFormValues {
+  const formData = new FormData(formElement);
+
+  return {
+    packagingCost: parseCurrencyValue(
+      String(formData.get("packagingCost") ?? "").trim(),
+    ),
+    unitCost: parseCurrencyValue(String(formData.get("unitCost") ?? "").trim()),
+  };
+}
+
 function ProductImagePreview({
   alt,
   className,
@@ -405,7 +418,7 @@ function CatalogProductDetailsModal({
   }, [firstImage?.url]);
 
   const saveMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (values: CatalogFinanceFormValues) => {
       if (!product) {
         throw new Error("Produto não encontrado.");
       }
@@ -414,8 +427,8 @@ function CatalogProductDetailsModal({
         `/products/${product.id}/catalog-finance`,
         {
           body: {
-            packagingCost: form.packagingCost.trim(),
-            unitCost: form.unitCost.trim(),
+            packagingCost: values.packagingCost,
+            unitCost: values.unitCost,
           },
         },
       );
@@ -503,7 +516,9 @@ function CatalogProductDetailsModal({
             onSubmit={(e) => {
               e.preventDefault();
               if (saveMutation.isPending || deleteMutation.isPending) return;
-              saveMutation.mutate();
+              const nextForm = readCatalogFinanceFormValues(e.currentTarget);
+              setForm(nextForm);
+              saveMutation.mutate(nextForm);
             }}
             className="flex flex-col gap-6"
           >

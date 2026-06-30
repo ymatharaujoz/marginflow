@@ -439,6 +439,45 @@ describe("ProductsHome catalog modal", () => {
     view.unmount();
   });
 
+  it("submits latest finance values when Enter is pressed before blur", async () => {
+    apiClientMocks.patch.mockResolvedValue({
+      data: { id: "product_1" },
+      error: null,
+    });
+
+    const view = renderProductsHome();
+
+    click(document.querySelector("tbody tr")!);
+
+    const unitCostInput = document.querySelector('input[name="unitCost"]') as HTMLInputElement;
+    const packagingInput = document.querySelector('input[name="packagingCost"]') as HTMLInputElement;
+
+    changeInputValue(unitCostInput, "31.00");
+    changeInputValue(packagingInput, "5.25");
+
+    act(() => {
+      packagingInput.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }),
+      );
+      packagingInput.form?.dispatchEvent(
+        new Event("submit", { bubbles: true, cancelable: true }),
+      );
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(apiClientMocks.patch).toHaveBeenCalledWith("/products/product_1/catalog-finance", {
+      body: {
+        packagingCost: "5.25",
+        unitCost: "31.00",
+      },
+    });
+
+    view.unmount();
+  });
+
   it("expands parent rows to show child variations with own costs and allows saving child finance", async () => {
     apiClientMocks.patch.mockResolvedValue({
       data: { id: "product_2" },
