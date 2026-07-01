@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   orderDetailsApiResponseSchema,
+  orderCompositionUpdateSchema,
+  orderExportQuerySchema,
   ordersListApiResponseSchema,
 } from "./orders";
 
@@ -23,6 +25,7 @@ describe("orders validation schemas", () => {
           {
             createdAt: "2026-06-20T12:00:00.000Z",
             currency: "BRL",
+            displayOrderId: "MLB-SALE-9001",
             fixedCostAmount: "0.00",
             id: "order_row_1",
             itemsSold: 3,
@@ -31,6 +34,7 @@ describe("orders validation schemas", () => {
             orderedAt: "2026-06-20T10:15:00.000Z",
             provider: "mercadolivre",
             contributionMarginPercent: "46.00",
+            skus: ["SKU-1", "SKU-2"],
             sourceStatus: "paid",
             shippingAmount: "20.00",
             tariffAmount: "10.00",
@@ -51,6 +55,8 @@ describe("orders validation schemas", () => {
     });
 
     expect(result.data.items[0]?.orderId).toBe("MLB-1001");
+    expect(result.data.items[0]?.displayOrderId).toBe("MLB-SALE-9001");
+    expect(result.data.items[0]?.skus).toEqual(["SKU-1", "SKU-2"]);
     expect(result.data.summary.grossProfit).toBe("50.00");
   });
 
@@ -92,6 +98,7 @@ describe("orders validation schemas", () => {
         order: {
           createdAt: "2026-06-20T12:00:00.000Z",
           currency: "BRL",
+          displayOrderId: "SHP-1001",
           fixedCostAmount: "0.00",
           id: "order_row_1",
           itemsSold: 2,
@@ -100,6 +107,7 @@ describe("orders validation schemas", () => {
           orderedAt: "2026-06-20T10:15:00.000Z",
           provider: "shopee",
           contributionMarginPercent: null,
+          skus: ["SKU-1"],
           sourceStatus: "completed",
           shippingAmount: "20.00",
           tariffAmount: "0.00",
@@ -118,6 +126,19 @@ describe("orders validation schemas", () => {
     expect(result.data.composition.shippingOrFixedFeeAmount).toBe("23.00");
     expect(result.data.items[0]?.displayName).toBe("Produto Pai | Cor: Azul");
     expect(result.data.composition.netRevenueAmount).toBe("165.00");
+    expect(result.data.order.skus).toEqual(["SKU-1"]);
+  });
+
+  it("accepts composition update payloads without tax fields", () => {
+    const result = orderCompositionUpdateSchema.parse({
+      marketplaceCommissionAmount: "15.00",
+      packagingCostAmount: "12.00",
+      productCostAmount: "80.00",
+      refundBonusAmount: "5.00",
+      shippingOrFixedFeeAmount: "30.00",
+    });
+
+    expect(result.marketplaceCommissionAmount).toBe("15.00");
   });
 
   it("accepts negative contribution margin percentages in order details", () => {
@@ -158,6 +179,7 @@ describe("orders validation schemas", () => {
         order: {
           createdAt: "2026-06-20T12:00:00.000Z",
           currency: "BRL",
+          displayOrderId: "MLB-1001",
           fixedCostAmount: "6.65",
           id: "order_row_1",
           itemsSold: 1,
@@ -166,6 +188,7 @@ describe("orders validation schemas", () => {
           orderedAt: "2026-06-20T10:15:00.000Z",
           provider: "mercadolivre",
           contributionMarginPercent: "-10.50",
+          skus: ["ACESSORIO-TRANSPARENTE"],
           sourceStatus: "paid",
           shippingAmount: "0.00",
           tariffAmount: "3.89",
@@ -181,5 +204,17 @@ describe("orders validation schemas", () => {
     });
 
     expect(result.data.items[0]?.contributionMarginPercent).toBe("-10.50");
+  });
+
+  it("accepts order export ids as CSV query input", () => {
+    const result = orderExportQuerySchema.parse({
+      ids: "order_1,order_2",
+      orderedFrom: "2026-06-01",
+      provider: "mercadolivre",
+      search: "MLB",
+    });
+
+    expect(result.ids).toEqual(["order_1", "order_2"]);
+    expect(result.provider).toBe("mercadolivre");
   });
 });

@@ -1430,6 +1430,23 @@ describe("MercadoLivreProvider", () => {
           },
         ),
       );
+
+      if (offset === 0) {
+        fetchMock.mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              limit: 1000,
+              offset: 0,
+              results: [],
+              total: 0,
+            }),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
+            },
+          ),
+        );
+      }
     }
 
     vi.stubGlobal("fetch", fetchMock);
@@ -1445,16 +1462,13 @@ describe("MercadoLivreProvider", () => {
     });
 
     const firstRequestUrl = fetchMock.mock.calls[0]?.[0].toString() ?? "";
-    const lastRequestUrl =
-      fetchMock.mock.calls[fetchMock.mock.calls.length - 1]?.[0].toString() ??
-      "";
+    const requestUrls = fetchMock.mock.calls.map((call) => call[0].toString());
 
     expect(firstRequestUrl).toContain(
       "order.date_created.to=2026-05-20T23%3A59%3A59.999Z",
     );
     expect(firstRequestUrl).not.toContain("order.date_created.from=");
-    expect(lastRequestUrl).toContain("offset=250");
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(result.orders).toHaveLength(totalOrders);
     expect(result.orders[0]?.externalOrderId).toBe("1");
     expect(result.orders.at(-1)?.externalOrderId).toBe("251");
@@ -1555,39 +1569,97 @@ describe("MercadoLivreProvider", () => {
   it("excludes manual sync orders that close after the selected range", async () => {
     const provider = createProvider();
 
-    const fetchMock = vi.fn().mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          paging: { limit: 50, offset: 0, total: 1 },
-          results: [
-            {
-              currency_id: "BRL",
-              date_closed: "2026-05-21T00:00:00.000Z",
-              date_created: "2026-05-18T10:00:00.000Z",
-              id: 125,
-              order_items: [
-                {
-                  item: {
-                    id: "MLB125",
-                    seller_sku: "SKU-125",
-                    title: "Produto 125",
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 1 },
+            results: [
+              {
+                currency_id: "BRL",
+                date_closed: "2026-05-21T00:00:00.000Z",
+                date_created: "2026-05-18T10:00:00.000Z",
+                id: 125,
+                order_items: [
+                  {
+                    item: {
+                      id: "MLB125",
+                      seller_sku: "SKU-125",
+                      title: "Produto 125",
+                    },
+                    quantity: 1,
+                    sale_fee: 10,
+                    unit_price: 100,
                   },
-                  quantity: 1,
-                  sale_fee: 10,
-                  unit_price: 100,
-                },
-              ],
-              payments: [{ fee_amount: 3, shipping_cost: 5 }],
-              total_amount: 100,
-            },
-          ],
-        }),
-        {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        },
-      ),
-    );
+                ],
+                payments: [{ fee_amount: 3, shipping_cost: 5 }],
+                total_amount: 100,
+              },
+            ],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -1637,6 +1709,20 @@ describe("MercadoLivreProvider", () => {
             status: 200,
           },
         ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
       );
 
     vi.stubGlobal("fetch", fetchMock);
@@ -1652,7 +1738,7 @@ describe("MercadoLivreProvider", () => {
       organizationId: "org_1",
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/orders/123");
     expect(result.orders).toHaveLength(1);
     expect(result.orders[0]?.externalOrderId).toBe("123");
@@ -1810,6 +1896,360 @@ describe("MercadoLivreProvider", () => {
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain(
       "/billing/integration/periods/",
     );
+  });
+
+  it("persists Mercado Livre operation_id even when search fees are already complete", async () => {
+    const provider = createProvider();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 1 },
+            results: [
+              {
+                currency_id: "BRL",
+                date_closed: "2026-06-24T10:00:00.000-03:00",
+                date_created: "2026-06-24T09:30:00.000-03:00",
+                id: 2000017085667456,
+                order_items: [
+                  {
+                    item: {
+                      id: "MLB123",
+                      seller_sku: "SKU-1",
+                      title: "Produto",
+                    },
+                    quantity: 1,
+                    sale_fee: 20.64,
+                    unit_price: 100,
+                  },
+                ],
+                payments: [
+                  {
+                    fee_amount: 5.76,
+                    marketplace_fee: 20.64,
+                    shipping_cost: 0.6,
+                  },
+                ],
+                total_amount: 100,
+              },
+            ],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [
+              {
+                operation_id: 2000013674359901,
+                order_id: 2000017085667456,
+                sale_fee: {
+                  fee_amount: 20.64,
+                  gross: 20.64,
+                  net: 20.64,
+                },
+              },
+            ],
+            total: 1,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: createSyncConnection(),
+      cursor: null,
+      organizationId: "org_1",
+    });
+
+    expect(result.orders[0]?.externalOrderId).toBe("2000017085667456");
+    expect(result.orders[0]?.metadata).toMatchObject({
+      operationId: "2000013674359901",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
+      "/billing/integration/periods/",
+    );
+  });
+
+  it("persists Mercado Livre operation_id when billing details require pagination", async () => {
+    const provider = createProvider();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 1 },
+            results: [
+              {
+                currency_id: "BRL",
+                date_closed: "2026-06-24T10:00:00.000-03:00",
+                date_created: "2026-06-24T09:30:00.000-03:00",
+                id: 2000017085667456,
+                order_items: [
+                  {
+                    item: {
+                      id: "MLB123",
+                      seller_sku: "SKU-1",
+                      title: "Produto",
+                    },
+                    quantity: 1,
+                    sale_fee: 20.64,
+                    unit_price: 100,
+                  },
+                ],
+                payments: [
+                  {
+                    fee_amount: 5.76,
+                    marketplace_fee: 20.64,
+                    shipping_cost: 0.6,
+                  },
+                ],
+                total_amount: 100,
+              },
+            ],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            last_id: "cursor-1",
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 1001,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            last_id: "cursor-2",
+            limit: 1000,
+            offset: 1000,
+            results: [
+              {
+                operation_id: 2000013674359901,
+                order_id: 2000017085667456,
+                sale_fee: {
+                  fee_amount: 20.64,
+                  gross: 20.64,
+                  net: 20.64,
+                },
+              },
+            ],
+            total: 1001,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 50, total: 1 },
+            results: [],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: createSyncConnection(),
+      cursor: null,
+      organizationId: "org_1",
+    });
+
+    expect(result.orders[0]?.metadata).toMatchObject({
+      operationId: "2000013674359901",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("from_id=cursor-1");
+  });
+
+  it("prefers billing row with operation_id when the same order_id appears multiple times", async () => {
+    const provider = createProvider();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 1 },
+            results: [
+              {
+                currency_id: "BRL",
+                date_closed: "2026-06-24T10:00:00.000-03:00",
+                date_created: "2026-06-24T09:30:00.000-03:00",
+                id: 2000017085667456,
+                order_items: [
+                  {
+                    item: {
+                      id: "MLB123",
+                      seller_sku: "SKU-1",
+                      title: "Produto",
+                    },
+                    quantity: 1,
+                    sale_fee: 20.64,
+                    unit_price: 100,
+                  },
+                ],
+                payments: [
+                  {
+                    fee_amount: 5.76,
+                    marketplace_fee: 20.64,
+                    shipping_cost: 0.6,
+                  },
+                ],
+                total_amount: 100,
+              },
+            ],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [
+              {
+                order_id: 2000017085667456,
+                sale_fee: {
+                  fee_amount: 20.64,
+                  gross: 20.64,
+                  net: 20.64,
+                },
+              },
+              {
+                operation_id: 2000013674359901,
+                order_id: 2000017085667456,
+                sale_fee: {
+                  fee_amount: 20.64,
+                  gross: 20.64,
+                  net: 20.64,
+                },
+              },
+            ],
+            total: 2,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 50, total: 1 },
+            results: [],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: createSyncConnection(),
+      cursor: null,
+      organizationId: "org_1",
+    });
+
+    expect(result.orders[0]?.metadata).toMatchObject({
+      operationId: "2000013674359901",
+    });
   });
 
   it("normalizes variation ids nested inside the item payload during sync", async () => {

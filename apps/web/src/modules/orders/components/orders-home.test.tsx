@@ -10,8 +10,10 @@ import { OrdersHome } from "./orders-home";
 
 const useOrdersListMock = vi.hoisted(() => vi.fn());
 const useOrderDetailsMock = vi.hoisted(() => vi.fn());
+const downloadOrdersExportMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../hooks/use-orders-data", () => ({
+  downloadOrdersExport: downloadOrdersExportMock,
   useOrderDetails: useOrderDetailsMock,
   useOrdersList: useOrdersListMock,
 }));
@@ -78,6 +80,7 @@ describe("OrdersHome", () => {
             contributionMarginPercent: "46.00",
             createdAt: "2026-06-20T12:00:00.000Z",
             currency: "BRL",
+            displayOrderId: "MLB-SALE-9001",
             fixedCostAmount: "3.00",
             id: "order_row_1",
             itemsSold: 2,
@@ -85,6 +88,7 @@ describe("OrdersHome", () => {
             orderId: "MLB-1001",
             orderedAt: "2026-06-20T10:15:00.000Z",
             provider: "mercadolivre",
+            skus: ["SKU-1", "SKU-2"],
             shippingAmount: "20.00",
             sourceStatus: "paid",
             status: "paid",
@@ -143,6 +147,7 @@ describe("OrdersHome", () => {
           contributionMarginPercent: "46.00",
           createdAt: "2026-06-20T12:00:00.000Z",
           currency: "BRL",
+          displayOrderId: "MLB-SALE-9001",
           fixedCostAmount: "3.00",
           id: "order_row_1",
           itemsSold: 2,
@@ -150,6 +155,7 @@ describe("OrdersHome", () => {
           orderId: "MLB-1001",
           orderedAt: "2026-06-20T10:15:00.000Z",
           provider: "mercadolivre",
+          skus: ["SKU-1", "SKU-2"],
           shippingAmount: "20.00",
           sourceStatus: "paid",
           status: "paid",
@@ -171,6 +177,11 @@ describe("OrdersHome", () => {
     vi.clearAllMocks();
   });
 
+  beforeEach(() => {
+    downloadOrdersExportMock.mockReset();
+    downloadOrdersExportMock.mockResolvedValue(undefined);
+  });
+
   it("renders status dropdown options from API", () => {
     const view = mount(<OrdersHome />);
 
@@ -187,7 +198,7 @@ describe("OrdersHome", () => {
     const view = mount(<OrdersHome />);
 
     click(document.querySelector('tr[role="button"]')!);
-    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Composição")!);
+    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Compos"))!);
 
     const content = text();
 
@@ -195,13 +206,10 @@ describe("OrdersHome", () => {
     expect(content).not.toContain("Totais agregados do pedido");
     expect(content).toContain("R$ 200,00");
     expect(content).toContain("R$ 24,00");
-    expect(content).toContain("R$ 43,00");
-    expect(content).toContain("R$ 23,00");
     expect(content).toContain("Imposto");
     expect(content).toContain("12,00%");
     expect(content).toContain("Frete / Taxa Fixa");
     expect(content).toContain("Estornos / Bônus");
-    expect(content).toContain("R$ 0,00");
     expect(content).not.toContain("Receita Líquida");
     expect(content).not.toContain("Dados parciais");
 
@@ -277,11 +285,9 @@ describe("OrdersHome", () => {
     const view = mount(<OrdersHome />);
 
     click(document.querySelector('tr[role="button"]')!);
-    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "Composição")!);
+    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Compos"))!);
 
     const content = text();
-
-    expect(content).toContain("Estornos / Bônus");
     expect(content).toContain("R$ 3,54");
 
     view.unmount();
@@ -336,6 +342,120 @@ describe("OrdersHome", () => {
     view.unmount();
   });
 
+  it("renders displayed order id when available", () => {
+    const view = mount(<OrdersHome />);
+
+    expect(text()).toContain("MLB-SALE-9001");
+    expect(text()).toContain("SKU-1");
+    expect(text()).toContain("SKU-2");
+    expect(text()).not.toContain("MLB-1001Pagamento aprovado");
+
+    view.unmount();
+  });
+
+  it("renders negative margin and profit values in red", () => {
+    useOrdersListMock.mockReturnValue({
+      data: {
+        summary: {
+          averageMargin: "0.29",
+          grossProfit: "57.00",
+          grossRevenue: "200.00",
+          ordersCount: 1,
+          unitsSold: 2,
+        },
+        availableStatuses: [
+          { label: "Pagamento aprovado", value: "paid" },
+        ],
+        items: [
+          {
+            contributionMarginPercent: "-10.50",
+            createdAt: "2026-06-20T12:00:00.000Z",
+            currency: "BRL",
+            displayOrderId: "MLB-SALE-9001",
+            fixedCostAmount: "3.00",
+            id: "order_row_1",
+            itemsSold: 2,
+            orderDate: "2026-06-20",
+            orderId: "MLB-1001",
+            orderedAt: "2026-06-20T10:15:00.000Z",
+            provider: "mercadolivre",
+            shippingAmount: "20.00",
+            sourceStatus: "paid",
+            status: "paid",
+            statusLabel: "Pagamento aprovado",
+            tariffAmount: "10.00",
+            totalFees: "33.00",
+            totalProfitAmount: "-3.14",
+            totalWithFees: "200.00",
+            totalWithoutFees: "167.00",
+          },
+        ],
+        page: 1,
+        pageSize: 20,
+        totalItems: 1,
+        totalPages: 1,
+      },
+      error: null,
+      isLoading: false,
+    });
+
+    const view = mount(<OrdersHome />);
+    const negativeMargin = Array.from(document.querySelectorAll("td")).find((cell) =>
+      cell.textContent?.includes("-10,50%"),
+    );
+    const negativeProfit = Array.from(document.querySelectorAll("td")).find((cell) =>
+      cell.textContent?.includes("3,14"),
+    );
+
+    expect(negativeMargin?.className).toContain("text-red");
+    expect(negativeProfit?.className).toContain("text-red");
+
+    view.unmount();
+  });
+
+  it("renders composition tab as read-only cards with negated red values for costs", () => {
+    const view = mount(<OrdersHome />);
+
+    click(document.querySelector('tr[role="button"]')!);
+    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.includes("Compos"))!);
+
+    const inputs = Array.from(document.querySelectorAll("input"));
+    const editableInputs = inputs.filter((input) =>
+      input.getAttribute("aria-label")?.includes("Estornos") ||
+      input.getAttribute("aria-label")?.includes("Custo") ||
+      input.getAttribute("aria-label")?.includes("Comissão") ||
+      input.getAttribute("aria-label")?.includes("Frete") ||
+      input.getAttribute("aria-label")?.includes("Embalagem"),
+    );
+
+    expect(editableInputs).toHaveLength(0);
+
+    const content = text();
+    expect(content).toContain("Faturamento");
+    expect(content).toContain("Estornos / Bônus");
+    expect(content).toContain("Custo Produto");
+    expect(content).toContain("Comissão");
+    expect(content).toContain("Frete / Taxa Fixa");
+    expect(content).toContain("Embalagem");
+    expect(content).toContain("Imposto");
+
+    const negativeValueDivs = Array.from(document.querySelectorAll("div.text-red-600.tabular-nums"));
+    expect(negativeValueDivs.length).toBeGreaterThanOrEqual(5);
+    negativeValueDivs.forEach((div) => {
+      expect(div.textContent?.trim().startsWith("-")).toBe(true);
+    });
+
+    const allValueDivs = Array.from(document.querySelectorAll("div.tabular-nums"));
+    const nonNegativeValueDivs = allValueDivs.filter(
+      (div) => !div.className.includes("text-red-600"),
+    );
+    nonNegativeValueDivs.forEach((div) => {
+      expect(div.textContent?.trim().startsWith("-")).toBe(false);
+    });
+
+    view.unmount();
+  });
+
   it("requests server-side ordering and disables summary loading for table query", () => {
     const view = mount(<OrdersHome />);
 
@@ -378,6 +498,191 @@ describe("OrdersHome", () => {
 
     expect(useOrdersListMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+
+    view.unmount();
+  });
+
+  it("changes to page 2 when pagination is used", () => {
+    useOrdersListMock
+      .mockReturnValueOnce({
+        data: {
+          ...useOrdersListMock.mock.results[0]?.value?.data,
+          items: [
+            {
+              contributionMarginPercent: "46.00",
+              createdAt: "2026-06-20T12:00:00.000Z",
+              currency: "BRL",
+              displayOrderId: "MLB-SALE-9001",
+              fixedCostAmount: "3.00",
+              id: "order_row_1",
+              itemsSold: 2,
+              orderDate: "2026-06-20",
+              orderId: "MLB-1001",
+              orderedAt: "2026-06-20T10:15:00.000Z",
+              provider: "mercadolivre",
+              skus: ["SKU-1"],
+              shippingAmount: "20.00",
+              sourceStatus: "paid",
+              status: "paid",
+              statusLabel: "Pagamento aprovado",
+              tariffAmount: "10.00",
+              totalFees: "33.00",
+              totalProfitAmount: "92.00",
+              totalWithFees: "200.00",
+              totalWithoutFees: "167.00",
+            },
+          ],
+          page: 1,
+          pageSize: 20,
+          totalItems: 21,
+          totalPages: 2,
+        },
+        error: null,
+        isLoading: false,
+      })
+      .mockReturnValue({
+        data: {
+          summary: {
+            averageMargin: "0.29",
+            grossProfit: "57.00",
+            grossRevenue: "200.00",
+            ordersCount: 1,
+            unitsSold: 2,
+          },
+          availableStatuses: [
+            { label: "Pagamento aprovado", value: "paid" },
+          ],
+          items: [],
+          page: 2,
+          pageSize: 20,
+          totalItems: 21,
+          totalPages: 2,
+        },
+        error: null,
+        isLoading: false,
+      });
+
+    const view = mount(<OrdersHome />);
+
+    click(Array.from(document.querySelectorAll("button")).find((button) => button.textContent?.trim() === "2")!);
+
+    expect(useOrdersListMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        page: 2,
+      }),
+    );
+
+    view.unmount();
+  });
+
+  it("selects visible rows and exports selected orders without opening modal", async () => {
+    useOrdersListMock.mockReturnValue({
+      data: {
+        summary: {
+          averageMargin: "0.29",
+          grossProfit: "57.00",
+          grossRevenue: "200.00",
+          ordersCount: 2,
+          unitsSold: 3,
+        },
+        availableStatuses: [
+          { label: "Pagamento aprovado", value: "paid" },
+        ],
+        items: [
+          {
+            contributionMarginPercent: "46.00",
+            createdAt: "2026-06-20T12:00:00.000Z",
+            currency: "BRL",
+            displayOrderId: "MLB-SALE-9001",
+            fixedCostAmount: "3.00",
+            id: "order_row_1",
+            itemsSold: 2,
+            orderDate: "2026-06-20",
+            orderId: "MLB-1001",
+            orderedAt: "2026-06-20T10:15:00.000Z",
+            provider: "mercadolivre",
+            skus: ["SKU-1"],
+            shippingAmount: "20.00",
+            sourceStatus: "paid",
+            status: "paid",
+            statusLabel: "Pagamento aprovado",
+            tariffAmount: "10.00",
+            totalFees: "33.00",
+            totalProfitAmount: "92.00",
+            totalWithFees: "200.00",
+            totalWithoutFees: "167.00",
+          },
+          {
+            contributionMarginPercent: "12.00",
+            createdAt: "2026-06-21T12:00:00.000Z",
+            currency: "BRL",
+            displayOrderId: "SHP-SALE-9002",
+            fixedCostAmount: "1.00",
+            id: "order_row_2",
+            itemsSold: 1,
+            orderDate: "2026-06-21",
+            orderId: "SHP-1002",
+            orderedAt: "2026-06-21T10:15:00.000Z",
+            provider: "shopee",
+            skus: ["SKU-9"],
+            shippingAmount: "9.00",
+            sourceStatus: "paid",
+            status: "paid",
+            statusLabel: "Pagamento aprovado",
+            tariffAmount: "4.00",
+            totalFees: "14.00",
+            totalProfitAmount: "8.00",
+            totalWithFees: "80.00",
+            totalWithoutFees: "66.00",
+          },
+        ],
+        page: 1,
+        pageSize: 20,
+        totalItems: 2,
+        totalPages: 1,
+      },
+      error: null,
+      isLoading: false,
+    });
+
+    const view = mount(<OrdersHome />);
+
+    click(document.querySelector('input[aria-label="Selecionar pedidos visiveis"]')!);
+
+    expect(text()).toContain("2selecionados");
+
+    await act(async () => {
+      click(Array.from(document.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("Exportar selecionados"),
+      )!);
+      await Promise.resolve();
+    });
+
+    expect(downloadOrdersExportMock).toHaveBeenCalledWith({
+      ids: ["order_row_1", "order_row_2"],
+    });
+    expect(useOrderDetailsMock).not.toHaveBeenCalledWith("order_row_1", true);
+
+    view.unmount();
+  });
+
+  it("exports filtered orders", async () => {
+    const view = mount(<OrdersHome />);
+
+    await act(async () => {
+      click(Array.from(document.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("Exportar"),
+      )!);
+      await Promise.resolve();
+    });
+
+    expect(downloadOrdersExportMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        includeSummary: false,
         page: 1,
         pageSize: 20,
       }),

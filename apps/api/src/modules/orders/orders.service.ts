@@ -10,16 +10,19 @@ import type {
   ExternalOrder,
   ExternalOrderItem,
   ExternalProduct,
+  MarketplaceConnection,
   Product,
   ProductCost,
   ProductFinanceDefaults,
   ProductImage,
 } from "@lucreii/database";
-import { externalOrders } from "@lucreii/database";
+import { externalOrders, marketplaceConnections } from "@lucreii/database";
 import type {
   OrderCanonicalStatus,
   OrderComposition,
+  OrderCompositionUpdateInput,
   OrderDetails,
+  OrderExportFilters,
   OrderLineItem,
   OrderListFilters,
   OrderListItem,
@@ -28,8 +31,12 @@ import type {
   OrderStatusLabel,
   OrderStatusOption,
 } from "@lucreii/types";
+import { orderExportQuerySchema } from "@lucreii/validation";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { DATABASE_CLIENT } from "@/common/tokens";
+import { utils, write } from "xlsx";
+import type { ApiRuntimeEnv } from "@/common/config/api-env";
+import { API_RUNTIME_ENV, DATABASE_CLIENT } from "@/common/tokens";
+import { MercadoLivreProvider } from "@/modules/integrations/providers/mercadolivre.provider";
 
 type TenantContext = {
   organizationId: string;
@@ -67,6 +74,16 @@ type OrderRowShallow = ExternalOrder & {
 };
 
 type OrderSortKey = NonNullable<OrderListFilters["sortBy"]>;
+type OrderCompositionOverrides = Partial<
+  Pick<
+    OrderComposition,
+    | "refundBonusAmount"
+    | "productCostAmount"
+    | "marketplaceCommissionAmount"
+    | "shippingOrFixedFeeAmount"
+    | "packagingCostAmount"
+  >
+>;
 
 const ORDER_STATUS_OPTIONS: OrderStatusOption[] = [
   { value: "confirmed", label: "Pagamento pendente" },
@@ -418,14 +435,26 @@ function buildOrderFinancialMetrics(
 ) {
   const baseMetrics = buildOrderBaseMetrics(order);
   const revenueAmount = baseMetrics.totalWithFees;
-  const shippingOrFixedFeeAmount =
-    baseMetrics.shippingAmount + baseMetrics.fixedCostAmount;
-  const marketplaceCommissionAmount = baseMetrics.tariffAmount;
+  const compositionOverrides = readOrderCompositionOverrides(
+    (order.metadata ?? {}) as Record<string, unknown>,
+  );
+  const shippingOrFixedFeeAmount = readOverrideMoney(
+    compositionOverrides.shippingOrFixedFeeAmount,
+    baseMetrics.shippingAmount + baseMetrics.fixedCostAmount,
+  );
+  const marketplaceCommissionAmount = readOverrideMoney(
+    compositionOverrides.marketplaceCommissionAmount,
+    baseMetrics.tariffAmount,
+  );
+  const refundBonusAmount = readOverrideMoney(
+    compositionOverrides.refundBonusAmount,
+    baseMetrics.refundBonusAmount,
+  );
   const netRevenueAmount =
     revenueAmount -
     marketplaceCommissionAmount -
     shippingOrFixedFeeAmount +
-    baseMetrics.refundBonusAmount;
+    refundBonusAmount;
   const parsedTaxRate = toNumber(taxRateDefault);
   const taxRateValue = Number.isFinite(parsedTaxRate) ? parsedTaxRate : 0;
   const taxAmount = revenueAmount * taxRateValue;
@@ -454,6 +483,15 @@ function buildOrderFinancialMetrics(
       toNumber(linkedProduct.financeDefaults?.packagingCost) * item.quantity;
   }
 
+  productCostAmount = readOverrideMoney(
+    compositionOverrides.productCostAmount,
+    productCostAmount,
+  );
+  packagingCostAmount = readOverrideMoney(
+    compositionOverrides.packagingCostAmount,
+    packagingCostAmount,
+  );
+
   const hasIncompleteCostData =
     missingLinkedItemsCount > 0 || missingCostItemsCount > 0;
   const totalProfitAmount = hasIncompleteCostData
@@ -473,7 +511,7 @@ function buildOrderFinancialMetrics(
       netRevenueAmount: netRevenueAmount.toFixed(2),
       packagingCostAmount: packagingCostAmount.toFixed(2),
       productCostAmount: productCostAmount.toFixed(2),
-      refundBonusAmount: baseMetrics.refundBonusAmount.toFixed(2),
+      refundBonusAmount: refundBonusAmount.toFixed(2),
       revenueAmount: revenueAmount.toFixed(2),
       shippingOrFixedFeeAmount: shippingOrFixedFeeAmount.toFixed(2),
       taxAmount: taxAmount.toFixed(2),
@@ -488,6 +526,127 @@ function buildOrderFinancialMetrics(
         : contributionMarginPercent.toFixed(2),
     totalProfitAmount:
       totalProfitAmount === null ? null : totalProfitAmount.toFixed(2),
+  };
+}
+
+function readOverrideMoney(value: string | undefined, fallback: number) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getDisplayOrderId(
+  order: Pick<OrderRow, "externalOrderId" | "metadata" | "provider">,
+) {
+  if (order.provider !== "mercadolivre") {
+    return order.externalOrderId;
+  }
+
+  const metadata =
+    order.metadata && typeof order.metadata === "object"
+      ? (order.metadata as Record<string, unknown>)
+      : null;
+  const operationId =
+    metadata && typeof metadata.operationId === "string"
+      ? metadata.operationId.trim()
+      : null;
+
+  return operationId && operationId.length > 0
+    ? operationId
+    : order.externalOrderId;
+}
+
+function readMercadoLivreOperationId(
+  metadata: Record<string, unknown> | null | undefined,
+) {
+  const operationId =
+    metadata && typeof metadata.operationId === "string"
+      ? metadata.operationId.trim()
+      : null;
+
+  return operationId && operationId.length > 0 ? operationId : null;
+}
+
+function shouldRefreshMercadoLivreOperationId(
+  order: Pick<OrderRowShallow, "externalOrderId" | "metadata">,
+) {
+  const metadata =
+    order.metadata && typeof order.metadata === "object"
+      ? (order.metadata as Record<string, unknown>)
+      : null;
+  const operationId = readMercadoLivreOperationId(metadata);
+
+  if (operationId === null) {
+    return true;
+  }
+
+  return operationId === order.externalOrderId;
+}
+
+function toBillingPeriodKey(value: Date | string | null | undefined) {
+  const iso = toIsoString(value);
+  if (!iso) {
+    return null;
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function isExpired(value: Date | string | null | undefined) {
+  if (!value) {
+    return false;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isFinite(date.getTime()) && date.getTime() <= Date.now();
+}
+
+function readOrderCompositionOverrides(
+  metadata: Record<string, unknown> | null | undefined,
+): OrderCompositionOverrides {
+  if (!metadata || typeof metadata !== "object") {
+    return {};
+  }
+
+  const rawOverrides =
+    metadata.compositionOverrides &&
+    typeof metadata.compositionOverrides === "object"
+      ? (metadata.compositionOverrides as Record<string, unknown>)
+      : null;
+
+  if (!rawOverrides) {
+    return {};
+  }
+
+  return {
+    marketplaceCommissionAmount:
+      typeof rawOverrides.marketplaceCommissionAmount === "string"
+        ? rawOverrides.marketplaceCommissionAmount
+        : undefined,
+    packagingCostAmount:
+      typeof rawOverrides.packagingCostAmount === "string"
+        ? rawOverrides.packagingCostAmount
+        : undefined,
+    productCostAmount:
+      typeof rawOverrides.productCostAmount === "string"
+        ? rawOverrides.productCostAmount
+        : undefined,
+    refundBonusAmount:
+      typeof rawOverrides.refundBonusAmount === "string"
+        ? rawOverrides.refundBonusAmount
+        : undefined,
+    shippingOrFixedFeeAmount:
+      typeof rawOverrides.shippingOrFixedFeeAmount === "string"
+        ? rawOverrides.shippingOrFixedFeeAmount
+        : undefined,
   };
 }
 
@@ -578,6 +737,7 @@ function toOrderListItem(
   return {
     createdAt: toIsoString(order.createdAt)!,
     currency: order.currency,
+    displayOrderId: getDisplayOrderId(order),
     fixedCostAmount: baseMetrics.fixedCostAmount.toFixed(2),
     id: order.id,
     itemsSold: baseMetrics.itemsSold,
@@ -585,6 +745,7 @@ function toOrderListItem(
     orderId: order.externalOrderId,
     orderedAt: toIsoString(order.orderedAt),
     provider: order.provider as "mercadolivre" | "shopee" | "shein",
+    skus: collectOrderSkus(order),
     shippingAmount: baseMetrics.shippingAmount.toFixed(2),
     sourceStatus: order.status,
     status: baseMetrics.canonicalStatus,
@@ -597,6 +758,23 @@ function toOrderListItem(
       financialMetrics?.contributionMarginPercent ?? null,
     totalProfitAmount: financialMetrics?.totalProfitAmount ?? null,
   };
+}
+
+function collectOrderSkus(order: Pick<OrderRow, "items">): string[] {
+  const uniqueSkus = new Set<string>();
+  const skus: string[] = [];
+
+  for (const item of order.items) {
+    const sku = item.externalProduct?.sku?.trim() ?? "";
+    if (!sku || uniqueSkus.has(sku)) {
+      continue;
+    }
+
+    uniqueSkus.add(sku);
+    skus.push(sku);
+  }
+
+  return skus;
 }
 
 function toOrderLineItems(order: OrderRow): OrderLineItem[] {
@@ -727,7 +905,7 @@ function getOrderListSortValue(row: OrderListItem, key: OrderSortKey) {
     case "provider":
       return row.provider;
     case "orderId":
-      return row.orderId;
+      return row.displayOrderId;
     case "statusLabel":
       return row.statusLabel;
     case "orderedAt":
@@ -787,9 +965,16 @@ function compareOrderListItems(
 
 @Injectable()
 export class OrdersService {
+  private readonly billingOperationIdCache = new Map<
+    string,
+    Promise<Map<string, string>>
+  >();
+
   constructor(
     @Inject(DATABASE_CLIENT)
     private readonly db: DatabaseClient,
+    @Inject(API_RUNTIME_ENV)
+    private readonly env?: ApiRuntimeEnv,
   ) {}
 
   async listOrders(
@@ -811,7 +996,10 @@ export class OrdersService {
       ...(filters.provider ? [eq(externalOrders.provider, filters.provider)] : []),
       ...(searchNeedle
         ? [
-            sql`upper(trim(${externalOrders.externalOrderId})) like ${`%${searchNeedle.toUpperCase()}%`}`,
+            sql`(
+              upper(trim(${externalOrders.externalOrderId})) like ${`%${searchNeedle.toUpperCase()}%`}
+              or upper(trim(coalesce(${externalOrders.metadata} ->> 'operationId', ''))) like ${`%${searchNeedle.toUpperCase()}%`}
+            )`,
           ]
         : []),
       ...(filters.orderedFrom
@@ -824,7 +1012,7 @@ export class OrdersService {
     const baseWhere = and(...baseWhereConditions);
     const canPageInDatabase =
       !filters.status &&
-      ["orderedAt", "orderId", "provider"].includes(sortBy);
+      ["orderedAt", "provider"].includes(sortBy);
     const [company] = await Promise.all([
       this.db.query.companies.findFirst({
         where: (table) =>
@@ -882,10 +1070,15 @@ export class OrdersService {
       const orderedRows = ids
         .map((id) => rowById.get(id) ?? null)
         .filter((row): row is OrderRowShallow => row !== null);
-      const hydratedRows = await this.hydrateLinkedProducts(
+      const backfilledRows = await this.backfillMercadoLivreOperationIds(
         authContext,
         companyId,
         orderedRows,
+      );
+      const hydratedRows = await this.hydrateLinkedProducts(
+        authContext,
+        companyId,
+        backfilledRows,
       );
       const items = hydratedRows.map((row) =>
         toOrderListItem(
@@ -924,10 +1117,15 @@ export class OrdersService {
         },
       },
     });
-    const hydratedRows = await this.hydrateLinkedProducts(
+    const backfilledRows = await this.backfillMercadoLivreOperationIds(
       authContext,
       companyId,
       rows as OrderRowShallow[],
+    );
+    const hydratedRows = await this.hydrateLinkedProducts(
+      authContext,
+      companyId,
+      backfilledRows,
     );
     const mapped = hydratedRows
       .map((row) => ({
@@ -938,8 +1136,15 @@ export class OrdersService {
         row,
       }))
       .filter(({ item }) => {
-        if (filters.search && !includesIgnoreCase(item.orderId, filters.search)) {
-          return false;
+        if (filters.search) {
+          const matchesOrderId = includesIgnoreCase(item.orderId, filters.search);
+          const matchesDisplayOrderId = includesIgnoreCase(
+            item.displayOrderId,
+            filters.search,
+          );
+          if (!matchesOrderId && !matchesDisplayOrderId) {
+            return false;
+          }
         }
 
         if (filters.status && item.status !== filters.status) {
@@ -977,6 +1182,135 @@ export class OrdersService {
     };
   }
 
+  async exportOrdersSpreadsheet(
+    authContext: TenantContext,
+    filters: OrderExportFilters = {},
+  ): Promise<Buffer> {
+    const companyId = this.requireSelectedCompanyId(authContext);
+    const normalizedFilters = orderExportQuerySchema.parse(filters);
+    const sortBy = "orderedAt" satisfies NonNullable<OrderListFilters["sortBy"]>;
+    const sortDirection = "desc" as const;
+    const searchNeedle = normalizedFilters.search?.trim();
+    const baseWhereConditions = [
+      eq(externalOrders.organizationId, authContext.organizationId),
+      eq(externalOrders.companyId, companyId),
+      ...(normalizedFilters.provider
+        ? [eq(externalOrders.provider, normalizedFilters.provider)]
+        : []),
+      ...(searchNeedle
+        ? [
+            sql`(
+              upper(trim(${externalOrders.externalOrderId})) like ${`%${searchNeedle.toUpperCase()}%`}
+              or upper(trim(coalesce(${externalOrders.metadata} ->> 'operationId', ''))) like ${`%${searchNeedle.toUpperCase()}%`}
+            )`,
+          ]
+        : []),
+      ...(normalizedFilters.orderedFrom
+        ? [sql`${externalOrders.orderedAt}::date >= ${normalizedFilters.orderedFrom}`]
+        : []),
+      ...(normalizedFilters.orderedTo
+        ? [sql`${externalOrders.orderedAt}::date <= ${normalizedFilters.orderedTo}`]
+        : []),
+    ];
+    const baseWhere = and(...baseWhereConditions);
+    const [company] = await Promise.all([
+      this.db.query.companies.findFirst({
+        where: (table) =>
+          and(
+            eq(table.id, companyId),
+            eq(table.organizationId, authContext.organizationId),
+          ),
+      }),
+    ]);
+    const rows = await this.db.query.externalOrders.findMany({
+      orderBy: (table) => [desc(table.orderedAt), desc(table.createdAt)],
+      where: () => baseWhere,
+      with: {
+        fees: true,
+        items: {
+          with: {
+            externalProduct: true,
+          },
+        },
+      },
+    });
+    const backfilledRows = await this.backfillMercadoLivreOperationIds(
+      authContext,
+      companyId,
+      rows as OrderRowShallow[],
+    );
+    const hydratedRows = await this.hydrateLinkedProducts(
+      authContext,
+      companyId,
+      backfilledRows,
+    );
+    const selectedIds = new Set(normalizedFilters.ids ?? []);
+    const mapped = hydratedRows
+      .map((row) => ({
+        item: toOrderListItem(
+          row,
+          buildOrderFinancialMetrics(row, company?.taxRateDefault),
+        ),
+        row,
+      }))
+      .filter(({ item }) => {
+        if (selectedIds.size > 0 && !selectedIds.has(item.id)) {
+          return false;
+        }
+
+        if (normalizedFilters.search) {
+          const matchesOrderId = includesIgnoreCase(
+            item.orderId,
+            normalizedFilters.search,
+          );
+          const matchesDisplayOrderId = includesIgnoreCase(
+            item.displayOrderId,
+            normalizedFilters.search,
+          );
+          if (!matchesOrderId && !matchesDisplayOrderId) {
+            return false;
+          }
+        }
+
+        if (normalizedFilters.status && item.status !== normalizedFilters.status) {
+          return false;
+        }
+
+        if (
+          (normalizedFilters.orderedFrom || normalizedFilters.orderedTo) &&
+          !isOrderWithinRange(
+            item.orderDate,
+            normalizedFilters.orderedFrom,
+            normalizedFilters.orderedTo,
+          )
+        ) {
+          return false;
+        }
+
+        return true;
+      });
+    mapped.sort((left, right) =>
+      compareOrderListItems(left.item, right.item, sortBy, sortDirection),
+    );
+
+    const worksheet = utils.json_to_sheet(
+      mapped.map(({ item }) => ({
+        Canal: item.provider,
+        "Data do Pedido": item.orderDate ?? "",
+        Faturamento: item.totalWithFees,
+        "ID do Pedido": item.displayOrderId,
+        "Lucro Total": item.totalProfitAmount ?? "",
+        "Margem de Contribuição": item.contributionMarginPercent ?? "",
+        SKUs: item.skus.join("\n"),
+        Status: item.statusLabel,
+      })),
+    );
+    const workbook = utils.book_new();
+    utils.book_append_sheet(workbook, worksheet, "Pedidos");
+
+    return Buffer.from(write(workbook, { bookType: "xlsx", type: "buffer" }));
+  }
+
   async getOrderDetails(
     authContext: TenantContext,
     orderRecordId: string,
@@ -1012,11 +1346,15 @@ export class OrdersService {
       throw new NotFoundException("Order not found.");
     }
 
-    const shallowRow = row as OrderRowShallow;
+    const [backfilledRow] = await this.backfillMercadoLivreOperationIds(
+      authContext,
+      companyId,
+      [row as OrderRowShallow],
+    );
     const [hydratedRow] = await this.hydrateLinkedProducts(
       authContext,
       companyId,
-      [shallowRow],
+      [backfilledRow],
     );
 
     return {
@@ -1030,6 +1368,65 @@ export class OrdersService {
         buildOrderFinancialMetrics(hydratedRow, company?.taxRateDefault),
       ),
     };
+  }
+
+  async updateOrderComposition(
+    authContext: TenantContext,
+    orderRecordId: string,
+    input: OrderCompositionUpdateInput,
+  ): Promise<OrderDetails> {
+    const companyId = this.requireSelectedCompanyId(authContext);
+    const row = await this.db.query.externalOrders.findFirst({
+      where: (table) =>
+        and(
+          eq(table.id, orderRecordId),
+          eq(table.organizationId, authContext.organizationId),
+          eq(table.companyId, companyId),
+        ),
+      with: {
+        fees: true,
+        items: {
+          with: {
+            externalProduct: true,
+          },
+        },
+      },
+    });
+
+    if (!row) {
+      throw new NotFoundException("Order not found.");
+    }
+
+    const metadata =
+      row.metadata && typeof row.metadata === "object"
+        ? { ...(row.metadata as Record<string, unknown>) }
+        : {};
+    metadata.compositionOverrides = {
+      marketplaceCommissionAmount: input.marketplaceCommissionAmount,
+      packagingCostAmount: input.packagingCostAmount,
+      productCostAmount: input.productCostAmount,
+      refundBonusAmount: input.refundBonusAmount,
+      shippingOrFixedFeeAmount: input.shippingOrFixedFeeAmount,
+    } satisfies OrderCompositionOverrides;
+
+    await this.db
+      .update(externalOrders)
+      .set({
+        metadata,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(externalOrders.id, orderRecordId),
+          eq(externalOrders.organizationId, authContext.organizationId),
+          eq(externalOrders.companyId, companyId),
+        ),
+      )
+      .returning({
+        id: externalOrders.id,
+      });
+
+    return this.getOrderDetails(authContext, orderRecordId);
   }
 
   private async buildOrdersSummaryForFilters(
@@ -1066,8 +1463,15 @@ export class OrdersService {
         buildOrderFinancialMetrics(row, taxRateDefault),
       );
 
-      if (filters.search && !includesIgnoreCase(listItem.orderId, filters.search)) {
-        return false;
+      if (filters.search) {
+        const matchesOrderId = includesIgnoreCase(listItem.orderId, filters.search);
+        const matchesDisplayOrderId = includesIgnoreCase(
+          listItem.displayOrderId,
+          filters.search,
+        );
+        if (!matchesOrderId && !matchesDisplayOrderId) {
+          return false;
+        }
       }
 
       if (filters.status && listItem.status !== filters.status) {
@@ -1143,5 +1547,300 @@ export class OrdersService {
           : null,
       })),
     }));
+  }
+
+  private async backfillMercadoLivreOperationIds(
+    authContext: TenantContext,
+    companyId: string,
+    rows: OrderRowShallow[],
+  ): Promise<OrderRowShallow[]> {
+    if (!this.env || rows.length === 0) {
+      return rows;
+    }
+
+    const targets = rows.filter((row) => {
+      if (
+        row.provider !== "mercadolivre" ||
+        !row.marketplaceConnectionId ||
+        !row.orderedAt
+      ) {
+        return false;
+      }
+
+      return shouldRefreshMercadoLivreOperationId(row);
+    });
+
+    if (targets.length === 0) {
+      return rows;
+    }
+
+    const connectionIds = [
+      ...new Set(
+        targets
+          .map((row) => row.marketplaceConnectionId)
+          .filter((value): value is string => Boolean(value)),
+      ),
+    ];
+    const connections =
+      connectionIds.length === 0
+        ? []
+        : await this.db.query.marketplaceConnections.findMany({
+            where: (table) =>
+              and(
+                eq(table.organizationId, authContext.organizationId),
+                eq(table.companyId, companyId),
+                inArray(table.id, connectionIds),
+              ),
+          });
+    const connectionById = new Map(
+      connections.map((connection) => [connection.id, connection] as const),
+    );
+    const requests = new Map<
+      string,
+      {
+        connection: MarketplaceConnection;
+        orderIds: string[];
+        periodKey: string;
+      }
+    >();
+
+    for (const row of targets) {
+      const connection = connectionById.get(row.marketplaceConnectionId ?? "");
+      if (
+        !connection ||
+        connection.provider !== "mercadolivre" ||
+        connection.status !== "connected" ||
+        !connection.accessToken
+      ) {
+        continue;
+      }
+
+      const periodKey = toBillingPeriodKey(row.orderedAt);
+      if (!periodKey) {
+        continue;
+      }
+
+      const requestKey = `${connection.id}:${periodKey}`;
+      const current = requests.get(requestKey);
+      if (current) {
+        current.orderIds.push(row.externalOrderId);
+        continue;
+      }
+
+      requests.set(requestKey, {
+        connection,
+        orderIds: [row.externalOrderId],
+        periodKey,
+      });
+    }
+
+    if (requests.size === 0) {
+      return rows;
+    }
+
+    const operationIdByOrderId = new Map<string, string>();
+    for (const request of requests.values()) {
+      const connection = await this.refreshMercadoLivreConnectionIfNeeded(
+        request.connection,
+      );
+      const operationIds = await this.fetchMercadoLivreOperationIds({
+        accessToken: connection.accessToken!,
+        periodKey: request.periodKey,
+      });
+      for (const orderId of request.orderIds) {
+        const operationId = operationIds.get(orderId);
+        if (operationId) {
+          operationIdByOrderId.set(orderId, operationId);
+        }
+      }
+    }
+
+    if (operationIdByOrderId.size === 0) {
+      return rows;
+    }
+
+    const updatedRows = rows.map((row) => {
+      const operationId = operationIdByOrderId.get(row.externalOrderId);
+      if (!operationId) {
+        return row;
+      }
+
+      const metadata =
+        row.metadata && typeof row.metadata === "object"
+          ? { ...(row.metadata as Record<string, unknown>) }
+          : {};
+      metadata.operationId = operationId;
+
+      return {
+        ...row,
+        metadata,
+      };
+    });
+
+    await Promise.all(
+      updatedRows.map((row) => {
+        const operationId = operationIdByOrderId.get(row.externalOrderId);
+        if (!operationId) {
+          return Promise.resolve();
+        }
+
+        return this.db
+          .update(externalOrders)
+          .set({
+            metadata:
+              row.metadata && typeof row.metadata === "object"
+                ? (row.metadata as Record<string, unknown>)
+                : { operationId },
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(externalOrders.id, row.id),
+              eq(externalOrders.organizationId, authContext.organizationId),
+              eq(externalOrders.companyId, companyId),
+            ),
+          );
+      }),
+    );
+
+    return updatedRows;
+  }
+
+  private async fetchMercadoLivreOperationIds(input: {
+    accessToken: string;
+    periodKey: string;
+  }) {
+    const cacheKey = `${input.accessToken}:${input.periodKey}`;
+    let cachedPromise = this.billingOperationIdCache.get(cacheKey);
+
+    if (!cachedPromise) {
+      cachedPromise = (async () => {
+        const operationIdMap = new Map<string, string>();
+        let fetchedResultsCount = 0;
+        let fromId = "0";
+
+        while (true) {
+          const url = new URL(
+            `https://api.mercadolibre.com/billing/integration/periods/key/${encodeURIComponent(input.periodKey)}/group/MP/details`,
+          );
+          url.searchParams.set("document_type", "BILL");
+          url.searchParams.set("limit", "1000");
+          url.searchParams.set("from_id", fromId);
+
+          let response: Response | null = null;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            response = await fetch(url, {
+              headers: {
+                Authorization: `Bearer ${input.accessToken}`,
+                accept: "application/json",
+                "x-version": "2",
+              },
+              method: "GET",
+            });
+
+            if (response.status !== 429 && response.status < 500) {
+              break;
+            }
+          }
+
+          if (!response?.ok) {
+            return new Map<string, string>();
+          }
+
+          const contentType = response.headers.get("content-type") ?? "";
+          if (!contentType.includes("application/json")) {
+            return new Map<string, string>();
+          }
+
+          const payload = (await response.json()) as {
+            last_id?: number | string;
+            results?: Array<{
+              operation_id?: number | string;
+              order_id?: number | string;
+            }>;
+            total?: number;
+          };
+          const pageResults = payload.results ?? [];
+          fetchedResultsCount += pageResults.length;
+
+          for (const result of pageResults) {
+            if (
+              result.order_id === undefined ||
+              result.order_id === null ||
+              result.operation_id === undefined ||
+              result.operation_id === null
+            ) {
+              continue;
+            }
+
+            operationIdMap.set(
+              String(result.order_id),
+              String(result.operation_id),
+            );
+          }
+
+          const total =
+            typeof payload.total === "number" && Number.isFinite(payload.total)
+              ? payload.total
+              : null;
+          const nextFromId =
+            payload.last_id !== undefined && payload.last_id !== null
+              ? String(payload.last_id)
+              : null;
+          const hasMore =
+            nextFromId !== null &&
+            nextFromId.length > 0 &&
+            nextFromId !== fromId &&
+            total !== null &&
+            fetchedResultsCount < total;
+
+          if (!hasMore) {
+            return operationIdMap;
+          }
+
+          fromId = nextFromId;
+        }
+      })();
+
+      this.billingOperationIdCache.set(cacheKey, cachedPromise);
+    }
+
+    return cachedPromise;
+  }
+
+  private async refreshMercadoLivreConnectionIfNeeded(
+    connection: MarketplaceConnection,
+  ) {
+    if (
+      !this.env ||
+      !connection.accessToken ||
+      !isExpired(connection.tokenExpiresAt) ||
+      !connection.refreshToken
+    ) {
+      return connection;
+    }
+
+    const provider = new MercadoLivreProvider(this.env);
+    const refreshed = await provider.refreshAccessToken(connection);
+    const updatedConnection = {
+      ...connection,
+      accessToken: refreshed.accessToken,
+      refreshToken: refreshed.refreshToken,
+      tokenExpiresAt: refreshed.tokenExpiresAt,
+      updatedAt: new Date(),
+    };
+
+    await this.db
+      .update(marketplaceConnections)
+      .set({
+        accessToken: refreshed.accessToken,
+        refreshToken: refreshed.refreshToken,
+        status: "connected",
+        tokenExpiresAt: refreshed.tokenExpiresAt,
+        updatedAt: updatedConnection.updatedAt,
+      })
+      .where(eq(marketplaceConnections.id, connection.id));
+
+    return updatedConnection;
   }
 }

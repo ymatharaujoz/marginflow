@@ -68,6 +68,31 @@ export const orderListFiltersSchema = z.object({
   includeSummary: z.coerce.boolean().optional(),
 });
 
+export const orderExportQuerySchema = orderListFiltersSchema
+  .omit({
+    includeSummary: true,
+    page: true,
+    pageSize: true,
+    sortBy: true,
+    sortDirection: true,
+  })
+  .extend({
+    ids: z.preprocess((value) => {
+      if (Array.isArray(value)) {
+        return value;
+      }
+
+      if (typeof value !== "string") {
+        return [];
+      }
+
+      return value
+        .split(",")
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+    }, z.array(z.string().trim().min(1)).default([])),
+  });
+
 export const orderStatusOptionSchema = z.object({
   label: z.string().trim().min(1),
   value: orderCanonicalStatusSchema,
@@ -76,6 +101,8 @@ export const orderStatusOptionSchema = z.object({
 export const orderListItemSchema = z.object({
   id: z.string().trim().min(1),
   orderId: z.string().trim().min(1),
+  displayOrderId: z.string().trim().min(1),
+  skus: z.array(z.string().trim().min(1)),
   provider: integrationProviderSchema,
   status: orderCanonicalStatusSchema,
   sourceStatus: z.string().trim().min(1),
@@ -151,9 +178,19 @@ export const orderDetailsSchema = z.object({
   items: z.array(orderLineItemSchema),
 });
 
+export const orderCompositionUpdateSchema = z.object({
+  refundBonusAmount: decimalField("Refund bonus amount"),
+  productCostAmount: decimalField("Product cost amount"),
+  marketplaceCommissionAmount: decimalField("Marketplace commission amount"),
+  shippingOrFixedFeeAmount: decimalField("Shipping or fixed fee amount"),
+  packagingCostAmount: decimalField("Packaging cost amount"),
+});
+
 export const ordersListApiResponseSchema =
   createApiSuccessResponseSchema(ordersListResponseSchema);
 export const orderDetailsApiResponseSchema =
   createApiSuccessResponseSchema(orderDetailsSchema);
 
 export type OrderListFiltersInput = z.infer<typeof orderListFiltersSchema>;
+export type OrderExportQueryInput = z.infer<typeof orderExportQuerySchema>;
+export type OrderCompositionUpdateInput = z.infer<typeof orderCompositionUpdateSchema>;

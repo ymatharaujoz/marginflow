@@ -50,9 +50,18 @@ export type OrderListFilters = {
   includeSummary?: boolean;
 };
 
+export type OrderExportFilters = Omit<
+  OrderListFilters,
+  "includeSummary" | "page" | "pageSize" | "sortBy" | "sortDirection"
+> & {
+  ids?: string[];
+};
+
 export type OrderListItem = {
   id: string;
   orderId: string;
+  displayOrderId: string;
+  skus: string[];
   provider: IntegrationProviderSlug;
   status: OrderCanonicalStatus;
   sourceStatus: string;
@@ -126,4 +135,12 @@ export type OrderDetails = {
   composition: OrderComposition;
   order: OrderListItem;
   items: OrderLineItem[];
+};
+
+export type OrderCompositionUpdateInput = {
+  refundBonusAmount: string;
+  productCostAmount: string;
+  marketplaceCommissionAmount: string;
+  shippingOrFixedFeeAmount: string;
+  packagingCostAmount: string;
 };

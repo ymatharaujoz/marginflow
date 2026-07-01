@@ -16,7 +16,9 @@ import {
   type IntegrationSyncOrderItem,
   type IntegrationSyncProduct,
   type IntegrationSyncResult,
+  type IntegrationProviderTokenRefreshResult,
 } from "../integrations.types";
+import type { MarketplaceConnection } from "@lucreii/database";
 
 type MercadoLivreItemSearchResponse = {
   results?: Array<string | number>;
@@ -487,6 +489,10 @@ function resolveMercadoLivreReturnQuantity(
 export class MercadoLivreProvider implements IntegrationProvider {
   readonly displayName = "Mercado Livre";
   readonly provider = "mercadolivre" as const;
+  private readonly billingDetailCache = new Map<
+    string,
+    Promise<MercadoLivreBillingDetailResponse | null>
+  >();
 
   constructor(private readonly env: ApiRuntimeEnv) {}
 
@@ -656,6 +662,64 @@ export class MercadoLivreProvider implements IntegrationProvider {
 
   async disconnect() {
     return undefined;
+  }
+
+  async refreshAccessToken(
+    connection: MarketplaceConnection,
+  ): Promise<IntegrationProviderTokenRefreshResult> {
+    if (!connection.refreshToken) {
+      throw new IntegrationProviderError(
+        "Mercado Livre connection is missing refresh_token.",
+        "callback_invalid",
+      );
+    }
+
+    const tokenRequestBody = new URLSearchParams({
+      client_id: this.env.MERCADOLIVRE_CLIENT_ID ?? "",
+      client_secret: this.env.MERCADOLIVRE_CLIENT_SECRET ?? "",
+      grant_type: "refresh_token",
+      refresh_token: connection.refreshToken,
+    });
+
+    const tokenResponse = await fetch(
+      "https://api.mercadolibre.com/oauth/token",
+      {
+        body: tokenRequestBody,
+        headers: {
+          accept: "application/json",
+          "content-type": "application/x-www-form-urlencoded",
+        },
+        method: "POST",
+      },
+    );
+
+    const tokenPayload = (await parseProviderResponse(tokenResponse)) as
+      | MercadoLivreTokenResponse
+      | string;
+
+    if (
+      !tokenResponse.ok ||
+      typeof tokenPayload === "string" ||
+      !tokenPayload.access_token
+    ) {
+      throw new IntegrationProviderError(
+        `Mercado Livre token refresh failed.${
+          typeof tokenPayload === "string"
+            ? ` status=${tokenResponse.status} payload=${tokenPayload}`
+            : ` status=${tokenResponse.status} payload=${JSON.stringify(sanitizeProviderPayload(tokenPayload))}`
+        }`,
+        "remote_request_failed",
+      );
+    }
+
+    return {
+      accessToken: tokenPayload.access_token,
+      refreshToken: tokenPayload.refresh_token ?? connection.refreshToken,
+      tokenExpiresAt:
+        typeof tokenPayload.expires_in === "number"
+          ? new Date(Date.now() + tokenPayload.expires_in * 1000)
+          : new Date(Date.now() + 6 * 60 * 60 * 1000),
+    };
   }
 
   async importCatalog(
@@ -1199,7 +1263,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
       },
     );
 
-    const fees = await this.resolveOrderFees(order, input);
+    const { fees, operationId } = await this.resolveOrderFees(order, input);
 
     return {
       currency: order.currency_id ?? "BRL",
@@ -1207,6 +1271,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
       fees,
       items,
       metadata: {
+        ...(operationId ? { operationId } : {}),
         returnQuantityBySku,
         skuByExternalProductId,
         tags: order.tags ?? [],
@@ -1228,8 +1293,24 @@ export class MercadoLivreProvider implements IntegrationProvider {
     const hasShipmentLookup = Boolean(order.shipping?.id);
     const initialFees = await this.collectOrderFees(order, input);
 
-    if (this.hasCompleteFeeCoverage(initialFees) || !order.id) {
-      return initialFees;
+    if (!order.id) {
+      return {
+        fees: initialFees,
+        operationId: null,
+      };
+    }
+
+    if (this.hasCompleteFeeCoverage(initialFees)) {
+      const billingFeeBreakdown = await this.fetchBillingFeeBreakdown({
+        accessToken: input.accessToken,
+        fallbackDate: order.date_closed ?? order.date_created,
+        order,
+      });
+
+      return {
+        fees: initialFees,
+        operationId: billingFeeBreakdown?.operationId ?? null,
+      };
     }
 
     // The search payload can omit fee fields for some orders, so hydrate the
@@ -1240,7 +1321,10 @@ export class MercadoLivreProvider implements IntegrationProvider {
     });
 
     if (!detailedOrder) {
-      return initialFees;
+      return {
+        fees: initialFees,
+        operationId: null,
+      };
     }
 
     const detailedFees = await this.collectOrderFees(
@@ -1374,27 +1458,38 @@ export class MercadoLivreProvider implements IntegrationProvider {
     }
 
     if (!feeBreakdown || feeBreakdown.fixedFee === null) {
-      return completedFees;
+      return {
+        fees: completedFees,
+        operationId:
+          billingFeeBreakdown?.operationId ?? null,
+      };
     }
 
     if (this.hasFeeType(completedFees, "fixed_fee")) {
-      return completedFees;
+      return {
+        fees: completedFees,
+        operationId:
+          billingFeeBreakdown?.operationId ?? null,
+      };
     }
 
-    return [
-      ...completedFees,
-      {
-        amount: toDecimalString(feeBreakdown.fixedFee),
-        currency: order.currency_id ?? detailedOrder.currency_id ?? "BRL",
-        feeType: "fixed_fee",
-        metadata: {
-          source:
-            feeBreakdown === billingFeeBreakdown
-              ? "billing/integration/periods"
-              : "listing_prices.fixed_fee_fallback",
+    return {
+      fees: [
+        ...completedFees,
+        {
+          amount: toDecimalString(feeBreakdown.fixedFee),
+          currency: order.currency_id ?? detailedOrder.currency_id ?? "BRL",
+          feeType: "fixed_fee",
+          metadata: {
+            source:
+              feeBreakdown === billingFeeBreakdown
+                ? "billing/integration/periods"
+                : "listing_prices.fixed_fee_fallback",
+          },
         },
-      },
-    ];
+      ],
+      operationId: billingFeeBreakdown?.operationId ?? null,
+    };
   }
 
   private async collectOrderFees(
@@ -1579,33 +1674,79 @@ export class MercadoLivreProvider implements IntegrationProvider {
       return null;
     }
 
-    const url = new URL(
-      `https://api.mercadolibre.com/billing/integration/periods/key/${encodeURIComponent(periodKey)}/group/MP/details`,
-    );
-    url.searchParams.set("document_type", "BILL");
-    url.searchParams.set("limit", "1000");
-    url.searchParams.set("from_id", "0");
+    const cacheKey = `${input.accessToken}:${periodKey}`;
+    let payloadPromise = this.billingDetailCache.get(cacheKey);
 
-    const response = await this.fetchWithRetry(url, {
-      headers: {
-        Authorization: `Bearer ${input.accessToken}`,
-        accept: "application/json",
-        "x-version": "2",
-      },
-      method: "GET",
-    });
+    if (!payloadPromise) {
+      payloadPromise = (async () => {
+        const mergedResults: NonNullable<MercadoLivreBillingDetailResponse["results"]> =
+          [];
+        let fromId = "0";
 
-    const payload = (await parseProviderResponse(response)) as
-      | MercadoLivreBillingDetailResponse
-      | string;
+        while (true) {
+          const url = new URL(
+            `https://api.mercadolibre.com/billing/integration/periods/key/${encodeURIComponent(periodKey)}/group/MP/details`,
+          );
+          url.searchParams.set("document_type", "BILL");
+          url.searchParams.set("limit", "1000");
+          url.searchParams.set("from_id", fromId);
 
-    if (!response.ok || typeof payload === "string") {
+          const response = await this.fetchWithRetry(url, {
+            headers: {
+              Authorization: `Bearer ${input.accessToken}`,
+              accept: "application/json",
+              "x-version": "2",
+            },
+            method: "GET",
+          });
+
+          const payload = (await parseProviderResponse(response)) as
+            | MercadoLivreBillingDetailResponse
+            | string;
+
+          if (!response.ok || typeof payload === "string") {
+            return null;
+          }
+
+          mergedResults.push(...(payload.results ?? []));
+
+          const total =
+            typeof payload.total === "number" && Number.isFinite(payload.total)
+              ? payload.total
+              : null;
+          const nextFromId =
+            payload.last_id !== undefined && payload.last_id !== null
+              ? String(payload.last_id)
+              : null;
+          const hasMore =
+            nextFromId !== null &&
+            nextFromId.length > 0 &&
+            nextFromId !== fromId &&
+            total !== null &&
+            mergedResults.length < total;
+
+          if (!hasMore) {
+            return {
+              ...payload,
+              results: mergedResults,
+            };
+          }
+
+          fromId = nextFromId;
+        }
+      })();
+      this.billingDetailCache.set(cacheKey, payloadPromise);
+    }
+
+    const payload = await payloadPromise;
+
+    if (!payload) {
       return null;
     }
 
     const orderId = String(input.order.id);
-    const matchedResult =
-      payload.results?.find((result) => {
+    const matchedResults =
+      payload.results?.filter((result) => {
         const candidateIds = [
           result.order_id !== undefined ? String(result.order_id) : null,
           result.operation_id !== undefined
@@ -1614,7 +1755,13 @@ export class MercadoLivreProvider implements IntegrationProvider {
         ].filter((value): value is string => Boolean(value));
 
         return candidateIds.includes(orderId);
-      }) ?? null;
+      }) ?? [];
+    const operationResult =
+      matchedResults.find(
+        (result) =>
+          result.operation_id !== undefined && result.operation_id !== null,
+      ) ?? null;
+    const matchedResult = operationResult ?? matchedResults[0] ?? null;
 
     const fixedFee = readBillingFixedFee(matchedResult);
     const marketplaceCommission = readBillingMarketplaceCommission(matchedResult);
@@ -1624,7 +1771,18 @@ export class MercadoLivreProvider implements IntegrationProvider {
         ? matchedResult.sale_fee.gross
         : null;
 
-    if (fixedFee === null && marketplaceCommission === null && grossAmount === null) {
+    const operationId =
+      matchedResult?.operation_id !== undefined &&
+      matchedResult.operation_id !== null
+        ? String(matchedResult.operation_id)
+        : null;
+
+    if (
+      fixedFee === null &&
+      marketplaceCommission === null &&
+      grossAmount === null &&
+      operationId === null
+    ) {
       return null;
     }
 
@@ -1632,6 +1790,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
       fixedFee: fixedFee !== null && fixedFee > 0 ? fixedFee : null,
       grossAmount,
       marketplaceCommission,
+      operationId,
       refundBonus: readBillingRefundBonus(matchedResult),
     };
   }

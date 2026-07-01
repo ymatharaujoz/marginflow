@@ -140,6 +140,7 @@ describe("orders controller", () => {
         contributionMarginPercent: null,
         createdAt: "2026-06-20T12:00:00.000Z",
         currency: "BRL",
+        displayOrderId: "MLB-SALE-1001",
         fixedCostAmount: "0.00",
         id: "order_row_1",
         itemsSold: 0,
@@ -147,6 +148,7 @@ describe("orders controller", () => {
         orderId: "MLB-1001",
         orderedAt: "2026-06-20T10:15:00.000Z",
         provider: "mercadolivre",
+        skus: [],
         shippingAmount: "0.00",
         sourceStatus: "paid",
         tariffAmount: "0.00",
@@ -172,6 +174,145 @@ describe("orders controller", () => {
         userId: "user_123",
       }),
       "order_row_1",
+    );
+  });
+
+  it("updates order composition for authenticated entitled requests", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: { id: "org_123", name: "Org", role: "owner", slug: "org" },
+      selectedCompanyId: "company_123",
+      session: { expiresAt: new Date("2026-06-20T00:00:00.000Z"), id: "session_123" },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(ordersService, "updateOrderComposition").mockResolvedValueOnce({
+      composition: {
+        hasIncompleteCostData: false,
+        marketplaceCommissionAmount: "15.00",
+        missingCostItemsCount: 0,
+        missingLinkedItemsCount: 0,
+        netRevenueAmount: "160.00",
+        packagingCostAmount: "12.00",
+        productCostAmount: "80.00",
+        refundBonusAmount: "5.00",
+        revenueAmount: "200.00",
+        shippingOrFixedFeeAmount: "30.00",
+        taxAmount: "24.00",
+        taxRateDefault: "0.120000",
+      },
+      items: [],
+      order: {
+        contributionMarginPercent: "21.50",
+        createdAt: "2026-06-20T12:00:00.000Z",
+        currency: "BRL",
+        displayOrderId: "MLB-SALE-9001",
+        fixedCostAmount: "3.00",
+        id: "order_row_1",
+        itemsSold: 2,
+        orderDate: "2026-06-20",
+        orderId: "MLB-1001",
+        orderedAt: "2026-06-20T10:15:00.000Z",
+        provider: "mercadolivre",
+        skus: [],
+        shippingAmount: "20.00",
+        sourceStatus: "paid",
+        status: "paid",
+        statusLabel: "Pagamento aprovado",
+        tariffAmount: "10.00",
+        totalFees: "33.00",
+        totalProfitAmount: "43.00",
+        totalWithFees: "200.00",
+        totalWithoutFees: "167.00",
+      },
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/orders/order_row_1/composition",
+      payload: {
+        marketplaceCommissionAmount: "15.00",
+        packagingCostAmount: "12.00",
+        productCostAmount: "80.00",
+        refundBonusAmount: "5.00",
+        shippingOrFixedFeeAmount: "30.00",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(ordersService.updateOrderComposition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      }),
+      "order_row_1",
+      expect.objectContaining({
+        marketplaceCommissionAmount: "15.00",
+        packagingCostAmount: "12.00",
+        productCostAmount: "80.00",
+        refundBonusAmount: "5.00",
+        shippingOrFixedFeeAmount: "30.00",
+      }),
+    );
+  });
+
+  it("exports orders spreadsheet as xlsx attachment", async () => {
+    vi.spyOn(authService, "requireRequestContext").mockResolvedValueOnce({
+      organization: { id: "org_123", name: "Org", role: "owner", slug: "org" },
+      selectedCompanyId: "company_123",
+      session: { expiresAt: new Date("2026-06-20T00:00:00.000Z"), id: "session_123" },
+      user: {
+        email: "owner@lucreii.local",
+        emailVerified: true,
+        id: "user_123",
+        image: null,
+        name: "Mateus",
+      },
+    });
+    vi.spyOn(entitlementsService, "requireActiveEntitlement").mockResolvedValueOnce({
+      customer: null,
+      entitled: true,
+      organizationId: "org_123",
+      subscription: null,
+    });
+    vi.spyOn(ordersService, "exportOrdersSpreadsheet").mockResolvedValueOnce(
+      Buffer.from("xlsx"),
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/orders/export?search=MLB&provider=mercadolivre&ids=order_1,order_2",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["content-type"]).toContain(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    expect(response.headers["content-disposition"]).toContain(
+      'attachment; filename="pedidos-',
+    );
+    expect(ordersService.exportOrdersSpreadsheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      }),
+      expect.objectContaining({
+        ids: ["order_1", "order_2"],
+        provider: "mercadolivre",
+        search: "MLB",
+      }),
     );
   });
 

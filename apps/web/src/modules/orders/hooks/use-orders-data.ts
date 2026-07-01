@@ -1,7 +1,13 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import type { OrderDetails, OrderListFilters, OrdersListResponse } from "@lucreii/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  OrderCompositionUpdateInput,
+  OrderDetails,
+  OrderExportFilters,
+  OrderListFilters,
+  OrdersListResponse,
+} from "@lucreii/types";
 import {
   orderDetailsApiResponseSchema,
   ordersListApiResponseSchema,
@@ -75,6 +81,54 @@ export async function fetchOrderDetails(orderId: string): Promise<OrderDetails> 
   return apiClient.getValidatedData(`/orders/${orderId}`, orderDetailsApiResponseSchema);
 }
 
+export async function downloadOrdersExport(
+  filters: OrderExportFilters &
+    Partial<Pick<OrderListFilters, "includeSummary" | "page" | "pageSize">> = {},
+): Promise<Blob> {
+  const params = new URLSearchParams();
+
+  if (filters.ids && filters.ids.length > 0) {
+    params.set("ids", filters.ids.join(","));
+  }
+
+  if (filters.search) {
+    params.set("search", filters.search);
+  }
+
+  if (filters.provider) {
+    params.set("provider", filters.provider);
+  }
+
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+
+  if (filters.orderedFrom) {
+    params.set("orderedFrom", filters.orderedFrom);
+  }
+
+  if (filters.orderedTo) {
+    params.set("orderedTo", filters.orderedTo);
+  }
+
+  const path = params.size > 0 ? `/orders/export?${params.toString()}` : "/orders/export";
+  return apiClient.download(path);
+}
+
+export async function updateOrderComposition(
+  orderId: string,
+  values: OrderCompositionUpdateInput,
+): Promise<OrderDetails> {
+  const response = await apiClient.patch<{ data: OrderDetails; error: null }>(
+    `/orders/${orderId}/composition`,
+    {
+      body: values,
+    },
+  );
+
+  return response.data;
+}
+
 export function useOrdersList(filters: OrderListFilters = {}) {
   const selectedCompanyId = readSelectedCompanyIdFromBrowserCookie();
 
@@ -104,5 +158,22 @@ export function useOrderDetails(orderId: string | null, open: boolean) {
     enabled: open && !!orderId,
     queryFn: () => fetchOrderDetails(orderId!),
     queryKey: [...ordersQueryKey, selectedCompanyId, "detail", orderId],
+  });
+}
+
+export function useUpdateOrderComposition() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: {
+      orderId: string;
+      values: OrderCompositionUpdateInput;
+    }) => updateOrderComposition(input.orderId, input.values),
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ordersQueryKey });
+      await queryClient.invalidateQueries({
+        queryKey: [...ordersQueryKey, "detail", variables.orderId],
+      });
+    },
   });
 }

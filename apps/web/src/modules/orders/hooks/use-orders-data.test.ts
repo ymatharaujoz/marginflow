@@ -1,12 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiClientMock = vi.hoisted(() => ({
+  download: vi.fn(),
   getValidatedData: vi.fn(),
+  patch: vi.fn(),
 }));
 const useQueryMock = vi.hoisted(() => vi.fn());
+const useMutationMock = vi.hoisted(() => vi.fn());
+const invalidateQueriesMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@tanstack/react-query", () => ({
+  useMutation: useMutationMock,
   useQuery: useQueryMock,
+  useQueryClient: () => ({
+    invalidateQueries: invalidateQueriesMock,
+  }),
 }));
 vi.mock("@/lib/api/client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api/client")>("@/lib/api/client");
@@ -18,16 +26,23 @@ vi.mock("@/lib/api/client", async () => {
 });
 
 import {
+  downloadOrdersExport,
   fetchOrderDetails,
   fetchOrders,
+  updateOrderComposition,
+  useUpdateOrderComposition,
   useOrderDetails,
   useOrdersList,
 } from "./use-orders-data";
 
 describe("orders protected fetchers", () => {
   beforeEach(() => {
+    apiClientMock.download.mockReset();
     apiClientMock.getValidatedData.mockReset();
+    apiClientMock.patch.mockReset();
     useQueryMock.mockReset();
+    useMutationMock.mockReset();
+    invalidateQueriesMock.mockReset();
   });
 
   it("uses protected orders list endpoint as data source", async () => {
@@ -94,6 +109,34 @@ describe("orders protected fetchers", () => {
     );
   });
 
+  it("downloads orders export using filters", async () => {
+    apiClientMock.download.mockResolvedValue(new Blob(["xlsx"]));
+
+    await downloadOrdersExport({
+      orderedFrom: "2026-06-01",
+      orderedTo: "2026-06-30",
+      provider: "mercadolivre",
+      search: "MLB-1001",
+      status: "paid",
+    });
+
+    expect(apiClientMock.download).toHaveBeenCalledWith(
+      "/orders/export?search=MLB-1001&provider=mercadolivre&status=paid&orderedFrom=2026-06-01&orderedTo=2026-06-30",
+    );
+  });
+
+  it("downloads selected orders export using ids", async () => {
+    apiClientMock.download.mockResolvedValue(new Blob(["xlsx"]));
+
+    await downloadOrdersExport({
+      ids: ["order_1", "order_2"],
+    });
+
+    expect(apiClientMock.download).toHaveBeenCalledWith(
+      "/orders/export?ids=order_1%2Corder_2",
+    );
+  });
+
   it("uses protected order detail endpoint as data source", async () => {
     apiClientMock.getValidatedData.mockResolvedValue({
       composition: {
@@ -129,6 +172,7 @@ describe("orders protected fetchers", () => {
         order: {
           createdAt: "2026-06-20T12:00:00.000Z",
           currency: "BRL",
+          displayOrderId: "MLB-1001",
           fixedCostAmount: "0.00",
           id: "order_row_1",
           itemsSold: 0,
@@ -161,6 +205,86 @@ describe("orders protected fetchers", () => {
       "/orders/order_row_1",
       expect.any(Object),
     );
+  });
+
+  it("updates protected order composition through patch endpoint", async () => {
+    apiClientMock.patch.mockResolvedValue({
+      data: {
+        composition: {
+          hasIncompleteCostData: false,
+          marketplaceCommissionAmount: "15.00",
+          missingCostItemsCount: 0,
+          missingLinkedItemsCount: 0,
+          netRevenueAmount: "160.00",
+          packagingCostAmount: "12.00",
+          productCostAmount: "80.00",
+          refundBonusAmount: "5.00",
+          revenueAmount: "200.00",
+          shippingOrFixedFeeAmount: "30.00",
+          taxAmount: "24.00",
+          taxRateDefault: "0.120000",
+        },
+        items: [],
+        order: {
+          contributionMarginPercent: "21.50",
+          createdAt: "2026-06-20T12:00:00.000Z",
+          currency: "BRL",
+          displayOrderId: "MLB-SALE-9001",
+          fixedCostAmount: "3.00",
+          id: "order_row_1",
+          itemsSold: 2,
+          orderDate: "2026-06-20",
+          orderId: "MLB-1001",
+          orderedAt: "2026-06-20T10:15:00.000Z",
+          provider: "mercadolivre",
+          shippingAmount: "20.00",
+          sourceStatus: "paid",
+          status: "paid",
+          statusLabel: "Pagamento aprovado",
+          tariffAmount: "10.00",
+          totalFees: "33.00",
+          totalProfitAmount: "43.00",
+          totalWithFees: "200.00",
+          totalWithoutFees: "167.00",
+        },
+      },
+      error: null,
+    });
+
+    await expect(
+      updateOrderComposition("order_row_1", {
+        marketplaceCommissionAmount: "15.00",
+        packagingCostAmount: "12.00",
+        productCostAmount: "80.00",
+        refundBonusAmount: "5.00",
+        shippingOrFixedFeeAmount: "30.00",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        composition: expect.objectContaining({
+          marketplaceCommissionAmount: "15.00",
+        }),
+      }),
+    );
+
+    expect(apiClientMock.patch).toHaveBeenCalledWith(
+      "/orders/order_row_1/composition",
+      expect.objectContaining({
+        body: expect.objectContaining({
+          marketplaceCommissionAmount: "15.00",
+          packagingCostAmount: "12.00",
+          productCostAmount: "80.00",
+          refundBonusAmount: "5.00",
+          shippingOrFixedFeeAmount: "30.00",
+        }),
+      }),
+    );
+  });
+
+  it("creates composition update mutation hook", () => {
+    useUpdateOrderComposition();
+
+    expect(useMutationMock).toHaveBeenCalled();
   });
 
   it("keys order detail queries by selected company", () => {
