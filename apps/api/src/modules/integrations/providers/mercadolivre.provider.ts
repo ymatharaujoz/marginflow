@@ -979,6 +979,97 @@ export class MercadoLivreProvider implements IntegrationProvider {
       .map((entry) => entry.body!);
   }
 
+  private resolveCatalogItemSku(
+    item: MercadoLivreItemResponse,
+    variationId: string | null,
+  ) {
+    const itemId = String(item.id);
+
+    if (variationId) {
+      const variation = (item.variations ?? []).find(
+        (entry) => String(entry.id) === variationId,
+      );
+
+      if (variation) {
+        return this.resolveCatalogSku({
+          attributes: variation.attributes,
+          fallbackSku: `ML-${itemId}-${variationId}`,
+          sellerCustomField: variation.seller_custom_field,
+          sellerSku: variation.seller_sku,
+        });
+      }
+    }
+
+    return this.resolveCatalogSku({
+      attributes: item.attributes,
+      fallbackSku: `ML-${itemId}`,
+      sellerCustomField: item.seller_custom_field,
+      sellerSku: item.seller_sku,
+    });
+  }
+
+  private async resolveMissingOrderSkus(input: {
+    accessToken: string;
+    orderItems: MercadoLivreOrderItemResponse[];
+  }) {
+    const unresolvedItems = input.orderItems
+      .map((item) => ({
+        externalProductId: (() => {
+          const itemId = toOptionalString(item.item?.id);
+          const variationId = toOptionalString(
+            item.item?.variation_id ?? item.variation_id,
+          );
+          return itemId && variationId ? `${itemId}:${variationId}` : itemId;
+        })(),
+        itemId: toOptionalString(item.item?.id),
+        sku: item.item?.seller_sku?.trim() || null,
+        variationId: toOptionalString(item.item?.variation_id ?? item.variation_id),
+      }))
+      .filter(
+        (
+          entry,
+        ): entry is {
+          externalProductId: string;
+          itemId: string;
+          sku: null;
+          variationId: string | null;
+        } => Boolean(entry.externalProductId && entry.itemId && !entry.sku),
+      );
+
+    if (unresolvedItems.length === 0) {
+      return new Map<string, string>();
+    }
+
+    let catalogItems: MercadoLivreItemResponse[];
+    try {
+      catalogItems = await this.fetchCatalogItems({
+        accessToken: input.accessToken,
+        itemIds: [...new Set(unresolvedItems.map((entry) => entry.itemId))],
+      });
+    } catch {
+      return new Map<string, string>();
+    }
+    const catalogItemsById = new Map(
+      catalogItems.map((item) => [String(item.id), item] as const),
+    );
+    const resolvedSkus = new Map<string, string>();
+
+    for (const item of unresolvedItems) {
+      const catalogItem = catalogItemsById.get(item.itemId);
+
+      if (!catalogItem) {
+        continue;
+      }
+
+      resolvedSkus.set(
+        item.externalProductId,
+        this.resolveCatalogItemSku(catalogItem, item.variationId),
+      );
+    }
+
+    return resolvedSkus;
+  }
+
   private normalizeCatalogItem(
     item: MercadoLivreItemResponse,
   ): IntegrationCatalogProduct[] {
@@ -1056,8 +1147,8 @@ export class MercadoLivreProvider implements IntegrationProvider {
     sellerSku?: string | null;
   }) {
     return (
-      readMercadoLivreAttributeSku(input.attributes) ??
       input.sellerSku?.trim() ??
+      readMercadoLivreAttributeSku(input.attributes) ??
       input.sellerCustomField?.trim() ??
       input.fallbackSku
     );
@@ -1215,6 +1306,10 @@ export class MercadoLivreProvider implements IntegrationProvider {
     const skuByExternalProductId: Record<string, string | null> = {};
     const titleByExternalProductId: Record<string, string | null> = {};
     const returnQuantityBySku: Record<string, number> = {};
+    const resolvedSkuByExternalProductId = await this.resolveMissingOrderSkus({
+      accessToken: input.accessToken,
+      orderItems: order.order_items ?? [],
+    });
 
     const items = (order.order_items ?? []).map<IntegrationSyncOrderItem>(
       (item) => {
@@ -1224,7 +1319,19 @@ export class MercadoLivreProvider implements IntegrationProvider {
         );
         const externalProductId =
           itemId && variationId ? `${itemId}:${variationId}` : itemId;
-        const sku = item.item?.seller_sku ?? null;
+        const fallbackSku =
+          itemId && variationId
+            ? `ML-${itemId}-${variationId}`
+            : itemId
+              ? `ML-${itemId}`
+              : null;
+        const sku =
+          item.item?.seller_sku?.trim() ||
+          (externalProductId
+            ? resolvedSkuByExternalProductId.get(externalProductId)
+            : null) ||
+          fallbackSku ||
+          null;
 
         if (externalProductId) {
           skuByExternalProductId[externalProductId] = sku;
@@ -1306,9 +1413,26 @@ export class MercadoLivreProvider implements IntegrationProvider {
         fallbackDate: order.date_closed ?? order.date_created,
         order,
       });
+      const feesWithRefundBonus = [...initialFees];
+
+      if (
+        billingFeeBreakdown?.refundBonus !== null &&
+        billingFeeBreakdown?.refundBonus !== undefined &&
+        billingFeeBreakdown.refundBonus > 0 &&
+        !this.hasFeeType(feesWithRefundBonus, "refund_bonus")
+      ) {
+        feesWithRefundBonus.push({
+          amount: toDecimalString(billingFeeBreakdown.refundBonus),
+          currency: order.currency_id ?? "BRL",
+          feeType: "refund_bonus",
+          metadata: {
+            source: "billing.sale_fee.rebate",
+          },
+        });
+      }
 
       return {
-        fees: initialFees,
+        fees: feesWithRefundBonus,
         operationId: billingFeeBreakdown?.operationId ?? null,
       };
     }

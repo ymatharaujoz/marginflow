@@ -63,6 +63,7 @@ function createService() {
   };
   const syncService = {
     handleMercadoLivreNotification: vi.fn(),
+    rematerializeProviderMetrics: vi.fn(),
   };
 
   return {
@@ -220,6 +221,116 @@ describe("IntegrationsService", () => {
       userId: "user-1",
     });
     expect(tx.insert).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps manual internal sku when catalog import matches an existing linked product", async () => {
+    const { db, productsService, service } = createService();
+    const remoteProduct = {
+      externalProductId: "MLB1",
+      images: ["https://http2.mlstatic.com/one.jpg"],
+      isActive: true,
+      metadata: { itemId: "MLB1", variationId: null },
+      sellingPrice: "59.90",
+      sku: "ML-9238238958323",
+      title: "Produto Mercado Livre",
+    };
+    (service as unknown as { providers: unknown[] }).providers = [
+      {
+        displayName: "Mercado Livre",
+        importCatalog: vi.fn().mockResolvedValue([remoteProduct]),
+        provider: "mercadolivre",
+      },
+    ];
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      externalAccountId: "seller-1",
+      id: "connection-1",
+      organizationId: "org-1",
+      provider: "mercadolivre",
+      status: "connected",
+      tokenExpiresAt: null,
+    });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        companyId: "company-1",
+        createdAt: new Date("2026-06-15T10:00:00.000Z"),
+        id: "product-1",
+        images: [],
+        isActive: true,
+        name: "Produto Mercado Livre",
+        organizationId: "org-1",
+        sellingPrice: "59.90",
+        sku: "CALCAPRETA39",
+        updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+      },
+    ]);
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        externalProductId: "MLB1",
+        linkedProductId: "product-1",
+      },
+    ]);
+    db.query.productImages.findMany.mockResolvedValue([
+      {
+        position: 0,
+        productId: "product-1",
+        source: "mercadolivre",
+        url: "https://http2.mlstatic.com/one.jpg",
+      },
+    ]);
+
+    const tx = {
+      delete: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue(undefined),
+      }),
+      insert: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: "external-1" }]),
+          }),
+        }),
+      }),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([
+              {
+                companyId: "company-1",
+                createdAt: new Date("2026-06-15T10:00:00.000Z"),
+                id: "product-1",
+                isActive: true,
+                name: "Produto Mercado Livre",
+                organizationId: "org-1",
+                sellingPrice: "59.90",
+                sku: "ML-9238238958323",
+                updatedAt: new Date("2026-06-15T10:00:00.000Z"),
+              },
+            ]),
+          }),
+        }),
+      }),
+    };
+    db.transaction.mockImplementation(
+      async (callback: (transaction: typeof tx) => unknown) => callback(tx),
+    );
+
+    await expect(
+      service.importMarketplaceCatalog({
+        companyId: "company-1",
+        organizationId: "org-1",
+        providerSlug: "mercadolivre",
+        userId: "user-1",
+      }),
+    ).resolves.toEqual({
+      conflicts: [],
+      created: 0,
+      errors: [],
+      found: 1,
+      unchanged: 1,
+      updated: 0,
+    });
+    expect(productsService.assertCatalogImportAllowed).toHaveBeenCalled();
+    expect(tx.update).not.toHaveBeenCalled();
   });
 
   it("reports duplicate internal SKUs as conflicts without writing", async () => {
@@ -745,6 +856,97 @@ describe("IntegrationsService", () => {
     expect(db.update).not.toHaveBeenCalled();
   });
 
+  it("does not auto-link Mercado Livre parent items with variations when parent SKU collides with a child SKU", async () => {
+    const { db, service } = createService();
+    db.update = createUpdateMock();
+
+    db.select
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValue([
+              {
+                createdAt: new Date("2026-05-01T10:00:00.000Z"),
+                externalProductId: "MLB-10",
+                id: "external_parent",
+                linkedProductId: null,
+                marketplaceConnectionId: "conn_1",
+                metadata: {
+                  itemId: "MLB-10",
+                  variationId: null,
+                },
+                organizationId: "org_1",
+                companyId: "company_1",
+                provider: "mercadolivre",
+                reviewStatus: "unreviewed",
+                sku: "SKU-COLLISION",
+                title: "Bota Feminina",
+                updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+              },
+              {
+                createdAt: new Date("2026-05-01T10:00:00.000Z"),
+                externalProductId: "MLB-10:101",
+                id: "external_child",
+                linkedProductId: null,
+                marketplaceConnectionId: "conn_1",
+                metadata: {
+                  itemId: "MLB-10",
+                  variationId: "101",
+                },
+                organizationId: "org_1",
+                companyId: "company_1",
+                provider: "mercadolivre",
+                reviewStatus: "unreviewed",
+                sku: "SKU-COLLISION",
+                title: "Cor: Preto | Tamanho: 35",
+                updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+              },
+            ]),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-29T10:00:00.000Z"),
+        id: "product_child",
+        isActive: true,
+        name: "Bota Feminina Preta 35",
+        organizationId: "org_1",
+        sellingPrice: "189.90",
+        sku: "SKU-COLLISION",
+        updatedAt: new Date("2026-04-29T10:00:00.000Z"),
+      },
+    ]);
+
+    await expect(
+      service.listSyncedProducts("org_1", "company_1", "mercadolivre"),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        externalProductId: "MLB-10",
+        linkedProduct: null,
+        reviewStatus: "unreviewed",
+        suggestedMatches: [],
+      }),
+      expect.objectContaining({
+        externalProductId: "MLB-10:101",
+        linkedProduct: expect.objectContaining({
+          id: "product_child",
+          sku: "SKU-COLLISION",
+        }),
+        reviewStatus: "linked_to_existing_product",
+        suggestedMatches: [],
+      }),
+    ]);
+    expect(db.update).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects importing a synced product already linked to an existing catalog item", async () => {
     const { db, service } = createService();
 
@@ -780,7 +982,7 @@ describe("IntegrationsService", () => {
   });
 
   it("creates synced products with the selected company scope", async () => {
-    const { db, productsService, service } = createService();
+    const { db, productsService, service, syncService } = createService();
 
     db.query.externalProducts.findFirst.mockResolvedValue({
       createdAt: new Date("2026-05-01T10:00:00.000Z"),
@@ -836,6 +1038,12 @@ describe("IntegrationsService", () => {
         sku: "SKU-99",
       },
     );
+    expect(syncService.rematerializeProviderMetrics).toHaveBeenCalledWith({
+      companyId: "company_1",
+      organizationId: "org_1",
+      providerSlug: "mercadolivre",
+      userId: null,
+    });
   });
 
   it("disconnects and normalizes the updated provider card", async () => {

@@ -78,6 +78,7 @@ function createService() {
   };
   const syncService = {
     getStatus: vi.fn(),
+    rematerializeProviderMetrics: vi.fn(),
   };
 
   return {
@@ -1544,6 +1545,64 @@ describe("ProductsService", () => {
         sku: "XYZ-1",
       }),
     );
+  });
+
+  it("rematerializes marketplace performance after manual sku update on a linked product", async () => {
+    const { db, service, syncService } = createService();
+
+    db.query.products.findFirst.mockResolvedValue({
+      companyId: "company_1",
+      id: "product_1",
+      organizationId: "org_1",
+      sku: "ML-9238238958323",
+    });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        id: "product_1",
+        sku: "ML-9238238958323",
+      },
+    ]);
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        linkedProductId: "product_1",
+        provider: "mercadolivre",
+      },
+    ]);
+    db.update = createUpdateMock({
+      createdAt: new Date("2026-04-28T10:00:00.000Z"),
+      id: "product_1",
+      isActive: true,
+      name: "Notebook",
+      organizationId: "org_1",
+      sellingPrice: "120.00",
+      sku: "CALCAPRETA39",
+      updatedAt: new Date("2026-04-28T10:00:00.000Z"),
+    });
+
+    await expect(
+      service.updateProduct(
+        {
+          organizationId: "org_1",
+          selectedCompanyId: "company_1",
+          userId: "user_1",
+        },
+        "product_1",
+        {
+          sku: "CALCAPRETA39",
+        },
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: "product_1",
+        sku: "CALCAPRETA39",
+      }),
+    );
+    expect(syncService.rematerializeProviderMetrics).toHaveBeenCalledWith({
+      companyId: "company_1",
+      organizationId: "org_1",
+      providerSlug: "mercadolivre",
+      userId: "user_1",
+    });
   });
 
   it("rejects cross-organization product cost writes", async () => {
@@ -3148,6 +3207,202 @@ describe("ProductsService", () => {
     ]);
   });
 
+  it("builds a synthetic Mercado Livre parent when persisted parent product collides with a variation product", async () => {
+    const { db, financeService, service } = createService();
+
+    db.query.companies.findMany.mockResolvedValue([
+      {
+        id: "company_1",
+        isActive: true,
+        taxRateDefault: "0.120000",
+      },
+    ]);
+    db.query.products.findMany
+      .mockResolvedValueOnce([
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          financeDefaults: null,
+          id: "product_boot_35_black",
+          images: [],
+          isActive: true,
+          name: "Bota Feminina Preta 35",
+          organizationId: "org_1",
+          sellingPrice: "189.90",
+          sku: "BOTA-PRETA-35",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          financeDefaults: null,
+          id: "product_boot_37_brown",
+          images: [],
+          isActive: true,
+          name: "Bota Feminina Marrom 37",
+          organizationId: "org_1",
+          sellingPrice: "189.90",
+          sku: "BOTA-MARROM-37",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          id: "product_boot_35_black",
+          isActive: true,
+          name: "Bota Feminina Preta 35",
+          organizationId: "org_1",
+          sellingPrice: "189.90",
+          sku: "BOTA-PRETA-35",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-06-17T10:00:00.000Z"),
+          id: "product_boot_37_brown",
+          isActive: true,
+          name: "Bota Feminina Marrom 37",
+          organizationId: "org_1",
+          sellingPrice: "189.90",
+          sku: "BOTA-MARROM-37",
+          updatedAt: new Date("2026-06-17T10:00:00.000Z"),
+        },
+      ]);
+    db.query.productCosts.findMany.mockResolvedValue([]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+    db.query.productMonthlyPerformance.findMany.mockResolvedValue([]);
+    financeService.buildFinanceSnapshot.mockResolvedValue({
+      adCosts: [],
+      manualExpenses: [],
+      monthlyPerformance: [],
+      orders: [],
+      productCosts: [],
+      products: [],
+    });
+    financeService.materializeOrganizationMetrics.mockResolvedValue(undefined);
+    db.query.productCosts.findFirst.mockResolvedValue(null);
+    db.query.externalProducts.findMany.mockResolvedValue([]);
+    vi.mocked(listSyncedProductsReadModel).mockResolvedValue([
+      {
+        externalProductId: "MLBBOOT456",
+        fixedFee: "0.00",
+        grossRevenue: "0.00",
+        id: "external_boot_parent",
+        lastOrderedAt: null,
+        latestUnitPrice: null,
+        linkedProduct: {
+          id: "product_boot_35_black",
+          isActive: true,
+          name: "Bota Feminina Preta 35",
+          sku: "BOTA-PAI",
+        },
+        marketplaceCommission: "0.00",
+        metadata: {
+          itemId: "MLBBOOT456",
+          variationId: null,
+        },
+        netMarketplaceTake: "0.00",
+        orderCount: 0,
+        provider: "mercadolivre",
+        reviewStatus: "linked_to_existing_product",
+        shippingCost: "0.00",
+        sku: "BOTA-PAI",
+        suggestedMatches: [],
+        title: "Bota Feminina",
+        unitsSold: 0,
+      } as never,
+      {
+        externalProductId: "MLBBOOT456:35-PT",
+        fixedFee: "0.00",
+        grossRevenue: "0.00",
+        id: "external_boot_35_black",
+        lastOrderedAt: null,
+        latestUnitPrice: null,
+        linkedProduct: {
+          id: "product_boot_35_black",
+          isActive: true,
+          name: "Bota Feminina Preta 35",
+          sku: "BOTA-PRETA-35",
+        },
+        marketplaceCommission: "0.00",
+        metadata: {
+          itemId: "MLBBOOT456",
+          variationId: "35-PT",
+        },
+        netMarketplaceTake: "0.00",
+        orderCount: 0,
+        provider: "mercadolivre",
+        reviewStatus: "linked_to_existing_product",
+        shippingCost: "0.00",
+        sku: "BOTA-PRETA-35",
+        suggestedMatches: [],
+        title: "Cor: Preto | Tamanho: 35",
+        unitsSold: 0,
+      } as never,
+      {
+        externalProductId: "MLBBOOT456:37-MR",
+        fixedFee: "0.00",
+        grossRevenue: "0.00",
+        id: "external_boot_37_brown",
+        lastOrderedAt: null,
+        latestUnitPrice: null,
+        linkedProduct: {
+          id: "product_boot_37_brown",
+          isActive: true,
+          name: "Bota Feminina Marrom 37",
+          sku: "BOTA-MARROM-37",
+        },
+        marketplaceCommission: "0.00",
+        metadata: {
+          itemId: "MLBBOOT456",
+          variationId: "37-MR",
+        },
+        netMarketplaceTake: "0.00",
+        orderCount: 0,
+        provider: "mercadolivre",
+        reviewStatus: "linked_to_existing_product",
+        shippingCost: "0.00",
+        sku: "BOTA-MARROM-37",
+        suggestedMatches: [],
+        title: "Cor: Marrom | Tamanho: 37",
+        unitsSold: 0,
+      } as never,
+    ]);
+
+    const snapshot = await service.getAnalyticsSnapshot({
+      organizationId: "org_1",
+      userId: "user_1",
+    });
+
+    expect(snapshot.products).toEqual([
+      expect.objectContaining({
+        catalogGroupKey: "mercadolivre:MLBBOOT456",
+        catalogRole: "parent",
+        id: "synthetic-parent:mercadolivre:MLBBOOT456",
+        isSyntheticParent: true,
+        name: "Bota Feminina",
+        sku: "BOTA-PAI",
+        children: [
+          expect.objectContaining({
+            catalogRole: "child",
+            id: "product_boot_35_black",
+            parentProductId: "synthetic-parent:mercadolivre:MLBBOOT456",
+            variationLabel: "Cor: Preto | Tamanho: 35",
+          }),
+          expect.objectContaining({
+            catalogRole: "child",
+            id: "product_boot_37_brown",
+            parentProductId: "synthetic-parent:mercadolivre:MLBBOOT456",
+            variationLabel: "Cor: Marrom | Tamanho: 37",
+          }),
+        ],
+      }),
+    ]);
+  });
+
   it("replicates catalog finance updates from parent product to linked Mercado Livre variations", async () => {
     const { db, financeService, service } = createService();
     const txUpdate = vi.fn().mockReturnValue({
@@ -3340,30 +3595,6 @@ describe("ProductsService", () => {
         lastOrderedAt: null,
         latestUnitPrice: null,
         linkedProduct: {
-          id: "product_1",
-          isActive: true,
-          name: "Produto Azul",
-          sku: "ML-001-AZ",
-        },
-        marketplaceCommission: "0.00",
-        netMarketplaceTake: "0.00",
-        orderCount: 0,
-        provider: "mercadolivre",
-        reviewStatus: "linked_to_existing_product",
-        shippingCost: "0.00",
-        sku: "ML-001-AZ",
-        suggestedMatches: [],
-        title: "Produto - Cor: Azul",
-        unitsSold: 0,
-      },
-      {
-        externalProductId: "MLB123:102",
-        fixedFee: "0.00",
-        grossRevenue: "0.00",
-        id: "external_2",
-        lastOrderedAt: null,
-        latestUnitPrice: null,
-        linkedProduct: {
           id: "product_2",
           isActive: true,
           name: "Produto Vermelho",
@@ -3381,10 +3612,10 @@ describe("ProductsService", () => {
         unitsSold: 0,
       },
       {
-        externalProductId: "MLB123:103",
+        externalProductId: "MLB123:102",
         fixedFee: "0.00",
         grossRevenue: "0.00",
-        id: "external_3",
+        id: "external_2",
         lastOrderedAt: null,
         latestUnitPrice: null,
         linkedProduct: {
@@ -4805,6 +5036,111 @@ describe("ProductsService", () => {
         marketplaceCommissionUnit: "3.89",
         shippingOrFixedFeeSource: "fixed_fee",
         shippingOrFixedFeeUnit: "6.65",
+      }),
+    ]);
+  });
+
+  it("prefers linked internal sku over raw monthly performance sku in performance rows", async () => {
+    const { db, financeService, service, syncService } = createService();
+
+    vi.mocked(listSyncedProductsReadModel).mockResolvedValue([]);
+
+    db.query.companies.findMany.mockResolvedValue([
+      {
+        id: "company_1",
+        isActive: true,
+        taxRateDefault: "0.000000",
+      },
+    ]);
+    db.query.products.findMany
+      .mockResolvedValueOnce([
+        buildCatalogProductRow({
+          companyId: "company_1",
+          id: "product_1",
+          name: "Calcado Preto",
+          sku: "CALCAPRETA39",
+        }),
+      ])
+      .mockResolvedValueOnce([
+        {
+          companyId: "company_1",
+          createdAt: new Date("2026-05-01T10:00:00.000Z"),
+          id: "product_1",
+          images: [],
+          isActive: true,
+          name: "Calcado Preto",
+          organizationId: "org_1",
+          sellingPrice: "120.00",
+          sku: "CALCAPRETA39",
+          updatedAt: new Date("2026-05-01T10:00:00.000Z"),
+        },
+      ]);
+    db.query.productCosts.findMany.mockResolvedValue([]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+    db.query.productMonthlyPerformance.findMany.mockResolvedValue([
+      {
+        advertisingCost: "0.00",
+        channel: "mercadolivre",
+        commissionRate: "0.100000",
+        companyId: "company_1",
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        id: "perf_1",
+        notes: null,
+        organizationId: "org_1",
+        packagingCost: "0.00",
+        productId: "product_1",
+        productName: "Calcado Preto",
+        referenceMonth: "2026-05-01",
+        returnsQuantity: 0,
+        salePrice: "120.00",
+        salesQuantity: 1,
+        shippingFee: "0.00",
+        sku: "ML-9238238958323",
+        unitCost: "0.00",
+        updatedAt: new Date("2026-05-01T10:00:00.000Z"),
+        userId: "user_1",
+      },
+    ]);
+    db.query.externalOrders.findMany.mockResolvedValue([]);
+    financeService.buildFinanceSnapshot.mockResolvedValue({
+      adCosts: [],
+      manualExpenses: [],
+      orders: [],
+      products: [],
+    });
+    syncService.getStatus.mockResolvedValue({
+      activeRun: null,
+      availability: {
+        canRun: true,
+        currentWindowKey: "2026-05-13-morning",
+        currentWindowLabel: "Manha",
+        currentWindowSlot: "morning",
+        lastSuccessfulSyncAt: null,
+        message: "Sync is available for the current daily window.",
+        nextAvailableAt: "2026-05-13T09:00:00.000Z",
+        provider: "mercadolivre",
+        reason: "available",
+      },
+      lastCompletedRun: null,
+    });
+
+    const response = await service.listPerformanceRows(
+      {
+        organizationId: "org_1",
+        userId: "user_1",
+      },
+      {
+        page: 1,
+        pageSize: 10,
+        referenceMonth: "2026-05-01",
+      },
+    );
+
+    expect(response.items).toEqual([
+      expect.objectContaining({
+        productId: "product_1",
+        sku: "CALCAPRETA39",
       }),
     ]);
   });

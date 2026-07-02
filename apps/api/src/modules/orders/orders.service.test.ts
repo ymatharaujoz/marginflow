@@ -534,6 +534,121 @@ describe("OrdersService", () => {
     );
   });
 
+  it("prefers linked catalog sku over external marketplace sku in order details", async () => {
+    const db = {
+      query: {
+        companies: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "company_123",
+            taxRateDefault: "0.100000",
+          }),
+        },
+        externalOrders: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "order_row_1",
+            companyId: "company_123",
+            createdAt: new Date("2026-06-24T12:00:00.000Z"),
+            currency: "BRL",
+            externalOrderId: "2000017085667456",
+            marketplaceConnectionId: "conn_1",
+            metadata: {},
+            orderedAt: new Date("2026-06-24T10:15:00.000Z"),
+            organizationId: "org_123",
+            provider: "mercadolivre",
+            status: "paid",
+            syncRunId: null,
+            updatedAt: new Date("2026-06-24T12:00:00.000Z"),
+            totalAmount: "120.00",
+            items: [
+              {
+                id: "item_1",
+                quantity: 1,
+                totalPrice: "120.00",
+                unitPrice: "120.00",
+                externalProduct: {
+                  id: "ext_prod_1",
+                  linkedProductId: "product_1",
+                  sku: "ML-9238238958323",
+                  title: "Produto 1",
+                },
+              },
+            ],
+            fees: [],
+          }),
+        },
+        marketplaceConnections: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+        products: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              financeDefaults: {
+                packagingCost: "0.00",
+              },
+              id: "product_1",
+              images: [],
+              name: "Produto 1",
+              productCosts: [
+                {
+                  amount: "50.00",
+                  createdAt: new Date("2026-06-01T00:00:00.000Z"),
+                  effectiveFrom: new Date("2026-06-01T00:00:00.000Z"),
+                },
+              ],
+              sku: "CALCAPRETA39",
+            },
+          ]),
+        },
+      },
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockResolvedValue(undefined),
+        }),
+      }),
+    };
+
+    const service = new OrdersService(db as never, {
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      NODE_ENV: "test",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    const result = await service.getOrderDetails(
+      {
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      },
+      "order_row_1",
+    );
+
+    expect(result.order.skus).toEqual(["CALCAPRETA39"]);
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        linkedProductId: "product_1",
+        sku: "CALCAPRETA39",
+      }),
+    ]);
+  });
+
   it("refreshes Mercado Livre sale id when stored operationId is incorrectly equal to externalOrderId", async () => {
     const updateWhereMock = vi.fn().mockResolvedValue([]);
     const updateSetMock = vi.fn().mockReturnValue({

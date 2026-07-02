@@ -998,6 +998,7 @@ export class IntegrationsService {
       unchanged: 0,
       updated: 0,
     };
+    let shouldRematerialize = false;
 
     for (const catalogProduct of catalogProducts) {
       const externalProduct = externalProductsById.get(
@@ -1028,11 +1029,13 @@ export class IntegrationsService {
               .sort((left, right) => left.position - right.position)
               .map((image) => image.url)
           : [];
+        const currentInternalSku = normalizeSku(matchedProduct?.sku);
+        const desiredInternalSku =
+          currentInternalSku ?? normalizeSku(catalogProduct.sku);
         const productChanged =
           !matchedProduct ||
           matchedProduct.name !== catalogProduct.title ||
-          normalizeSku(matchedProduct.sku) !==
-            normalizeSku(catalogProduct.sku) ||
+          currentInternalSku !== desiredInternalSku ||
           String(matchedProduct.sellingPrice) !== catalogProduct.sellingPrice ||
           matchedProduct.isActive !== catalogProduct.isActive;
         const imagesChanged =
@@ -1053,7 +1056,7 @@ export class IntegrationsService {
                 name: catalogProduct.title,
                 organizationId: context.organizationId,
                 sellingPrice: catalogProduct.sellingPrice,
-                sku: normalizeSku(catalogProduct.sku),
+                sku: desiredInternalSku,
               })
               .returning();
           } else if (productChanged) {
@@ -1063,7 +1066,7 @@ export class IntegrationsService {
                 isActive: catalogProduct.isActive,
                 name: catalogProduct.title,
                 sellingPrice: catalogProduct.sellingPrice,
-                sku: normalizeSku(catalogProduct.sku),
+                sku: desiredInternalSku,
                 updatedAt: new Date(),
               })
               .where(
@@ -1138,6 +1141,9 @@ export class IntegrationsService {
 
           return product;
         });
+        const linkChanged = externalProduct?.linkedProductId !== storedProduct.id;
+        const internalSkuChanged =
+          normalizeSku(matchedProduct?.sku) !== normalizeSku(storedProduct.sku);
 
         productsById.set(storedProduct.id, storedProduct);
         productsBySku.set(normalizeSku(storedProduct.sku) ?? "", [
@@ -1169,6 +1175,10 @@ export class IntegrationsService {
         } else {
           result.unchanged += 1;
         }
+
+        if (!shouldRematerialize && (!matchedProduct || linkChanged || internalSkuChanged)) {
+          shouldRematerialize = true;
+        }
       } catch (error) {
         result.errors.push({
           externalProductId: catalogProduct.externalProductId,
@@ -1179,6 +1189,15 @@ export class IntegrationsService {
           sku: catalogProduct.sku,
         });
       }
+    }
+
+    if (shouldRematerialize) {
+      await this.syncService.rematerializeProviderMetrics({
+        companyId: context.companyId,
+        organizationId: context.organizationId,
+        providerSlug: "mercadolivre",
+        userId: context.userId,
+      });
     }
 
     return result;
@@ -1247,6 +1266,13 @@ export class IntegrationsService {
       })
       .where(eq(externalProducts.id, externalProduct.id));
 
+    await this.syncService.rematerializeProviderMetrics({
+      companyId,
+      organizationId,
+      providerSlug,
+      userId: null,
+    });
+
     return this.buildSyncedProductActionResult(
       organizationId,
       companyId,
@@ -1307,6 +1333,13 @@ export class IntegrationsService {
       })
       .where(eq(externalProducts.id, externalProduct.id));
 
+    await this.syncService.rematerializeProviderMetrics({
+      companyId,
+      organizationId,
+      providerSlug,
+      userId: null,
+    });
+
     return this.buildSyncedProductActionResult(
       organizationId,
       companyId,
@@ -1345,6 +1378,13 @@ export class IntegrationsService {
           eq(externalProducts.externalProductId, externalProductId),
         ),
       );
+
+    await this.syncService.rematerializeProviderMetrics({
+      companyId,
+      organizationId,
+      providerSlug,
+      userId: null,
+    });
 
     return this.buildSyncedProductActionResult(
       organizationId,

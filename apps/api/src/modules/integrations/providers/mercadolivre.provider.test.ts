@@ -411,6 +411,171 @@ describe("MercadoLivreProvider", () => {
     ]);
   });
 
+  it("enriches missing order item sku from MELI item details before falling back to ML id", async () => {
+    const provider = createProvider();
+    const fetchMock = vi.fn().mockImplementation((input: string | URL) => {
+      const url = String(input);
+
+      if (url.includes("/orders/search")) {
+        if (url.includes("offset=50")) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                paging: { limit: 50, offset: 50, total: 1 },
+                results: [],
+              }),
+              {
+                headers: { "content-type": "application/json" },
+                status: 200,
+              },
+            ),
+          );
+        }
+
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              paging: { limit: 50, offset: 0, total: 1 },
+              results: [
+                {
+                  currency_id: "BRL",
+                  date_closed: "2026-05-14T10:00:00.000-03:00",
+                  id: 123,
+                  order_items: [
+                    {
+                      item: {
+                        id: "MLB123",
+                        seller_sku: null,
+                        title: "Produto",
+                      },
+                      quantity: 1,
+                      sale_fee: 10.54,
+                      variation_id: 456,
+                      unit_price: 29.9,
+                    },
+                  ],
+                  payments: [
+                    {
+                      fee_amount: 3,
+                      shipping_cost: 7,
+                    },
+                  ],
+                  shipping: {
+                    id: 999,
+                  },
+                  total_amount: 29.9,
+                },
+              ],
+            }),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
+            },
+          ),
+        );
+      }
+
+      if (url.includes("/shipments/999/costs")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              senders: [{ cost: 9, user_id: 123456 }],
+            }),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
+            },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://api.mercadolibre.com/items?ids=MLB123")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify([
+              {
+                code: 200,
+                body: {
+                  attributes: [],
+                  id: "MLB123",
+                  seller_custom_field: "LEGACY-123",
+                  seller_sku: "CALCAPRETA39",
+                  title: "Produto",
+                  variations: [
+                    {
+                      attributes: [],
+                      id: 456,
+                      seller_custom_field: "LEGACY-456",
+                      seller_sku: "CALCAPRETA39",
+                    },
+                  ],
+                },
+              },
+            ]),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
+            },
+            ),
+          );
+        }
+
+      if (url.includes("/billing/integration/periods/key/2026-05-01/group/MP/details")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              limit: 1000,
+              offset: 0,
+              results: [],
+              total: 0,
+            }),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
+            },
+          ),
+        );
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: {
+        accessToken: "token_123",
+        companyId: "company_1",
+        createdAt: new Date("2026-05-14T10:00:00.000Z"),
+        externalAccountId: "123456",
+        id: "conn_1",
+        lastSyncedAt: null,
+        metadata: {},
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        refreshToken: null,
+        status: "connected",
+        tokenExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-05-14T10:00:00.000Z"),
+      },
+      cursor: null,
+      organizationId: "org_1",
+    });
+
+    expect(result.orders[0]?.items).toEqual([
+      expect.objectContaining({
+        externalProductId: "MLB123:456",
+        sku: "CALCAPRETA39",
+      }),
+    ]);
+    expect(result.products).toEqual([
+      expect.objectContaining({
+        externalProductId: "MLB123:456",
+        sku: "CALCAPRETA39",
+      }),
+    ]);
+  });
+
   it("falls back to payment shipping_cost when shipment seller cost is unavailable", async () => {
     const provider = new MercadoLivreProvider({
       API_DB_POOL_MAX: 5,
@@ -666,6 +831,147 @@ describe("MercadoLivreProvider", () => {
       expect.objectContaining({
         "x-version": "2",
       }),
+    );
+  });
+
+  it("adds refund bonus when initial MELI fees already have commission, fixed fee, and shipping", async () => {
+    const provider = new MercadoLivreProvider({
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      NODE_ENV: "test",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 1 },
+            results: [
+              {
+                currency_id: "BRL",
+                date_closed: "2026-05-14T10:00:00.000-03:00",
+                id: 123,
+                order_items: [
+                  {
+                    item: {
+                      id: "MLB123",
+                      seller_sku: "SKU-1",
+                      title: "Produto",
+                    },
+                    quantity: 1,
+                    unit_price: 100,
+                    variation_id: 456,
+                  },
+                ],
+                payments: [
+                  {
+                    fee_amount: 19.95,
+                    marketplace_fee: 12,
+                    shipping_cost: 14.5,
+                  },
+                ],
+                total_amount: 100,
+              },
+            ],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [
+              {
+                order_id: 123,
+                sale_fee: {
+                  discount: 0,
+                  discount_reason: null,
+                  gross: 31.95,
+                  net: 12,
+                  rebate: 5.54,
+                },
+                fixed_fee: 19.95,
+              },
+            ],
+            total: 1,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.syncOrders({
+      connection: {
+        accessToken: "token_123",
+        companyId: "company_1",
+        createdAt: new Date("2026-05-14T10:00:00.000Z"),
+        externalAccountId: "123456",
+        id: "conn_1",
+        lastSyncedAt: null,
+        metadata: {},
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        refreshToken: null,
+        status: "connected",
+        tokenExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-05-14T10:00:00.000Z"),
+      },
+      cursor: null,
+      organizationId: "org_1",
+    });
+
+    expect(result.orders[0]?.fees).toEqual([
+      expect.objectContaining({
+        amount: "12.00",
+        feeType: "marketplace_commission",
+      }),
+      expect.objectContaining({
+        amount: "19.95",
+        feeType: "fixed_fee",
+      }),
+      expect.objectContaining({
+        amount: "14.50",
+        feeType: "shipping_cost",
+      }),
+      expect.objectContaining({
+        amount: "5.54",
+        feeType: "refund_bonus",
+        metadata: expect.objectContaining({
+          source: "billing.sale_fee.rebate",
+        }),
+      }),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
+      "/billing/integration/periods/key/2026-05-01/group/MP/details",
     );
   });
 
@@ -1254,6 +1560,28 @@ describe("MercadoLivreProvider", () => {
               },
             ],
           }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              body: {
+                attributes: [],
+                id: "MLB4808187161",
+                seller_custom_field: null,
+                seller_sku: null,
+                title:
+                  "Caneca CerÃ¢mica 12 Unidades SublimaÃ§Ã£o 325ml Branca Livesub Branco 092000",
+                variations: [],
+              },
+              code: 200,
+            },
+          ]),
           {
             headers: { "content-type": "application/json" },
             status: 200,

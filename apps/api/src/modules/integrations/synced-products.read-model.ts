@@ -55,6 +55,77 @@ function normalizeSku(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
+function extractMercadoLivreItemId(externalProductId: string) {
+  const [itemId] = externalProductId.split(":");
+  return itemId?.trim() ? itemId.trim() : null;
+}
+
+function readMercadoLivreExternalProductMetadata(
+  externalProduct: Pick<ExternalProduct, "metadata" | "externalProductId" | "provider">,
+) {
+  if (externalProduct.provider !== "mercadolivre") {
+    return {
+      isVariation: false,
+      itemId: null,
+      variationId: null,
+    };
+  }
+
+  const metadata = externalProduct.metadata;
+  const itemId =
+    metadata &&
+    typeof metadata === "object" &&
+    "itemId" in metadata &&
+    typeof metadata.itemId === "string" &&
+    metadata.itemId.trim().length > 0
+      ? metadata.itemId.trim()
+      : extractMercadoLivreItemId(externalProduct.externalProductId);
+  const variationId =
+    metadata &&
+    typeof metadata === "object" &&
+    "variationId" in metadata &&
+    typeof metadata.variationId === "string" &&
+    metadata.variationId.trim().length > 0
+      ? metadata.variationId.trim()
+      : null;
+
+  return {
+    isVariation: variationId !== null || externalProduct.externalProductId.includes(":"),
+    itemId,
+    variationId,
+  };
+}
+
+function buildMercadoLivreItemIdsWithVariations(
+  externalProductRows: Array<ExternalProduct | LegacySyncedExternalProductRow>,
+) {
+  const itemIdsWithVariations = new Set<string>();
+
+  for (const externalProduct of externalProductRows) {
+    const metadata = readMercadoLivreExternalProductMetadata(externalProduct);
+
+    if (metadata.isVariation && metadata.itemId) {
+      itemIdsWithVariations.add(metadata.itemId);
+    }
+  }
+
+  return itemIdsWithVariations;
+}
+
+function shouldSkipMercadoLivreParentSkuMatching(
+  externalProduct: ExternalProduct | LegacySyncedExternalProductRow,
+  itemIdsWithVariations: Set<string>,
+) {
+  const metadata = readMercadoLivreExternalProductMetadata(externalProduct);
+
+  return (
+    externalProduct.provider === "mercadolivre" &&
+    !metadata.isVariation &&
+    metadata.itemId !== null &&
+    itemIdsWithVariations.has(metadata.itemId)
+  );
+}
+
 export function isMissingExternalProductReviewColumns(error: unknown) {
   if (!error || typeof error !== "object") {
     return false;
@@ -217,6 +288,7 @@ function toLinkedProductSummary(product: Product | null): SyncedProductLinkedPro
 async function applySkuAutoLinks(input: {
   db: DatabaseClient;
   externalProductRows: Array<ExternalProduct | LegacySyncedExternalProductRow>;
+  itemIdsWithVariations: Set<string>;
   productsList: Product[];
 }) {
   const productRowsBySku = new Map<string, Product[]>();
@@ -235,6 +307,15 @@ async function applySkuAutoLinks(input: {
 
   for (const externalProduct of input.externalProductRows) {
     if (externalProduct.linkedProductId || externalProduct.reviewStatus !== "unreviewed") {
+      continue;
+    }
+
+    if (
+      shouldSkipMercadoLivreParentSkuMatching(
+        externalProduct,
+        input.itemIdsWithVariations,
+      )
+    ) {
       continue;
     }
 
@@ -269,6 +350,7 @@ async function applySkuAutoLinks(input: {
 
 function toSuggestedMatches(
   externalProduct: ExternalProduct | LegacySyncedExternalProductRow,
+  itemIdsWithVariations: Set<string>,
   productsList: Product[],
   reviewStatus: SyncedProductReviewStatus,
 ): SyncedProductSuggestedMatch[] {
@@ -276,6 +358,12 @@ function toSuggestedMatches(
     externalProduct.linkedProductId ||
     reviewStatus === "ignored" ||
     reviewStatus === "imported_as_internal_product"
+  ) {
+    return [];
+  }
+
+  if (
+    shouldSkipMercadoLivreParentSkuMatching(externalProduct, itemIdsWithVariations)
   ) {
     return [];
   }
@@ -300,6 +388,7 @@ function toSuggestedMatches(
 
 function toSyncedProductRecord(
   row: SyncedExternalProductRow,
+  itemIdsWithVariations: Set<string>,
   productsList: Product[],
   feeSummary: {
     fixedFee: string;
@@ -344,6 +433,7 @@ function toSyncedProductRecord(
     shippingCost: feeSummary.shippingCost,
     suggestedMatches: toSuggestedMatches(
       row,
+      itemIdsWithVariations,
       productsList,
       row.reviewStatus as SyncedProductReviewStatus,
     ),
@@ -425,9 +515,15 @@ export async function listSyncedProductsReadModel(input: {
     return [];
   }
 
+  const itemIdsWithVariations =
+    input.providerSlug === "mercadolivre"
+      ? buildMercadoLivreItemIdsWithVariations(externalProductRows)
+      : new Set<string>();
+
   await applySkuAutoLinks({
     db: input.db,
     externalProductRows,
+    itemIdsWithVariations,
     productsList: input.productsList,
   });
 
@@ -490,6 +586,7 @@ export async function listSyncedProductsReadModel(input: {
         linkedProduct: row.linkedProductId ? productRowsById.get(row.linkedProductId) ?? null : null,
         orderItems: orderItemsByExternalProductId.get(row.id) ?? [],
       },
+      itemIdsWithVariations,
       input.productsList,
       feeSummaryByExternalProductId.get(row.id) ?? {
         fixedFee: "0.00",

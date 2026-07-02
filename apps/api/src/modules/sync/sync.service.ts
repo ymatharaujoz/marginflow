@@ -357,6 +357,19 @@ export class SyncService {
     };
   }
 
+  async rematerializeProviderMetrics(input: {
+    companyId: string;
+    organizationId: string;
+    providerSlug: IntegrationProviderSlug;
+    userId: string | null;
+  }) {
+    await this.syncPerformanceMaterializer.rematerializeProviderMetrics(input);
+    await this.financeService.materializeOrganizationMetrics(
+      input.organizationId,
+      input.companyId,
+    );
+  }
+
   async runSync(
     organizationId: string,
     companyIdOrUserId: string,

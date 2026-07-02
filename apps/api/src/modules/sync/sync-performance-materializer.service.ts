@@ -307,6 +307,37 @@ export class SyncPerformanceMaterializerService {
     syncRunId: string;
     userId: string | null;
   }) {
+    await this.materializeProviderMetrics({
+      companyId: input.companyId,
+      organizationId: input.organizationId,
+      providerSlug: input.providerSlug,
+      replaceExisting: false,
+      userId: input.userId,
+    });
+  }
+
+  async rematerializeProviderMetrics(input: {
+    companyId: string;
+    organizationId: string;
+    providerSlug: string;
+    userId: string | null;
+  }) {
+    await this.materializeProviderMetrics({
+      companyId: input.companyId,
+      organizationId: input.organizationId,
+      providerSlug: input.providerSlug,
+      replaceExisting: true,
+      userId: input.userId,
+    });
+  }
+
+  private async materializeProviderMetrics(input: {
+    companyId?: string;
+    organizationId: string;
+    providerSlug: string;
+    replaceExisting: boolean;
+    userId: string | null;
+  }) {
     const targetCompany =
       input.companyId
         ? await this.requireCompany(input.organizationId, input.companyId)
@@ -385,11 +416,23 @@ export class SyncPerformanceMaterializerService {
       }
     }
 
-    if (aggregates.size === 0) {
-      return;
-    }
-
     await this.db.transaction(async (tx) => {
+      if (input.replaceExisting) {
+        await tx
+          .delete(productMonthlyPerformance)
+          .where(
+            and(
+              eq(productMonthlyPerformance.organizationId, input.organizationId),
+              eq(productMonthlyPerformance.companyId, targetCompany.id),
+              eq(productMonthlyPerformance.channel, input.providerSlug),
+            ),
+          );
+      }
+
+      if (aggregates.size === 0) {
+        return;
+      }
+
       for (const [key, aggregate] of aggregates) {
         const [referenceMonth, channel] = key.split("::");
         const netSales = Math.max(0, aggregate.salesQuantity - aggregate.returnsQuantity);

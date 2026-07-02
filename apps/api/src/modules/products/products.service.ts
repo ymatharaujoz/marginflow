@@ -64,6 +64,7 @@ import type {
   ProductPerformanceRow,
   ProductSpreadsheetImportResult,
   ProductRecord,
+  IntegrationProviderSlug,
   SyncedProductRecord,
   SyncStatusResponse,
 } from "@lucreii/types";
@@ -1567,7 +1568,7 @@ export class ProductsService {
     const organizationId = this.isTenantContext(contextOrOrganizationId)
       ? contextOrOrganizationId.organizationId
       : contextOrOrganizationId;
-    await this.ensureProductAccess(
+    const existingProduct = await this.ensureProductAccess(
       organizationId,
       productId,
       scopedContext?.companyId,
@@ -1606,6 +1607,34 @@ export class ProductsService {
           )
           .returning(),
     );
+
+    if (
+      scopedContext &&
+      input.sku !== undefined &&
+      normalizeComparableSku(existingProduct.sku) !==
+        normalizeComparableSku(updated.sku)
+    ) {
+      const linkedExternalProducts = await this.db.query.externalProducts.findMany({
+        where: (table) =>
+          and(
+            eq(table.organizationId, organizationId),
+            eq(table.companyId, scopedContext.companyId),
+            eq(table.linkedProductId, productId),
+          ),
+      });
+      const linkedProviders = [
+        ...new Set(linkedExternalProducts.map((row) => row.provider as IntegrationProviderSlug)),
+      ];
+
+      for (const providerSlug of linkedProviders) {
+        await this.syncService.rematerializeProviderMetrics({
+          companyId: scopedContext.companyId,
+          organizationId,
+          providerSlug,
+          userId: scopedContext.userId,
+        });
+      }
+    }
 
     return this.toProductRecord(updated, []);
   }
@@ -3153,6 +3182,7 @@ export class ProductsService {
       isSyntheticParent: product?.isSyntheticParent ?? false,
       parentProductId: product?.parentProductId ?? null,
       productId: row.productId ?? product?.id ?? null,
+      sku: product?.sku ?? row.sku,
       variationLabel: product?.variationLabel ?? null,
     };
   }
@@ -3561,50 +3591,41 @@ export class ProductsService {
     const groups = new Map<string, MercadoLivreCatalogGroup>();
 
     for (const [itemId, entries] of groupedEntries.entries()) {
-      const dedupedEntriesByProductId = new Map<
-        string,
-        (typeof entries)[number]
-      >();
+      const parentEntry = entries.find((entry) => !entry.isVariation) ?? null;
+      const variationEntriesByProductId = new Map<string, (typeof entries)[number]>();
 
       for (const entry of entries) {
-        if (!entry.productId) {
+        if (!entry.productId || !entry.isVariation) {
           continue;
         }
 
-        const currentEntry = dedupedEntriesByProductId.get(entry.productId);
-        if (!currentEntry) {
-          dedupedEntriesByProductId.set(entry.productId, entry);
-          continue;
-        }
-
-        if (currentEntry.isVariation && !entry.isVariation) {
-          dedupedEntriesByProductId.set(entry.productId, entry);
+        const currentEntry = variationEntriesByProductId.get(entry.productId);
+        if (!currentEntry || !currentEntry.variationLabel) {
+          variationEntriesByProductId.set(entry.productId, entry);
         }
       }
 
-      const dedupedEntries = [...dedupedEntriesByProductId.values()];
-      const parentEntry = entries.find((entry) => !entry.isVariation) ?? null;
-
-      if (dedupedEntries.length === 0) {
-        continue;
-      }
-
-      const explicitParent =
-        dedupedEntries.find((entry) => !entry.isVariation) ?? null;
-      const childEntries = explicitParent
-        ? dedupedEntries.filter(
-            (entry) => entry.productId !== explicitParent.productId,
-          )
-        : dedupedEntries;
+      const childEntries = [...variationEntriesByProductId.values()];
 
       if (childEntries.length === 0) {
         continue;
       }
 
+      const childProductIds = new Set(
+        childEntries.map((entry) => entry.productId).filter(Boolean),
+      );
+      const explicitParent =
+        entries.find(
+          (entry) =>
+            !entry.isVariation &&
+            entry.productId !== null &&
+            !childProductIds.has(entry.productId),
+        ) ?? null;
+
       const variationLabelByProductId = new Map<string, string | null>();
 
-      for (const entry of dedupedEntries) {
-        if (entry.productId) {
+      for (const entry of childEntries) {
+        if (entry.productId && entry.variationLabel) {
           variationLabelByProductId.set(entry.productId, entry.variationLabel);
         }
       }

@@ -765,7 +765,10 @@ function collectOrderSkus(order: Pick<OrderRow, "items">): string[] {
   const skus: string[] = [];
 
   for (const item of order.items) {
-    const sku = item.externalProduct?.sku?.trim() ?? "";
+    const sku =
+      item.externalProduct?.linkedProduct?.sku?.trim() ??
+      item.externalProduct?.sku?.trim() ??
+      "";
     if (!sku || uniqueSkus.has(sku)) {
       continue;
     }
@@ -841,7 +844,10 @@ function toOrderLineItems(order: OrderRow): OrderLineItem[] {
       orderedAt: orderRow.orderedAt,
       productName: item.externalProduct?.title?.trim() || "Produto sem titulo",
       quantity: item.quantity,
-      sku: item.externalProduct?.sku?.trim() || null,
+      sku:
+        item.externalProduct?.linkedProduct?.sku?.trim() ??
+        item.externalProduct?.sku?.trim() ??
+        null,
       totalPrice: toMoney(item.totalPrice),
       totalProfitAmount:
         totalProfitCents === null ? null : formatCents(totalProfitCents),
