@@ -2226,7 +2226,7 @@ describe("MercadoLivreProvider", () => {
     );
   });
 
-  it("persists Mercado Livre operation_id even when search fees are already complete", async () => {
+  it("persists Mercado Livre pack_id and operation_id even when search fees are already complete", async () => {
     const provider = createProvider();
     const fetchMock = vi
       .fn()
@@ -2368,6 +2368,7 @@ describe("MercadoLivreProvider", () => {
                 date_closed: "2026-06-24T10:00:00.000-03:00",
                 date_created: "2026-06-24T09:30:00.000-03:00",
                 id: 2000017085667456,
+                pack_id: 2000013607301987,
                 order_items: [
                   {
                     item: {
@@ -2474,6 +2475,7 @@ describe("MercadoLivreProvider", () => {
 
     expect(result.orders[0]?.metadata).toMatchObject({
       operationId: "2000013674359901",
+      packId: "2000013607301987",
     });
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("from_id=cursor-1");

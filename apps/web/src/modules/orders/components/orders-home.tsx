@@ -1122,7 +1122,7 @@ export function OrdersHome() {
                     Canal
                   </OrderSortableHeader>
                   <OrderSortableHeader column="orderId" onSort={handleSort} sortConfig={sortConfig}>
-                    ID do Pedido
+                    ID da Venda
                   </OrderSortableHeader>
                   <OrderSortableHeader column="statusLabel" onSort={handleSort} sortConfig={sortConfig}>
                     Status
@@ -1296,7 +1296,7 @@ export function OrdersHome() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-3">
                 <h2 className="text-lg font-semibold text-foreground">
-                  Pedido #{detailQuery.data.order.displayOrderId}
+                  Venda #{detailQuery.data.order.displayOrderId}
                 </h2>
                 <StatusBadge
                   status={getOrderStatusType(detailQuery.data.order.status)}

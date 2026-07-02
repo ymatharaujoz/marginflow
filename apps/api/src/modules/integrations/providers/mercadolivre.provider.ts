@@ -100,6 +100,7 @@ type MercadoLivreOrderResponse = {
   date_created?: string;
   id?: number | string;
   order_items?: MercadoLivreOrderItemResponse[];
+  pack_id?: number | string;
   payments?: Array<{
     fee_amount?: number;
     marketplace_fee?: number;
@@ -1378,6 +1379,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
       fees,
       items,
       metadata: {
+        ...(toOptionalString(order.pack_id) ? { packId: String(order.pack_id) } : {}),
         ...(operationId ? { operationId } : {}),
         returnQuantityBySku,
         skuByExternalProductId,
