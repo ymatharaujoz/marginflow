@@ -549,14 +549,27 @@ function getDisplayOrderId(
     order.metadata && typeof order.metadata === "object"
       ? (order.metadata as Record<string, unknown>)
       : null;
-  const operationId =
-    metadata && typeof metadata.operationId === "string"
-      ? metadata.operationId.trim()
-      : null;
+  const packId = readMercadoLivrePackId(metadata);
+  const operationId = readMercadoLivreOperationId(metadata);
+
+  if (packId) {
+    return packId;
+  }
 
   return operationId && operationId.length > 0
     ? operationId
     : order.externalOrderId;
+}
+
+function readMercadoLivrePackId(
+  metadata: Record<string, unknown> | null | undefined,
+) {
+  const packId =
+    metadata && typeof metadata.packId === "string"
+      ? metadata.packId.trim()
+      : null;
+
+  return packId && packId.length > 0 ? packId : null;
 }
 
 function readMercadoLivreOperationId(
@@ -568,6 +581,17 @@ function readMercadoLivreOperationId(
       : null;
 
   return operationId && operationId.length > 0 ? operationId : null;
+}
+
+function shouldRefreshMercadoLivrePackId(
+  order: Pick<OrderRowShallow, "metadata">,
+) {
+  const metadata =
+    order.metadata && typeof order.metadata === "object"
+      ? (order.metadata as Record<string, unknown>)
+      : null;
+
+  return readMercadoLivrePackId(metadata) === null;
 }
 
 function shouldRefreshMercadoLivreOperationId(
@@ -598,6 +622,21 @@ function toBillingPeriodKey(value: Date | string | null | undefined) {
   }
 
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function toMercadoLivreSearchRange(periodKey: string) {
+  const startAt = new Date(`${periodKey}T00:00:00.000Z`);
+  if (Number.isNaN(startAt.getTime())) {
+    return null;
+  }
+
+  const endAt = new Date(startAt);
+  endAt.setUTCMonth(endAt.getUTCMonth() + 1);
+
+  return {
+    from: startAt.toISOString(),
+    to: endAt.toISOString(),
+  };
 }
 
 function isExpired(value: Date | string | null | undefined) {
@@ -971,6 +1010,10 @@ function compareOrderListItems(
 
 @Injectable()
 export class OrdersService {
+  private readonly mercadoLivrePackIdCache = new Map<
+    string,
+    Promise<Map<string, string>>
+  >();
   private readonly billingOperationIdCache = new Map<
     string,
     Promise<Map<string, string>>
@@ -1207,6 +1250,8 @@ export class OrdersService {
         ? [
             sql`(
               upper(trim(${externalOrders.externalOrderId})) like ${`%${searchNeedle.toUpperCase()}%`}
+              or upper(trim(coalesce(${externalOrders.metadata} ->> 'packId', ''))) like ${`%${searchNeedle.toUpperCase()}%`}
+              or upper(trim(coalesce(${externalOrders.metadata} ->> 'packId', ''))) like ${`%${searchNeedle.toUpperCase()}%`}
               or upper(trim(coalesce(${externalOrders.metadata} ->> 'operationId', ''))) like ${`%${searchNeedle.toUpperCase()}%`}
             )`,
           ]
@@ -1304,7 +1349,7 @@ export class OrdersService {
         Canal: item.provider,
         "Data do Pedido": item.orderDate ?? "",
         Faturamento: item.totalWithFees,
-        "ID do Pedido": item.displayOrderId,
+        "ID da Venda": item.displayOrderId,
         "Lucro Total": item.totalProfitAmount ?? "",
         "Margem de Contribuição": item.contributionMarginPercent ?? "",
         SKUs: item.skus.join("\n"),
@@ -1564,43 +1609,32 @@ export class OrdersService {
       return rows;
     }
 
-    const targets = rows.filter((row) => {
-      if (
-        row.provider !== "mercadolivre" ||
-        !row.marketplaceConnectionId ||
-        !row.orderedAt
-      ) {
-        return false;
-      }
+    const mercadoLivreRows = rows.filter(
+      (row) => row.provider === "mercadolivre" && Boolean(row.orderedAt),
+    );
 
-      return shouldRefreshMercadoLivreOperationId(row);
-    });
-
-    if (targets.length === 0) {
+    if (mercadoLivreRows.length === 0) {
       return rows;
     }
 
-    const connectionIds = [
-      ...new Set(
-        targets
-          .map((row) => row.marketplaceConnectionId)
-          .filter((value): value is string => Boolean(value)),
-      ),
-    ];
-    const connections =
-      connectionIds.length === 0
-        ? []
-        : await this.db.query.marketplaceConnections.findMany({
-            where: (table) =>
-              and(
-                eq(table.organizationId, authContext.organizationId),
-                eq(table.companyId, companyId),
-                inArray(table.id, connectionIds),
-              ),
-          });
+    const connections = await this.db.query.marketplaceConnections.findMany({
+      where: (table) =>
+        and(
+          eq(table.organizationId, authContext.organizationId),
+          eq(table.companyId, companyId),
+          eq(table.provider, "mercadolivre"),
+        ),
+    });
     const connectionById = new Map(
       connections.map((connection) => [connection.id, connection] as const),
     );
+    const fallbackConnection =
+      connections.find(
+        (connection) =>
+          connection.provider === "mercadolivre" &&
+          connection.status === "connected" &&
+          Boolean(connection.accessToken),
+      ) ?? null;
     const requests = new Map<
       string,
       {
@@ -1609,50 +1643,188 @@ export class OrdersService {
         periodKey: string;
       }
     >();
+    const resolvedConnectionIdByRowId = new Map<string, string>();
+    const buildRequests = (targets: OrderRowShallow[]) => {
+      const nextRequests = new Map<
+        string,
+        {
+          connection: MarketplaceConnection;
+          orderIds: string[];
+          periodKey: string;
+        }
+      >();
 
-    for (const row of targets) {
-      const connection = connectionById.get(row.marketplaceConnectionId ?? "");
-      if (
-        !connection ||
-        connection.provider !== "mercadolivre" ||
-        connection.status !== "connected" ||
-        !connection.accessToken
-      ) {
-        continue;
+      for (const row of targets) {
+        const connection =
+          (row.marketplaceConnectionId
+            ? connectionById.get(row.marketplaceConnectionId)
+            : null) ?? fallbackConnection;
+        if (
+          !connection ||
+          connection.provider !== "mercadolivre" ||
+          connection.status !== "connected" ||
+          !connection.accessToken
+        ) {
+          continue;
+        }
+
+        resolvedConnectionIdByRowId.set(row.id, connection.id);
+
+        const periodKey = toBillingPeriodKey(row.orderedAt);
+        if (!periodKey) {
+          continue;
+        }
+
+        const requestKey = `${connection.id}:${periodKey}`;
+        const current = nextRequests.get(requestKey);
+        if (current) {
+          current.orderIds.push(row.externalOrderId);
+          continue;
+        }
+
+        nextRequests.set(requestKey, {
+          connection,
+          orderIds: [row.externalOrderId],
+          periodKey,
+        });
       }
 
-      const periodKey = toBillingPeriodKey(row.orderedAt);
-      if (!periodKey) {
-        continue;
+      return nextRequests;
+    };
+    const persistRows = async (changedRows: OrderRowShallow[]) => {
+      await Promise.all(
+        changedRows.map((row) =>
+          this.db
+            .update(externalOrders)
+            .set({
+              marketplaceConnectionId:
+                row.marketplaceConnectionId ??
+                resolvedConnectionIdByRowId.get(row.id) ??
+                null,
+              metadata:
+                row.metadata && typeof row.metadata === "object"
+                  ? (row.metadata as Record<string, unknown>)
+                  : {},
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(externalOrders.id, row.id),
+                eq(externalOrders.organizationId, authContext.organizationId),
+                eq(externalOrders.companyId, companyId),
+              ),
+            ),
+        ),
+      );
+    };
+
+    let updatedRows = rows;
+    const packTargets = mercadoLivreRows.filter((row) =>
+      shouldRefreshMercadoLivrePackId(row),
+    );
+
+    if (packTargets.length > 0) {
+      const packRequests = buildRequests(packTargets);
+      const packIdByOrderId = new Map<string, string>();
+
+      for (const request of packRequests.values()) {
+        const connection = await this.refreshMercadoLivreConnectionIfNeeded(
+          request.connection,
+        );
+        let packIds = await this.fetchMercadoLivrePackIds({
+          accessToken: connection.accessToken!,
+          periodKey: request.periodKey,
+          sellerAccountId: connection.externalAccountId,
+        });
+        const unresolvedOrderIds = request.orderIds.filter(
+          (orderId) => !packIds.has(orderId),
+        );
+        if (unresolvedOrderIds.length > 0) {
+          packIds = await this.fetchMercadoLivrePackIds({
+            accessToken: connection.accessToken!,
+            forceRefresh: true,
+            periodKey: request.periodKey,
+            sellerAccountId: connection.externalAccountId,
+          });
+        }
+
+        for (const orderId of request.orderIds) {
+          const packId = packIds.get(orderId);
+          if (packId) {
+            packIdByOrderId.set(orderId, packId);
+          }
+        }
       }
 
-      const requestKey = `${connection.id}:${periodKey}`;
-      const current = requests.get(requestKey);
-      if (current) {
-        current.orderIds.push(row.externalOrderId);
-        continue;
-      }
+      if (packIdByOrderId.size > 0) {
+        const changedRows: OrderRowShallow[] = [];
+        updatedRows = updatedRows.map((row) => {
+          const packId = packIdByOrderId.get(row.externalOrderId);
+          if (!packId) {
+            return row;
+          }
 
-      requests.set(requestKey, {
-        connection,
-        orderIds: [row.externalOrderId],
-        periodKey,
-      });
+          const metadata =
+            row.metadata && typeof row.metadata === "object"
+              ? { ...(row.metadata as Record<string, unknown>) }
+              : {};
+          metadata.packId = packId;
+
+          const nextRow = {
+            ...row,
+            marketplaceConnectionId:
+              row.marketplaceConnectionId ??
+              resolvedConnectionIdByRowId.get(row.id) ??
+              null,
+            metadata,
+          };
+          changedRows.push(nextRow);
+          return nextRow;
+        });
+
+        await persistRows(changedRows);
+      }
     }
 
-    if (requests.size === 0) {
-      return rows;
+    const operationTargets = updatedRows.filter((row) => {
+      if (row.provider !== "mercadolivre" || !row.orderedAt) {
+        return false;
+      }
+
+      return (
+        shouldRefreshMercadoLivrePackId(row) &&
+        shouldRefreshMercadoLivreOperationId(row)
+      );
+    });
+
+    if (operationTargets.length === 0) {
+      return updatedRows;
+    }
+
+    const operationRequests = buildRequests(operationTargets);
+    if (operationRequests.size === 0) {
+      return updatedRows;
     }
 
     const operationIdByOrderId = new Map<string, string>();
-    for (const request of requests.values()) {
+    for (const request of operationRequests.values()) {
       const connection = await this.refreshMercadoLivreConnectionIfNeeded(
         request.connection,
       );
-      const operationIds = await this.fetchMercadoLivreOperationIds({
+      let operationIds = await this.fetchMercadoLivreOperationIds({
         accessToken: connection.accessToken!,
         periodKey: request.periodKey,
       });
+      const unresolvedOrderIds = request.orderIds.filter(
+        (orderId) => !operationIds.has(orderId),
+      );
+      if (unresolvedOrderIds.length > 0) {
+        operationIds = await this.fetchMercadoLivreOperationIds({
+          accessToken: connection.accessToken!,
+          forceRefresh: true,
+          periodKey: request.periodKey,
+        });
+      }
       for (const orderId of request.orderIds) {
         const operationId = operationIds.get(orderId);
         if (operationId) {
@@ -1662,10 +1834,11 @@ export class OrdersService {
     }
 
     if (operationIdByOrderId.size === 0) {
-      return rows;
+      return updatedRows;
     }
 
-    const updatedRows = rows.map((row) => {
+    const changedRows: OrderRowShallow[] = [];
+    updatedRows = updatedRows.map((row) => {
       const operationId = operationIdByOrderId.get(row.externalOrderId);
       if (!operationId) {
         return row;
@@ -1677,47 +1850,145 @@ export class OrdersService {
           : {};
       metadata.operationId = operationId;
 
-      return {
+      const nextRow = {
         ...row,
+        marketplaceConnectionId:
+          row.marketplaceConnectionId ??
+          resolvedConnectionIdByRowId.get(row.id) ??
+          null,
         metadata,
       };
+      changedRows.push(nextRow);
+      return nextRow;
     });
 
-    await Promise.all(
-      updatedRows.map((row) => {
-        const operationId = operationIdByOrderId.get(row.externalOrderId);
-        if (!operationId) {
-          return Promise.resolve();
-        }
-
-        return this.db
-          .update(externalOrders)
-          .set({
-            metadata:
-              row.metadata && typeof row.metadata === "object"
-                ? (row.metadata as Record<string, unknown>)
-                : { operationId },
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(externalOrders.id, row.id),
-              eq(externalOrders.organizationId, authContext.organizationId),
-              eq(externalOrders.companyId, companyId),
-            ),
-          );
-      }),
-    );
+    await persistRows(changedRows);
 
     return updatedRows;
   }
 
+  private async fetchMercadoLivrePackIds(input: {
+    accessToken: string;
+    forceRefresh?: boolean;
+    periodKey: string;
+    sellerAccountId: string | null;
+  }) {
+    if (!input.sellerAccountId) {
+      return new Map<string, string>();
+    }
+
+    const range = toMercadoLivreSearchRange(input.periodKey);
+    if (!range) {
+      return new Map<string, string>();
+    }
+
+    const cacheKey = `${input.accessToken}:${input.sellerAccountId}:${input.periodKey}`;
+    let cachedPromise = input.forceRefresh
+      ? undefined
+      : this.mercadoLivrePackIdCache.get(cacheKey);
+
+    if (!cachedPromise) {
+      cachedPromise = (async () => {
+        const packIdMap = new Map<string, string>();
+        const limit = 50;
+        let offset = 0;
+        let total = Number.POSITIVE_INFINITY;
+
+        while (offset < total) {
+          const url = new URL("https://api.mercadolibre.com/orders/search");
+          url.searchParams.set("limit", String(limit));
+          url.searchParams.set("offset", String(offset));
+          url.searchParams.set("seller", input.sellerAccountId!);
+          url.searchParams.set("sort", "date_desc");
+          url.searchParams.set("order.date_created.from", range.from);
+          url.searchParams.set("order.date_created.to", range.to);
+
+          let response: Response | null = null;
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            response = await fetch(url, {
+              headers: {
+                Authorization: `Bearer ${input.accessToken}`,
+                accept: "application/json",
+              },
+              method: "GET",
+            });
+
+            if (response.status !== 429 && response.status < 500) {
+              break;
+            }
+          }
+
+          if (!response?.ok) {
+            return new Map<string, string>();
+          }
+
+          const contentType = response.headers.get("content-type") ?? "";
+          if (!contentType.includes("application/json")) {
+            return new Map<string, string>();
+          }
+
+          const payload = (await response.json()) as {
+            paging?: {
+              limit?: number;
+              offset?: number;
+              total?: number;
+            };
+            results?: Array<{
+              id?: number | string;
+              pack_id?: number | string;
+            }>;
+          };
+          const pageResults = payload.results ?? [];
+
+          for (const result of pageResults) {
+            if (
+              result.id === undefined ||
+              result.id === null ||
+              result.pack_id === undefined ||
+              result.pack_id === null
+            ) {
+              continue;
+            }
+
+            packIdMap.set(String(result.id), String(result.pack_id));
+          }
+
+          total =
+            typeof payload.paging?.total === "number" &&
+            Number.isFinite(payload.paging.total)
+              ? payload.paging.total
+              : pageResults.length;
+          const pageSize =
+            typeof payload.paging?.limit === "number" &&
+            Number.isFinite(payload.paging.limit) &&
+            payload.paging.limit > 0
+              ? payload.paging.limit
+              : limit;
+          offset += pageSize;
+
+          if (pageResults.length === 0) {
+            break;
+          }
+        }
+
+        return packIdMap;
+      })();
+
+      this.mercadoLivrePackIdCache.set(cacheKey, cachedPromise);
+    }
+
+    return cachedPromise;
+  }
+
   private async fetchMercadoLivreOperationIds(input: {
     accessToken: string;
+    forceRefresh?: boolean;
     periodKey: string;
   }) {
     const cacheKey = `${input.accessToken}:${input.periodKey}`;
-    let cachedPromise = this.billingOperationIdCache.get(cacheKey);
+    let cachedPromise = input.forceRefresh
+      ? undefined
+      : this.billingOperationIdCache.get(cacheKey);
 
     if (!cachedPromise) {
       cachedPromise = (async () => {

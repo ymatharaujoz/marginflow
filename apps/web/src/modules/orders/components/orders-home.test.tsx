@@ -331,6 +331,7 @@ describe("OrdersHome", () => {
     const mainTable = document.querySelectorAll("table")[0];
     const mainContent = (mainTable?.textContent ?? "").replace(/\u00a0/g, " ");
 
+    expect(mainContent).toContain("ID da Venda");
     expect(mainContent).toContain("Faturamento");
     expect(mainContent).toContain("Margem de Contribuição");
     expect(mainContent).toContain("Lucro Total");
@@ -349,6 +350,17 @@ describe("OrdersHome", () => {
     expect(text()).toContain("SKU-1");
     expect(text()).toContain("SKU-2");
     expect(text()).not.toContain("MLB-1001Pagamento aprovado");
+
+    view.unmount();
+  });
+
+  it("uses venda wording in order details header", () => {
+    const view = mount(<OrdersHome />);
+
+    click(document.querySelector('tr[role="button"]')!);
+
+    expect(text()).toContain("Venda #MLB-SALE-9001");
+    expect(text()).not.toContain("Pedido #MLB-SALE-9001");
 
     view.unmount();
   });

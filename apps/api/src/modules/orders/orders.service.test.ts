@@ -12,22 +12,41 @@ describe("OrdersService", () => {
     const updateSetMock = vi.fn().mockReturnValue({
       where: updateWhereMock,
     });
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          results: [
+    const fetchMock = vi.fn().mockImplementation((input: string | URL) => {
+      const url = String(input);
+
+      if (url.includes("/orders/search")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              paging: { limit: 50, offset: 0, total: 0 },
+              results: [],
+            }),
             {
-              operation_id: 2000013674359901,
-              order_id: 2000017085667456,
+              headers: { "content-type": "application/json" },
+              status: 200,
             },
-          ],
-        }),
-        {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        },
-      ),
-    );
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            results: [
+              {
+                operation_id: 2000013674359901,
+                order_id: 2000017085667456,
+              },
+            ],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const db = {
@@ -117,7 +136,7 @@ describe("OrdersService", () => {
     );
 
     expect(result.order.displayOrderId).toBe("2000013674359901");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(updateSetMock).toHaveBeenCalledWith(
       expect.objectContaining({
         metadata: expect.objectContaining({
@@ -132,23 +151,42 @@ describe("OrdersService", () => {
     const updateSetMock = vi.fn().mockReturnValue({
       where: updateWhereMock,
     });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            access_token: "refreshed-token",
-            expires_in: 21600,
-            refresh_token: "refresh-2",
-            token_type: "bearer",
-          }),
-          {
-            headers: { "content-type": "application/json" },
-            status: 200,
-          },
-        ),
-      )
-      .mockResolvedValueOnce(
+    const fetchMock = vi.fn().mockImplementation((input: string | URL) => {
+      const url = String(input);
+
+      if (url.includes("/oauth/token")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              access_token: "refreshed-token",
+              expires_in: 21600,
+              refresh_token: "refresh-2",
+              token_type: "bearer",
+            }),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
+            },
+          ),
+        );
+      }
+
+      if (url.includes("/orders/search")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              paging: { limit: 50, offset: 0, total: 0 },
+              results: [],
+            }),
+            {
+              headers: { "content-type": "application/json" },
+              status: 200,
+            },
+          ),
+        );
+      }
+
+      return Promise.resolve(
         new Response(
           JSON.stringify({
             results: [
@@ -164,6 +202,7 @@ describe("OrdersService", () => {
           },
         ),
       );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const db = {
@@ -253,11 +292,13 @@ describe("OrdersService", () => {
     );
 
     expect(result.order.displayOrderId).toBe("2000013674359901");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/oauth/token");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
-      "/billing/integration/periods/",
-    );
+    expect(
+      fetchMock.mock.calls.some((call) =>
+        String(call[0]).includes("/billing/integration/periods/"),
+      ),
+    ).toBe(true);
   });
 
   it("backfills Mercado Livre sale id when billing details require pagination", async () => {
@@ -267,6 +308,30 @@ describe("OrdersService", () => {
     });
     const fetchMock = vi
       .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 0 },
+            results: [],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 0 },
+            results: [],
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -405,8 +470,8 @@ describe("OrdersService", () => {
     );
 
     expect(result.order.displayOrderId).toBe("2000013674359901");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("from_id=cursor-1");
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(String(fetchMock.mock.calls[3]?.[0])).toContain("from_id=cursor-1");
   });
 
   it("backfills Mercado Livre sale id when billing returns multiple rows for the same order_id", async () => {
@@ -414,28 +479,47 @@ describe("OrdersService", () => {
     const updateSetMock = vi.fn().mockReturnValue({
       where: updateWhereMock,
     });
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          limit: 1000,
-          offset: 0,
-          results: [
+    const fetchMock = vi.fn().mockImplementation((input: string | URL) => {
+      const url = String(input);
+
+      if (url.includes("/orders/search")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              paging: { limit: 50, offset: 0, total: 0 },
+              results: [],
+            }),
             {
-              order_id: 2000017085667456,
+              headers: { "content-type": "application/json" },
+              status: 200,
             },
-            {
-              operation_id: 2000013674359901,
-              order_id: 2000017085667456,
-            },
-          ],
-          total: 2,
-        }),
-        {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        },
-      ),
-    );
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [
+              {
+                order_id: 2000017085667456,
+              },
+              {
+                operation_id: 2000013674359901,
+                order_id: 2000017085667456,
+              },
+            ],
+            total: 2,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const db = {
@@ -654,28 +738,47 @@ describe("OrdersService", () => {
     const updateSetMock = vi.fn().mockReturnValue({
       where: updateWhereMock,
     });
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          limit: 1000,
-          offset: 0,
-          results: [
+    const fetchMock = vi.fn().mockImplementation((input: string | URL) => {
+      const url = String(input);
+
+      if (url.includes("/orders/search")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              paging: { limit: 50, offset: 0, total: 0 },
+              results: [],
+            }),
             {
-              order_id: 2000017085667456,
+              headers: { "content-type": "application/json" },
+              status: 200,
             },
-            {
-              operation_id: 2000013674359901,
-              order_id: 2000017085667456,
-            },
-          ],
-          total: 2,
-        }),
-        {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        },
-      ),
-    );
+          ),
+        );
+      }
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            limit: 1000,
+            offset: 0,
+            results: [
+              {
+                order_id: 2000017085667456,
+              },
+              {
+                operation_id: 2000013674359901,
+                order_id: 2000017085667456,
+              },
+            ],
+            total: 2,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     const db = {
@@ -828,6 +931,343 @@ describe("OrdersService", () => {
       expect.objectContaining({
         displayOrderId: "MLB-SALE-9001",
         orderId: "MLB-ORDER-1001",
+      }),
+    );
+  });
+
+  it("backfills Mercado Livre pack_id in listOrders when marketplaceConnectionId is missing", async () => {
+    const updateWhereMock = vi.fn().mockResolvedValue([]);
+    const updateSetMock = vi.fn().mockReturnValue({
+      where: updateWhereMock,
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          paging: { limit: 50, offset: 0, total: 1 },
+          results: [
+            {
+              id: 2000017022360746,
+              pack_id: 2000013607301987,
+            },
+          ],
+        }),
+        {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const db = {
+      query: {
+        companies: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "company_123",
+            taxRateDefault: "0.100000",
+          }),
+        },
+        externalOrders: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "order_row_1",
+              companyId: "company_123",
+              createdAt: new Date("2026-06-19T20:35:00.000Z"),
+              currency: "BRL",
+              externalOrderId: "2000017022360746",
+              marketplaceConnectionId: null,
+              metadata: {},
+              orderedAt: new Date("2026-06-19T20:35:00.000Z"),
+              organizationId: "org_123",
+              provider: "mercadolivre",
+              status: "paid",
+              syncRunId: null,
+              updatedAt: new Date("2026-06-19T20:35:00.000Z"),
+              totalAmount: "59.80",
+              items: [],
+              fees: [],
+            },
+          ]),
+        },
+        marketplaceConnections: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              accessToken: "token_123",
+              companyId: "company_123",
+              externalAccountId: "seller_1",
+              id: "conn_1",
+              metadata: {},
+              organizationId: "org_123",
+              provider: "mercadolivre",
+              refreshToken: null,
+              status: "connected",
+              tokenExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+            },
+          ]),
+        },
+        products: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      },
+      update: vi.fn().mockReturnValue({
+        set: updateSetMock,
+      }),
+    };
+
+    const service = new OrdersService(db as never, {
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      NODE_ENV: "test",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    const result = await service.listOrders(
+      {
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      },
+      {},
+    );
+
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        displayOrderId: "2000013607301987",
+        orderId: "2000017022360746",
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(updateSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        marketplaceConnectionId: "conn_1",
+        metadata: expect.objectContaining({
+          packId: "2000013607301987",
+        }),
+      }),
+    );
+  });
+
+  it("refreshes cached Mercado Livre pack map when a previous miss omitted the sale id", async () => {
+    const updateWhereMock = vi.fn().mockResolvedValue([]);
+    const updateSetMock = vi.fn().mockReturnValue({
+      where: updateWhereMock,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 0 },
+            results: [],
+            total: 0,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            paging: { limit: 50, offset: 0, total: 1 },
+            results: [
+              {
+                id: 2000017022360746,
+                pack_id: 2000013607301987,
+              },
+            ],
+            total: 1,
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const db = {
+      query: {
+        companies: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "company_123",
+            taxRateDefault: "0.100000",
+          }),
+        },
+        externalOrders: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "order_row_1",
+              companyId: "company_123",
+              createdAt: new Date("2026-06-19T20:35:00.000Z"),
+              currency: "BRL",
+              externalOrderId: "2000017022360746",
+              marketplaceConnectionId: "conn_1",
+              metadata: {},
+              orderedAt: new Date("2026-06-19T20:35:00.000Z"),
+              organizationId: "org_123",
+              provider: "mercadolivre",
+              status: "paid",
+              syncRunId: null,
+              updatedAt: new Date("2026-06-19T20:35:00.000Z"),
+              totalAmount: "59.80",
+              items: [],
+              fees: [],
+            },
+          ]),
+        },
+        marketplaceConnections: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              accessToken: "token_123",
+              companyId: "company_123",
+              externalAccountId: "seller_1",
+              id: "conn_1",
+              metadata: {},
+              organizationId: "org_123",
+              provider: "mercadolivre",
+              refreshToken: null,
+              status: "connected",
+              tokenExpiresAt: new Date("2030-01-01T00:00:00.000Z"),
+            },
+          ]),
+        },
+        products: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      },
+      update: vi.fn().mockReturnValue({
+        set: updateSetMock,
+      }),
+    };
+
+    const service = new OrdersService(db as never, {
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      NODE_ENV: "test",
+      STRIPE_PRICE_START_MONTHLY: "price_start_monthly",
+      STRIPE_PRICE_START_ANNUAL: "price_start_annual",
+      STRIPE_PRICE_PRO_MONTHLY: "price_pro_monthly",
+      STRIPE_PRICE_PRO_ANNUAL: "price_pro_annual",
+      STRIPE_PRICE_BUSINESS_MONTHLY: "price_business_monthly",
+      STRIPE_PRICE_BUSINESS_ANNUAL: "price_business_annual",
+      STRIPE_SECRET_KEY: "stripe",
+      STRIPE_WEBHOOK_SECRET: "webhook",
+      SYNC_RELAX_GUARDS: false,
+      WEB_APP_ORIGIN: "http://localhost:3000",
+    });
+
+    const first = await service.listOrders(
+      {
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      },
+      {},
+    );
+
+    const second = await service.listOrders(
+      {
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      },
+      {},
+    );
+
+    expect(first.items[0]).toEqual(
+      expect.objectContaining({
+        displayOrderId: "2000013607301987",
+      }),
+    );
+    expect(second.items[0]).toEqual(
+      expect.objectContaining({
+        displayOrderId: "2000013607301987",
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("prefers Mercado Livre pack_id over operationId when both are present", async () => {
+    const db = {
+      query: {
+        companies: {
+          findFirst: vi.fn().mockResolvedValue({
+            id: "company_123",
+            taxRateDefault: "0.100000",
+          }),
+        },
+        externalOrders: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              id: "order_row_1",
+              companyId: "company_123",
+              createdAt: new Date("2026-06-19T20:35:00.000Z"),
+              currency: "BRL",
+              externalOrderId: "2000017022360746",
+              marketplaceConnectionId: "conn_1",
+              metadata: {
+                operationId: "2000013674359901",
+                packId: "2000013607301987",
+              },
+              orderedAt: new Date("2026-06-19T20:35:00.000Z"),
+              organizationId: "org_123",
+              provider: "mercadolivre",
+              status: "paid",
+              syncRunId: null,
+              updatedAt: new Date("2026-06-19T20:35:00.000Z"),
+              totalAmount: "59.80",
+              items: [],
+              fees: [],
+            },
+          ]),
+        },
+        products: {
+          findMany: vi.fn().mockResolvedValue([]),
+        },
+      },
+    };
+
+    const service = new OrdersService(db as never);
+    const result = await service.listOrders(
+      {
+        organizationId: "org_123",
+        selectedCompanyId: "company_123",
+        userId: "user_123",
+      },
+      {},
+    );
+
+    expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        displayOrderId: "2000013607301987",
+        orderId: "2000017022360746",
       }),
     );
   });
@@ -2269,7 +2709,7 @@ describe("OrdersService", () => {
     );
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.["ID do Pedido"]).toBe("MLB-SALE-9001");
+    expect(rows[0]?.["ID da Venda"]).toBe("MLB-SALE-9001");
     expect(rows[0]?.["SKUs"]).toBe("SKU-1");
   });
 });
