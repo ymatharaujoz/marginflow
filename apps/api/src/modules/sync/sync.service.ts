@@ -218,9 +218,9 @@ type ManualSyncRequest = {
 };
 
 const MANUAL_SYNC_OUTSIDE_WINDOW_ERROR =
-  "Periodo manual deve ficar dentro do ultimo mes.";
+  "Periodo manual deve ficar dentro dos ultimos 60 dias.";
 const MANUAL_SYNC_MAX_RANGE_ERROR =
-  "Periodo manual nao pode exceder 1 mes.";
+  "Periodo manual nao pode exceder 60 dias.";
 
 function parseDateOnlyAsUtc(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -245,19 +245,12 @@ function endOfUtcDay(value: Date) {
   );
 }
 
-function addUtcMonths(value: Date, months: number) {
-  const targetYear = value.getUTCFullYear();
-  const targetMonth = value.getUTCMonth() + months;
-  const lastDayOfTargetMonth = new Date(
-    Date.UTC(targetYear, targetMonth + 1, 0),
-  ).getUTCDate();
-  const targetDay = Math.min(value.getUTCDate(), lastDayOfTargetMonth);
-
+function addUtcDays(value: Date, days: number) {
   return new Date(
     Date.UTC(
-      targetYear,
-      targetMonth,
-      targetDay,
+      value.getUTCFullYear(),
+      value.getUTCMonth(),
+      value.getUTCDate() + days,
       value.getUTCHours(),
       value.getUTCMinutes(),
       value.getUTCSeconds(),
@@ -1138,7 +1131,7 @@ export class SyncService {
       );
     }
 
-    const latestAllowedEndForStart = endOfUtcDay(addUtcMonths(startAtDate, 1));
+    const latestAllowedEndForStart = endOfUtcDay(addUtcDays(startAtDate, 60));
     if (endAtDate.getTime() > latestAllowedEndForStart.getTime()) {
       throw new BadRequestException(MANUAL_SYNC_MAX_RANGE_ERROR);
     }
@@ -1155,7 +1148,7 @@ export class SyncService {
         0,
       ),
     );
-    const oldestAllowedStart = addUtcMonths(todayStart, -1);
+    const oldestAllowedStart = addUtcDays(todayStart, -60);
     const newestAllowedEnd = endOfUtcDay(todayStart);
 
     if (

@@ -88,6 +88,9 @@ type SheinNotification = {
 type ExternalProductOrderItemRow = Awaited<
   ReturnType<IntegrationsService["requireSyncedExternalProduct"]>
 >["orderItems"][number];
+type SyncedExternalProductRow = Awaited<
+  ReturnType<IntegrationsService["requireSyncedExternalProduct"]>
+>;
 
 function toIsoString(value: Date | string | null | undefined) {
   if (!value) {
@@ -122,6 +125,53 @@ function toDecimalString(value: number | string | null | undefined) {
 function normalizeSku(value: string | null | undefined) {
   const normalized = value?.trim().toUpperCase();
   return normalized ? normalized : null;
+}
+
+function extractMercadoLivreItemId(externalProductId: string) {
+  const [itemId] = externalProductId.split(":");
+  return itemId?.trim() ? itemId.trim() : null;
+}
+
+function readMercadoLivreExternalProductMetadata(
+  externalProduct: Pick<
+    SyncedExternalProductRow,
+    "externalProductId" | "metadata" | "provider"
+  >,
+) {
+  if (externalProduct.provider !== "mercadolivre") {
+    return {
+      hasVariations: false,
+      isVariation: false,
+      itemId: null,
+      variationId: null,
+    };
+  }
+
+  const metadata = externalProduct.metadata;
+  const itemId =
+    metadata &&
+    typeof metadata === "object" &&
+    "itemId" in metadata &&
+    typeof metadata.itemId === "string" &&
+    metadata.itemId.trim().length > 0
+      ? metadata.itemId.trim()
+      : extractMercadoLivreItemId(externalProduct.externalProductId);
+  const variationId =
+    metadata &&
+    typeof metadata === "object" &&
+    "variationId" in metadata &&
+    typeof metadata.variationId === "string" &&
+    metadata.variationId.trim().length > 0
+      ? metadata.variationId.trim()
+      : null;
+
+  return {
+    hasVariations: variationId !== null,
+    isVariation:
+      variationId !== null || externalProduct.externalProductId.includes(":"),
+    itemId,
+    variationId,
+  };
 }
 
 @Injectable()
@@ -1217,8 +1267,15 @@ export class IntegrationsService {
       providerSlug,
       externalProductId,
     );
+    const importContext = await this.resolveSyncedProductImportContext({
+      companyId,
+      externalProduct,
+      organizationId,
+      providerSlug,
+    });
 
     if (
+      !importContext.isFamilyImport &&
       externalProduct.linkedProductId &&
       externalProduct.reviewStatus === "linked_to_existing_product"
     ) {
@@ -1228,43 +1285,71 @@ export class IntegrationsService {
     }
 
     if (
+      !importContext.isFamilyImport &&
       externalProduct.linkedProductId &&
       externalProduct.reviewStatus === "imported_as_internal_product"
     ) {
       return this.buildSyncedProductActionResult(
         organizationId,
+        companyId,
         providerSlug,
         externalProductId,
         "Este produto sincronizado já foi importado para o catálogo",
       );
     }
 
-    const sellingPrice =
-      this.selectLatestUnitPrice(externalProduct.orderItems) ?? "0.00";
-    const createdProduct = await this.productsService.createProduct(
-      {
-        organizationId,
-        selectedCompanyId: companyId,
-        userId: "",
-      },
-      {
-        isActive: true,
-        name:
-          externalProduct.title?.trim() ||
-          `Produto ${this.getProvider(providerSlug).displayName} ${externalProduct.externalProductId}`,
-        sellingPrice,
-        sku: externalProduct.sku,
-      },
-    );
+    let importedCount = 0;
 
-    await this.db
-      .update(externalProducts)
-      .set({
-        linkedProductId: createdProduct.id,
-        reviewStatus: "imported_as_internal_product",
-        updatedAt: new Date(),
-      })
-      .where(eq(externalProducts.id, externalProduct.id));
+    for (const target of importContext.externalProducts) {
+      if (
+        target.linkedProductId &&
+        (target.reviewStatus === "linked_to_existing_product" ||
+          target.reviewStatus === "imported_as_internal_product")
+      ) {
+        continue;
+      }
+
+      const sellingPrice =
+        this.selectLatestUnitPrice(target.orderItems) ?? "0.00";
+      const createdProduct = await this.productsService.createProduct(
+        {
+          organizationId,
+          selectedCompanyId: companyId,
+          userId: "",
+        },
+        {
+          isActive: true,
+          name:
+            target.title?.trim() ||
+            `Produto ${this.getProvider(providerSlug).displayName} ${target.externalProductId}`,
+          sellingPrice,
+          sku: target.sku,
+        },
+      );
+
+      await this.db
+        .update(externalProducts)
+        .set({
+          linkedProductId: createdProduct.id,
+          reviewStatus: "imported_as_internal_product",
+          updatedAt: new Date(),
+        })
+        .where(eq(externalProducts.id, target.id));
+
+      importedCount += 1;
+    }
+
+    if (importedCount === 0) {
+      return this.buildSyncedProductActionResult(
+        organizationId,
+        companyId,
+        providerSlug,
+        externalProductId,
+        importContext.isFamilyImport
+          ? "Esta familia de produtos sincronizados ja esta importada ou vinculada ao catalogo"
+          : "Este produto sincronizado ja foi importado para o catalogo",
+      );
+    }
 
     await this.syncService.rematerializeProviderMetrics({
       companyId,
@@ -1318,6 +1403,7 @@ export class IntegrationsService {
     ) {
       return this.buildSyncedProductActionResult(
         organizationId,
+        companyId,
         providerSlug,
         externalProductId,
         "Produto sincronizado j\u00e1 vinculado ao cat\u00e1logo selecionado",
@@ -1588,6 +1674,143 @@ export class IntegrationsService {
             : "Faltam credenciais do provedor; não é possível reconectar neste momento",
       tokenExpiresAt: toIsoString(row.tokenExpiresAt),
     };
+  }
+
+  private async resolveSyncedProductImportContext(input: {
+    companyId: string;
+    externalProduct: SyncedExternalProductRow;
+    organizationId: string;
+    providerSlug: IntegrationProviderSlug;
+  }) {
+    const metadata = readMercadoLivreExternalProductMetadata(input.externalProduct);
+    if (input.providerSlug !== "mercadolivre" || !metadata.itemId) {
+      return {
+        externalProducts: [input.externalProduct],
+        isFamilyImport: false,
+      };
+    }
+
+    await this.hydrateMercadoLivreFamilyExternalProducts(input);
+    const companyProducts = await this.readCompanyExternalProducts(input);
+
+    const familyProducts = companyProducts
+      .filter((row) => {
+        const rowMetadata = readMercadoLivreExternalProductMetadata(row);
+        return rowMetadata.itemId === metadata.itemId;
+      })
+      .sort((left, right) => {
+        const leftMetadata = readMercadoLivreExternalProductMetadata(left);
+        const rightMetadata = readMercadoLivreExternalProductMetadata(right);
+
+        if (leftMetadata.isVariation !== rightMetadata.isVariation) {
+          return leftMetadata.isVariation ? 1 : -1;
+        }
+
+        return left.externalProductId.localeCompare(right.externalProductId);
+      });
+
+    const hasChildVariations = familyProducts.some((row) => {
+      const rowMetadata = readMercadoLivreExternalProductMetadata(row);
+      return rowMetadata.isVariation;
+    });
+
+    return {
+      externalProducts: hasChildVariations ? familyProducts : [input.externalProduct],
+      isFamilyImport: hasChildVariations,
+    };
+  }
+
+  private async hydrateMercadoLivreFamilyExternalProducts(input: {
+    companyId: string;
+    externalProduct: SyncedExternalProductRow;
+    organizationId: string;
+    providerSlug: IntegrationProviderSlug;
+  }) {
+    if (input.providerSlug !== "mercadolivre") {
+      return;
+    }
+
+    const provider = this.getProvider(input.providerSlug);
+    if (!provider.importCatalogByExternalProductId) {
+      return;
+    }
+
+    const connection =
+      (await this.db.query.marketplaceConnections.findFirst({
+        where: (table) =>
+          and(
+            eq(table.organizationId, input.organizationId),
+            eq(table.companyId, input.companyId),
+            eq(table.provider, input.providerSlug),
+          ),
+      })) ?? null;
+
+    if (!connection) {
+      return;
+    }
+
+    const remoteCatalogProducts = await provider.importCatalogByExternalProductId({
+      connection,
+      externalProductId: input.externalProduct.externalProductId,
+      organizationId: input.organizationId,
+    });
+
+    for (const catalogProduct of remoteCatalogProducts) {
+      await this.db
+        .insert(externalProducts)
+        .values({
+          companyId: input.companyId,
+          externalProductId: catalogProduct.externalProductId,
+          linkedProductId: null,
+          marketplaceConnectionId: connection.id,
+          metadata: catalogProduct.metadata,
+          organizationId: input.organizationId,
+          provider: input.providerSlug,
+          reviewStatus: "unreviewed",
+          sku: catalogProduct.sku,
+          title: catalogProduct.title,
+        })
+        .onConflictDoUpdate({
+          set: {
+            marketplaceConnectionId: connection.id,
+            metadata: catalogProduct.metadata,
+            sku: catalogProduct.sku,
+            title: catalogProduct.title,
+            updatedAt: new Date(),
+          },
+          target: [
+            externalProducts.organizationId,
+            externalProducts.companyId,
+            externalProducts.provider,
+            externalProducts.externalProductId,
+          ],
+        });
+    }
+  }
+
+  private async readCompanyExternalProducts(input: {
+    companyId: string;
+    organizationId: string;
+    providerSlug: IntegrationProviderSlug;
+  }) {
+    return (
+      (await this.db.query.externalProducts.findMany({
+        where: (table) =>
+          and(
+            eq(table.organizationId, input.organizationId),
+            eq(table.companyId, input.companyId),
+            eq(table.provider, input.providerSlug),
+          ),
+        with: {
+          linkedProduct: true,
+          orderItems: {
+            with: {
+              externalOrder: true,
+            },
+          },
+        },
+      })) ?? []
+    );
   }
 
   private async requireSyncedExternalProduct(

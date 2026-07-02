@@ -947,6 +947,130 @@ describe("IntegrationsService", () => {
     expect(db.update).toHaveBeenCalledTimes(1);
   });
 
+  it("prefers linked manual SKU for synced Mercado Livre variations and falls back to external SKU otherwise", async () => {
+    const { db, service } = createService();
+    db.update = createUpdateMock();
+
+    db.select
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            orderBy: vi.fn().mockResolvedValue([
+              {
+                createdAt: new Date("2026-05-01T10:00:00.000Z"),
+                externalProductId: "MLB-20",
+                id: "external_parent",
+                linkedProductId: null,
+                marketplaceConnectionId: "conn_1",
+                metadata: {
+                  itemId: "MLB-20",
+                  variationId: null,
+                },
+                organizationId: "org_1",
+                companyId: "company_1",
+                provider: "mercadolivre",
+                reviewStatus: "unreviewed",
+                sku: "ML-MLB-20",
+                title: "Tenis de Corrida",
+                updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+              },
+              {
+                createdAt: new Date("2026-05-01T10:00:00.000Z"),
+                externalProductId: "MLB-20:101",
+                id: "external_child_manual",
+                linkedProductId: "product_manual",
+                marketplaceConnectionId: "conn_1",
+                metadata: {
+                  itemId: "MLB-20",
+                  variationId: "101",
+                },
+                organizationId: "org_1",
+                companyId: "company_1",
+                provider: "mercadolivre",
+                reviewStatus: "linked_to_existing_product",
+                sku: "ML-MLB-20-101",
+                title: "Cor: Preto",
+                updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+              },
+              {
+                createdAt: new Date("2026-05-01T10:00:00.000Z"),
+                externalProductId: "MLB-20:102",
+                id: "external_child_fallback",
+                linkedProductId: "product_without_sku",
+                marketplaceConnectionId: "conn_1",
+                metadata: {
+                  itemId: "MLB-20",
+                  variationId: "102",
+                },
+                organizationId: "org_1",
+                companyId: "company_1",
+                provider: "mercadolivre",
+                reviewStatus: "linked_to_existing_product",
+                sku: "ML-MLB-20-102",
+                title: "Cor: Branco",
+                updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+              },
+            ]),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn().mockReturnValue({
+          leftJoin: vi.fn().mockReturnValue({
+            where: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-29T10:00:00.000Z"),
+        id: "product_manual",
+        isActive: true,
+        name: "Tenis Preto",
+        organizationId: "org_1",
+        sellingPrice: "189.90",
+        sku: "MANUAL-123",
+        updatedAt: new Date("2026-04-29T10:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-04-29T10:00:00.000Z"),
+        id: "product_without_sku",
+        isActive: true,
+        name: "Tenis Branco",
+        organizationId: "org_1",
+        sellingPrice: "189.90",
+        sku: null,
+        updatedAt: new Date("2026-04-29T10:00:00.000Z"),
+      },
+    ]);
+
+    await expect(
+      service.listSyncedProducts("org_1", "company_1", "mercadolivre"),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        externalProductId: "MLB-20",
+        sku: "ML-MLB-20",
+      }),
+      expect.objectContaining({
+        externalProductId: "MLB-20:101",
+        linkedProduct: expect.objectContaining({
+          id: "product_manual",
+          sku: "MANUAL-123",
+        }),
+        sku: "MANUAL-123",
+      }),
+      expect.objectContaining({
+        externalProductId: "MLB-20:102",
+        linkedProduct: expect.objectContaining({
+          id: "product_without_sku",
+          sku: null,
+        }),
+        sku: "ML-MLB-20-102",
+      }),
+    ]);
+    expect(db.update).not.toHaveBeenCalled();
+  });
+
   it("rejects importing a synced product already linked to an existing catalog item", async () => {
     const { db, service } = createService();
 
@@ -1044,6 +1168,632 @@ describe("IntegrationsService", () => {
       providerSlug: "mercadolivre",
       userId: null,
     });
+  });
+
+  it("imports the full Mercado Livre family when a variation is selected", async () => {
+    const { db, productsService, service, syncService } = createService();
+
+    db.query.externalProducts.findFirst.mockResolvedValue({
+      createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      externalProductId: "MLB-200:2",
+      id: "external_child_2",
+      linkedProduct: null,
+      linkedProductId: null,
+      marketplaceConnectionId: "conn_1",
+      metadata: { itemId: "MLB-200", variationId: "2" },
+      orderItems: [],
+      organizationId: "org_1",
+      provider: "mercadolivre",
+      reviewStatus: "unreviewed",
+      sku: "SKU-VERDE",
+      title: "Cor: Verde",
+      updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+    });
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-200",
+        id: "external_parent",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-200", variationId: null },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-PAI",
+        title: "Acessorio",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-200:1",
+        id: "external_child_1",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-200", variationId: "1" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-PRETO",
+        title: "Cor: Preto",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-200:2",
+        id: "external_child_2",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-200", variationId: "2" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-VERDE",
+        title: "Cor: Verde",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+    ]);
+    productsService.createProduct
+      .mockResolvedValueOnce({ id: "product_parent" })
+      .mockResolvedValueOnce({ id: "product_child_1" })
+      .mockResolvedValueOnce({ id: "product_child_2" });
+    vi.spyOn(
+      service as unknown as {
+        buildSyncedProductActionResult: (...args: unknown[]) => Promise<unknown>;
+      },
+      "buildSyncedProductActionResult",
+    ).mockResolvedValue({
+      message: "Produto sincronizado importado para o catÃ¡logo",
+    } as never);
+    db.update = createUpdateMock();
+
+    await expect(
+      service.importSyncedProduct("org_1", "company_1", "mercadolivre", "MLB-200:2"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        message: "Produto sincronizado importado para o catÃ¡logo",
+      }),
+    );
+    expect(productsService.createProduct).toHaveBeenCalledTimes(3);
+    expect(productsService.createProduct).toHaveBeenNthCalledWith(
+      1,
+      {
+        organizationId: "org_1",
+        selectedCompanyId: "company_1",
+        userId: "",
+      },
+      expect.objectContaining({
+        name: "Acessorio",
+        sku: "SKU-PAI",
+      }),
+    );
+    expect(productsService.createProduct).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      expect.objectContaining({
+        name: "Cor: Preto",
+        sku: "SKU-PRETO",
+      }),
+    );
+    expect(productsService.createProduct).toHaveBeenNthCalledWith(
+      3,
+      expect.anything(),
+      expect.objectContaining({
+        name: "Cor: Verde",
+        sku: "SKU-VERDE",
+      }),
+    );
+    expect(syncService.rematerializeProviderMetrics).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports the full Mercado Livre family when the parent is selected", async () => {
+    const { db, productsService, service, syncService } = createService();
+
+    db.query.externalProducts.findFirst.mockResolvedValue({
+      createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      externalProductId: "MLB-210",
+      id: "external_parent",
+      linkedProduct: null,
+      linkedProductId: null,
+      marketplaceConnectionId: "conn_1",
+      metadata: { itemId: "MLB-210", variationId: null },
+      orderItems: [],
+      organizationId: "org_1",
+      provider: "mercadolivre",
+      reviewStatus: "unreviewed",
+      sku: "SKU-PAI-210",
+      title: "Carteira",
+      updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+    });
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-210",
+        id: "external_parent",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-210", variationId: null },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-PAI-210",
+        title: "Carteira",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-210:1",
+        id: "external_child_1",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-210", variationId: "1" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-210-1",
+        title: "Cor: Preto",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-210:2",
+        id: "external_child_2",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-210", variationId: "2" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-210-2",
+        title: "Cor: Marrom",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+    ]);
+    productsService.createProduct
+      .mockResolvedValueOnce({ id: "product_parent" })
+      .mockResolvedValueOnce({ id: "product_child_1" })
+      .mockResolvedValueOnce({ id: "product_child_2" });
+    vi.spyOn(
+      service as unknown as {
+        buildSyncedProductActionResult: (...args: unknown[]) => Promise<unknown>;
+      },
+      "buildSyncedProductActionResult",
+    ).mockResolvedValue({
+      message: "Produto sincronizado importado para o catÃ¡logo",
+    } as never);
+    db.update = createUpdateMock();
+
+    await expect(
+      service.importSyncedProduct("org_1", "company_1", "mercadolivre", "MLB-210"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        message: "Produto sincronizado importado para o catÃ¡logo",
+      }),
+    );
+    expect(productsService.createProduct).toHaveBeenCalledTimes(3);
+    expect(syncService.rematerializeProviderMetrics).toHaveBeenCalledTimes(1);
+  });
+
+  it("hydrates missing Mercado Livre variations from the provider when local sync only has one variation", async () => {
+    const { db, productsService, service, syncService } = createService();
+
+    db.query.externalProducts.findFirst.mockResolvedValue({
+      createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      externalProductId: "MLB-300:1",
+      id: "external_child_1",
+      linkedProduct: null,
+      linkedProductId: null,
+      marketplaceConnectionId: "conn_1",
+      metadata: { itemId: "MLB-300", variationId: "1" },
+      orderItems: [],
+      organizationId: "org_1",
+      provider: "mercadolivre",
+      reviewStatus: "unreviewed",
+      sku: "SKU-PRETO",
+      title: "Cor: Preto",
+      updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+    });
+    db.query.marketplaceConnections.findFirst.mockResolvedValue({
+      accessToken: "token",
+      externalAccountId: "seller-1",
+      id: "conn_1",
+      organizationId: "org_1",
+      provider: "mercadolivre",
+      status: "connected",
+      tokenExpiresAt: null,
+    });
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-300",
+        id: "external_parent",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-300", variationId: null },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-PAI-300",
+        title: "Acessorio",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-300:1",
+        id: "external_child_1",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-300", variationId: "1" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-PRETO",
+        title: "Cor: Preto",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-300:2",
+        id: "external_child_2",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-300", variationId: "2" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-AZUL",
+        title: "Cor: Azul",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-300:3",
+        id: "external_child_3",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-300", variationId: "3" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-VERMELHO",
+        title: "Cor: Vermelho",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-300:4",
+        id: "external_child_4",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-300", variationId: "4" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-TRANSPARENTE",
+        title: "Cor: Transparente",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-300:5",
+        id: "external_child_5",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-300", variationId: "5" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-AMARELO",
+        title: "Cor: Amarelo",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+    ]);
+    db.insert = vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        onConflictDoUpdate: vi.fn().mockResolvedValue(undefined),
+      }),
+    });
+    productsService.createProduct
+      .mockResolvedValueOnce({ id: "product_parent" })
+      .mockResolvedValueOnce({ id: "product_child_1" })
+      .mockResolvedValueOnce({ id: "product_child_2" })
+      .mockResolvedValueOnce({ id: "product_child_3" })
+      .mockResolvedValueOnce({ id: "product_child_4" })
+      .mockResolvedValueOnce({ id: "product_child_5" });
+    vi.spyOn(
+      service as unknown as {
+        buildSyncedProductActionResult: (...args: unknown[]) => Promise<unknown>;
+      },
+      "buildSyncedProductActionResult",
+    ).mockResolvedValue({
+      message: "Produto sincronizado importado para o catÃ¡logo",
+    } as never);
+    db.update = createUpdateMock();
+    (
+      (service as unknown as { providers: Array<Record<string, unknown>> }).providers.find(
+        (entry) => entry.provider === "mercadolivre",
+      ) as {
+        importCatalogByExternalProductId?: (...args: unknown[]) => Promise<unknown>;
+      }
+    ).importCatalogByExternalProductId = vi.fn().mockResolvedValue([
+      {
+        externalProductId: "MLB-300",
+        images: [],
+        isActive: true,
+        metadata: { itemId: "MLB-300", variationId: null },
+        sellingPrice: "29.90",
+        sku: "SKU-PAI-300",
+        title: "Acessorio",
+      },
+      {
+        externalProductId: "MLB-300:1",
+        images: [],
+        isActive: true,
+        metadata: { itemId: "MLB-300", variationId: "1" },
+        sellingPrice: "29.90",
+        sku: "SKU-PRETO",
+        title: "Cor: Preto",
+      },
+      {
+        externalProductId: "MLB-300:2",
+        images: [],
+        isActive: true,
+        metadata: { itemId: "MLB-300", variationId: "2" },
+        sellingPrice: "29.90",
+        sku: "SKU-AZUL",
+        title: "Cor: Azul",
+      },
+      {
+        externalProductId: "MLB-300:3",
+        images: [],
+        isActive: true,
+        metadata: { itemId: "MLB-300", variationId: "3" },
+        sellingPrice: "29.90",
+        sku: "SKU-VERMELHO",
+        title: "Cor: Vermelho",
+      },
+      {
+        externalProductId: "MLB-300:4",
+        images: [],
+        isActive: true,
+        metadata: { itemId: "MLB-300", variationId: "4" },
+        sellingPrice: "29.90",
+        sku: "SKU-TRANSPARENTE",
+        title: "Cor: Transparente",
+      },
+      {
+        externalProductId: "MLB-300:5",
+        images: [],
+        isActive: true,
+        metadata: { itemId: "MLB-300", variationId: "5" },
+        sellingPrice: "29.90",
+        sku: "SKU-AMARELO",
+        title: "Cor: Amarelo",
+      },
+    ]);
+
+    await expect(
+      service.importSyncedProduct("org_1", "company_1", "mercadolivre", "MLB-300:1"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        message: "Produto sincronizado importado para o catÃ¡logo",
+      }),
+    );
+    expect(db.insert).toHaveBeenCalledTimes(6);
+    expect(productsService.createProduct).toHaveBeenCalledTimes(6);
+    expect(syncService.rematerializeProviderMetrics).toHaveBeenCalledTimes(1);
+  });
+
+  it("imports missing Mercado Livre family members and preserves existing links", async () => {
+    const { db, productsService, service, syncService } = createService();
+
+    db.query.externalProducts.findFirst.mockResolvedValue({
+      createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      externalProductId: "MLB-201:2",
+      id: "external_child_2",
+      linkedProduct: {
+        id: "product_existing_child",
+      },
+      linkedProductId: "product_existing_child",
+      marketplaceConnectionId: "conn_1",
+      metadata: { itemId: "MLB-201", variationId: "2" },
+      orderItems: [],
+      organizationId: "org_1",
+      provider: "mercadolivre",
+      reviewStatus: "linked_to_existing_product",
+      sku: "SKU-AZUL",
+      title: "Cor: Azul",
+      updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+    });
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-201",
+        id: "external_parent",
+        linkedProduct: null,
+        linkedProductId: null,
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-201", variationId: null },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "unreviewed",
+        sku: "SKU-PAI-201",
+        title: "Capa",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-201:1",
+        id: "external_child_1",
+        linkedProduct: {
+          id: "product_imported_child",
+        },
+        linkedProductId: "product_imported_child",
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-201", variationId: "1" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "imported_as_internal_product",
+        sku: "SKU-PRETO-201",
+        title: "Cor: Preto",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-201:2",
+        id: "external_child_2",
+        linkedProduct: {
+          id: "product_existing_child",
+        },
+        linkedProductId: "product_existing_child",
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-201", variationId: "2" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "linked_to_existing_product",
+        sku: "SKU-AZUL",
+        title: "Cor: Azul",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+    ]);
+    productsService.createProduct.mockResolvedValueOnce({ id: "product_parent" });
+    vi.spyOn(
+      service as unknown as {
+        buildSyncedProductActionResult: (...args: unknown[]) => Promise<unknown>;
+      },
+      "buildSyncedProductActionResult",
+    ).mockResolvedValue({
+      message: "Produto sincronizado importado para o catÃ¡logo",
+    } as never);
+    db.update = createUpdateMock();
+
+    await expect(
+      service.importSyncedProduct("org_1", "company_1", "mercadolivre", "MLB-201:2"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        message: "Produto sincronizado importado para o catÃ¡logo",
+      }),
+    );
+    expect(productsService.createProduct).toHaveBeenCalledTimes(1);
+    expect(productsService.createProduct).toHaveBeenCalledWith(
+      {
+        organizationId: "org_1",
+        selectedCompanyId: "company_1",
+        userId: "",
+      },
+      expect.objectContaining({
+        name: "Capa",
+        sku: "SKU-PAI-201",
+      }),
+    );
+    expect(syncService.rematerializeProviderMetrics).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a no-op when the Mercado Livre family is already imported or linked", async () => {
+    const { db, productsService, service, syncService } = createService();
+
+    db.query.externalProducts.findFirst.mockResolvedValue({
+      createdAt: new Date("2026-05-01T10:00:00.000Z"),
+      externalProductId: "MLB-202:1",
+      id: "external_child_1",
+      linkedProduct: {
+        id: "product_child_1",
+      },
+      linkedProductId: "product_child_1",
+      marketplaceConnectionId: "conn_1",
+      metadata: { itemId: "MLB-202", variationId: "1" },
+      orderItems: [],
+      organizationId: "org_1",
+      provider: "mercadolivre",
+      reviewStatus: "linked_to_existing_product",
+      sku: "SKU-202-1",
+      title: "Cor: Preto",
+      updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+    });
+    db.query.externalProducts.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-202",
+        id: "external_parent",
+        linkedProduct: {
+          id: "product_parent",
+        },
+        linkedProductId: "product_parent",
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-202", variationId: null },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "imported_as_internal_product",
+        sku: "SKU-202-PAI",
+        title: "Suporte",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+      {
+        createdAt: new Date("2026-05-01T10:00:00.000Z"),
+        externalProductId: "MLB-202:1",
+        id: "external_child_1",
+        linkedProduct: {
+          id: "product_child_1",
+        },
+        linkedProductId: "product_child_1",
+        marketplaceConnectionId: "conn_1",
+        metadata: { itemId: "MLB-202", variationId: "1" },
+        orderItems: [],
+        organizationId: "org_1",
+        provider: "mercadolivre",
+        reviewStatus: "linked_to_existing_product",
+        sku: "SKU-202-1",
+        title: "Cor: Preto",
+        updatedAt: new Date("2026-05-01T12:00:00.000Z"),
+      },
+    ]);
+    vi.spyOn(
+      service as unknown as {
+        buildSyncedProductActionResult: (...args: unknown[]) => Promise<unknown>;
+      },
+      "buildSyncedProductActionResult",
+    ).mockResolvedValue({
+      message: "Esta familia de produtos sincronizados ja esta importada ou vinculada ao catalogo",
+    } as never);
+    db.update = createUpdateMock();
+
+    await expect(
+      service.importSyncedProduct("org_1", "company_1", "mercadolivre", "MLB-202:1"),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        message: "Esta familia de produtos sincronizados ja esta importada ou vinculada ao catalogo",
+      }),
+    );
+    expect(productsService.createProduct).not.toHaveBeenCalled();
+    expect(syncService.rematerializeProviderMetrics).not.toHaveBeenCalled();
   });
 
   it("disconnects and normalizes the updated provider card", async () => {

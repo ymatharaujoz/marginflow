@@ -3016,13 +3016,10 @@ describe("MercadoLivreProvider", () => {
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("status=active");
     expect(String(fetchMock.mock.calls[2]?.[0])).toContain("status=paused");
-    expect(String(fetchMock.mock.calls[4]?.[0])).toContain("attributes=");
-    expect(String(fetchMock.mock.calls[4]?.[0])).toContain(
-      "seller_custom_field",
-    );
+    expect(String(fetchMock.mock.calls[4]?.[0])).not.toContain("attributes=");
   });
 
-  it("prefers manual seller_sku values for parent and variations before legacy and fallback SKUs", async () => {
+  it("uses variation detail SKU fallbacks after checking SELLER_SKU attributes", async () => {
     const provider = new MercadoLivreProvider({
       API_DB_POOL_MAX: 5,
       API_HOST: "127.0.0.1",
@@ -3089,7 +3086,7 @@ describe("MercadoLivreProvider", () => {
                   {
                     id: 11,
                     seller_custom_field: "TENIS-AZUL-LEGACY",
-                    seller_sku: "TENIS-AZUL-39",
+                    seller_sku: null,
                     price: 209.9,
                     picture_ids: ["PIC-1"],
                     attribute_combinations: [
@@ -3100,7 +3097,7 @@ describe("MercadoLivreProvider", () => {
                   {
                     id: 12,
                     seller_custom_field: "TENIS-PRETO-LEGACY",
-                    seller_sku: "TENIS-PRETO-40",
+                    seller_sku: null,
                     price: 219.9,
                     picture_ids: ["PIC-1"],
                     attribute_combinations: [
@@ -3108,10 +3105,73 @@ describe("MercadoLivreProvider", () => {
                       { name: "Tamanho", value_name: "40" },
                     ],
                   },
+                  {
+                    id: 13,
+                    seller_custom_field: null,
+                    seller_sku: null,
+                    price: 229.9,
+                    picture_ids: ["PIC-1"],
+                    attribute_combinations: [
+                      { name: "Cor", value_name: "Branco" },
+                      { name: "Tamanho", value_name: "41" },
+                    ],
+                  },
                 ],
               },
             },
           ]),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 11,
+            price: 209.9,
+            picture_ids: ["PIC-1"],
+            seller_sku: "TENIS-AZUL-39",
+            seller_custom_field: "TENIS-AZUL-LEGACY",
+            attribute_combinations: [
+              { name: "Cor", value_name: "Azul" },
+              { name: "Tamanho", value_name: "39" },
+            ],
+            attributes: [],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 12,
+            price: 219.9,
+            picture_ids: ["PIC-1"],
+            seller_sku: null,
+            seller_custom_field: "TENIS-PRETO-LEGACY",
+            attribute_combinations: [
+              { name: "Cor", value_name: "Preto" },
+              { name: "Tamanho", value_name: "40" },
+            ],
+            attributes: [],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 13,
+            price: 229.9,
+            picture_ids: ["PIC-1"],
+            seller_sku: null,
+            seller_custom_field: null,
+            attribute_combinations: [
+              { name: "Cor", value_name: "Branco" },
+              { name: "Tamanho", value_name: "41" },
+            ],
+            attributes: [],
+          }),
           { status: 200, headers: { "content-type": "application/json" } },
         ),
       );
@@ -3139,9 +3199,173 @@ describe("MercadoLivreProvider", () => {
       expect.objectContaining({
         externalProductId: "MLB900:12",
         metadata: { itemId: "MLB900", variationId: "12" },
-        sku: "TENIS-PRETO-40",
+        sku: "TENIS-PRETO-LEGACY",
+      }),
+      expect.objectContaining({
+        externalProductId: "MLB900:13",
+        metadata: { itemId: "MLB900", variationId: "13" },
+        sku: "ML-MLB900-13",
       }),
     ]);
+  });
+
+  it("hydrates variation SKU from variation attributes when item payload omits it", async () => {
+    const provider = new MercadoLivreProvider({
+      API_DB_POOL_MAX: 5,
+      API_HOST: "127.0.0.1",
+      API_PORT: 4000,
+      BETTER_AUTH_SECRET: "secret",
+      BETTER_AUTH_URL: "http://localhost:4000",
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/lucreii",
+      MERCADOLIVRE_CLIENT_ID: "ml-client-id",
+      MERCADOLIVRE_CLIENT_SECRET: "ml-client-secret",
+      MERCADOLIVRE_REDIRECT_URI:
+        "http://localhost:4000/integrations/mercadolivre/callback",
+      NODE_ENV: "test",
+    } as never);
+
+    const fetchMock = vi.fn((input: string | URL) => {
+      const url = String(input);
+
+      if (url.includes("/users/seller-1/items/search?") && url.includes("status=active")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              results: ["MLB777"],
+              scroll_id: "active-next",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        );
+      }
+
+      if (url.includes("/users/seller-1/items/search?") && url.includes("scroll_id=active-next")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              results: [],
+              scroll_id: "active-next",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        );
+      }
+
+      if (url.includes("/users/seller-1/items/search?") && url.includes("status=paused")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              results: [],
+              scroll_id: "paused-next",
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        );
+      }
+
+      if (url.startsWith("https://api.mercadolibre.com/items?ids=MLB777")) {
+        return Promise.resolve(
+          new Response(JSON.stringify([
+            {
+              code: 200,
+              body: {
+                id: "MLB777",
+                title: "Acessorio",
+                price: 29.9,
+                status: "active",
+                seller_sku: null,
+                seller_custom_field: null,
+                attributes: [],
+                pictures: [
+                  {
+                    id: "PIC-1",
+                    secure_url: "https://http2.mlstatic.com/item.jpg",
+                  },
+                ],
+                variations: [
+                  {
+                    id: 204781877543,
+                    price: 29.9,
+                    picture_ids: ["PIC-1"],
+                    seller_sku: null,
+                    seller_custom_field: null,
+                    attribute_combinations: [
+                      { name: "Cor", value_name: "Amarelo" },
+                    ],
+                  },
+                ],
+              },
+            },
+          ]), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+      }
+
+      if (url === "https://api.mercadolibre.com/items/MLB777/variations/204781877543") {
+        return Promise.resolve(
+          new Response(JSON.stringify({
+            id: 204781877543,
+            price: 29.9,
+            picture_ids: ["PIC-1"],
+            seller_sku: null,
+            seller_custom_field: null,
+            attribute_combinations: [
+              { id: "COLOR", name: "Cor", value_name: "Amarelo" },
+            ],
+            attributes: [
+              {
+                id: "SELLER_SKU",
+                name: "SKU",
+                value_name: "SKU-AMARELADO",
+              },
+            ],
+          }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+      }
+
+      throw new Error(`Unexpected URL ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await provider.importCatalog({
+      connection: {
+        accessToken: "access-token",
+        externalAccountId: "seller-1",
+      } as never,
+      organizationId: "org-1",
+    });
+
+    expect(result).toEqual([
+      {
+        externalProductId: "MLB777",
+        images: ["https://http2.mlstatic.com/item.jpg"],
+        isActive: true,
+        metadata: { itemId: "MLB777", variationId: null },
+        sellingPrice: "29.90",
+        sku: "ML-MLB777",
+        title: "Acessorio",
+      },
+      {
+        externalProductId: "MLB777:204781877543",
+        images: ["https://http2.mlstatic.com/item.jpg"],
+        isActive: true,
+        metadata: { itemId: "MLB777", variationId: "204781877543" },
+        sellingPrice: "29.90",
+        sku: "SKU-AMARELADO",
+        title: "Cor: Amarelo",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.mercadolibre.com/items/MLB777/variations/204781877543",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer access-token" },
+      }),
+    );
   });
 
   it("falls back to shipment detail order_cost when shipment costs payload omits senders", async () => {

@@ -16,9 +16,9 @@ export type ManualSyncDateBounds = {
 };
 
 const MANUAL_SYNC_OUTSIDE_WINDOW_ERROR =
-  "Periodo manual deve ficar dentro do ultimo mes.";
+  "Periodo manual deve ficar dentro dos ultimos 60 dias.";
 const MANUAL_SYNC_MAX_RANGE_ERROR =
-  "Periodo manual nao pode exceder 1 mes.";
+  "Periodo manual nao pode exceder 60 dias.";
 
 function parseUtcDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -43,15 +43,18 @@ function endOfUtcDay(value: Date) {
   );
 }
 
-function addUtcMonths(value: Date, months: number) {
-  const targetYear = value.getUTCFullYear();
-  const targetMonth = value.getUTCMonth() + months;
-  const lastDayOfTargetMonth = new Date(
-    Date.UTC(targetYear, targetMonth + 1, 0),
-  ).getUTCDate();
-  const targetDay = Math.min(value.getUTCDate(), lastDayOfTargetMonth);
-
-  return new Date(Date.UTC(targetYear, targetMonth, targetDay, 0, 0, 0, 0));
+function addUtcDays(value: Date, days: number) {
+  return new Date(
+    Date.UTC(
+      value.getUTCFullYear(),
+      value.getUTCMonth(),
+      value.getUTCDate() + days,
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
 }
 
 function formatUtcDate(value: Date) {
@@ -76,7 +79,7 @@ export function getManualSyncDateBounds(
 
   return {
     maxDate: formatUtcDate(todayStart),
-    minDate: formatUtcDate(addUtcMonths(todayStart, -1)),
+    minDate: formatUtcDate(addUtcDays(todayStart, -60)),
   };
 }
 
@@ -108,7 +111,7 @@ export function validateManualSyncRange(
     };
   }
 
-  const latestAllowedEndForStart = endOfUtcDay(addUtcMonths(startAt, 1));
+  const latestAllowedEndForStart = endOfUtcDay(addUtcDays(startAt, 60));
   if (endAt.getTime() > latestAllowedEndForStart.getTime()) {
     return {
       error: MANUAL_SYNC_MAX_RANGE_ERROR,

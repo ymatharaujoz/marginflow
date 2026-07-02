@@ -55,6 +55,11 @@ export type IntegrationCatalogImportContext = {
   organizationId: string;
 };
 
+export type IntegrationCatalogSingleItemImportContext =
+  IntegrationCatalogImportContext & {
+    externalProductId: string;
+  };
+
 export type IntegrationSyncOrderItem = {
   externalProductId: string | null;
   metadata?: Record<string, unknown>;
@@ -127,6 +132,9 @@ export type IntegrationProvider = {
   isConfigured(): boolean;
   importCatalog?(
     input: IntegrationCatalogImportContext,
+  ): Promise<IntegrationCatalogProduct[]>;
+  importCatalogByExternalProductId?(
+    input: IntegrationCatalogSingleItemImportContext,
   ): Promise<IntegrationCatalogProduct[]>;
   refreshAccessToken?(
     connection: MarketplaceConnection,

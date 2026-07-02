@@ -43,15 +43,15 @@ const errorCases: Array<{
     expectedTitle: "Intervalo invertido",
   },
   {
-    error: "Periodo manual deve ficar dentro do ultimo mes.",
+    error: "Periodo manual deve ficar dentro dos ultimos 60 dias.",
     expectedSuggestion:
       "Selecione datas mais recentes, dentro da janela permitida.",
-    expectedTitle: "Fora da janela de 1 mes",
+    expectedTitle: "Fora da janela de 60 dias",
   },
   {
-    error: "Periodo manual nao pode exceder 1 mes.",
-    expectedSuggestion: "Reduza intervalo para no maximo 1 mes calendario.",
-    expectedTitle: "Acima de 1 mes",
+    error: "Periodo manual nao pode exceder 60 dias.",
+    expectedSuggestion: "Reduza intervalo para no maximo 60 dias.",
+    expectedTitle: "Acima de 60 dias",
   },
 ];
 

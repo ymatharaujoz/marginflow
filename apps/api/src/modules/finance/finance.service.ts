@@ -63,6 +63,38 @@ export function normalizeSku(value: string | null | undefined) {
   return normalized.length > 0 ? normalized : null;
 }
 
+function toPreferredSku(
+  manualSku: string | null | undefined,
+  externalSku: string | null | undefined,
+) {
+  const normalizedManualSku = manualSku?.trim();
+  if (normalizedManualSku) {
+    return normalizedManualSku;
+  }
+
+  const normalizedExternalSku = externalSku?.trim();
+  return normalizedExternalSku || null;
+}
+
+function buildLinkedExternalSkuByProductId(
+  externalProductRows: SnapshotExternalProductRow[],
+) {
+  const linkedExternalSkuByProductId = new Map<string, string>();
+
+  for (const externalProduct of externalProductRows) {
+    const linkedProductId = externalProduct.linkedProductId;
+    const externalSku = toPreferredSku(null, externalProduct.sku);
+
+    if (!linkedProductId || !externalSku || linkedExternalSkuByProductId.has(linkedProductId)) {
+      continue;
+    }
+
+    linkedExternalSkuByProductId.set(linkedProductId, externalSku);
+  }
+
+  return linkedExternalSkuByProductId;
+}
+
 export function selectLatestProductCost(costs: ProductCostRow[]) {
   if (costs.length === 0) {
     return "0.00";
@@ -360,7 +392,16 @@ export class FinanceService {
       this.readExternalProductsForFinance(organizationId, companyId),
     ]);
 
-    const products = productRows.map((row) => this.toFinancialProduct(row));
+    const linkedExternalSkuByProductId = buildLinkedExternalSkuByProductId(
+      externalProductRows,
+    );
+    const products = productRows.map((row) =>
+      this.toFinancialProduct(
+        row,
+        linkedExternalSkuByProductId.get(row.id) ?? null,
+      ),
+    );
+    const productsById = new Map(products.map((product) => [product.id, product] as const));
     const productIdsBySku = new Map(
       products
         .map((product) => [normalizeSku(product.sku), product.id] as const)
@@ -369,7 +410,9 @@ export class FinanceService {
     const externalProductsById = new Map(
       externalProductRows.map((product) => [product.id, product]),
     );
-    const orders = orderRows.map((row) => this.toFinancialOrder(row, productIdsBySku, externalProductsById));
+    const orders = orderRows.map((row) =>
+      this.toFinancialOrder(row, productIdsBySku, externalProductsById, productsById),
+    );
     const adCosts = adCostRows.map<FinancialAdCostInput>((row) => ({
       amount: String(row.amount),
       channel: row.channel.trim().toLowerCase(),
@@ -624,13 +667,16 @@ export class FinanceService {
     }
   }
 
-  private toFinancialProduct(row: SnapshotProductRow): FinancialProductInput {
+  private toFinancialProduct(
+    row: SnapshotProductRow,
+    externalSku: string | null,
+  ): FinancialProductInput {
     return {
       id: row.id,
       isActive: row.isActive,
       name: row.name,
       sellingPrice: String(row.sellingPrice),
-      sku: row.sku,
+      sku: toPreferredSku(row.sku, externalSku),
       unitCost: selectLatestProductCost(
         row.productCosts.map((cost: ProductCostRow) => ({
           amount: String(cost.amount),
@@ -645,6 +691,7 @@ export class FinanceService {
     row: SnapshotOrderRow,
     productIdsBySku: Map<string, string>,
     externalProductsById: Map<string, SnapshotExternalProductRow>,
+    productsById: Map<string, FinancialProductInput>,
   ): FinancialOrderInput {
     return {
       discountAmount: "0.00",
@@ -657,13 +704,15 @@ export class FinanceService {
         const externalProduct = item.externalProductId ? externalProductsById.get(item.externalProductId) : null;
         const linkedProductId = externalProduct?.linkedProductId ?? null;
         const normalizedSku = normalizeSku(externalProduct?.sku);
+        const linkedProduct = linkedProductId ? productsById.get(linkedProductId) ?? null : null;
+        const preferredSku = toPreferredSku(linkedProduct?.sku, externalProduct?.sku);
 
         return {
           id: item.id,
           productId:
             linkedProductId ?? (normalizedSku ? productIdsBySku.get(normalizedSku) ?? null : null),
           quantity: item.quantity,
-          sku: externalProduct?.sku ?? null,
+          sku: preferredSku,
           totalPrice: String(item.totalPrice),
           unitPrice: String(item.unitPrice),
         };

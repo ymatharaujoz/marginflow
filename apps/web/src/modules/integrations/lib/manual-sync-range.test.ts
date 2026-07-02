@@ -1,86 +1,96 @@
 import { describe, expect, it } from "vitest";
 import {
   buildManualSyncPayload,
+  getManualSyncDateBounds,
   validateManualSyncRange,
 } from "./manual-sync-range";
 
+describe("getManualSyncDateBounds", () => {
+  it("returns a 60-day inclusive window ending today", () => {
+    expect(getManualSyncDateBounds("2026-07-02T12:00:00.000Z")).toEqual({
+      maxDate: "2026-07-02",
+      minDate: "2026-05-03",
+    });
+  });
+});
+
 describe("validateManualSyncRange", () => {
-  it("accepts ranges anywhere within the last month", () => {
+  it("accepts ranges anywhere within the last 60 days", () => {
     const result = validateManualSyncRange(
       {
-        endDate: "2026-06-20",
-        startDate: "2026-05-27",
+        endDate: "2026-06-30",
+        startDate: "2026-06-01",
       },
-      "2026-06-27T12:00:00.000Z",
+      "2026-07-02T12:00:00.000Z",
     );
 
     expect(result.isValid).toBe(true);
     expect(result.error).toBeNull();
   });
 
-  it("rejects ranges older than the rolling 1-month window", () => {
+  it("rejects ranges older than the rolling 60-day window", () => {
     const result = validateManualSyncRange(
       {
-        endDate: "2026-05-25",
-        startDate: "2026-05-20",
+        endDate: "2026-05-10",
+        startDate: "2026-05-02",
       },
-      "2026-06-27T12:00:00.000Z",
+      "2026-07-02T12:00:00.000Z",
     );
 
     expect(result.isValid).toBe(false);
-    expect(result.error).toContain("ultimo mes");
+    expect(result.error).toContain("ultimos 60 dias");
   });
 
-  it("rejects intervals longer than one month", () => {
+  it("rejects intervals longer than 60 days", () => {
     const result = validateManualSyncRange(
       {
-        endDate: "2026-06-27",
-        startDate: "2026-05-26",
+        endDate: "2026-07-02",
+        startDate: "2026-05-02",
       },
-      "2026-06-27T12:00:00.000Z",
+      "2026-07-02T12:00:00.000Z",
     );
 
     expect(result.isValid).toBe(false);
-    expect(result.error).toContain("exceder 1 mes");
+    expect(result.error).toContain("exceder 60 dias");
   });
 
   it("rejects end dates in the future", () => {
     const result = validateManualSyncRange(
       {
-        endDate: "2026-06-28",
+        endDate: "2026-07-03",
         startDate: "2026-06-10",
       },
-      "2026-06-27T12:00:00.000Z",
+      "2026-07-02T12:00:00.000Z",
     );
 
     expect(result.isValid).toBe(false);
-    expect(result.error).toContain("ultimo mes");
+    expect(result.error).toContain("ultimos 60 dias");
   });
 
-  it("accepts exact 1-month calendar ranges on month-end boundaries", () => {
+  it("accepts exact 60-day inclusive ranges", () => {
     const result = validateManualSyncRange(
       {
-        endDate: "2026-02-28",
-        startDate: "2026-01-31",
+        endDate: "2026-07-02",
+        startDate: "2026-05-03",
       },
-      "2026-02-28T12:00:00.000Z",
+      "2026-07-02T12:00:00.000Z",
     );
 
     expect(result.isValid).toBe(true);
     expect(result.error).toBeNull();
   });
 
-  it("rejects the day after an exact 1-month calendar range", () => {
+  it("rejects the day beyond an exact 60-day inclusive range", () => {
     const result = validateManualSyncRange(
       {
-        endDate: "2026-03-01",
-        startDate: "2026-01-31",
+        endDate: "2026-07-02",
+        startDate: "2026-05-02",
       },
-      "2026-03-01T12:00:00.000Z",
+      "2026-07-02T12:00:00.000Z",
     );
 
     expect(result.isValid).toBe(false);
-    expect(result.error).toContain("exceder 1 mes");
+    expect(result.error).toContain("exceder 60 dias");
   });
 
   it("builds sync payload with provider and selected dates", () => {

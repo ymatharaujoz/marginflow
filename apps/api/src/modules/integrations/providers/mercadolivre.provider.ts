@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { ApiRuntimeEnv } from "@/common/config/api-env";
 import {
   type IntegrationCatalogImportContext,
+  type IntegrationCatalogSingleItemImportContext,
   type IntegrationCatalogProduct,
   IntegrationProviderError,
   type IntegrationProvider,
@@ -60,6 +61,19 @@ type MercadoLivreItemResponse = {
   status?: string;
   title?: string;
   variations?: MercadoLivreItemVariation[];
+};
+
+type MercadoLivreVariationDetailResponse = {
+  attributes?: MercadoLivreItemAttribute[];
+  attribute_combinations?: Array<{
+    name?: string;
+    value_name?: string;
+  }>;
+  id?: string | number;
+  picture_ids?: string[];
+  price?: number;
+  seller_custom_field?: string | null;
+  seller_sku?: string | null;
 };
 
 type MercadoLivreMultiGetResponse = Array<{
@@ -818,11 +832,45 @@ export class MercadoLivreProvider implements IntegrationProvider {
       });
 
       for (const item of itemBatch) {
-        products.push(...this.normalizeCatalogItem(item));
+        const variationDetailsById = await this.fetchVariationDetails({
+          accessToken,
+          item,
+        });
+        products.push(...this.normalizeCatalogItem(item, variationDetailsById));
       }
     }
 
     return products;
+  }
+
+  async importCatalogByExternalProductId(
+    input: IntegrationCatalogSingleItemImportContext,
+  ): Promise<IntegrationCatalogProduct[]> {
+    const accessToken = input.connection.accessToken;
+    const itemId = input.externalProductId.split(":")[0]?.trim() ?? "";
+
+    if (!accessToken || !itemId) {
+      throw new IntegrationProviderError(
+        "Mercado Livre connection is missing the account token required for catalog import.",
+        "callback_invalid",
+      );
+    }
+
+    const [item] = await this.fetchCatalogItems({
+      accessToken,
+      itemIds: [itemId],
+    });
+
+    if (!item) {
+      return [];
+    }
+
+    const variationDetailsById = await this.fetchVariationDetails({
+      accessToken,
+      item,
+    });
+
+    return this.normalizeCatalogItem(item, variationDetailsById);
   }
 
   async syncOrders(
@@ -1022,10 +1070,6 @@ export class MercadoLivreProvider implements IntegrationProvider {
 
     const url = new URL("https://api.mercadolibre.com/items");
     url.searchParams.set("ids", input.itemIds.join(","));
-    url.searchParams.set(
-      "attributes",
-      "id,title,price,status,seller_sku,seller_custom_field,attributes,pictures,variations",
-    );
     const response = await this.fetchWithRetry(url, {
       headers: { Authorization: `Bearer ${input.accessToken}` },
     });
@@ -1047,6 +1091,55 @@ export class MercadoLivreProvider implements IntegrationProvider {
     return payload
       .filter((entry) => entry.code === 200 && entry.body?.id)
       .map((entry) => entry.body!);
+  }
+
+  private async fetchVariationDetails(input: {
+    accessToken: string;
+    item: MercadoLivreItemResponse;
+  }) {
+    const itemId = input.item.id;
+    const variations = input.item.variations ?? [];
+
+    if (!itemId || variations.length === 0) {
+      return new Map<string, MercadoLivreVariationDetailResponse>();
+    }
+
+    const variationDetails = await Promise.all(
+      variations.map(async (variation) => {
+        if (variation.id === undefined || variation.id === null) {
+          return null;
+        }
+
+        const variationId = String(variation.id);
+        const url = new URL(
+          `https://api.mercadolibre.com/items/${encodeURIComponent(itemId)}/variations/${encodeURIComponent(variationId)}`,
+        );
+        const response = await this.fetchWithRetry(url, {
+          headers: { Authorization: `Bearer ${input.accessToken}` },
+        });
+        const payload = (await parseProviderResponse(response)) as
+          | MercadoLivreVariationDetailResponse
+          | string;
+
+        if (!response.ok || typeof payload === "string" || !payload.id) {
+          throw new IntegrationProviderError(
+            `Mercado Livre variation lookup failed.${typeof payload === "string" ? ` ${payload}` : ""}`,
+            "remote_request_failed",
+          );
+        }
+
+        return [variationId, payload] as const;
+      }),
+    );
+
+    return new Map(
+      variationDetails.filter(
+        (
+          entry,
+        ): entry is readonly [string, MercadoLivreVariationDetailResponse] =>
+          entry !== null,
+      ),
+    );
   }
 
   private resolveCatalogItemSku(
@@ -1142,6 +1235,7 @@ export class MercadoLivreProvider implements IntegrationProvider {
 
   private normalizeCatalogItem(
     item: MercadoLivreItemResponse,
+    variationDetailsById = new Map<string, MercadoLivreVariationDetailResponse>(),
   ): IntegrationCatalogProduct[] {
     const itemId = String(item.id);
     const itemImages = (item.pictures ?? [])
@@ -1183,10 +1277,12 @@ export class MercadoLivreProvider implements IntegrationProvider {
       }
 
       const variationId = String(variation.id);
+      const variationDetail = variationDetailsById.get(variationId);
       const variationLabel = buildMercadoLivreVariationLabel(
-        variation.attribute_combinations,
+        variationDetail?.attribute_combinations ??
+          variation.attribute_combinations,
       );
-      const images = (variation.picture_ids ?? [])
+      const images = ((variationDetail?.picture_ids ?? variation.picture_ids) ?? [])
         .map((pictureId) => itemImageById.get(pictureId))
         .filter((url): url is string => Boolean(url));
 
@@ -1196,12 +1292,16 @@ export class MercadoLivreProvider implements IntegrationProvider {
           images.length > 0 ? images : itemImages.map((picture) => picture.url),
         isActive: item.status === "active",
         metadata: { itemId, variationId },
-        sellingPrice: toDecimalString(variation.price ?? item.price),
-        sku: this.resolveCatalogSku({
+        sellingPrice: toDecimalString(
+          variationDetail?.price ?? variation.price ?? item.price,
+        ),
+        sku: this.resolveVariationCatalogSku({
           fallbackSku: `ML-${itemId}-${variationId}`,
-          attributes: variation.attributes,
-          sellerCustomField: variation.seller_custom_field,
-          sellerSku: variation.seller_sku,
+          attributes: variationDetail?.attributes ?? variation.attributes,
+          sellerCustomField:
+            variationDetail?.seller_custom_field ??
+            variation.seller_custom_field,
+          sellerSku: variationDetail?.seller_sku ?? variation.seller_sku,
         }),
         title: variationLabel ?? itemTitle,
       });
@@ -1219,6 +1319,20 @@ export class MercadoLivreProvider implements IntegrationProvider {
     return (
       input.sellerSku?.trim() ??
       readMercadoLivreAttributeSku(input.attributes) ??
+      input.sellerCustomField?.trim() ??
+      input.fallbackSku
+    );
+  }
+
+  private resolveVariationCatalogSku(input: {
+    attributes?: MercadoLivreItemAttribute[];
+    fallbackSku: string;
+    sellerCustomField?: string | null;
+    sellerSku?: string | null;
+  }) {
+    return (
+      readMercadoLivreAttributeSku(input.attributes) ??
+      input.sellerSku?.trim() ??
       input.sellerCustomField?.trim() ??
       input.fallbackSku
     );

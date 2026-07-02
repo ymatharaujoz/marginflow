@@ -46,6 +46,19 @@ function toDecimalString(value: number | string | null | undefined) {
   return "0.00";
 }
 
+function toPreferredSku(
+  manualSku: string | null | undefined,
+  externalSku: string | null | undefined,
+) {
+  const normalizedManualSku = manualSku?.trim();
+  if (normalizedManualSku) {
+    return normalizedManualSku;
+  }
+
+  const normalizedExternalSku = externalSku?.trim();
+  return normalizedExternalSku || null;
+}
+
 function normalizeSku(value: string | null | undefined) {
   if (!value) {
     return null;
@@ -415,6 +428,8 @@ function toSyncedProductRecord(
     }
   }
 
+  const preferredSku = toPreferredSku(row.linkedProduct?.sku, row.sku);
+
   return {
     externalProductId: row.externalProductId,
     fixedFee: feeSummary.fixedFee,
@@ -429,7 +444,7 @@ function toSyncedProductRecord(
     orderCount: uniqueOrderIds.size,
     provider: row.provider as IntegrationProviderSlug,
     reviewStatus: row.reviewStatus as SyncedProductReviewStatus,
-    sku: row.sku,
+    sku: preferredSku,
     shippingCost: feeSummary.shippingCost,
     suggestedMatches: toSuggestedMatches(
       row,

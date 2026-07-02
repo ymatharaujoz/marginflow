@@ -45,7 +45,7 @@ const baseProps = {
   isLoading: false,
   isSyncing: false,
   maxDate: "2026-06-27",
-  minDate: "2026-05-27",
+  minDate: "2026-04-29",
   onEndDateChange: vi.fn(),
   onStartDateChange: vi.fn(),
   onSyncClick: vi.fn(),
@@ -71,7 +71,7 @@ describe("SyncControlCard", () => {
     const { container } = mount(
       <SyncControlCard
         {...baseProps}
-        rangeError="Periodo manual deve ficar dentro do ultimo mes."
+        rangeError="Periodo manual deve ficar dentro dos ultimos 60 dias."
       />,
     );
 
@@ -81,8 +81,10 @@ describe("SyncControlCard", () => {
     expect(alert?.getAttribute("aria-live")).toBe("polite");
 
     const text = container.textContent ?? "";
-    expect(text).toContain("Fora da janela de 1 mes");
-    expect(text).toContain("Periodo manual deve ficar dentro do ultimo mes.");
+    expect(text).toContain("Fora da janela de 60 dias");
+    expect(text).toContain(
+      "Periodo manual deve ficar dentro dos ultimos 60 dias.",
+    );
     expect(text).toContain(
       "Selecione datas mais recentes, dentro da janela permitida.",
     );
@@ -92,7 +94,7 @@ describe("SyncControlCard", () => {
     const { container } = mount(
       <SyncControlCard
         {...baseProps}
-        rangeError="Periodo manual deve ficar dentro do ultimo mes."
+        rangeError="Periodo manual deve ficar dentro dos ultimos 60 dias."
       />,
     );
 
@@ -160,9 +162,9 @@ describe("SyncControlCard", () => {
       "#manual-sync-end",
     );
 
-    expect(startInput?.getAttribute("min")).toBe("2026-05-27");
+    expect(startInput?.getAttribute("min")).toBe("2026-04-29");
     expect(startInput?.getAttribute("max")).toBe("2026-06-27");
-    expect(endInput?.getAttribute("min")).toBe("2026-05-27");
+    expect(endInput?.getAttribute("min")).toBe("2026-04-29");
     expect(endInput?.getAttribute("max")).toBe("2026-06-27");
   });
 

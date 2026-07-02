@@ -520,7 +520,7 @@ describe("FinanceService", () => {
           },
         ],
         sellingPrice: "30.00",
-        sku: "SKU-PRETO",
+        sku: "MANUAL-PRETO",
       },
     ]);
     db.query.externalOrders.findMany.mockResolvedValue([
@@ -552,6 +552,77 @@ describe("FinanceService", () => {
         coverImageUrl: "https://example.com/cor-preto.png",
         productId: "product_child",
         productName: "Acessório de Celular | Cor: Preto",
+        sku: "MANUAL-PRETO",
+      }),
+    ]);
+  });
+
+  it("falls back to external SKU in profitability when linked product has no manual SKU", async () => {
+    const { db, service } = createFinanceServiceFixture();
+    const externalProductsSelectWhere = vi.fn().mockResolvedValue([
+      {
+        externalProductId: "MLB999:1",
+        id: "external_child",
+        linkedProductId: "product_child",
+        metadata: { itemId: "MLB999", variationId: "1" },
+        provider: "mercadolivre",
+        sku: "ML-MLB999-1",
+        title: "Cor: Azul",
+      },
+    ]);
+    const externalProductsSelectFrom = vi.fn(() => ({
+      where: externalProductsSelectWhere,
+    }));
+    db.select.mockReturnValue({
+      from: externalProductsSelectFrom,
+    });
+    db.query.products.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-28T10:00:00.000Z"),
+        id: "product_child",
+        images: [],
+        isActive: true,
+        name: "Cor: Azul",
+        organizationId: "org_123",
+        productCosts: [
+          {
+            amount: "15.00",
+            createdAt: new Date("2026-04-20T10:00:00.000Z"),
+            effectiveFrom: "2026-04-20",
+          },
+        ],
+        sellingPrice: "45.00",
+        sku: null,
+      },
+    ]);
+    db.query.externalOrders.findMany.mockResolvedValue([
+      {
+        createdAt: new Date("2026-04-28T10:00:00.000Z"),
+        fees: [],
+        id: "order_1",
+        items: [
+          {
+            externalProductId: "external_child",
+            id: "item_1",
+            quantity: 1,
+            totalPrice: "45.00",
+            unitPrice: "45.00",
+          },
+        ],
+        orderedAt: new Date("2026-04-28T10:00:00.000Z"),
+        provider: "mercadolivre",
+        totalAmount: "45.00",
+      },
+    ]);
+    db.query.adCosts.findMany.mockResolvedValue([]);
+    db.query.manualExpenses.findMany.mockResolvedValue([]);
+
+    const readModel = await service.buildDashboardReadModel("org_123", "company_123");
+
+    expect(readModel.productProfitability).toEqual([
+      expect.objectContaining({
+        productId: "product_child",
+        sku: "ML-MLB999-1",
       }),
     ]);
   });
